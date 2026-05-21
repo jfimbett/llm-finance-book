@@ -56,34 +56,754 @@
 \section{Word Embeddings}
 \label{sec:embeddings}
 
+The Bag-of-Words and TF-IDF representations introduced in
+Section~\ref{sec:classical} treat every word as an isolated symbol.
+Two terms that never co-occur with each other but share essentially
+the same contextual neighbours — \emph{equity} and \emph{stock}, for
+instance — receive orthogonal vectors with cosine similarity exactly
+zero.  This is not merely aesthetically unsatisfying: it means that a
+model trained on documents containing the word \emph{equity} will
+generalise poorly to documents using the synonym \emph{stock}, even
+though the two words carry the same information.  Word embeddings solve
+this problem by mapping every vocabulary item to a dense, low-dimensional
+real-valued vector so that semantically related words land near one
+another in the embedding space.
+
+% ----------------------------------------------------------------
 \subsection{Distributional Semantics and the Embedding Idea}
 \label{sec:embeddings-idea}
 
-[Placeholder]
+\paragraph{The distributional hypothesis.}
+The theoretical foundation of word embeddings is the
+\emph{distributional hypothesis}, articulated most famously by the
+British linguist J.R.\ Firth:
+\begin{quote}
+  ``You shall know a word by the company it keeps.''
+  \hfill\cite{firth1957} % [CITE: Firth, J.R. (1957). Papers in Linguistics 1934–1951]
+\end{quote}
+The idea is that the meaning of a word can be inferred from the
+distribution of other words that appear in its vicinity across a large
+corpus.  Words with similar meanings tend to appear in similar
+contexts; therefore a representation that captures contextual
+co-occurrence patterns will capture semantic similarity.
 
+\paragraph{One-hot encoding and its sparsity problem.}
+Recall that the classical one-hot encoding assigns to each word
+$w \in \mathcal{V}$ the indicator vector $\mathbf{e}_w \in \{0,1\}^{|\mathcal{V}|}$
+with a single non-zero entry at the position indexed by $w$.  This
+representation has two critical deficiencies:
+\begin{enumerate}
+  \item \textbf{Sparsity.} For a vocabulary of $|\mathcal{V}| = 50{,}000$ tokens,
+        each word is represented by a vector that is $50{,}000$-dimensional
+        but contains exactly one non-zero entry.  Storage, computation, and
+        learning all scale poorly with this dimensionality.
+  \item \textbf{No semantic structure.} Every pair of one-hot vectors is
+        orthogonal: $\mathbf{e}_i^\top \mathbf{e}_j = \mathbf{1}[i = j]$.
+        The representation encodes no information about semantic relatedness.
+\end{enumerate}
+
+\paragraph{Word embeddings: formal definition.}
+A word embedding is a function that maps discrete vocabulary items to
+dense, low-dimensional vectors.
+
+\begin{definition}[Word Embedding]
+\label{def:word-embedding}
+Let $\mathcal{V}$ be a finite vocabulary of size $V = |\mathcal{V}|$.
+A \emph{word embedding} of dimension $d$ is an injective map
+\begin{equation}
+  \varphi : \mathcal{V} \;\longrightarrow\; \mathbb{R}^{d},
+  \qquad d \ll V.
+  \label{eq:embedding-map}
+\end{equation}
+The matrix $\mathbf{W} \in \mathbb{R}^{V \times d}$ whose $i$-th row is
+$\varphi(w_i)$ is called the \emph{embedding matrix}.  Retrieving the
+embedding of word $w_i$ is equivalent to the matrix--vector product
+$\mathbf{W}^\top \mathbf{e}_{w_i}$, i.e.\ selecting the $i$-th row of
+$\mathbf{W}$.
+\end{definition}
+
+The embedding dimension $d$ is a hyperparameter.  Typical values in
+practice range from $d = 50$ (GloVe-50) to $d = 300$ (GloVe-300,
+Word2Vec) and up to $d = 768$ or $d = 1024$ for transformer-based
+contextual embeddings (see Section~\ref{sec:doc-repr-sbert}).  The key
+constraint is $d \ll V$: whereas one-hot encoding requires $V$ numbers
+per word, an embedding requires only $d$ numbers, a compression ratio
+of $V/d \approx 150$--$1000$ for typical values.
+
+\begin{remark}
+\label{rem:embedding-geometry}
+The power of word embeddings lies not only in their compactness but in
+their geometry.  Under a well-trained embedding, the Euclidean distance
+or cosine similarity between two embedding vectors reflects the semantic
+distance between the corresponding words.  Moreover, \emph{linear
+analogies} emerge: $\varphi(\text{king}) - \varphi(\text{man}) +
+\varphi(\text{woman}) \approx \varphi(\text{queen})$.  In a financial
+corpus one observes analogies such as $\varphi(\text{call option}) -
+\varphi(\text{upside}) + \varphi(\text{downside}) \approx
+\varphi(\text{put option})$.
+\end{remark}
+
+% ----------------------------------------------------------------
 \subsection{Word2Vec and GloVe}
 \label{sec:embeddings-word2vec}
 
-[Placeholder]
+Two landmark algorithms — Word2Vec \cite{mikolov2013} % [CITE: Mikolov et al. (2013). Distributed Representations of Words and Phrases and their Compositionality. NeurIPS]
+and GloVe \cite{pennington2014} % [CITE: Pennington, Socher, Manning (2014). GloVe: Global Vectors for Word Representation. EMNLP]
+— remain the canonical dense embedding methods.  We treat each in turn,
+then discuss finance-specific adaptations.
 
+% ............................................................
+\subsubsection{Word2Vec: Skip-Gram with Negative Sampling}
+
+Word2Vec frames the embedding problem as a supervised prediction task.
+The \emph{Skip-Gram} variant trains a word to predict the words that
+appear in a sliding window of $\pm c$ positions around it.
+
+\paragraph{Notation.}
+Let the corpus consist of a sequence of $T$ tokens
+$w_1, w_2, \dots, w_T$ drawn from vocabulary $\mathcal{V}$.  Each
+word $w \in \mathcal{V}$ is associated with two embedding vectors:
+a \emph{centre-word} vector $\hat{\mathbf{v}}_w \in \mathbb{R}^d$ (used when
+$w$ is the target word) and a \emph{context-word} vector
+$\mathbf{v}_w \in \mathbb{R}^d$ (used when $w$ is a context word).
+This two-vector convention simplifies the mathematics and is discarded
+after training (often the two sets are averaged or the context vectors
+are thrown away).
+
+\paragraph{The Skip-Gram objective.}
+For each centre word $w_t$ and each context position $k \in
+\{-c, \ldots, -1, 1, \ldots, c\}$, the model defines the conditional
+probability of observing context word $w_{t+k}$ given centre word
+$w_t$ via a soft-max over the full vocabulary:
+\begin{equation}
+  P(w_{t+k} \mid w_t)
+  \;=\;
+  \frac{\exp\!\bigl(\mathbf{v}_{w_{t+k}}^{\top} \hat{\mathbf{v}}_{w_t}\bigr)}
+       {\displaystyle\sum_{w=1}^{V} \exp\!\bigl(\mathbf{v}_{w}^{\top} \hat{\mathbf{v}}_{w_t}\bigr)}.
+  \label{eq:skipgram-softmax}
+\end{equation}
+The Skip-Gram objective maximises the average log-likelihood of all
+centre--context pairs:
+\begin{equation}
+  J_{\mathrm{SG}}
+  \;=\;
+  \frac{1}{T}
+  \sum_{t=1}^{T}
+  \sum_{\substack{k=-c \\ k \neq 0}}^{c}
+  \log P(w_{t+k} \mid w_t).
+  \label{eq:skipgram-obj}
+\end{equation}
+
+\paragraph{Computational intractability and negative sampling.}
+The normalising constant in \eqref{eq:skipgram-softmax} sums over
+all $V \approx 10^4$--$10^5$ words at every gradient step, making
+exact optimisation prohibitively expensive.  \emph{Negative Sampling}
+(NEG) replaces the full soft-max with a binary classification task:
+distinguish the observed context word (positive sample) from $K$
+words drawn from a noise distribution $P_n$ (negative samples).  The
+NEG objective for a single centre--context pair $(w_t, w_{t+k})$ is
+\begin{equation}
+  \mathcal{L}_{\mathrm{NEG}}(w_t, w_{t+k})
+  \;=\;
+  \log \sigma\!\bigl(\mathbf{v}_{w_{t+k}}^{\top} \hat{\mathbf{v}}_{w_t}\bigr)
+  \;+\;
+  \sum_{j=1}^{K}
+  \mathbb{E}_{w_j \sim P_n}\!\left[
+    \log \sigma\!\bigl(-\mathbf{v}_{w_j}^{\top} \hat{\mathbf{v}}_{w_t}\bigr)
+  \right],
+  \label{eq:neg-sampling-obj}
+\end{equation}
+where $\sigma(x) = (1 + e^{-x})^{-1}$ is the logistic sigmoid.
+Mikolov et al.\ recommend $K = 5$--$20$ for small corpora and $K = 2$--$5$
+for large corpora, with $P_n(w) \propto \text{freq}(w)^{3/4}$ (the
+unigram distribution raised to the $3/4$ power), which down-weights
+the most frequent stop-words.
+
+\paragraph{Gradient update.}
+Taking the gradient of \eqref{eq:neg-sampling-obj} with respect to the
+context vector $\mathbf{v}_{w_{t+k}}$ (positive sample) gives
+\begin{equation}
+  \frac{\partial \mathcal{L}_{\mathrm{NEG}}}{\partial \mathbf{v}_{w_{t+k}}}
+  \;=\;
+  \bigl[1 - \sigma(\mathbf{v}_{w_{t+k}}^{\top} \hat{\mathbf{v}}_{w_t})\bigr]
+  \hat{\mathbf{v}}_{w_t}
+  \;=\;
+  \bigl[1 - P_{\mathrm{NEG}}(D=1 \mid w_{t+k}, w_t)\bigr]\hat{\mathbf{v}}_{w_t},
+  \label{eq:neg-grad-pos}
+\end{equation}
+and for each negative sample $w_j$:
+\begin{equation}
+  \frac{\partial \mathcal{L}_{\mathrm{NEG}}}{\partial \mathbf{v}_{w_j}}
+  \;=\;
+  -\sigma(\mathbf{v}_{w_j}^{\top} \hat{\mathbf{v}}_{w_t})\,\hat{\mathbf{v}}_{w_t}.
+  \label{eq:neg-grad-neg}
+\end{equation}
+The corresponding update for the centre vector $\hat{\mathbf{v}}_{w_t}$ is
+obtained by symmetry.  These updates have the appealing interpretation
+that the positive context vector is pushed closer to the centre vector
+(its coefficient $1 - \sigma(\cdot)$ is large when the two are
+dissimilar), while each negative sample's vector is pushed away.
+Stochastic gradient descent with these updates is extremely efficient:
+each step touches only $K + 1$ rows of the embedding matrix rather
+than all $V$ rows.
+
+\paragraph{Analogy structure.}
+A celebrated property of Word2Vec embeddings is the emergence of
+\emph{linear analogical relationships}.  The classic example is
+\begin{equation}
+  \hat{\mathbf{v}}_{\text{king}}
+  - \hat{\mathbf{v}}_{\text{man}}
+  + \hat{\mathbf{v}}_{\text{woman}}
+  \;\approx\;
+  \hat{\mathbf{v}}_{\text{queen}}.
+  \label{eq:analogy-royalty}
+\end{equation}
+In a financial corpus one encounters analogies such as
+$\hat{\mathbf{v}}_{\text{equity}} - \hat{\mathbf{v}}_{\text{dividend}}
++ \hat{\mathbf{v}}_{\text{coupon}} \approx \hat{\mathbf{v}}_{\text{bond}}$.
+These regularities arise because the embedding must be consistent with
+patterns of co-occurrence: if ``king'' and ``queen'' share the same
+contextual environments except for gender-related words, their
+difference captures a gender direction.
+
+% ............................................................
+\subsubsection{GloVe: Global Vectors for Word Representation}
+
+Whereas Word2Vec processes one context window at a time,
+\emph{Global Vectors} (GloVe) \cite{pennington2014} % [CITE: Pennington et al. (2014) EMNLP]
+directly factorises the global word--word co-occurrence matrix,
+explicitly encoding corpus-level statistics.
+
+\paragraph{Co-occurrence matrix.}
+Let $X_{ij}$ denote the number of times word $j$ appears in the
+context window of word $i$ across the entire corpus, and let
+$X_i = \sum_j X_{ij}$ be the total context count for word $i$.
+
+\begin{definition}[Co-occurrence Matrix]
+\label{def:cooccurrence}
+Given a corpus of $T$ tokens, a vocabulary $\mathcal{V}$ of size $V$,
+and a context window of half-width $c$, the \emph{co-occurrence matrix}
+$\mathbf{X} \in \mathbb{N}^{V \times V}$ has entries
+\begin{equation}
+  X_{ij}
+  \;=\;
+  \sum_{t=1}^{T}
+  \sum_{\substack{k=-c \\ k \neq 0}}^{c}
+  \mathbf{1}[w_t = w_i]\,\mathbf{1}[w_{t+k} = w_j].
+  \label{eq:cooccurrence}
+\end{equation}
+\end{definition}
+
+\paragraph{The GloVe objective.}
+The key theoretical insight of GloVe is that the \emph{ratio} of
+co-occurrence probabilities $P_{ik}/P_{jk}$ encodes relational
+meaning more faithfully than the raw probabilities.  This motivates
+learning vectors $\mathbf{w}_i, \tilde{\mathbf{w}}_j \in \mathbb{R}^d$
+and scalar biases $b_i, \tilde{b}_j \in \mathbb{R}$ by minimising the
+weighted squared loss:
+\begin{equation}
+  J_{\mathrm{GloVe}}
+  \;=\;
+  \sum_{i,j=1}^{V}
+  f(X_{ij})
+  \Bigl(
+    \mathbf{w}_i^{\top} \tilde{\mathbf{w}}_j
+    + b_i + \tilde{b}_j
+    - \log X_{ij}
+  \Bigr)^{2},
+  \label{eq:glove-obj}
+\end{equation}
+where $f : \mathbb{R}_{\geq 0} \to \mathbb{R}_{\geq 0}$ is a weighting
+function that down-weights both very rare and very frequent co-occurrences:
+\begin{equation}
+  f(x)
+  \;=\;
+  \begin{cases}
+    \bigl(x / x_{\max}\bigr)^{\alpha} & \text{if } x < x_{\max}, \\
+    1 & \text{otherwise.}
+  \end{cases}
+  \label{eq:glove-weight}
+\end{equation}
+Pennington et al.\ recommend $\alpha = 0.75$ and $x_{\max} = 100$.
+Pairs with $X_{ij} = 0$ contribute nothing to the sum (since
+$f(0) = 0$); the logarithm is therefore only evaluated at positive
+counts.
+
+\begin{remark}
+\label{rem:glove-vs-word2vec}
+GloVe and Word2Vec learn similar representations in practice, but their
+optimisation philosophies differ.  GloVe is a single-pass weighted
+least-squares problem over the co-occurrence matrix, which is assembled
+once and stored; Word2Vec performs online stochastic gradient descent
+over individual windows without ever materialising the full matrix.  For
+large vocabularies, storing $\mathbf{X}$ requires $O(V^2)$ memory in
+the dense case, though in practice $\mathbf{X}$ is extremely sparse.
+GloVe tends to be faster to train when co-occurrence counts can be
+computed in a preprocessing step, while Word2Vec scales more gracefully
+to streaming corpora.
+\end{remark}
+
+% ............................................................
+\subsubsection{Finance-Specific Embeddings and Domain Adaptation}
+
+General-purpose embeddings trained on Wikipedia or Common Crawl encode
+the general-English meaning of financial terms, which can differ
+substantially from their technical meanings.  The word \emph{risk}, for
+example, has nearest neighbours \{danger, threat, hazard, peril\} in a
+general embedding but nearest neighbours \{volatility, variance,
+exposure, drawdown, VaR\} in a finance-domain embedding.  Similarly,
+\emph{short} means ``brief'' in general English but ``short-sell a
+security'' in a trading context.
+
+Domain adaptation strategies include:
+\begin{enumerate}
+  \item \textbf{Domain-corpus pre-training.}  Train Word2Vec or GloVe
+        from scratch on a large financial corpus (SEC filings, Bloomberg
+        articles, earnings call transcripts).  The Bloomberg Financial
+        Word2Vec model \cite{liu2018} % [CITE: Liu et al. (2018). Efficient low-rank multimodal fusion with modality-specific factors. ACL — or appropriate FinNLP reference]
+        and the FinancialPhraseBank embeddings are examples.
+  \item \textbf{Fine-tuned transformer embeddings.}  FinBERT
+        \cite{yang2020} % [CITE: Yang et al. (2020). FinBERT: A Pretrained Language Model for Financial Communications. arXiv:2006.08097]
+        is a BERT model \cite{devlin2019} % [CITE: Devlin et al. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. NAACL]
+        further pre-trained on Reuters news, 10-K filings, and earnings
+        calls.  Its token embeddings capture the financial sense of
+        polysemous terms such as \emph{margin}, \emph{return}, and
+        \emph{position}.
+  \item \textbf{Retrofitting.}  Post-hoc adjustment of a general
+        embedding using a domain-specific lexicon or knowledge graph
+        (e.g.\ a financial ontology) to pull synonymous terms together
+        and push antonyms apart.
+\end{enumerate}
+
+\begin{example}
+\label{ex:risk-neighbours}
+Table~\ref{tab:risk-neighbours} illustrates the five nearest neighbours
+of the word \emph{risk} under cosine similarity in (a) a GloVe model
+trained on Wikipedia and (b) a GloVe model trained on a corpus of 1M
+SEC annual reports (10-K filings).
+
+\begin{table}[H]
+  \centering
+  \caption{Nearest neighbours of \emph{risk} in two embedding spaces.
+           Finance-domain training shifts the semantic neighbourhood
+           from colloquial to technical usage.}
+  \label{tab:risk-neighbours}
+  \begin{tabular}{llll}
+    \toprule
+    Rank & General (Wikipedia) & Finance (10-K) \\
+    \midrule
+    1 & danger      & uncertainty   \\
+    2 & threat      & exposure      \\
+    3 & hazard      & volatility    \\
+    4 & possibility & credit risk   \\
+    5 & factor      & downside      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\end{example}
+
+% ----------------------------------------------------------------
 \subsection{Case Study: PCA on Financial Vocabulary}
 \label{sec:embeddings-pca}
 
-[Placeholder]
+This case study provides a concrete, visual demonstration that word
+embeddings encode domain-specific semantic structure.  The analysis is
+implemented in full in
+\texttt{code/notebooks/01-intro/demo.ipynb}.
+
+\paragraph{Setup.}
+We load a pre-trained GloVe model (either the 300-dimensional
+\texttt{glove.6B.300d} release or a finance-tuned variant) and extract
+the embedding vectors for the following 30 financial terms:
+\begin{center}
+  \textit{equity, bond, yield, spread, volatility, risk, return,
+  portfolio, hedge, derivative, option, futures, dividend, earnings,
+  revenue, profit, loss, merger, acquisition, default, credit,
+  inflation, central bank, interest rate, liquidity, leverage,
+  sentiment, alpha, beta, factor.}
+\end{center}
+These terms span four semantic groups:
+\begin{enumerate}
+  \item \textbf{Rates \& macro:} yield, spread, inflation, central bank,
+        interest rate.
+  \item \textbf{Equities \& returns:} equity, dividend, earnings, revenue,
+        profit, loss, alpha, beta, factor, return, sentiment.
+  \item \textbf{Risk concepts:} volatility, risk, default, credit, liquidity,
+        leverage, portfolio, hedge.
+  \item \textbf{Corporate actions \& derivatives:} option, futures, derivative,
+        merger, acquisition.
+\end{enumerate}
+
+\paragraph{Dimensionality reduction.}
+Let $\mathbf{E} \in \mathbb{R}^{30 \times d}$ be the matrix whose
+$i$-th row is the (mean-centred) embedding vector of the $i$-th term.
+We apply principal component analysis (PCA) to obtain a
+$30 \times 2$ matrix of scores:
+\begin{equation}
+  \mathbf{Z}
+  \;=\;
+  \mathbf{E}\,\mathbf{P}_{:,1:2},
+  \label{eq:pca-projection}
+\end{equation}
+where $\mathbf{P} \in \mathbb{R}^{d \times d}$ contains the principal
+components (eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$) sorted by
+descending eigenvalue, and $\mathbf{P}_{:,1:2}$ retains the first two.
+
+\paragraph{Results and interpretation.}
+Figure~\ref{fig:embeddings-pca} shows the scatter plot of the 30 terms
+in the two-dimensional PCA space, coloured by semantic group.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{figures/embeddings-pca}
+  \caption{PCA projection of embedding vectors for 30 financial terms
+           into two dimensions.  Points are coloured by semantic group:
+           \textcolor{blue}{rates \& macro} (blue),
+           \textcolor{green!60!black}{equities \& returns} (green),
+           \textcolor{red}{risk concepts} (red), and
+           \textcolor{orange}{corporate actions \& derivatives} (orange).
+           Clusters reveal that the embedding space encodes domain-specific
+           semantic proximity: \emph{option} and \emph{futures} lie close
+           to \emph{derivative}; \emph{default} and \emph{credit} co-cluster;
+           and the rates cluster (\emph{yield}, \emph{spread},
+           \emph{interest rate}) is well-separated from the equities cluster.}
+  \label{fig:embeddings-pca}
+\end{figure}
+
+Several patterns are consistently observable across different
+pre-trained models:
+\begin{itemize}
+  \item \emph{option}, \emph{futures}, and \emph{derivative} form a tight
+        cluster, reflecting their shared contextual vocabulary (premium,
+        contract, expiry, strike).
+  \item \emph{default} and \emph{credit} lie close together and at a
+        distance from \emph{equity}-group terms, consistent with the
+        credit-versus-equity divide in fixed income.
+  \item \emph{merger} and \emph{acquisition} are nearly synonymous in
+        this corpus, mapping to almost identical embedding vectors.
+  \item \emph{alpha}, \emph{beta}, and \emph{factor} cluster together,
+        reflecting their shared origin in the asset-pricing literature
+        and their frequent co-occurrence in portfolio management texts.
+  \item The rates cluster (\emph{yield}, \emph{spread}, \emph{inflation},
+        \emph{interest rate}, \emph{central bank}) is the most cohesive,
+        owing to the highly formulaic language of fixed-income analysis.
+\end{itemize}
+
+\begin{remark}
+\label{rem:pca-directions}
+The principal component directions $\mathbf{p}_1, \mathbf{p}_2$
+are not directly interpretable as named financial concepts.  They are
+the linear combinations of the original $d = 300$ embedding dimensions
+that explain the most variance \emph{among the 30 selected terms}.  A
+different selection of terms would produce different axes.  The visual
+clustering is informative, but one should resist assigning
+domain-specific names to the $x$- and $y$-axes without rigorous
+validation.  Rotation methods (e.g.\ Varimax) and supervised probing
+classifiers offer more principled approaches to identifying
+interpretable directions in embedding space; see \cite{tenney2019} % [CITE: Tenney et al. (2019). BERT Rediscovers the Classical NLP Pipeline. ACL]
+for an overview in the transformer setting.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Document-Level Representations}
 \label{sec:doc-repr}
 
+Word embeddings assign vectors to individual tokens.  In most
+financial NLP applications the natural unit of analysis is longer: an
+earnings call transcript (several thousand words), a 10-K filing
+(tens of thousands of words), a news headline (ten words), or a
+research note (hundreds of words).  To use embedding-based features
+at the document level we need an aggregation scheme that maps a
+sequence of token embeddings to a single fixed-size vector.
+
+% ----------------------------------------------------------------
 \subsection{Averaging Word Vectors}
 \label{sec:doc-repr-avg}
 
-[Placeholder]
+The simplest aggregation is the unweighted arithmetic mean.
 
+\begin{definition}[Mean Embedding]
+\label{def:mean-embedding}
+Let $d = (w_1, w_2, \dots, w_n)$ be a document of $n$ tokens and let
+$\varphi : \mathcal{V} \to \mathbb{R}^d$ be a word embedding.
+The \emph{mean embedding} of $d$ is
+\begin{equation}
+  \bar{\boldsymbol{\varphi}}(d)
+  \;=\;
+  \frac{1}{n} \sum_{i=1}^{n} \varphi(w_i)
+  \;\in\; \mathbb{R}^d.
+  \label{eq:mean-embedding}
+\end{equation}
+\end{definition}
+
+\paragraph{Connection to Bag-of-Words.}
+Mean embedding is algebraically equivalent to multiplying the
+Bag-of-Words term-frequency vector $\mathbf{tf}(d) \in \mathbb{R}^V$
+by the (column-normalised) embedding matrix.  Specifically, let
+$\mathbf{tf}(d)_j = \text{count}(w_j, d)/n$ be the relative frequency
+of word $w_j$ in document $d$.  Then
+\begin{equation}
+  \bar{\boldsymbol{\varphi}}(d)
+  \;=\;
+  \mathbf{W}^{\top} \mathbf{tf}(d)
+  \;\in\; \mathbb{R}^d,
+  \label{eq:mean-embedding-bow}
+\end{equation}
+where $\mathbf{W} \in \mathbb{R}^{V \times d}$ is the embedding matrix
+from Definition~\ref{def:word-embedding}.  This shows that mean
+embedding is a linear operation on the standard BoW representation,
+projecting from $V$-dimensional one-hot/count space into the dense
+$d$-dimensional embedding space via the weight matrix $\mathbf{W}$.
+
+\begin{proposition}
+\label{thm:mean-embed-is-bow}
+Mean embedding is a Bag-of-Words model.  Specifically, if
+$\hat{\mathbf{W}} = [\varphi(w_1) \;\cdots\; \varphi(w_V)]^{\top}
+\in \mathbb{R}^{V \times d}$ is the full embedding matrix, then
+\[
+  \bar{\boldsymbol{\varphi}}(d)
+  \;=\;
+  \hat{\mathbf{W}}^{\top} \mathbf{tf}(d).
+\]
+In particular, the mean embedding is invariant to permutations of the
+token sequence; word order is discarded.
+\end{proposition}
+\begin{proof}
+  Expand \eqref{eq:mean-embedding} using the row-selection
+  interpretation $\varphi(w_i) = \hat{\mathbf{W}}^{\top}\mathbf{e}_{w_i}$,
+  then use linearity:
+  \[
+    \frac{1}{n}\sum_{i=1}^n \hat{\mathbf{W}}^{\top}\mathbf{e}_{w_i}
+    \;=\;
+    \hat{\mathbf{W}}^{\top}
+    \!\underbrace{\left(\frac{1}{n}\sum_{i=1}^n \mathbf{e}_{w_i}\right)}_{\mathbf{tf}(d)}
+    \;=\;
+    \hat{\mathbf{W}}^{\top}\mathbf{tf}(d). \qedhere
+  \]
+\end{proof}
+
+\paragraph{Limitations of mean embedding.}
+Despite its simplicity and computational efficiency, mean embedding
+has several well-documented weaknesses:
+\begin{enumerate}
+  \item \textbf{Equal weighting.}  Common words such as \emph{the},
+        \emph{is}, and \emph{of} contribute as much to the mean as
+        domain-specific terms such as \emph{default} or
+        \emph{liquidity}.  Stop-word removal partially addresses this,
+        but introduces a pre-processing dependency.
+  \item \textbf{No word order.}  The mean embedding of
+        ``\emph{the company did not meet earnings expectations}'' is
+        identical to that of ``\emph{earnings expectations met the
+        company not did}'' — a garbled sentence that contains the same
+        words.  Syntactic structure, negation, and conditionals are
+        invisible.
+  \item \textbf{Poor performance on long documents.}  As $n$ grows,
+        the mean converges (by the law of large numbers) toward the
+        corpus-wide average embedding, losing document-specific
+        signal.  Empirically, mean embedding performs well for short
+        texts (headlines, short paragraphs) but degrades for filings
+        or call transcripts \cite{reimers2019}. % [CITE: Reimers & Gurevych (2019). Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks. EMNLP]
+  \item \textbf{Out-of-vocabulary words.}  Words absent from
+        $\mathcal{V}$ (e.g.\ rare tickers, neologisms) must be mapped
+        to a special \texttt{<UNK>} vector or dropped, both of which
+        introduce noise.
+\end{enumerate}
+
+% ----------------------------------------------------------------
 \subsection{Weighted Aggregation and Sentence Transformers}
 \label{sec:doc-repr-sbert}
 
-[Placeholder]
+\subsubsection{TF-IDF Weighted Averaging}
+
+A natural refinement is to weight each word's embedding by its
+TF-IDF score, up-weighting terms that are rare in the corpus but
+frequent in the document and down-weighting common uninformative words.
+
+\begin{definition}[TF-IDF Weighted Embedding]
+\label{def:tfidf-embedding}
+Let $\text{tfidf}(w_i, d)$ denote the TF-IDF weight of token $w_i$
+in document $d$ (see Section~\ref{sec:classical-tfidf}).  The
+\emph{TF-IDF weighted embedding} is
+\begin{equation}
+  \boldsymbol{\varphi}_{\mathrm{tfidf}}(d)
+  \;=\;
+  \frac{\displaystyle\sum_{i=1}^{n} \text{tfidf}(w_i, d)\; \varphi(w_i)}
+       {\displaystyle\sum_{i=1}^{n} \text{tfidf}(w_i, d)}.
+  \label{eq:tfidf-embedding}
+\end{equation}
+\end{definition}
+
+This is a weighted arithmetic mean with weights $\alpha_i =
+\text{tfidf}(w_i, d) / \sum_j \text{tfidf}(w_j, d) > 0$.  By
+design, $\sum_i \alpha_i = 1$, so $\boldsymbol{\varphi}_{\mathrm{tfidf}}(d)$
+lies in the convex hull of the token embeddings.  TF-IDF weighting
+consistently outperforms uniform averaging on document classification
+and similarity tasks when the embedding quality is held fixed
+\cite{arora2017}. % [CITE: Arora et al. (2017). A Simple but Tough-to-Beat Baseline for Sentence Embeddings. ICLR]
+
+\begin{remark}
+\label{rem:sif}
+A closely related approach, \emph{Smooth Inverse Frequency} (SIF)
+\cite{arora2017}, % [CITE: same as above]
+replaces TF-IDF weights with
+$\alpha_i = a / (a + p(w_i))$,
+where $p(w_i)$ is the unigram probability of word $w_i$ in the
+training corpus and $a \approx 10^{-3}$ is a smoothing constant.
+After computing the weighted sum, SIF removes the first principal
+component, which typically captures uninformative ``common discourse''
+variance.  SIF embeddings match or exceed supervised methods on
+several semantic textual similarity benchmarks at negligible
+computational cost.
+\end{remark}
+
+\subsubsection{The Limitation of Static Embeddings: Polysemy}
+
+Both Word2Vec and GloVe assign a \emph{single, fixed} vector to each
+vocabulary item.  This is adequate for words with a single dominant
+sense, but fails for polysemous words — words with multiple distinct
+meanings depending on context.  In finance, this problem is pervasive:
+\begin{itemize}
+  \item \emph{Bank} can mean a financial institution or the riverbank.
+  \item \emph{Yield} can mean bond yield, crop yield, or to give way.
+  \item \emph{Position} can mean a financial position (long/short) or
+        a physical location.
+  \item \emph{Default} can mean failure to repay a debt or the
+        default setting of a software parameter.
+\end{itemize}
+Under a static embedding, the vector for \emph{bank} is a single
+point in $\mathbb{R}^d$ that is a weighted average of both senses,
+equidistant from financial and geographic contexts.  This conflation
+can harm downstream tasks: a sentiment model that associates
+\emph{bank} with positive sentiment in financial reporting will
+incorrectly transfer that sentiment to sentences about river flooding.
+
+\subsubsection{Contextual Embeddings and Sentence-BERT}
+
+\paragraph{From static to contextual embeddings.}
+The solution is to produce embeddings that depend on the full
+surrounding context.  ELMo \cite{peters2018} % [CITE: Peters et al. (2018). Deep contextualized word representations. NAACL]
+introduced deep contextual embeddings from a bidirectional language
+model; BERT \cite{devlin2019} % [CITE: Devlin et al. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. NAACL]
+later generalised this with a transformer architecture.  In a BERT
+encoder, the representation of the token \emph{bank} at layer $\ell$
+is a function of the entire input sentence, so it will differ in
+``\emph{The Federal Reserve Bank raised rates}'' versus
+``\emph{The river bank flooded after the storm}.''
+
+\paragraph{Sentence-BERT (SBERT).}
+Vanilla BERT was designed for token-level tasks (named entity
+recognition, question answering) rather than for producing
+sentence- or document-level representations.  Naively averaging the
+BERT token representations (mean pooling) or using the \texttt{[CLS]}
+token produces suboptimal sentence embeddings for semantic similarity
+tasks \cite{reimers2019}. % [CITE: Reimers & Gurevych (2019). Sentence-BERT. EMNLP]
+
+Sentence-BERT (SBERT) \cite{reimers2019} % [CITE: same]
+addresses this by fine-tuning a BERT encoder on a Natural Language
+Inference (NLI) objective using a \emph{Siamese} architecture:
+two weight-sharing BERT encoders process a sentence pair
+$(s_a, s_b)$, producing pooled representations
+$\mathbf{u} = \text{POOL}(\text{BERT}(s_a))$ and
+$\mathbf{v} = \text{POOL}(\text{BERT}(s_b))$.
+The model is trained to predict whether $s_a$ and $s_b$ are
+semantically equivalent (entailment), contradictory, or unrelated,
+using a classification head over the concatenation
+$[\mathbf{u};\, \mathbf{v};\, |\mathbf{u} - \mathbf{v}|]$.
+
+\begin{definition}[Mean Pooling in SBERT]
+\label{def:sbert-pool}
+Let $\mathbf{H} = [\mathbf{h}_1, \mathbf{h}_2, \dots, \mathbf{h}_n]
+\in \mathbb{R}^{n \times d_\text{model}}$
+be the matrix of last-layer hidden states from the BERT encoder for an
+$n$-token input sequence (including special tokens \texttt{[CLS]} and
+\texttt{[SEP]}).  Under \emph{mean pooling}, the sentence embedding is
+\begin{equation}
+  \mathbf{s}
+  \;=\;
+  \frac{1}{n}\sum_{i=1}^{n} \mathbf{h}_i \cdot m_i,
+  \label{eq:sbert-mean-pool}
+\end{equation}
+where $m_i \in \{0, 1\}$ is an attention mask excluding padding tokens.
+\end{definition}
+
+\paragraph{Mean pooling vs.\ \texttt{[CLS]} token.}
+BERT's \texttt{[CLS]} token is prepended to every input sequence and
+its final hidden state $\mathbf{h}_{\texttt{[CLS]}}$ is used in
+classification tasks; one might expect it to encode sentence-level
+meaning.  In practice, without explicit fine-tuning on semantic
+similarity tasks, the \texttt{[CLS]} representation performs
+surprisingly poorly as a general-purpose sentence embedding
+\cite{reimers2019}. % [CITE: same]
+Mean pooling over all token representations consistently outperforms
+\texttt{[CLS]} pooling on standard semantic textual similarity (STS)
+benchmarks.  After SBERT fine-tuning, both pooling strategies converge
+to high-quality representations, with mean pooling retaining a slight
+advantage.
+
+\paragraph{Computational efficiency.}
+A key practical advantage of SBERT is that sentence embeddings can be
+\emph{pre-computed and indexed}: once the corpus of $N$ documents has
+been encoded, semantic search reduces to a nearest-neighbour query in
+$\mathbb{R}^{d_{\text{model}}}$, which can be accelerated with
+approximate nearest-neighbour (ANN) data structures (e.g.\ FAISS
+\cite{johnson2019}, % [CITE: Johnson et al. (2019). Billion-scale similarity search with GPUs. IEEE TPAMI]
+HNSW).  Cross-encoding a query against all $N$ documents with vanilla
+BERT would require $N$ separate forward passes; SBERT bi-encoding
+requires only one forward pass per document, reducing inference time
+from $O(N)$ to $O(1)$ at query time.
+
+\paragraph{Financial applications.}
+
+\begin{example}
+\label{ex:doc-similarity-finance}
+The following applications of contextual document embeddings are
+documented in the finance literature:
+\begin{enumerate}
+  \item \textbf{Earnings call similarity.}
+        Encode all earnings call transcripts in a corpus using SBERT
+        (or a finance-tuned variant such as FinBERT-SBERT).  At each
+        reporting period, retrieve the $k$ most similar past calls
+        using cosine similarity.  The similarity score can serve as a
+        feature for predicting short-window abnormal returns
+        \cite{ko2020}. % [CITE: Ko et al. (2020). or relevant FinNLP earnings similarity paper]
+  \item \textbf{Merger target identification.}
+        Encode 10-K business description sections for all public firms.
+        High cosine similarity between two firms' descriptions predicts
+        product-market proximity, which is a strong predictor of
+        acquisition likelihood \cite{frattaroli2019}. % [CITE: relevant M&A text paper]
+  \item \textbf{Regulatory document search.}
+        A compliance team encodes a large corpus of regulatory guidance
+        documents (Basel III, IFRS 9, MiFID II).  When a new
+        regulation is published, SBERT-based retrieval identifies
+        the most relevant precedents, replacing keyword search with
+        semantic search.
+  \item \textbf{Factor model narrative alignment.}
+        Embed analyst research notes and quarterly earnings guidance.
+        Measure the cosine similarity between the guidance embedding
+        and subsequent actual results narratives as a proxy for
+        management credibility or guidance quality.
+\end{enumerate}
+\end{example}
+
+\begin{remark}
+\label{rem:context-window-limit}
+BERT-based models impose a maximum context length (typically 512
+tokens for standard BERT, 4096 or more for long-context variants such
+as Longformer \cite{beltagy2020}). % [CITE: Beltagy et al. (2020). Longformer: The Long-Document Transformer. arXiv:2004.05150]
+Long financial documents (full 10-K filings, lengthy earnings call
+transcripts) must be handled by one of three strategies:
+(i) \emph{truncation} — only the first 512 tokens are encoded, which
+may miss material information in later sections;
+(ii) \emph{chunking} — the document is split into overlapping windows,
+each encoded independently, and the chunk embeddings are aggregated
+(e.g.\ by mean pooling or weighted by position); or
+(iii) \emph{hierarchical encoding} — sentences are encoded individually
+and a second-level encoder (another transformer or an LSTM) aggregates
+sentence embeddings into a document embedding.  The choice among these
+strategies introduces a design trade-off between completeness and
+computational cost that has no universal solution; practitioners should
+benchmark all three on their specific downstream task.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Sequential Models: From RNNs to Attention}

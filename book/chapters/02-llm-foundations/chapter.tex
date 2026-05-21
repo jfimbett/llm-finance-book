@@ -2007,6 +2007,137 @@ check each factual claim against the source passage---a key step in the SelfChec
 and FActScore pipelines described in Section~\ref{sec:hallucinations-detection}.
 
 % ---------------------------------------------------------------
+\section{Knowledge Distillation and Model Compression}
+\label{sec:distillation}
+
+Deploying a 70-billion-parameter model in a latency-sensitive trading system is
+impractical.  A single forward pass for a 70B model requires roughly 140~GB of GPU
+memory for 16-bit weights alone, and inference latency measured in seconds is
+incompatible with real-time order routing or risk monitoring.  \emph{Knowledge
+distillation} and its companion techniques---parameter-efficient fine-tuning,
+quantisation, and pruning---are the tools that bridge the gap between frontier
+model quality and production deployment constraints.
+
+\subsection{Knowledge Distillation}
+\label{sec:distillation-kd}
+
+The key insight of knowledge distillation \citep{hinton2015distilling} is that the
+\emph{soft} probability distribution produced by a large \emph{teacher} model over
+the full vocabulary contains substantially more information than the hard one-hot
+label of the correct token.  Even the near-zero probabilities assigned to incorrect
+tokens encode the teacher's implicit similarity structure: the teacher assigns more
+probability to semantically related tokens than to unrelated ones, and this
+information is invisible in the hard label.
+
+\begin{definition}[Knowledge Distillation]
+\label{def:kd}
+Let $\mathcal{T}$ be a teacher model with parameters $\theta_T$ and
+$\mathcal{S}$ a student model with parameters $\theta_S$, where
+$|\theta_S| \ll |\theta_T|$.  Given a training set
+$\{(\mathbf{x}_i, y_i)\}_{i=1}^N$, knowledge distillation minimises
+\begin{equation}
+  \mathcal{L}_{\mathrm{KD}} = \alpha \,\mathcal{L}_{\mathrm{CE}}(\mathbf{p}_S, y)
+    + (1-\alpha)\, \tau^2 \,
+      \mathrm{KL}\!\left(\mathbf{p}_T^{(\tau)} \,\big\|\, \mathbf{p}_S^{(\tau)}\right),
+  \label{eq:kd-loss}
+\end{equation}
+where $\mathbf{p}_T^{(\tau)}$ and $\mathbf{p}_S^{(\tau)}$ are the temperature-scaled
+softmax distributions (Definition~\ref{def:temperature}) of the teacher and student,
+$\alpha \in [0,1]$ balances the hard-label cross-entropy and the soft-label KL
+divergence, and $\tau^2$ re-scales the gradient magnitude (since temperature scaling
+reduces gradient magnitudes by $1/\tau^2$, the factor restores them to the
+scale of the cross-entropy term).
+\end{definition}
+
+In the financial domain, a common distillation scenario is the following: a large
+general-purpose model ($\text{e.g.}$, 70B parameters) is used as teacher on a curated
+dataset of annotated financial documents; a smaller student model (7B or 13B
+parameters) is trained on the same data with the additional KL term in
+\eqref{eq:kd-loss}.  The student inherits the teacher's implicit knowledge of
+financial language without requiring the teacher's computational footprint at
+inference time.
+
+\subsection{Parameter-Efficient Fine-Tuning: LoRA}
+\label{sec:distillation-lora}
+
+Full fine-tuning updates all $|\theta|$ parameters of a model on task-specific data.
+For a 7B-parameter model this requires several hundred gigabytes of optimizer state,
+which is infeasible on most academic or practitioner hardware.
+\emph{Low-rank adaptation} (LoRA) \citep{hu2022lora} offers a solution:
+instead of updating the full weight matrix, it injects a pair of low-rank matrices
+whose product approximates the update.
+
+\begin{definition}[Low-Rank Adaptation (LoRA)]
+\label{def:lora}
+For a pre-trained weight matrix $W_0 \in \mathbb{R}^{d \times k}$, LoRA
+parameterises the weight update as
+\begin{equation}
+  W = W_0 + \Delta W = W_0 + BA,
+  \label{eq:lora}
+\end{equation}
+where $B \in \mathbb{R}^{d \times r}$, $A \in \mathbb{R}^{r \times k}$,
+and $r \ll \min(d, k)$ is the \emph{rank}.  During training, $W_0$ is frozen
+and only $A$ and $B$ are updated.  The number of trainable parameters
+reduces from $dk$ to $r(d + k)$.
+\end{definition}
+
+For a typical attention layer with $d = k = 4096$ and $r = 16$, LoRA reduces the
+trainable parameters from $16.8\text{M}$ to $131\text{K}$---a reduction by a factor
+of $128$.  Because $W_0$ is frozen, its weights do not need to be stored in optimizer
+state; only the adapter matrices $A$ and $B$ accumulate gradients.  This makes
+fine-tuning feasible on a single consumer GPU.
+
+QLoRA \citep{dettmers2023qlora} extends this further: the frozen weights $W_0$ are
+stored in 4-bit NormalFloat (NF4) quantisation, reducing memory for a 7B model from
+roughly 14~GB (BF16) to approximately 4~GB, while the LoRA adapters are kept in
+BF16 for training stability.  A finance team with a single A100~GPU can fine-tune a
+7B model on a proprietary corpus of 10-K filings in under a day using QLoRA.
+
+\subsection{Quantisation}
+\label{sec:distillation-quant}
+
+Quantisation reduces the numerical precision of model weights from 32- or 16-bit
+floating point to lower-bit integer formats.  Post-training quantisation (PTQ) applies
+quantisation after training without any gradient updates, making it applicable to
+models one does not own (e.g., weights downloaded from a model hub).
+
+GPTQ \citep{frantar2022gptq} is a layer-wise second-order PTQ method.  It quantises
+one layer at a time by solving a weighted least-squares problem that minimises the
+quantisation error propagated through subsequent layers.  In practice, GPTQ produces
+INT4 models that match FP16 perplexity on most tasks with negligible accuracy loss.
+
+AWQ (Activation-aware Weight Quantisation, \citet{lin2023awq}) improves on GPTQ
+by identifying the 1\% of weight channels that correspond to high-activation inputs
+and protecting them from aggressive quantisation.  The intuition is that quantisation
+error matters most when the activation magnitude is large, so protecting those
+channels at higher precision yields a better accuracy-compression trade-off.
+
+The practical implication for financial practitioners is that a 70B frontier model
+can be deployed at INT4 on two consumer GPUs (80~GB combined VRAM) with negligible
+accuracy degradation on financial NLP benchmarks.  This changes the deployment
+economics significantly: tasks that previously required cloud API calls---with
+associated data-privacy and latency concerns---can be run on-premises on standard
+data-centre hardware.
+
+\subsection{Model Pruning}
+\label{sec:distillation-pruning}
+
+Pruning removes weights or structural components from a trained model.
+\emph{Unstructured} pruning zeroes individual weights below a magnitude threshold;
+it achieves high compression ratios but requires specialised sparse-matrix hardware
+to realise the theoretical speedup.  \emph{Structured} pruning removes entire
+attention heads, feed-forward layers, or even full transformer blocks, yielding dense
+models that run efficiently on standard hardware.
+
+The \emph{lottery ticket hypothesis} \citep{frankle2019lottery} conjectures that
+dense networks contain sparse subnetworks (``winning tickets'') that can be trained in
+isolation to full accuracy.  While this finding motivates the study of pruning, in
+practice lottery-ticket-based methods require costly iterative magnitude pruning
+schedules and have not yet scaled reliably to models of the size relevant for financial
+NLP.  For most practitioners, quantisation and LoRA offer a better trade-off between
+compression and implementation complexity.
+
+% ---------------------------------------------------------------
 \section{Limitations and Responsible Use}
 \label{sec:limitations}
 

@@ -7,7 +7,7 @@ license: ""
 audience: ""
 language: "python"
 chapters_planned: 0
-book_depth: "loose"
+book_depth: "loose"     # loose = book goes deeper than course | coupled = 1-to-1
 quality_threshold: 7
 max_refine_iterations: 5
 auto_commit: true

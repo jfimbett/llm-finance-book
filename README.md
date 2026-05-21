@@ -18,6 +18,7 @@ course/        Lecture notes, slides, exercises
 code/          Jupyter notebooks + shared Python package
 .claude/       AI agents, skills, and hooks
 docs/          Design specs, quality reports, status
+hooks/         Portable hook copies for non-Claude AI runners
 ```
 
 ## Requirements

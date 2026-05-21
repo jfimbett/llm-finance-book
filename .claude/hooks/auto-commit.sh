@@ -27,6 +27,7 @@ fi
 # Skip non-content files
 case "$FILE" in
     .claude/*|scripts/*|hooks/*|docs/superpowers/*) exit 0 ;;
+    docs/quality/*|docs/STATUS.md|docs/SESSION_LOG.md|TOPIC.md) exit 0 ;;
 esac
 
 # Determine commit type/scope from file path

@@ -24,7 +24,7 @@ while IFS= read -r file; do
             echo "  Undefined ref: \\ref{$key} in $file"
             BROKEN=$((BROKEN+1))
         fi
-    done < <(grep -oh '\\[e]*ref{[^}]*}' "$file" 2>/dev/null | sed 's/.*{//;s/}//' || true)
+    done < <(grep -oh '\\[a-zA-Z]*ref{[^}]*}' "$file" 2>/dev/null | sed 's/.*{//;s/}//' || true)
 done <<< "$STAGED_TEX"
 
 if [ "$BROKEN" -gt 0 ]; then

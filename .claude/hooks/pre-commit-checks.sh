@@ -11,7 +11,6 @@ if [[ "$COMMAND" != *"git commit"* ]]; then
     exit 0
 fi
 
-# Stub: individual check scripts will be added in Plan 4.
 # Each check script exits 1 to block the commit on failure.
 for script in \
     .claude/hooks/check-latex.sh \

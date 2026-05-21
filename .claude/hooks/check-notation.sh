@@ -20,8 +20,13 @@ fi
 WARNINGS=0
 while IFS= read -r file; do
     [ -f "$file" ] || continue
-    # Find commands in math mode (simple heuristic: lines containing $...$ or \[...\])
-    USED_COMMANDS=$(grep -oh '\\[a-zA-Z]*' "$file" 2>/dev/null | sort -u || true)
+    # Extract only math-mode content (inline $...$ and display \[...\])
+    # Then find \commandname tokens in that content
+    USED_COMMANDS=$(
+      grep -oE '\$[^$]+\$|\\\[[^\]]+\\\]' "$file" 2>/dev/null \
+        | grep -oE '\\[A-Za-z]+' \
+        | sort -u
+    ) || true
     while IFS= read -r cmd; do
         [ -z "$cmd" ] && continue
         if ! echo "$STANDARD" | grep -qw "$cmd" && ! echo "$DEFINED" | grep -qw "$cmd"; then

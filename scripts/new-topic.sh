@@ -117,7 +117,7 @@ if [ -f "docs/STATUS.md" ]; then
 fi
 
 # Update main.tex to include chapter
-sed -i "s|% Add new chapters here:.*|\\\\include{chapters/$DIRNAME/chapter}\n% Add new chapters here: \\\\include{chapters/NN-name/chapter}|" book/main.tex 2>/dev/null || true
+sed -i.bak "s|% Add new chapters here:.*|\\\\include{chapters/${DIRNAME}/chapter}\n% Add new chapters here: \\\\include{chapters/NN-name/chapter}|" book/main.tex 2>/dev/null && rm -f book/main.tex.bak || true
 
 echo "Scaffolded: $DIRNAME"
 git add "book/chapters/$DIRNAME" "course/lectures/$DIRNAME" "code/notebooks/$DIRNAME" "docs/STATUS.md" "book/main.tex" 2>/dev/null || true

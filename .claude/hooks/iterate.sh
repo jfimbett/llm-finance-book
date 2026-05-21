@@ -63,7 +63,7 @@ if [ "$DIMENSION" = "none" ]; then
 fi
 
 if [ "$DIMENSION" = "error" ]; then
-  echo "iterate.sh: could not parse score file $SCORE_FILE"
+  echo "iterate.sh: could not parse score file $REPORT"
   exit 1
 fi
 

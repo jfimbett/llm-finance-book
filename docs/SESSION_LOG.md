@@ -14,3 +14,4 @@
 | 2026-05-21 | 33 files | chore: scaffold topic 01-intro with outline-curator-approved section structure;chore: session log 2026-05-21;chore: initialize project via /interview-me; | — |
 | 2026-05-21 | 6 files | feat(ch01): draft Introduction chapter — 8.4/10, all dimensions ≥ 8, PASS;feat(ch01): draft sections 6 and 7 (RNNs to Transformer);feat(ch01): draft sections 8-11 (LLM landscape, API, limitations, roadmap); | — |
 | 2026-05-21 | 6 files | fix(ch01): fix LaTeX compilation — citet alias, cite key mismatches, figure placeholder, bib note syntax;chore: session log 2026-05-21;feat(ch01): draft Introduction chapter — 8.4/10, all dimensions ≥ 8, PASS; | — |
+| 2026-05-21 | 7 files | chore: professional typography — Palatino, titlesec chapter headings, fancyhdr running headers, caption/listing polish;chore: session log 2026-05-21;fix(ch01): fix LaTeX compilation — citet alias, cite key mismatches, figure placeholder, bib note syntax; | — |

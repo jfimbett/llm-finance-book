@@ -1,0 +1,52 @@
+% ============================================================
+% Preamble — packages, macros, theorem environments
+% Author and title fields are filled in by /interview-me
+% ============================================================
+
+% --- Core packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+
+% --- Math ---
+\usepackage{amsmath, amssymb, amsthm, mathtools}
+
+% --- Figures & Tables ---
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{booktabs}
+\usepackage{float}
+
+% --- Code listings ---
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single}
+
+% --- Hyperlinks ---
+\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+
+% --- Bibliography ---
+\usepackage[backend=biber, style=authoryear]{biblatex}
+\addbibresource{bibliography.bib}
+
+% --- Theorem environments ---
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{exercise}[theorem]{Exercise}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% --- Title block (filled by /interview-me) ---
+\title{COURSE TITLE}
+\author{AUTHOR NAME \\ INSTITUTION}
+\date{\today}

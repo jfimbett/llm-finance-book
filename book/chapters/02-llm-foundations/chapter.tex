@@ -1191,6 +1191,182 @@ models are applied to MiFID~II or IFRS filings.
 \end{remark}
 
 % ---------------------------------------------------------------
+\section{Temperature, Sampling, and Controlled Generation}
+\label{sec:sampling}
+
+Autoregressive generation produces text one token at a time.  At each step $t$,
+the model computes a vector of \emph{logits}
+$\mathbf{z}^{(t)} \in \mathbb{R}^{|\mathcal{V}|}$ and converts them to a
+probability distribution from which the next token is drawn.  The mapping from
+logits to a distribution, and the sampling rule applied to that distribution,
+jointly determine the character of the output.  For financial applications this
+choice is not cosmetic: it determines whether the model produces a reliable,
+deterministic extraction of numerical facts or a plausible-but-fictitious
+narrative.
+
+\subsection{Temperature Scaling}
+\label{sec:sampling-temperature}
+
+\begin{definition}[Temperature-Scaled Softmax]
+\label{def:temperature}
+Let $\mathbf{z} = (z_1,\ldots,z_{|\mathcal{V}|}) \in \mathbb{R}^{|\mathcal{V}|}$
+be the logit vector at a given generation step and $\tau > 0$ a scalar
+\emph{temperature}.  The temperature-scaled probability distribution is
+\begin{equation}
+  p_i(\tau) = \frac{\exp(z_i / \tau)}{\sum_{j=1}^{|\mathcal{V}|} \exp(z_j / \tau)},
+  \quad i = 1,\ldots,|\mathcal{V}|.
+  \label{eq:temperature-softmax}
+\end{equation}
+\end{definition}
+
+Dividing the logits by $\tau$ before the softmax scales the sharpness of the
+resulting distribution.  As $\tau \to 0^+$, the distribution concentrates all
+mass on the highest-logit token---equivalently, the model selects the single most
+probable token at every step.  This limit is called \emph{greedy decoding} and
+is maximally deterministic.  At $\tau = 1$ the distribution equals the standard
+softmax, representing the model's unmodified beliefs.  As $\tau \to \infty$ the
+distribution approaches the discrete uniform: all tokens become equally likely,
+and generation becomes essentially random.
+
+The effect on information content is captured precisely by the Shannon entropy of
+the distribution.  Let $H(\tau) = -\sum_{i=1}^{|\mathcal{V}|} p_i(\tau) \log
+p_i(\tau)$ denote the entropy at temperature $\tau$.  One can show that $H$ is
+strictly increasing in $\tau$ whenever the logits are not all equal: raising
+temperature always increases uncertainty.  For practitioners, this means that
+lowering $\tau$ below $1$ biases the model toward its most confident completions,
+which is desirable for structured data extraction, while raising $\tau$ above $1$
+widens the distribution and produces more diverse, sometimes more creative, outputs.
+
+In financial practice, $\tau$ is the primary control knob for the trade-off between
+reliability and diversity.  Earnings extraction from an SEC filing benefits from
+$\tau \approx 0$ or $\tau \to 0$ (greedy); scenario generation for stress-testing
+benefits from $\tau \in [0.7, 1.0]$ so that the model explores plausible but
+non-obvious futures.
+
+\subsection{Top-$k$ and Nucleus (Top-$p$) Sampling}
+\label{sec:sampling-topk-topp}
+
+Even at moderate temperatures, sampling uniformly from the full vocabulary at each
+step can assign meaningful probability mass to tokens that are contextually
+incoherent---an artefact of the finite training corpus that occasionally leaves
+very low-probability tokens with non-negligible logits.  \emph{Truncation sampling}
+methods address this by restricting the sampling pool before each draw.
+
+\begin{definition}[Top-$k$ Sampling]
+\label{def:topk}
+Given a temperature-scaled distribution $p(\tau)$, top-$k$ sampling retains only
+the $k$ tokens with the highest probabilities, renormalises, and samples from the
+resulting distribution:
+\begin{equation}
+  \tilde{p}_i(\tau) \propto p_i(\tau) \cdot \mathbf{1}[i \in \mathcal{V}_k],
+  \label{eq:topk}
+\end{equation}
+where $\mathcal{V}_k$ is the index set of the $k$ largest entries of $p(\tau)$.
+\end{definition}
+
+Top-$k$ sampling is simple but has a known weakness: the appropriate value of $k$
+varies wildly across contexts.  When the model is highly confident, setting $k=50$
+may include many near-zero probability tokens; when the model is genuinely uncertain,
+$k=50$ may exclude reasonable alternatives.
+
+\begin{definition}[Nucleus (Top-$p$) Sampling]
+\label{def:nucleus}
+Nucleus sampling, introduced by \citet{holtzman2020curious}, selects the smallest
+set of tokens whose cumulative probability meets or exceeds a threshold $p \in (0,1]$:
+\begin{equation}
+  \mathcal{V}_p = \arg\min_{S \subseteq \mathcal{V}} \bigl\{ |S| :
+    \textstyle\sum_{i \in S} p_i(\tau) \geq p \bigr\},
+  \label{eq:topp}
+\end{equation}
+where the tokens in $S$ are ordered by decreasing probability.
+The model then samples uniformly from $\mathcal{V}_p$ after renormalisation.
+\end{definition}
+
+Nucleus sampling adapts the vocabulary size to the model's confidence at each step:
+a sharp distribution yields a small $\mathcal{V}_p$, while a flat distribution
+yields a large one.  In practice, $p = 0.9$ or $p = 0.95$ is a common default for
+open-ended generation tasks.
+
+\subsection{Beam Search}
+\label{sec:sampling-beam}
+
+Greedy decoding is fast but myopic: it selects the locally optimal token at each step
+without considering how that choice affects future tokens.  \emph{Beam search} keeps
+the $B$ most probable partial sequences at each step and expands each of them, retaining
+the $B$ best sequences by total log-probability.
+
+\begin{definition}[Beam Search]
+\label{def:beam-search}
+Let $B \in \mathbb{N}$ be the \emph{beam width}.  At step $t$, let
+$\mathcal{H}_t = \{h_1^{(t)}, \ldots, h_B^{(t)}\}$ be the set of $B$ current
+\emph{hypotheses}, where each $h_b^{(t)} = (x_1,\ldots,x_t)$ is a partial sequence
+and $\text{score}(h_b^{(t)}) = \sum_{s=1}^t \log p(x_s \mid x_{<s})$ is its
+accumulated log-probability.  Beam search expands each hypothesis over all tokens
+$v \in \mathcal{V}$, forming $B \cdot |\mathcal{V}|$ candidate continuations, and
+retains the top $B$ by score:
+\begin{equation}
+  \mathcal{H}_{t+1} = \operatorname*{top-}B_{h \in \mathcal{H}_t,\, v \in \mathcal{V}}
+    \bigl[ \text{score}(h) + \log p(v \mid h) \bigr].
+  \label{eq:beam-search}
+\end{equation}
+\end{definition}
+
+Beam search was the dominant decoding strategy for neural machine translation and
+abstractive summarisation throughout the late 2010s, and is still used for tasks
+where output quality is evaluated by a deterministic metric (ROUGE, BLEU) rather than
+human preference.  However, for open-ended generation it tends to produce repetitive,
+generic text---a phenomenon known as \emph{beam search degeneration}---and has been
+largely replaced by nucleus sampling for conversational and creative tasks.
+
+\subsection{Sampling Strategy Selection for Financial Tasks}
+\label{sec:sampling-finance}
+
+The choice of decoding strategy should be driven by the nature of the downstream task
+and the consequences of error.  Table~\ref{tab:sampling-strategies} summarises
+recommendations for five common categories of financial NLP application.
+
+\begin{table}[htbp]
+\centering
+\caption{Recommended sampling strategies for financial NLP tasks.}
+\label{tab:sampling-strategies}
+\begin{tabular}{lllp{5cm}}
+\toprule
+\textbf{Task} & \textbf{Temperature} & \textbf{Sampling} & \textbf{Rationale} \\
+\midrule
+Structured data extraction
+  (earnings figures, covenants)
+  & $\tau = 0$ (greedy)
+  & ---
+  & Determinism is essential; any deviation from the source document is an error. \\[4pt]
+Sentiment labelling
+  & $\tau \approx 0.1$
+  & greedy or top-$k$ ($k=5$)
+  & Low variance; multiple samples for self-consistency if needed. \\[4pt]
+Document summarisation
+  & $\tau \approx 0.3$--$0.5$
+  & top-$p = 0.9$
+  & Some lexical diversity is desirable; factual accuracy still critical. \\[4pt]
+Regulatory Q\&A / compliance
+  & $\tau \approx 0.1$
+  & greedy with RAG
+  & Low temperature + retrieved context minimises hallucination risk. \\[4pt]
+Scenario / stress-test narrative
+  & $\tau \approx 0.7$--$1.0$
+  & top-$p = 0.95$
+  & Creative diversity is the point; plausibility checked post-hoc. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A pragmatic rule of thumb: if the output will be compared to ground-truth values
+or fed into a downstream system that expects a specific schema, use $\tau = 0$ and
+add retrieval grounding (see Section~\ref{sec:rag}).  If the output will be read
+by a human analyst who values novelty and breadth, use $\tau \in [0.5, 1.0]$ with
+nucleus sampling.  In either case, running multiple samples and aggregating via
+self-consistency (Section~\ref{sec:hallucinations-mitigation}) improves reliability
+at modest additional cost.
+
+% ---------------------------------------------------------------
 \section{Working with LLMs via API}
 \label{sec:api}
 

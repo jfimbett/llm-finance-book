@@ -5,3 +5,4 @@
 | # | Chapter / Lecture | Draft | Scored | Clarity | Rigor | Completeness | Pedagogy | Style | Released |
 |---|-------------------|-------|--------|---------|-------|--------------|----------|-------|----------|
 | 01 | Introduction | Yes | Yes | 8 | 9 | 8 | 9 | 8 | No |
+| 02 | LLM Foundations | No | No | — | — | — | — | — | No |

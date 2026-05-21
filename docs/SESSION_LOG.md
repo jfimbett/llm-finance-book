@@ -9,3 +9,4 @@
 | 2026-05-21 | 33 files | chore: session log 2026-05-21;chore: session log 2026-05-21;fix: wire iterate+notify-threshold, add include-chapter step, fix interview-me count, remove gitignore duplicate; | — |
 | 2026-05-21 | 21 files | chore: session log 2026-05-21;chore: session log 2026-05-21;chore: session log 2026-05-21; | — |
 | 2026-05-21 | 8 files | chore: session log 2026-05-21;chore: session log 2026-05-21;chore: session log 2026-05-21; | — |
+| 2026-05-21 | 23 files | chore(skills): migrate skills from flat .md files to subdirectories;chore: session log 2026-05-21;chore: session log 2026-05-21; | — |

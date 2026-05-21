@@ -18,7 +18,7 @@ After any content draft is complete, before committing, or when checking quality
 1. Verify the file exists at the given path. If not, print an error and exit.
 2. Read `quality_threshold` from `TOPIC.md` YAML front matter. Default to 7 if not found.
 3. **Invoke the scorer agent**: provide the file content and threshold. The scorer reads the file, applies the 5-dimension rubric, and returns scores + justifications.
-4. The scorer writes the JSON report to `docs/quality/[sanitized-filename]-score.json` (replace `/` with `_`, remove extension).
+4. The scorer writes the JSON report to `docs/quality/[sanitized-filename]-score.json` where `[sanitized-filename]` is the file path with `/` replaced by `_` and the file extension removed, then `-score` appended. Example: `book/chapters/01-intro/chapter.tex` → `book_chapters_01-intro_chapter-score.json`.
 5. Print the summary table returned by the scorer:
    ```
    === Quality Score: [filename] ===

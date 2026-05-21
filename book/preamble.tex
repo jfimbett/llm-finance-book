@@ -1,56 +1,202 @@
 % ============================================================
-% Preamble — packages, macros, theorem environments
-% Author and title fields are filled in by /interview-me
+% Preamble — Large Language Models in Finance
+% Typography modelled on Princeton UP academic monograph style
+% (cf. Cochrane, The Fiscal Theory of the Price Level, 2023)
 % ============================================================
 
-% --- Core packages ---
-\usepackage[utf8]{inputenc}
+% --- Font & Encoding ---
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage{mathpazo}               % Palatino for text; Pazo Math for maths
+\linespread{1.05}                   % Palatino needs slightly more leading
 \usepackage[english]{babel}
+\usepackage{microtype}              % Protrusion, expansion, kerning
+
+% --- Page Layout ---
+\usepackage[
+  top         = 1.15in,
+  bottom      = 1.15in,
+  inner       = 1.35in,
+  outer       = 1.10in,
+  headheight  = 14pt
+]{geometry}
 
 % --- Math ---
 \usepackage{amsmath, amssymb, amsthm, mathtools}
 
+% --- Running Headers (fancyhdr) ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.35pt}
+\fancyhead[LE]{\small\itshape\nouppercase{\leftmark}}
+\fancyhead[RO]{\small\itshape\nouppercase{\rightmark}}
+\fancyfoot[C]{\small\thepage}
+% Plain style for chapter-opening pages
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\small\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+% --- Chapter & Section Headings (titlesec) ---
+\usepackage{titlesec}
+
+% Chapter: small-caps label + number, large bold title, framed by thin rules
+\titleformat{\chapter}[display]
+  {\normalfont\small\scshape\centering}
+  {\chaptertitlename~\thechapter}
+  {6pt}
+  {\centering\Huge\bfseries\rmfamily}
+  [\vspace{4pt}{\titlerule[0.5pt]}]
+
+\titlespacing*{\chapter}{0pt}{-10pt}{36pt}
+
+% Section: bold, numbered, with small space above
+\titleformat{\section}
+  {\normalfont\Large\bfseries}
+  {\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{18pt plus 3pt minus 2pt}{8pt}
+
+% Subsection: bold, slightly smaller
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}
+  {\thesubsection}{1em}{}
+\titlespacing*{\subsection}{0pt}{14pt plus 2pt minus 2pt}{5pt}
+
+% Subsubsection: italic bold, no number
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\itshape}
+  {}{0em}{}
+\titlespacing*{\subsubsection}{0pt}{10pt}{3pt}
+
+% --- Colors ---
+\usepackage{xcolor}
+\definecolor{linkblue}{RGB}{14, 75, 140}
+\definecolor{codebg}{RGB}{248, 248, 248}
+\definecolor{coderule}{RGB}{210, 210, 210}
+\definecolor{keywordblue}{RGB}{0, 100, 180}
+\definecolor{commentgray}{RGB}{120, 120, 120}
+\definecolor{stringgreen}{RGB}{30, 130, 30}
+
 % --- Figures & Tables ---
 \usepackage{graphicx}
-\usepackage{xcolor}
 \usepackage{tikz}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepackage{booktabs}
 \usepackage{float}
+\usepackage{caption}
+\captionsetup{
+  font       = small,
+  labelfont  = bf,
+  labelsep   = period,
+  skip       = 8pt,
+  width      = 0.92\textwidth,
+}
+\captionsetup[table]{position=above}
 
-% --- Code listings ---
+% --- Code Listings ---
 \usepackage{listings}
-\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single}
+\lstset{
+  basicstyle       = \ttfamily\small,
+  breaklines       = true,
+  backgroundcolor  = \color{codebg},
+  frame            = single,
+  framerule        = 0.4pt,
+  rulecolor        = \color{coderule},
+  numbers          = left,
+  numberstyle      = \tiny\color{gray},
+  numbersep        = 10pt,
+  keywordstyle     = \bfseries\color{keywordblue},
+  commentstyle     = \itshape\color{commentgray},
+  stringstyle      = \color{stringgreen},
+  showstringspaces = false,
+  tabsize          = 4,
+  xleftmargin      = 18pt,
+  xrightmargin     = 4pt,
+  aboveskip        = 10pt,
+  belowskip        = 6pt,
+}
 
 % --- Hyperlinks ---
-\usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+\usepackage[
+  colorlinks = true,
+  linkcolor  = linkblue,
+  citecolor  = linkblue,
+  urlcolor   = linkblue,
+  pdftitle   = {Large Language Models in Finance},
+  pdfauthor  = {Juan F. Imbet},
+  bookmarksnumbered = true,
+]{hyperref}
 
 % --- Bibliography ---
-\usepackage[backend=biber, style=authoryear]{biblatex}
+\usepackage[
+  backend      = biber,
+  style        = authoryear,
+  maxcitenames = 2,
+  maxbibnames  = 10,
+  giveninits   = true,
+  dashed       = false,
+]{biblatex}
 \addbibresource{bibliography.bib}
-% natbib compatibility aliases
+% natbib compatibility
 \newcommand{\citet}[1]{\textcite{#1}}
 \newcommand{\citep}[1]{\parencite{#1}}
 
-% --- Theorem environments ---
-\theoremstyle{plain}
+% --- Theorem Environments ---
+% Shared counter; reset per chapter
+\newtheoremstyle{thmstyle}%
+  {8pt}{6pt}%                     space above/below
+  {\itshape}{}%                   body font; indent
+  {\bfseries}{.}%                 head font; punctuation
+  { }%                            space after head
+  {\thmname{#1}\thmnumber{ #2}\thmnote{ \normalfont(#3)}}
+
+\newtheoremstyle{defstyle}%
+  {8pt}{6pt}%
+  {\normalfont}{}%
+  {\bfseries}{.}%
+  { }%
+  {\thmname{#1}\thmnumber{ #2}\thmnote{ \normalfont(#3)}}
+
+\newtheoremstyle{remstyle}%
+  {6pt}{4pt}%
+  {\normalfont}{}%
+  {\itshape}{.}%
+  { }%
+  {\thmname{#1}\thmnumber{ #2}\thmnote{ \normalfont(#3)}}
+
+\theoremstyle{thmstyle}
 \newtheorem{theorem}{Theorem}[chapter]
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
 
-\theoremstyle{definition}
+\theoremstyle{defstyle}
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{example}[theorem]{Example}
 \newtheorem{exercise}[theorem]{Exercise}
 
-\theoremstyle{remark}
+\theoremstyle{remstyle}
 \newtheorem{remark}[theorem]{Remark}
 
-% --- Title block (filled by /interview-me) ---
-\title{Large Language Models in Finance}
-\author{Juan F. Imbet \\ Paris Dauphine -- PSL University}
-\date{\today}
+% --- Miscellaneous ---
+\usepackage{enumitem}
+\setlist[enumerate]{itemsep=2pt, topsep=4pt}
+\setlist[itemize]{itemsep=2pt, topsep=4pt}
+
+% Tighter paragraph spacing (book style)
+\setlength{\parskip}{3pt}
+\setlength{\parindent}{1.5em}
+
+% --- Title Block ---
+\title{%
+  \vspace{-1cm}
+  {\large\scshape Large Language Models in Finance}\\[10pt]
+  {\rule{\textwidth}{0.5pt}}\\[8pt]
+  {\normalsize Juan F.\ Imbet}\\[2pt]
+  {\small\itshape Paris Dauphine -- PSL University}
+}
+\author{}
+\date{}

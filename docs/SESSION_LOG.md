@@ -10,3 +10,4 @@
 | 2026-05-21 | 21 files | chore: session log 2026-05-21;chore: session log 2026-05-21;chore: session log 2026-05-21; | — |
 | 2026-05-21 | 8 files | chore: session log 2026-05-21;chore: session log 2026-05-21;chore: session log 2026-05-21; | — |
 | 2026-05-21 | 23 files | chore(skills): migrate skills from flat .md files to subdirectories;chore: session log 2026-05-21;chore: session log 2026-05-21; | — |
+| 2026-05-21 | 25 files | chore: initialize project via /interview-me;chore: session log 2026-05-21;chore(skills): migrate skills from flat .md files to subdirectories; | — |

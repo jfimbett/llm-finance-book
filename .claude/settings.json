@@ -1,0 +1,86 @@
+{
+  "hooks": {
+    "PreToolUse": [],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/auto-commit.sh \"$CLAUDE_TOOL_INPUT_PATH\"",
+            "description": "Auto-commit file writes when auto_commit=true in TOPIC.md"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/score-on-save.sh \"$CLAUDE_TOOL_INPUT_PATH\"",
+            "description": "Score content files on save and write quality report"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/scaffold-pairs.sh \"$CLAUDE_TOOL_INPUT_PATH\"",
+            "description": "Auto-create paired lecture/notebook when a new chapter is created"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/session-log.sh",
+            "description": "Append session summary to docs/SESSION_LOG.md"
+          }
+        ]
+      }
+    ],
+    "PreCommit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-latex.sh",
+            "description": "Verify LaTeX compiles before commit"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-refs.sh",
+            "description": "Check for undefined LaTeX references"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-bib.sh",
+            "description": "Validate bibliography entries"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-notation.sh",
+            "description": "Check notation consistency"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-numbering.sh",
+            "description": "Verify chapter/lecture pairs exist"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/gate-check.sh",
+            "description": "Block commit if quality scores below threshold"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(pdflatex *)",
+      "Bash(biber *)",
+      "Bash(bash scripts/*)",
+      "Bash(bash .claude/hooks/*)",
+      "Bash(python *)",
+      "Bash(pytest *)",
+      "Bash(jupyter *)"
+    ]
+  }
+}

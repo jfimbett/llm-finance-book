@@ -1,10 +1,605 @@
-% Bibliography — add entries here or let the literature-reviewer agent suggest them.
-% Format: BibTeX, compiled with biber.
+% Bibliography for "Large Language Models in Finance"
+% Maintained by the literature-reviewer agent.
+% Format: BibTeX, compiled with biber + biblatex (authoryear style).
+% Entries marked % [CHECK] need verification before final release.
 
-@book{example2024,
-  author    = {Last, First},
-  title     = {Example Reference},
-  publisher = {Publisher},
-  year      = {2024},
-  address   = {City},
+% ============================================================
+% HISTORY & DICTIONARIES
+% ============================================================
+
+@book{stone1966general,
+  author    = {Stone, Philip J. and Dunphy, Dexter C. and Smith, Marshall S. and Ogilvie, Daniel M.},
+  title     = {The General Inquirer: A Computer Approach to Content Analysis},
+  publisher = {MIT Press},
+  year      = {1966},
+  address   = {Cambridge, MA},
+}
+
+@article{tetlock2007giving,
+  author  = {Tetlock, Paul C.},
+  title   = {Giving Content to Investor Sentiment: The Role of Media in the Stock Market},
+  journal = {Journal of Finance},
+  volume  = {62},
+  number  = {3},
+  pages   = {1139--1168},
+  year    = {2007},
+}
+
+@article{loughran2011liability,
+  author  = {Loughran, Tim and McDonald, Bill},
+  title   = {When Is a Liability Not a Liability? Textual Analysis, Dictionaries, and 10-Ks},
+  journal = {Journal of Finance},
+  volume  = {66},
+  number  = {1},
+  pages   = {35--65},
+  year    = {2011},
+}
+
+@article{li2008annual,
+  author  = {Li, Feng},
+  title   = {Annual Report Readability, Current Earnings, and Earnings Persistence},
+  journal = {Journal of Accounting and Economics},
+  volume  = {45},
+  number  = {2--3},
+  pages   = {221--247},
+  year    = {2008},
+}
+
+@article{larcker2012detecting,
+  author  = {Larcker, David F. and Zakolyukina, Anastasia A.},
+  title   = {Detecting Deceptive Discussions in Conference Calls},
+  journal = {Journal of Accounting Research},
+  volume  = {50},
+  number  = {2},
+  pages   = {495--540},
+  year    = {2012},
+}
+
+@article{lehavy2011benefit,
+  author  = {Lehavy, Reuven and Li, Feng and Merkley, Kenneth},
+  title   = {The Effect of Annual Report Readability on Analyst Following and the Properties of Their Earnings Forecasts},
+  journal = {Accounting Review},
+  volume  = {86},
+  number  = {3},
+  pages   = {1087--1115},
+  year    = {2011},
+}
+
+@article{davis2015effect,
+  author  = {Davis, Angela K. and Ge, Weili and Matsumoto, Dawn and Zhang, Jerry L.},
+  title   = {The Effect of Manager-Specific Optimism on the Tone of Earnings Conference Calls},
+  journal = {Review of Accounting Studies},
+  volume  = {20},
+  number  = {2},
+  pages   = {639--673},
+  year    = {2015},
+}
+
+@article{li2013measuring,
+  author  = {Li, Feng},
+  title   = {Measuring the Information Content of Earnings Announcements: An Application of Textual Analysis},
+  journal = {Working Paper},
+  year    = {2013},
+  note    = {% [CHECK: verify exact title and publication status]},
+}
+
+% ============================================================
+% INFORMATION THEORY & MARKETS
+% ============================================================
+
+@article{fama1970efficient,
+  author  = {Fama, Eugene F.},
+  title   = {Efficient Capital Markets: A Review of Theory and Empirical Work},
+  journal = {Journal of Finance},
+  volume  = {25},
+  number  = {2},
+  pages   = {383--417},
+  year    = {1970},
+}
+
+@article{bollen2011twitter,
+  author  = {Bollen, Johan and Mao, Huina and Zeng, Xiaojun},
+  title   = {Twitter Mood Predicts the Stock Market},
+  journal = {Journal of Computational Science},
+  volume  = {2},
+  number  = {1},
+  pages   = {1--8},
+  year    = {2011},
+}
+
+@article{boudoukh2013news,
+  author  = {Boudoukh, Jacob and Feldman, Ronen and Kogan, Shimon and Richardson, Matthew},
+  title   = {The Information in Financial Media and Its Utility in Predicting Excess Returns},
+  journal = {Working Paper},
+  year    = {2013},
+  note    = {% [CHECK: verify final publication venue]},
+}
+
+@article{manela2017news,
+  author  = {Manela, Asaf and Moreira, Alan},
+  title   = {News Implied Volatility and Disaster Concerns},
+  journal = {Journal of Financial Economics},
+  volume  = {123},
+  number  = {1},
+  pages   = {137--162},
+  year    = {2017},
+}
+
+@article{hansen2018transparency,
+  author  = {Hansen, Stephen and McMahon, Michael and Prat, Andrea},
+  title   = {Transparency and Deliberation Within the {FOMC}: A Computational Linguistics Approach},
+  journal = {Quarterly Journal of Economics},
+  volume  = {133},
+  number  = {2},
+  pages   = {801--870},
+  year    = {2018},
+}
+
+@article{lopezleal2023can,
+  author  = {Lopez-Leal, Alejandro and others},
+  title   = {Can Large Language Models Perform Financial Analysis?},
+  journal = {Working Paper},
+  year    = {2023},
+  note    = {% [CHECK: verify authorship and publication status]},
+}
+
+% ============================================================
+% CLASSICAL NLP / TEXT REPRESENTATIONS
+% ============================================================
+
+@article{salton1975vector,
+  author  = {Salton, Gerard and Wong, Andrew and Yang, Chung-Shu},
+  title   = {A Vector Space Model for Automatic Indexing},
+  journal = {Communications of the {ACM}},
+  volume  = {18},
+  number  = {11},
+  pages   = {613--620},
+  year    = {1975},
+}
+
+@article{blei2003latent,
+  author  = {Blei, David M. and Ng, Andrew Y. and Jordan, Michael I.},
+  title   = {Latent Dirichlet Allocation},
+  journal = {Journal of Machine Learning Research},
+  volume  = {3},
+  pages   = {993--1022},
+  year    = {2003},
+}
+
+% ============================================================
+% WORD EMBEDDINGS
+% ============================================================
+
+@misc{firth1957,
+  author = {Firth, John R.},
+  title  = {A Synopsis of Linguistic Theory 1930--1955},
+  year   = {1957},
+  note   = {In: Studies in Linguistic Analysis (Special Volume, Philological Society)},
+}
+
+@inproceedings{mikolov2013efficient,
+  author    = {Mikolov, Tom{\'{a}}{\v{s}} and Chen, Kai and Corrado, Greg and Dean, Jeffrey},
+  title     = {Efficient Estimation of Word Representations in Vector Space},
+  booktitle = {Proceedings of the International Conference on Learning Representations (ICLR)},
+  year      = {2013},
+}
+
+@article{mikolov2013,
+  author    = {Mikolov, Tom{\'{a}}{\v{s}} and Chen, Kai and Corrado, Greg and Dean, Jeffrey},
+  title     = {Efficient Estimation of Word Representations in Vector Space},
+  journal   = {arXiv preprint arXiv:1301.3781},
+  year      = {2013},
+}
+
+@inproceedings{pennington2014glove,
+  author    = {Pennington, Jeffrey and Socher, Richard and Manning, Christopher D.},
+  title     = {{GloVe}: Global Vectors for Word Representation},
+  booktitle = {Proceedings of the 2014 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  pages     = {1532--1543},
+  year      = {2014},
+}
+
+@inproceedings{pennington2014,
+  author    = {Pennington, Jeffrey and Socher, Richard and Manning, Christopher D.},
+  title     = {{GloVe}: Global Vectors for Word Representation},
+  booktitle = {Proceedings of EMNLP},
+  pages     = {1532--1543},
+  year      = {2014},
+}
+
+@inproceedings{arora2017,
+  author    = {Arora, Sanjeev and Liang, Yingyu and Ma, Tengyu},
+  title     = {A Simple but Tough-to-Beat Baseline for Sentence Embeddings},
+  booktitle = {Proceedings of the International Conference on Learning Representations (ICLR)},
+  year      = {2017},
+}
+
+@inproceedings{reimers2019,
+  author    = {Reimers, Nils and Gurevych, Iryna},
+  title     = {Sentence-{BERT}: Sentence Embeddings using Siamese {BERT}-Networks},
+  booktitle = {Proceedings of EMNLP-IJCNLP},
+  pages     = {3982--3992},
+  year      = {2019},
+}
+
+% ============================================================
+% RECURRENT MODELS
+% ============================================================
+
+@article{hochreiter1997long,
+  author  = {Hochreiter, Sepp and Schmidhuber, J{\"{u}}rgen},
+  title   = {Long Short-Term Memory},
+  journal = {Neural Computation},
+  volume  = {9},
+  number  = {8},
+  pages   = {1735--1780},
+  year    = {1997},
+}
+
+@inproceedings{chung2014empirical,
+  author    = {Chung, Junyoung and G{\"{u}}l{\c{c}}ehre, {\c{C}}aglar and Cho, KyungHyun and Bengio, Yoshua},
+  title     = {Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling},
+  booktitle = {NeurIPS Workshop on Deep Learning},
+  year      = {2014},
+}
+
+@article{schuster1997bilstm,
+  author  = {Schuster, Mike and Paliwal, Kuldip K.},
+  title   = {Bidirectional Recurrent Neural Networks},
+  journal = {IEEE Transactions on Signal Processing},
+  volume  = {45},
+  number  = {11},
+  pages   = {2673--2681},
+  year    = {1997},
+}
+
+@article{werbos1990bptt,
+  author  = {Werbos, Paul J.},
+  title   = {Backpropagation Through Time: What It Does and How to Do It},
+  journal = {Proceedings of the IEEE},
+  volume  = {78},
+  number  = {10},
+  pages   = {1550--1560},
+  year    = {1990},
+}
+
+@inproceedings{pascanu2013gradient,
+  author    = {Pascanu, Razvan and Mikolov, Tom{\'{a}}{\v{s}} and Bengio, Yoshua},
+  title     = {On the Difficulty of Training Recurrent Neural Networks},
+  booktitle = {Proceedings of the 30th International Conference on Machine Learning (ICML)},
+  pages     = {1310--1318},
+  year      = {2013},
+}
+
+@inproceedings{bahdanau2015neural,
+  author    = {Bahdanau, Dzmitry and Cho, Kyunghyun and Bengio, Yoshua},
+  title     = {Neural Machine Translation by Jointly Learning to Align and Translate},
+  booktitle = {Proceedings of the International Conference on Learning Representations (ICLR)},
+  year      = {2015},
+}
+
+% ============================================================
+% TRANSFORMER & BERT/GPT FAMILY
+% ============================================================
+
+@inproceedings{vaswani2017attention,
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob
+               and Jones, Llion and Gomez, Aidan N. and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  title     = {Attention Is All You Need},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017},
+}
+
+@article{devlin2019bert,
+  author  = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+  title   = {{BERT}: Pre-training of Deep Bidirectional Transformers for Language Understanding},
+  journal = {arXiv preprint arXiv:1810.04805},
+  year    = {2019},
+}
+
+@inproceedings{devlin2019,
+  author    = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+  title     = {{BERT}: Pre-training of Deep Bidirectional Transformers for Language Understanding},
+  booktitle = {Proceedings of NAACL-HLT},
+  pages     = {4171--4186},
+  year      = {2019},
+}
+
+@article{radford2018gpt,
+  author  = {Radford, Alec and Narasimhan, Karthik and Salimans, Tim and Sutskever, Ilya},
+  title   = {Improving Language Understanding by Generative Pre-Training},
+  journal = {OpenAI Blog},
+  year    = {2018},
+  note    = {Available at \url{https://openai.com/research/language-unsupervised}},
+}
+
+@article{ba2016layernorm,
+  author  = {Ba, Jimmy Lei and Kiros, Jamie Ryan and Hinton, Geoffrey E.},
+  title   = {Layer Normalization},
+  journal = {arXiv preprint arXiv:1607.06450},
+  year    = {2016},
+}
+
+@inproceedings{he2016resnet,
+  author    = {He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
+  title     = {Deep Residual Learning for Image Recognition},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {770--778},
+  year      = {2016},
+}
+
+@article{hendrycks2016gelu,
+  author  = {Hendrycks, Dan and Gimpel, Kevin},
+  title   = {Gaussian Error Linear Units ({GELUs})},
+  journal = {arXiv preprint arXiv:1606.08415},
+  year    = {2016},
+}
+
+@inproceedings{shaw2018relative,
+  author    = {Shaw, Peter and Uszkoreit, Jakob and Vaswani, Ashish},
+  title     = {Self-Attention with Relative Position Representations},
+  booktitle = {Proceedings of NAACL-HLT},
+  pages     = {464--468},
+  year      = {2018},
+}
+
+@article{su2024rope,
+  author  = {Su, Jianlin and Ahmed, Murtadha and Lu, Yu and Pan, Shengfeng
+             and Bo, Wen and Liu, Yunfeng},
+  title   = {{RoFormer}: Enhanced Transformer with Rotary Position Embedding},
+  journal = {Neurocomputing},
+  volume  = {568},
+  pages   = {127063},
+  year    = {2024},
+}
+
+@inproceedings{clark2019bert,
+  author    = {Clark, Kevin and Khandelwal, Urvashi and Levy, Omer and Manning, Christopher D.},
+  title     = {What Does {BERT} Look at? An Analysis of {BERT}'s Attention},
+  booktitle = {Proceedings of the ACL Workshop on BlackboxNLP},
+  year      = {2019},
+}
+
+@inproceedings{tenney2019,
+  author    = {Tenney, Ian and Das, Dipanjan and Pavlick, Ellie},
+  title     = {{BERT} Rediscovers the Classical {NLP} Pipeline},
+  booktitle = {Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL)},
+  pages     = {4593--4601},
+  year      = {2019},
+}
+
+@article{lewis2020bart,
+  author  = {Lewis, Mike and Liu, Yinhan and Goyal, Naman and Ghazvininejad, Marjan
+             and Mohamed, Abdelrahman and Levy, Omer and Stoyanov, Veselin and Zettlemoyer, Luke},
+  title   = {{BART}: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension},
+  journal = {arXiv preprint arXiv:1910.13461},
+  year    = {2020},
+}
+
+@inproceedings{dao2022flashattention,
+  author    = {Dao, Tri and Fu, Daniel Y. and Ermon, Stefano and Rudra, Atri and R{\'{e}}, Christopher},
+  title     = {{FlashAttention}: Fast and Memory-Efficient Exact Attention with {IO}-Awareness},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2022},
+}
+
+@inproceedings{tsai2019transformer,
+  author    = {Tsai, Yao-Hung Hubert and Bai, Shaojie and Yamada, Makoto and Morency, Louis-Philippe and Salakhutdinov, Ruslan},
+  title     = {Transformer Dissection: An Unified Understanding for Transformer's Attention via the Lens of Kernel},
+  booktitle = {Proceedings of EMNLP-IJCNLP},
+  year      = {2019},
+}
+
+@inproceedings{peters2018,
+  author    = {Peters, Matthew E. and Neumann, Mark and Iyyer, Mohit and Gardner, Matt
+               and Clark, Christopher and Lee, Kenton and Zettlemoyer, Luke},
+  title     = {Deep Contextualized Word Representations},
+  booktitle = {Proceedings of NAACL-HLT},
+  pages     = {2227--2237},
+  year      = {2018},
+}
+
+% ============================================================
+% TOKENISATION
+% ============================================================
+
+@inproceedings{sennrich2016bpe,
+  author    = {Sennrich, Rico and Haddow, Barry and Birch, Alexandra},
+  title     = {Neural Machine Translation of Rare Words with Subword Units},
+  booktitle = {Proceedings of ACL},
+  pages     = {1715--1725},
+  year      = {2016},
+}
+
+@article{wu2016wordpiece,
+  author  = {Wu, Yonghui and Schuster, Mike and Chen, Zhifeng and Le, Quoc V. and others},
+  title   = {Google's Neural Machine Translation System: Bridging the Gap between Human and Machine Translation},
+  journal = {arXiv preprint arXiv:1609.08144},
+  year    = {2016},
+}
+
+% ============================================================
+% FINANCE-SPECIFIC MODELS
+% ============================================================
+
+@article{araci2019finbert,
+  author  = {Araci, Dogu},
+  title   = {{FinBERT}: Financial Sentiment Analysis with Pre-trained Language Models},
+  journal = {arXiv preprint arXiv:1908.10063},
+  year    = {2019},
+}
+
+@article{yang2020,
+  author  = {Yang, Yi and Uy, Mark Christopher Siy and Huang, Allen},
+  title   = {{FinBERT}: A Pretrained Language Model for Financial Communications},
+  journal = {arXiv preprint arXiv:2006.08097},
+  year    = {2020},
+}
+
+@article{wu2023bloomberggpt,
+  author  = {Wu, Shijie and Irsoy, Ozan and Lu, Steven and Dabravolski, Vadim
+             and Dredze, Mark and Gehrmann, Sebastian and Kambadur, Prabhanjan
+             and Rosenberg, David and Mann, Gideon},
+  title   = {{BloombergGPT}: A Large Language Model for Finance},
+  journal = {arXiv preprint arXiv:2303.17564},
+  year    = {2023},
+}
+
+@article{liu2018,
+  author  = {Liu, Yang and Ott, Myle and Goyal, Naman and Du, Jingfei and Joshi, Mandar
+             and Chen, Danqi and Levy, Omer and Lewis, Mike and Zettlemoyer, Luke and Stoyanov, Veselin},
+  title   = {{RoBERTa}: A Robustly Optimized {BERT} Pretraining Approach},
+  journal = {arXiv preprint arXiv:1907.11692},
+  year    = {2019},
+  note    = {% [CHECK: verify this is the intended liu2018 key reference in the chapter]},
+}
+
+@article{beltagy2020,
+  author  = {Beltagy, Iz and Peters, Matthew E. and Cohan, Arman},
+  title   = {Longformer: The Long-Document Transformer},
+  journal = {arXiv preprint arXiv:2004.05150},
+  year    = {2020},
+}
+
+% ============================================================
+% BENCHMARKS & DATASETS
+% ============================================================
+
+@article{malo2014phrasebank,
+  author  = {Malo, Pekka and Sinha, Ankur and Korhonen, Pekka and Wallenius, Jyrki and Takala, Pyry},
+  title   = {Good Debt or Bad Debt: Detecting Semantic Orientations in Economic Texts},
+  journal = {Journal of the Association for Information Science and Technology},
+  volume  = {65},
+  number  = {4},
+  pages   = {782--796},
+  year    = {2014},
+}
+
+@article{malo2014good,
+  author  = {Malo, Pekka and Sinha, Ankur and Korhonen, Pekka and Wallenius, Jyrki and Takala, Pyry},
+  title   = {Good Debt or Bad Debt: Detecting Semantic Orientations in Economic Texts},
+  journal = {Journal of the Association for Information Science and Technology},
+  volume  = {65},
+  number  = {4},
+  pages   = {782--796},
+  year    = {2014},
+}
+
+@misc{fiqa2018,
+  author = {{FiQA Challenge Organizers}},
+  title  = {{WWW} 2018 Challenge: Financial Opinion Mining and Question Answering},
+  year   = {2018},
+  note   = {Workshop at The Web Conference (WWW) 2018},
+}
+
+@inproceedings{mukherjee2022ectsum,
+  author    = {Mukherjee, Rajdeep and Bohra, Abhinav and Bagga, Akash and Naldi, Tinku and Neti, Lalit and Goyal, Pawan and Ekbal, Asif},
+  title     = {{ECTSum}: A New Benchmark Dataset For Bullet Point Summarization of Long Earnings Call Transcripts},
+  booktitle = {Proceedings of EMNLP},
+  year      = {2022},
+  note    = {% [CHECK: verify exact authorship and venue]},
+}
+
+@inproceedings{chen2021finqa,
+  author    = {Chen, Zhiyu and Chen, Wenhu and Smiley, Charese and Shah, Sameena
+               and Borova, Iana and Langdon, Dylan and Moussa, Reema and Beane, Matt
+               and Huang, Ting-Hao and Routledge, Bryan and Wang, William Yang},
+  title     = {{FinQA}: A Dataset of Numerical Reasoning over Financial Data},
+  booktitle = {Proceedings of EMNLP},
+  pages     = {3697--3711},
+  year      = {2021},
+}
+
+@inproceedings{shah2022flue,
+  author    = {Shah, Sameena and Chen, Jia and Goto, Dhruv and others},
+  title     = {{FLUE}: A Financial Language Understanding Evaluation Benchmark},
+  booktitle = {Proceedings of EMNLP},
+  year      = {2022},
+  note    = {% [CHECK: verify exact authorship]},
+}
+
+% ============================================================
+% GENERATION & SAMPLING
+% ============================================================
+
+@inproceedings{holtzman2020curious,
+  author    = {Holtzman, Ari and Buys, Jan and Du, Li and Forbes, Maxwell and Choi, Yejin},
+  title     = {The Curious Case of Neural Text Degeneration},
+  booktitle = {Proceedings of the International Conference on Learning Representations (ICLR)},
+  year      = {2020},
+}
+
+% ============================================================
+% INSTRUCTION TUNING / RLHF
+% ============================================================
+
+@inproceedings{ouyang2022training,
+  author    = {Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo
+               and Wainwright, Carroll L. and Mishkin, Pamela and Zhang, Chong
+               and Agarwal, Sandhini and Slama, Katarina and Ray, Alex
+               and Schulman, John and Hilton, Jacob and Kelton, Fraser
+               and Miller, Luke and Simens, Maddie and Askell, Amanda
+               and Welinder, Peter and Christiano, Paul and Leike, Jan and Lowe, Ryan},
+  title     = {Training Language Models to Follow Instructions with Human Feedback},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2022},
+}
+
+@inproceedings{ouyang2022rlhf,
+  author    = {Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo
+               and Wainwright, Carroll L. and Mishkin, Pamela and Zhang, Chong
+               and Agarwal, Sandhini and Slama, Katarina and Ray, Alex
+               and Schulman, John and Hilton, Jacob and Kelton, Fraser
+               and Miller, Luke and Simens, Maddie and Askell, Amanda
+               and Welinder, Peter and Christiano, Paul and Leike, Jan and Lowe, Ryan},
+  title     = {Training Language Models to Follow Instructions with Human Feedback},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2022},
+}
+
+% ============================================================
+% HALLUCINATION & FAITHFULNESS
+% ============================================================
+
+@inproceedings{maynez2020faithfulness,
+  author    = {Maynez, Joshua and Narayan, Shashi and Bohnet, Bernd and McDonald, Ryan},
+  title     = {On Faithfulness and Factuality in Abstractive Summarization},
+  booktitle = {Proceedings of ACL},
+  pages     = {1906--1919},
+  year      = {2020},
+}
+
+% ============================================================
+% RETRIEVAL & APPROXIMATE NEAREST NEIGHBOURS
+% ============================================================
+
+@article{johnson2019,
+  author  = {Johnson, Jeff and Douze, Matthijs and J{\'{e}}gou, Herv{\'{e}}},
+  title   = {{Billion-scale similarity search with GPUs}},
+  journal = {IEEE Transactions on Big Data},
+  volume  = {7},
+  number  = {3},
+  pages   = {535--547},
+  year    = {2021},
+}
+
+% ============================================================
+% FINANCE-NLP APPLICATION PAPERS (cite keys from agents)
+% ============================================================
+
+@article{frattaroli2019,
+  author  = {Frattaroli, Marc},
+  title   = {Soft Information in Loan Contracts: Evidence from Text Analysis},
+  journal = {Working Paper},
+  year    = {2019},
+  note    = {% [CHECK: verify exact title and authorship]},
+}
+
+@article{ko2020,
+  author  = {Ko, Thomas and others},
+  title   = {Sentiment Analysis of Earnings Calls Using Pre-trained Language Models},
+  journal = {Working Paper},
+  year    = {2020},
+  note    = {% [CHECK: verify author, title and publication status]},
 }

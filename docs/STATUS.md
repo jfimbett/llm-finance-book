@@ -4,4 +4,4 @@
 
 | # | Chapter / Lecture | Draft | Scored | Clarity | Rigor | Completeness | Pedagogy | Style | Released |
 |---|-------------------|-------|--------|---------|-------|--------------|----------|-------|----------|
-| 01 | Introduction | No | No | — | — | — | — | — | No |
+| 01 | Introduction | Yes | Yes | 8 | 9 | 8 | 9 | 8 | No |

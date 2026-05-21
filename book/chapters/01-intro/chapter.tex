@@ -1,5 +1,27 @@
-\chapter{Introduction}
+﻿\chapter{Introduction}
 \label{ch:intro}
+
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Describe the evolution of textual analysis in finance from dictionary methods
+        to large language models and situate key milestones in that history.
+  \item Construct and interpret classical text representations (bag-of-words, one-hot
+        encoding, TF-IDF) and explain their limitations.
+  \item Explain word embeddings, reproduce the Skip-Gram and GloVe objectives, and
+        interpret a PCA visualisation of financial vocabulary.
+  \item Derive the vanishing-gradient bound for vanilla RNNs and explain how the LSTM
+        cell state addresses it.
+  \item State the scaled dot-product attention formula, prove the $\sqrt{d_k}$ variance
+        normalisation, and describe the multi-head attention architecture.
+  \item Distinguish generative from reasoning language models and identify major model
+        families relevant to finance.
+  \item Write Python code to query an LLM via the OpenAI, Anthropic, and HuggingFace
+        APIs and reason about token costs and latency trade-offs.
+  \item Articulate the main limitations of LLMs in financial applications and the
+        relevant regulatory landscape.
+\end{enumerate}
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{A Brief History of Textual Analysis in Finance}
@@ -1672,7 +1694,7 @@ steps --- making long-range financial dependencies practically unlearnable.
 
 \subsubsection{Long Short-Term Memory}
 
-The Long Short-Term Memory (LSTM) unit was introduced by \citet{hochreiter1997lstm} % [CITE: Hochreiter & Schmidhuber 1997, Long Short-Term Memory]
+The Long Short-Term Memory (LSTM) unit was introduced by \citet{hochreiter1997long} % [CITE: Hochreiter & Schmidhuber 1997, Long Short-Term Memory]
 precisely to overcome the vanishing-gradient problem.
 The key innovation is a \emph{cell state} $\mathbf{c}_t$ with an \emph{additive}
 update path, gated by three sigmoid-activated vectors.
@@ -1725,7 +1747,7 @@ The cell-state gradient satisfies
   \label{eq:lstm-cellgrad}
 \end{equation}
 When $\mathbf{f}_{t+1} \approx \mathbf{1}$, the gradient is transmitted without
-decay --- the \emph{constant error carousel} of \citeauthor{hochreiter1997lstm}. % [CITE: Hochreiter & Schmidhuber 1997]
+decay --- the \emph{constant error carousel} of \citeauthor{hochreiter1997long}. % [CITE: Hochreiter & Schmidhuber 1997]
 
 \subsubsection{Gated Recurrent Units}
 
@@ -2193,60 +2215,848 @@ financial datasets, is currently the most cost-effective domain-adaptation strat
 for practitioners.
 \end{remark}
 
-% ---------------------------------------------------------------
+
 \section{The Modern LLM Landscape}
 \label{sec:landscape}
+
+The preceding sections established the architectural foundations of the Transformer
+and the pre-training paradigm.  We now survey the landscape of deployed large language
+models (LLMs) as it stands in the mid-2020s, drawing distinctions that will recur
+throughout this book.
 
 \subsection{Generative Models vs.\ Reasoning Models}
 \label{sec:landscape-genreason}
 
-[Placeholder]
+\begin{definition}[Autoregressive Generative Language Model]
+\label{def:autoregressive}
+An \emph{autoregressive language model} is a probability distribution over sequences
+of tokens.  Given a vocabulary $\mathcal{V}$, the model factorises the joint
+probability of a sequence $\mathbf{x} = (x_1, x_2, \ldots, x_n)$ as a product of
+conditional probabilities:
+\begin{equation}
+  P(x_1, x_2, \ldots, x_n) = \prod_{t=1}^{n} P\!\left(x_t \mid x_1, \ldots, x_{t-1}\right).
+  \label{eq:autoregressive}
+\end{equation}
+Generation proceeds by sampling one token at a time, conditioning on all previously
+generated tokens.  Each forward pass through the network produces a probability
+distribution over $\mathcal{V}$; the next token is obtained by drawing from this
+distribution (or selecting its mode, as discussed in
+Section~\ref{sec:api-concepts}).
+\end{definition}
+
+This factorisation is not merely a modelling convenience: it imposes a \emph{causal}
+(left-to-right) structure that corresponds naturally to how language and, indeed, how
+financial disclosures are read.  An earnings call transcript, a research report, or a
+regulatory filing all unfold sequentially, and the meaning of a phrase frequently
+depends on all that precedes it.
+
+Standard autoregressive generation produces output token by token in a \emph{single
+chain of forward passes}: given a prompt of $L$ tokens, the model runs $L$ attention
+computations in parallel (using a KV-cache for efficiency) to generate each successive
+output token.  For many financial NLP tasks---sentiment labelling, named-entity
+recognition, brief summarisation---this single-pass regime is entirely adequate.
+
+However, it is ill-suited to tasks requiring multi-step deliberation: valuing a firm
+under a discounted-cash-flow (DCF) framework from a noisy earnings call, reasoning
+about whether a merger satisfies regulatory criteria across three jurisdictions, or
+constructing a quantitative argument from a numerical table embedded in a 10-K filing.
+Such tasks require the model to \emph{plan}, backtrack, and verify intermediate
+results before committing to a final answer.  This motivated a second paradigm.
+
+\begin{definition}[Reasoning (Extended-Thinking) Language Model]
+\label{def:reasoning}
+A \emph{reasoning model} is an autoregressive language model trained (typically via
+reinforcement learning with verifiable rewards) to generate a structured
+\emph{chain-of-thought} (CoT) before producing its final answer.  Formally, the
+model samples a latent reasoning trace $\mathbf{r} = (r_1, \ldots, r_m)$ prior to
+the answer tokens $\mathbf{a}$:
+\begin{equation}
+  P(\mathbf{a} \mid \mathbf{x})
+  = \sum_{\mathbf{r}} P(\mathbf{a} \mid \mathbf{x}, \mathbf{r})\,
+    P(\mathbf{r} \mid \mathbf{x}).
+  \label{eq:cot}
+\end{equation}
+The trace $\mathbf{r}$ may be exposed to the user (as in OpenAI o1/o3 and
+DeepSeek-R1) or kept internal (as in the \emph{extended thinking} mode of
+Claude 3.7/4.x).  In either case, the effective compute invested per query is
+substantially larger than in standard autoregressive generation.
+\end{definition}
+
+\begin{remark}
+The distinction in Definition~\ref{def:reasoning} is one of \emph{training
+objective} and \emph{inference regime}, not of architecture.  Both paradigms use the
+same decoder-only Transformer building block.  What differs is that reasoning models
+are rewarded for producing correct final answers, with the chain-of-thought providing
+a scratch-pad that can represent thousands of intermediate tokens.  This has been
+shown to dramatically improve performance on mathematical proofs, competitive
+programming, and, increasingly, on quantitative finance tasks such as numerical
+reasoning over financial statements.  It does not, however, eliminate hallucination
+(see Section~\ref{sec:limitations-hallucinations}).
+\end{remark}
+
+\begin{example}[Merger Valuation from an Earnings Call]
+\label{ex:merger-valuation}
+Consider the following excerpt from an earnings call (paraphrased for illustration):
+
+\begin{quote}
+``We are acquiring TechCo for \$4.2 billion.  TechCo's trailing twelve-month EBITDA
+is \$310 million, and we expect \$150 million in synergies within three years.  Our
+current weighted average cost of capital is 8.5\%.''
+\end{quote}
+
+\noindent\textbf{Standard generative model (GPT-4o, temperature $= 0$):}  The model
+reads the excerpt and directly outputs a one-paragraph assessment, typically noting
+that the EV/EBITDA multiple is approximately $13.5\times$ and characterising the deal
+as \emph{``strategically sound given the synergy guidance.''}  This response is often
+plausible but does not verify whether the synergy NPV actually justifies the purchase
+price premium.
+
+\noindent\textbf{Reasoning model (o3, DeepSeek-R1):}  The model first computes the
+implied enterprise value, then discounts the synergy stream at 8.5\% over three years
+(approximated as a growing annuity), compares this to the purchase premium over a
+benchmarked stand-alone valuation, and checks internal consistency before concluding
+that the deal is modestly value-accretive under the stated assumptions but sensitive
+to the synergy realisation timeline.  The reasoning trace makes each step auditable.
+
+This contrast recurs throughout the book.  For tasks with a verifiable numerical or
+logical answer, reasoning models offer a meaningful and measurable advantage.  For
+primarily generative tasks (summarisation, translation, drafting), the additional
+latency and cost of extended thinking may not be justified.
+\end{example}
 
 \subsection{Major Model Families}
 \label{sec:landscape-families}
 
-[Placeholder]
+Table~\ref{tab:model-families} provides a structured overview of the major model
+families referenced throughout this book.
+
+\begin{table}[htbp]
+\centering
+\caption{Major language model families relevant to financial NLP (as of 2024--2025).
+Parameter counts are approximate.  ``Finance'' indicates whether the model was
+trained or fine-tuned specifically on financial corpora.}
+\label{tab:model-families}
+\small
+\begin{tabular}{llllll}
+\hline
+\textbf{Model} & \textbf{Organisation} & \textbf{Arch.} & \textbf{Params} &
+\textbf{Training Data} & \textbf{Finance} \\
+\hline
+GPT-4 / GPT-4o   & OpenAI        & Decoder-only & $\sim$1T (est.) & Web + RLHF       & No  \\
+Claude 3.x/4.x   & Anthropic     & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
+Llama 3 (405B)   & Meta          & Decoder-only & 405B             & 15T tokens       & No  \\
+Gemini 1.5 Pro   & Google DM     & Decoder-only & Undisclosed      & Multimodal web   & No  \\
+FinBERT          & Araci (2019)  & Encoder      & 110M             & Financial news   & Yes \\
+BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ tok.  & Yes \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{Open vs.\ Proprietary Models.}
+The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
+weights are not released, and access is mediated through pay-per-token APIs.  This
+raises important issues for financial practitioners.  First, there is a
+\emph{data-privacy} concern: sending confidential earnings call transcripts, trading
+strategies, or client portfolios to a third-party API may conflict with internal
+compliance policies, GDPR obligations, or NDA terms.  Second, there is an
+\emph{auditability} concern: the model's exact behaviour cannot be reproduced or
+independently audited.
+
+Open-weight models such as Llama~3 (Meta, released under a community licence) address
+both concerns: they can be deployed on-premises, fine-tuned on proprietary data
+without data leaving the organisation, and their inference behaviour can be exactly
+reproduced given the same random seed.  The trade-off is that the largest open models
+require substantial GPU infrastructure (a 405-billion-parameter model at 16-bit
+precision requires approximately 810~GB of GPU memory).
+% [CITE: touvron2023llama]
+
+\paragraph{Why Domain-Adapted Models Do Not Always Win.}
+BloombergGPT~\cite{wu2023bloomberggpt} % [CITE: wu2023bloomberggpt Wu et al. 2023]
+was trained on 363 billion financial tokens (news, filings, analyst reports) alongside
+345 billion general-domain tokens, and represented the first large-scale demonstration
+that domain-specific pre-training on financial text was feasible at scale.
+
+Subsequent benchmarks revealed a nuanced picture.  On tasks requiring deep financial
+\emph{knowledge} (entity recognition in financial news, financial sentiment on
+FinancialPhraseBank), BloombergGPT outperforms same-size general-purpose baselines.
+But general-purpose models at significantly larger scale---GPT-4 or Claude 3---often
+match or exceed BloombergGPT on the same benchmarks, because scale compensates for
+domain specificity.  This is an instance of the \emph{emergent capability} effect:
+beyond a threshold of model scale and training compute, models acquire domain knowledge
+implicitly, even without targeted domain training. % [CITE: wei2022emergent]
+The practical implication is that \emph{task-specific fine-tuning of a general-purpose
+model} often outperforms a domain-pre-trained model of the same size, and
+\emph{prompt engineering} applied to a large general model often outperforms
+both---a theme developed extensively in Chapter~6.
+
+\paragraph{Instruction Tuning and RLHF.}
+Raw pre-trained models (\emph{base} models) are not directly usable as assistants.
+\emph{Instruction tuning} fine-tunes a base model on curated (instruction, response)
+pairs, teaching the model to follow natural-language directives.
+\emph{Reinforcement Learning from Human Feedback} (RLHF) \cite{ouyang2022training}
+% [CITE: ouyang2022training Ouyang et al. 2022, InstructGPT]
+further aligns the model with human preferences by training a reward model on pairwise
+human rankings and optimising the language model's policy via proximal policy
+optimisation (PPO).  The result is the \emph{chat} or \emph{instruct} variant
+familiar to practitioners.  For financial NLP, instruction tuning is especially
+important: it makes models reliably follow structured output formats (JSON, Markdown
+tables) that downstream data pipelines depend on.
 
 \subsection{Financial NLP Benchmarks and Datasets}
 \label{sec:landscape-benchmarks}
 
-[Placeholder]
+Progress in financial NLP is measured against a set of standardised benchmarks.
+Table~\ref{tab:benchmarks} summarises the major ones; all are used in evaluation
+experiments in subsequent chapters.
+
+\begin{table}[htbp]
+\centering
+\caption{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
+``Metric'' is the primary evaluation metric used in the literature.}
+\label{tab:benchmarks}
+\small
+\begin{tabular}{lllll}
+\hline
+\textbf{Benchmark} & \textbf{Task} & \textbf{Size} & \textbf{Metric} &
+\textbf{Reference} \\
+\hline
+FinancialPhraseBank & Sentiment (3-class)  & 4,840 sent.       & Accuracy       & \cite{malo2014good} \\
+FiQA SA / QA        & Opinion mining; Q\&A & $\sim$1,200 sent. & F1, NDCG       & \cite{fiqa2018} \\
+ECTSum              & Earnings call summ.  & 2,425 docs        & ROUGE-L        & \cite{mukherjee2022ectsum} \\
+FinQA               & Numerical reasoning  & 8,281 Q\&A pairs  & Execution acc. & \cite{chen2021finqa} \\
+FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  & \cite{shah2022flue} \\
+\hline
+\end{tabular}
+\end{table}
+% [CITE: malo2014good] Malo et al. (2014), FinancialPhraseBank
+% [CITE: fiqa2018] Maia et al. (2018), FiQA challenge
+% [CITE: mukherjee2022ectsum] Mukherjee et al. (2022), ECTSum
+% [CITE: chen2021finqa] Chen et al. (2021), FinQA
+% [CITE: shah2022flue] Shah et al. (2022), FLUE
+
+\textbf{FinancialPhraseBank} (Malo et al.\ 2014) \cite{malo2014good} consists of
+4,840 sentences sampled from English-language financial news articles, each annotated
+by sixteen domain experts with one of three sentiment labels: \texttt{positive},
+\texttt{negative}, or \texttt{neutral}.  The standard evaluation uses the subset where
+all annotators agreed (\emph{Agree-all}, 2,264 sentences), yielding a highly reliable
+gold standard.  This dataset is used in Chapter~2 as the primary benchmark for
+sentiment analysis experiments.
+
+\textbf{FiQA} (2018) \cite{fiqa2018} was released as part of a shared task on
+financial opinion mining.  It contains two subtasks: (SA-C) aspect-based sentiment
+analysis of financial microblogs and news headlines, and (QA) question answering over
+financial documents.  The QA subtask has proven particularly challenging due to the
+requirement to retrieve relevant passages before generating an answer---a natural fit
+for the retrieval-augmented generation (RAG) systems discussed in Chapter~5.
+
+\textbf{ECTSum} (Mukherjee et al.\ 2022) \cite{mukherjee2022ectsum} provides 2,425
+earnings call transcript--summary pairs, where the reference summaries were written by
+domain experts and verified for factual consistency.  It is the primary benchmark for
+Chapter~4 (Earnings Calls and Transcripts) and is used to evaluate both extractive and
+abstractive summarisation methods.
+
+\textbf{FinQA} (Chen et al.\ 2021) \cite{chen2021finqa} requires models to answer
+questions that demand \emph{multi-step numerical reasoning} over structured tables and
+unstructured prose extracted from SEC 10-K and 10-Q filings.  Correct answers require
+executing a sequence of arithmetic operations (addition, division, percentage change)
+with values drawn from the document.  This dataset is the primary evaluation target in
+Chapter~3 and illustrates clearly why reasoning models
+(Section~\ref{sec:landscape-genreason}) outperform standard generative models on
+structured financial analysis tasks.
+
+\textbf{FLUE} (Shah et al.\ 2022) \cite{shah2022flue} is a Financial Language
+Understanding Evaluation benchmark comprising five tasks: financial sentiment analysis,
+news headline classification, named entity recognition in financial documents, structure
+boundary detection in filings, and the FiQA-SA subtask.  It is the most comprehensive
+single-number evaluation framework for general financial NLP capability and is the
+primary evaluation target in Chapter~13.
+
+\begin{remark}
+All five benchmarks described above were constructed primarily from English-language,
+North American financial documents.  Chapter~13 discusses the implications of this
+distributional bias for evaluating models intended for European or Asian financial
+markets, and Chapter~12 highlights specific challenges that arise when FLUE-trained
+models are applied to MiFID~II or IFRS filings.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Working with LLMs via API}
 \label{sec:api}
 
+The transition from understanding how LLMs work to using them in practice requires
+familiarity with a small set of engineering concepts.  This section covers those
+concepts and provides working code examples for the three ecosystems most relevant to
+financial practitioners.
+
 \subsection{Core Concepts: Tokens, Context Windows, and Sampling}
 \label{sec:api-concepts}
 
-[Placeholder]
+\begin{definition}[Token]
+\label{def:token}
+A \emph{token} is the atomic unit of input and output processed by a language model.
+Tokens are produced by a \emph{tokeniser}, a deterministic mapping from strings to
+integer sequences.  Modern LLMs use sub-word tokenisation schemes such as Byte-Pair
+Encoding (BPE) \cite{sennrich2016bpe} % [CITE: sennrich2016bpe Sennrich et al. 2016]
+or WordPiece \cite{wu2016wordpiece}, % [CITE: wu2016wordpiece Wu et al. 2016]
+in which the vocabulary consists neither of individual characters nor of whole words,
+but of frequently occurring sub-word fragments.
+\end{definition}
+
+\paragraph{Byte-Pair Encoding.}
+BPE builds the vocabulary iteratively:
+\begin{enumerate}
+  \item Initialise the vocabulary with the set of all individual Unicode characters
+    (or bytes) appearing in the training corpus.
+  \item Count the frequency of all adjacent symbol pairs in the current tokenised
+    corpus.
+  \item Merge the most frequent pair into a single new symbol, updating the corpus.
+  \item Repeat steps 2--3 until the vocabulary reaches a target size $|V|$
+    (typically 32,000--100,000 for LLMs).
+\end{enumerate}
+
+\begin{example}[BPE Tokenisation of a Financial Term]
+\label{ex:bpe}
+Consider the word \texttt{"earnings"}.  A BPE tokeniser with vocabulary size 50,000
+(as used by GPT-2 and GPT-3) would likely tokenise this as two sub-words:
+\texttt{["earn", "ings"]}.  Rarer financial terms may receive more fragmented
+tokenisations; for example, \texttt{"EBITDA"} might tokenise as
+\texttt{["EB",\,"IT",\,"DA"]}, and \texttt{"Berkshire"} as
+\texttt{["Berk",\,"shire"]}.  As a rule of thumb, one English word corresponds to
+approximately 1.3 tokens on average; a typical earnings call transcript of 5,000 words
+therefore contains roughly 6,500 tokens.  This conversion factor is used in the cost
+analysis in Section~\ref{sec:api-practical}.
+\end{example}
+
+\begin{definition}[Context Window]
+\label{def:context-window}
+The \emph{context window} (or \emph{context length}) of a language model is the
+maximum number of tokens $L_{\max}$ that the model can process in a single forward
+pass.  Formally, the attention mechanism in a Transformer of context length $L_{\max}$
+can only attend to positions $j \leq \min(t, L_{\max})$ when computing the
+representation of position $t$.  Any input exceeding $L_{\max}$ tokens must be
+truncated or split across multiple calls.
+\end{definition}
+
+Context windows grew rapidly in the 2022--2024 period: GPT-3 offered 4,096 tokens;
+GPT-4-turbo extended this to 128,000 tokens; Gemini 1.5 Pro supports 1,000,000
+tokens; Claude 3/4 supports up to 200,000 tokens with plans to expand further.  For
+financial NLP, the context window determines whether an entire 10-K filing (which may
+exceed 100,000 tokens) can be processed in a single call---a question with significant
+implications for retrieval-augmented generation architectures (Chapter~5).
+
+\paragraph{Sampling Parameters.}
+Given the logit vector $\mathbf{z} \in \mathbb{R}^{|\mathcal{V}|}$ produced by the
+final Transformer layer, the model converts logits to a probability distribution and
+samples the next token.  Three hyperparameters govern this process.
+
+\begin{definition}[Temperature Sampling]
+\label{def:temperature}
+\emph{Temperature} $\tau > 0$ scales the logit vector before the softmax:
+\begin{equation}
+  p_i = \frac{\exp(z_i / \tau)}{\sum_{j=1}^{|\mathcal{V}|} \exp(z_j / \tau)},
+  \quad i = 1, \ldots, |\mathcal{V}|.
+  \label{eq:temperature}
+\end{equation}
+As $\tau \to 0^+$, all probability mass concentrates on the highest-logit token
+(\emph{greedy decoding}).  As $\tau \to \infty$, the distribution approaches uniform
+over $\mathcal{V}$.  For financial analysis tasks requiring precision and
+reproducibility, $\tau = 0$ (or $\tau = 0.1$) is recommended.  For creative tasks,
+$\tau \in [0.7, 1.0]$ is common.
+\end{definition}
+
+\begin{definition}[Nucleus (Top-$p$) Sampling]
+\label{def:top-p}
+\emph{Nucleus sampling} \cite{holtzman2020curious} % [CITE: holtzman2020curious]
+draws the next token from the smallest set $\mathcal{S} \subseteq \mathcal{V}$
+satisfying
+\begin{equation}
+  \sum_{i \in \mathcal{S}} p_i \geq p,
+  \label{eq:top-p}
+\end{equation}
+where $p \in (0, 1]$ is a user-specified threshold.  Tokens outside $\mathcal{S}$ are
+assigned zero probability and renormalised over $\mathcal{S}$.  Top-$p$ sampling
+adapts the effective vocabulary size to the confidence of the model: when the model is
+certain, $|\mathcal{S}|$ is small; when uncertain, $|\mathcal{S}|$ grows.  Common
+values are $p \in [0.9, 0.95]$.
+\end{definition}
+
+\begin{definition}[Top-$k$ Sampling]
+\label{def:top-k}
+\emph{Top-$k$ sampling} restricts sampling to the $k$ tokens with the highest
+probabilities, renormalising over this set.  Unlike top-$p$, the effective vocabulary
+size is fixed at $k$ regardless of the model's confidence.  Top-$k$ sampling
+(with $k = 50$) was used in GPT-2 generation and remains a common baseline.
+\end{definition}
+
+\begin{remark}
+In practice, many API providers expose only temperature and top-$p$, not top-$k$, as
+user-controllable parameters.  For financial NLP tasks where reproducibility and
+factual precision are paramount---such as extracting numerical data from filings or
+generating compliance summaries---\emph{greedy decoding} ($\tau = 0$) is strongly
+recommended: it is the only sampling regime that is deterministic across identical
+inputs (modulo floating-point non-determinism on GPU hardware).
+\end{remark}
 
 \subsection{Python Walkthrough: OpenAI, Anthropic, and HuggingFace}
 \label{sec:api-python}
 
-[Placeholder]
+We now demonstrate how to call three distinct LLM ecosystems from Python.  All
+examples use the same financial NLP task---sentiment analysis of an earnings call
+excerpt---to facilitate direct comparison.
+
+\paragraph{OpenAI API (GPT-4o).}
+The OpenAI Python SDK follows a \emph{chat completion} model: the user submits a list
+of messages (with roles \texttt{system}, \texttt{user}, and \texttt{assistant}), and
+the API returns a completion.
+
+\begin{lstlisting}[language=Python, caption={OpenAI API: financial sentiment with GPT-4o.}, label={lst:openai}]
+from openai import OpenAI
+
+client = OpenAI(api_key="YOUR_API_KEY")  # or set OPENAI_API_KEY env var
+
+EXCERPT = (
+    "Revenue increased 12% year-over-year to $4.1 billion, "
+    "driven by strong demand in cloud services. However, "
+    "operating margins contracted 200 basis points due to "
+    "elevated infrastructure investment."
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {
+            "role": "system",
+            "content": (
+                "You are a financial analyst. Classify the sentiment "
+                "of earnings call excerpts as POSITIVE, NEGATIVE, or "
+                "NEUTRAL. Provide a one-sentence justification."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"Classify the sentiment: {EXCERPT}",
+        },
+    ],
+    temperature=0.0,    # greedy: maximally deterministic
+    max_tokens=128,
+)
+
+print(response.choices[0].message.content)
+# MIXED/NEUTRAL -- Revenue growth is positive but margin compression
+# partially offsets the top-line improvement.
+
+# Token usage (important for cost tracking):
+usage = response.usage
+print(f"Input tokens:  {usage.prompt_tokens}")
+print(f"Output tokens: {usage.completion_tokens}")
+\end{lstlisting}
+
+\paragraph{Anthropic API (Claude).}
+The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
+list, passing it as a top-level argument rather than as the first message.  This
+structural difference reflects Anthropic's Constitutional AI training approach, where
+the system prompt receives special treatment during RLHF.
+% [CITE: bai2022constitutional]
+
+\begin{lstlisting}[language=Python, caption={Anthropic API: financial sentiment with claude-sonnet-4-6.}, label={lst:anthropic}]
+import anthropic
+
+client = anthropic.Anthropic(api_key="YOUR_API_KEY")  # or ANTHROPIC_API_KEY
+
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=128,
+    system=(
+        "You are a financial analyst. Classify the sentiment "
+        "of earnings call excerpts as POSITIVE, NEGATIVE, or "
+        "NEUTRAL. Provide a one-sentence justification."
+    ),
+    messages=[
+        {
+            "role": "user",
+            "content": f"Classify the sentiment: {EXCERPT}",
+        }
+    ],
+    temperature=0.0,
+)
+
+print(message.content[0].text)
+
+# Token usage:
+print(f"Input tokens:  {message.usage.input_tokens}")
+print(f"Output tokens: {message.usage.output_tokens}")
+\end{lstlisting}
+
+\paragraph{HuggingFace Transformers (FinBERT).}
+FinBERT \cite{araci2019finbert} % [CITE: araci2019finbert Araci (2019)]
+is a BERT-based encoder fine-tuned on financial news for three-class sentiment
+classification.  It runs locally without any API key or per-token cost.
+
+\begin{lstlisting}[language=Python, caption={FinBERT sentiment classification via HuggingFace pipeline.}, label={lst:finbert}]
+from transformers import pipeline
+
+# Downloads model weights (~440 MB) on first run; cached thereafter.
+nlp = pipeline(
+    "text-classification",
+    model="ProsusAI/finbert",
+    device=0,       # GPU 0; set device=-1 for CPU
+)
+
+result = nlp("The company reported record earnings this quarter.")
+print(result)
+# [{'label': 'positive', 'score': 0.9834}]
+
+# Batch inference (more efficient for large corpora):
+excerpts = [
+    "Revenue declined 8% amid weakening consumer demand.",
+    "The Board declared a special dividend of $2.50 per share.",
+    "Management reiterated full-year guidance.",
+]
+results = nlp(excerpts, batch_size=32)
+for text, res in zip(excerpts, results):
+    print(f"[{res['label']:8s} {res['score']:.2f}]  {text[:60]}")
+\end{lstlisting}
+
+\paragraph{Comparing the Three Ecosystems.}
+
+Table~\ref{tab:api-comparison} summarises the key structural differences.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of LLM API designs for financial NLP tasks.}
+\label{tab:api-comparison}
+\small
+\begin{tabular}{llll}
+\hline
+\textbf{Feature} & \textbf{OpenAI (GPT-4o)} & \textbf{Anthropic (Claude)} &
+\textbf{HuggingFace (FinBERT)} \\
+\hline
+System prompt   & First message (\texttt{"system"}) & Top-level \texttt{system=} arg & N/A \\
+Output access   & \texttt{choices[0].message}       & \texttt{content[0].text}        & List of dicts \\
+Local deploy    & No  & No  & Yes \\
+Cost model      & Per input/output token & Per input/output token & Compute only \\
+Context window  & 128K tokens & 200K tokens & 512 tokens \\
+Task type       & Generative / reasoning & Generative / reasoning & Classification \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Cost, Latency, and Practical Considerations}
 \label{sec:api-practical}
 
-[Placeholder]
+\paragraph{Cost Model.}
+API providers charge separately for input tokens (the prompt) and output tokens
+(the generated response):
+\begin{equation}
+  \text{cost} = N_{\text{in}} \cdot c_{\text{in}} + N_{\text{out}} \cdot c_{\text{out}},
+  \label{eq:cost-model}
+\end{equation}
+where $N_{\text{in}}$, $N_{\text{out}}$ are token counts and $c_{\text{in}}$,
+$c_{\text{out}}$ are the provider's per-token prices.
+Table~\ref{tab:api-costs} gives approximate 2024 prices in USD per million tokens.
+
+\begin{table}[htbp]
+\centering
+\caption{Approximate 2024 API pricing.  Prices in USD per million tokens (MTok).
+Verify current prices on provider websites before budgeting.}
+\label{tab:api-costs}
+\small
+\begin{tabular}{llll}
+\hline
+\textbf{Model} & \textbf{Input (\$/MTok)} & \textbf{Output (\$/MTok)} &
+\textbf{Notes} \\
+\hline
+GPT-4o                 & \$5.00       & \$15.00       & OpenAI, proprietary \\
+Claude 3 Sonnet        & \$3.00       & \$15.00       & Anthropic, proprietary \\
+Claude 3 Haiku         & \$0.25       & \$1.25        & Smaller, faster \\
+Llama 3 70B (via API)  & \$0.59       & \$0.79        & E.g.\ Together AI \\
+Llama 3 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{Worked Cost Calculation.}
+Suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
+each approximately 5,000 words.  At 1.3 tokens per word (see
+Example~\ref{ex:bpe}), each transcript is $\approx 6{,}500$ input tokens.  Adding a
+500-token system prompt and $\approx 400$ output tokens, and applying
+\eqref{eq:cost-model}:
+
+\begin{align}
+  \text{cost}_{\text{GPT-4o}}
+  &= 10{,}000 \times \left(\frac{7{,}000}{10^6} \times 5.00
+    + \frac{400}{10^6} \times 15.00 \right) \nonumber \\
+  &= 10{,}000 \times (0.035 + 0.006) \;=\; \$410.
+  \label{eq:cost-example}
+\end{align}
+
+The same workload on Claude 3 Haiku costs approximately \$20---a twenty-fold
+reduction.  This illustrates the core cost-optimisation decision in financial NLP
+pipelines: a small, cheap model handles straightforward extraction tasks, while a
+large model is reserved for complex reasoning steps.
+
+\paragraph{Batching, Caching, and Latency Trade-offs.}
+\begin{itemize}
+  \item \textbf{Batching.}  For offline workloads (historical transcript processing,
+    regulatory filing analysis), maximum parallelism reduces wall-clock time without
+    increasing cost.  OpenAI's Batch API offers a 50\% price discount in exchange for
+    up to 24 hours of processing latency---appropriate for end-of-day compliance runs
+    but unsuitable for real-time applications.
+  \item \textbf{Latency.}  For real-time applications (live earnings call
+    summarisation, intraday news monitoring), latency is a binding constraint.
+    Time-to-first-token for GPT-4o is typically 1--3 seconds; for Claude 3 Haiku
+    under 500 ms.  Locally-hosted Llama 3 (8B, single A100 GPU) can achieve
+    sub-100 ms first-token latency.
+  \item \textbf{Model selection heuristic.}  A common two-stage financial NLP
+    pipeline: (1) use a cheap, fast model (FinBERT, Claude Haiku) to filter and
+    classify large volumes of text; (2) route only the high-signal subset to a large
+    model for deep analysis.  This can reduce total API cost by 80--95\% on typical
+    workloads.
+\end{itemize}
+
+\begin{remark}[Prompt Caching]
+\label{rem:prompt-caching}
+Anthropic's \emph{prompt caching} API allows users to designate a prefix of the
+system prompt as cacheable.  Subsequent requests that share this prefix incur a
+reduced input-token price (approximately 10\% of the standard rate for cache hits),
+reducing costs by up to 90\% in applications with a fixed, long system prompt---such
+as a financial analysis assistant with fixed instructions and a reference document.
+OpenAI offers analogous automatic prompt caching for context windows exceeding 1,024
+tokens.  When designing pipelines that issue many similar requests (e.g., processing
+all filings from a given company under the same analytical framework), caching the
+shared system prompt is among the highest-ROI optimisations available.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Limitations and Responsible Use}
 \label{sec:limitations}
 
+The preceding sections present LLMs as powerful tools for financial NLP.  This section
+provides a necessary counterbalance: a rigorous account of their failure modes and the
+ethical and regulatory context in which financial AI systems operate.
+
 \subsection{Hallucinations in Financial Contexts}
 \label{sec:limitations-hallucinations}
 
-[Placeholder]
+\begin{definition}[Hallucination]
+\label{def:hallucination}
+A language model \emph{hallucination} is an output that is (a) presented with apparent
+confidence, yet (b) is not supported by---or actively contradicts---the model's input
+or the external world.  Following the taxonomy of~\cite{maynez2020faithfulness},
+% [CITE: maynez2020faithfulness Maynez et al. 2020]
+hallucinations are classified as:
+\begin{enumerate}
+  \item \textbf{Intrinsic hallucinations:} the output contradicts information
+    explicitly present in the input document.
+  \item \textbf{Extrinsic hallucinations:} the output introduces information not
+    present in the input that cannot be verified from any accessible source.
+\end{enumerate}
+\end{definition}
+
+Both types are particularly dangerous in finance, where incorrect numerical claims or
+fabricated regulatory citations can constitute material misstatements.
+
+\begin{example}[Hallucination in Financial Analysis]
+\label{ex:hallucination}
+A financial analyst uses an LLM to summarise a 10-K filing.  The filing states that
+the company's debt-to-equity ratio is 1.8.  The LLM summarises this as ``a
+debt-to-equity ratio of 0.8, indicating a conservatively leveraged balance sheet.''
+This is an \emph{intrinsic} hallucination: a direct numerical error that inverts the
+true risk profile.  Separately, the LLM notes that ``the company's accounting
+practices comply with IFRS 16 as confirmed by the PCAOB in their 2023 inspection
+report.''  No such report is mentioned in the filing; this is an \emph{extrinsic}
+hallucination.  Both errors could materially mislead an investor relying on the LLM
+output without cross-checking the source document.
+\end{example}
+
+The root cause of hallucination is not a simple bug but an intrinsic property of
+autoregressive generation: the model is trained to produce \emph{plausible} text, and
+plausibility correlates with---but is not identical to---factual accuracy.
+% [CITE: ji2023survey Ji et al. 2023, survey of hallucination in NLG]
+
+\paragraph{Mitigation Strategies.}
+\begin{itemize}
+  \item \textbf{Retrieval-Augmented Generation (RAG).}  Rather than relying on
+    parametric knowledge, the model is provided with retrieved passages from a verified
+    document store, substantially reducing extrinsic hallucination.  This is the
+    primary architecture for financial information extraction in Chapter~5.
+  \item \textbf{Grounding with citations.}  Prompting the model to cite specific
+    sentences or page numbers from the source document for every factual claim provides
+    an auditable trail.  This technique is demonstrated in Chapter~3.
+  \item \textbf{Chain-of-thought prompting.}  Requiring the model to show its
+    reasoning steps before producing an answer reduces hallucination on numerical and
+    multi-hop reasoning tasks. % [CITE: wei2022chain Wei et al. 2022]
+  \item \textbf{Calibration and confidence elicitation.}  Asking the model to express
+    uncertainty or to generate multiple candidate responses and identify disagreements
+    can flag unreliable outputs for human review.
+\end{itemize}
+
+\begin{remark}
+Reasoning models (Section~\ref{sec:landscape-genreason}) exhibit reduced hallucination
+rates on tasks with verifiable answers because the chain-of-thought trace provides a
+self-checking mechanism.  However, they are not immune: extrinsic hallucinations
+persist, especially on obscure regulatory facts or firm-specific historical data not
+well represented in the training corpus.  The mitigation strategies above remain
+necessary regardless of model type.
+\end{remark}
 
 \subsection{Regulatory and Ethical Considerations}
 \label{sec:limitations-ethics}
 
-[Placeholder]
+\begin{remark}
+Nothing in this book constitutes legal, regulatory, or investment advice.  The
+discussion below describes the regulatory landscape for educational purposes only.
+Practitioners deploying AI systems in financial contexts must obtain qualified legal
+counsel and ensure compliance with all applicable laws and regulations in their
+jurisdiction.
+\end{remark}
+
+\paragraph{EU AI Act.}
+The European Union's AI Act (Regulation 2024/1689), which entered into force in
+August 2024, establishes a risk-based classification for AI systems.
+% [CITE: eu-ai-act-2024]
+AI systems used for credit scoring, insurance risk assessment, pricing of life
+insurance products, and AI-assisted securities pricing fall into the \emph{high-risk}
+category (Annex III).  High-risk systems are subject to mandatory conformity
+assessments, post-market monitoring, transparency obligations towards regulators, and
+human oversight requirements.  An LLM deployed as part of an algorithmic trading
+system or a loan-approval pipeline would likely qualify as high-risk under the Act,
+requiring documentation of the model's training data, performance metrics, and the
+mechanisms ensuring human oversight before market deployment.
+
+\paragraph{SEC Guidance on AI in Investment Research.}
+The U.S.\ Securities and Exchange Commission has issued staff guidance indicating that
+investment advisers using AI-generated research must demonstrate that reasonable care
+was exercised in evaluating the AI's output, and that AI-generated recommendations are
+consistent with the adviser's fiduciary duty to clients.
+% [CITE: sec2023ai]
+The \emph{fiduciary duty} question is particularly acute: whether an LLM's output
+constitutes a ``recommendation'' under the Investment Advisers Act of 1940 has not
+been definitively resolved by case law, but the SEC's enforcement posture has been to
+hold advisers fully responsible for AI-generated outputs used in client-facing
+communications.
+
+\paragraph{GDPR and Private Financial Data.}
+Fine-tuning or retrieval-augmented generation on proprietary client data---transaction
+histories, portfolio compositions, know-your-customer (KYC) files---raises significant
+obligations under the General Data Protection Regulation (GDPR, EU 2016/679).
+% [CITE: gdpr2016]
+Key issues include: (a) whether training on personal data requires explicit consent;
+(b) the right to erasure and whether a model trained on a data subject's information
+can comply with an erasure request without full retraining; (c) data-transfer
+restrictions if API calls route personal data to non-EU servers.  Chapter~6
+(Fine-tuning) and Chapter~9 (Risk and Compliance) discuss technical mitigations
+including federated learning, differential privacy, and on-premises deployment.
+
+\paragraph{Model Bias and Geographic Coverage.}
+General-purpose LLMs are trained predominantly on English-language data from North
+American and Western European sources.  Financial training data is similarly skewed:
+the largest available corpora (SEC filings, English-language Bloomberg terminals,
+Reuters news) disproportionately represent US-listed equities and USD-denominated
+instruments.  As a consequence:
+\begin{itemize}
+  \item Sentiment models calibrated on US earnings calls may systematically
+    mis-classify sentiment in Japanese, Chinese, or Indian financial contexts.
+  \item Named entity recognition models fine-tuned on EDGAR filings may fail on
+    corporate structures common in family-controlled firms typical of Asian or Latin
+    American markets.
+  \item Regulatory knowledge embedded in LLM weights is heavily biased toward US/EU
+    rules; extrapolation to other jurisdictions should be treated with extreme caution.
+\end{itemize}
+Chapter~13 quantifies these biases empirically using cross-lingual evaluation of
+FLUE-equivalent tasks in French, German, and Chinese.
+
+\paragraph{The Fiduciary Duty Question.}
+The deepest ethical question for financial LLM applications is whether a system that
+generates investment recommendations---even as decision-support rather than autonomous
+execution---triggers fiduciary obligations and, if so, who bears them.  Current legal
+consensus is that the \emph{human adviser} (or firm) deploying the AI retains full
+fiduciary responsibility for its outputs, making thorough testing, documentation, and
+human oversight essential rather than optional.  Chapter~7 (AI Agents in Finance) and
+Chapter~8 (Multi-Agent Systems) return to this question in the context of agentic
+systems that take actions---executing trades, sending communications---rather than
+merely producing text.
 
 % ---------------------------------------------------------------
 \section{Roadmap of This Book}
 \label{sec:roadmap}
 
-[Placeholder]
+\subsection*{Summary of Chapter~1}
+
+This chapter established the technical and conceptual foundations for the rest of the
+book.  We traced the history of textual analysis in finance from keyword dictionaries
+through distributional word vectors to the Transformer architecture, developing the
+mathematics of self-attention, positional encoding, and the encoder--decoder structure.
+We surveyed the modern LLM landscape, distinguishing standard autoregressive models
+from reasoning models trained to produce explicit chains of thought.  We introduced
+the major model families (GPT-4o, Claude, Llama, FinBERT, BloombergGPT) and the
+principal financial NLP benchmarks (FinancialPhraseBank, FiQA, ECTSum, FinQA, FLUE)
+against which models are evaluated throughout the book.  We covered the practical
+mechanics of LLM APIs---tokenisation, context windows, sampling parameters, and cost
+models---and concluded with an honest account of the limitations: hallucination,
+regulatory exposure, data-privacy obligations, and the fiduciary responsibility that
+financial AI practitioners inherit.
+
+The remainder of the book proceeds from these foundations, moving from established
+tasks (sentiment analysis, information extraction) to frontier applications (multi-agent
+trading systems, regulatory technology), and from single-model pipelines to complex
+multi-agent workflows.
+
+\subsection*{Chapter-by-Chapter Overview}
+
+\begin{table}[htbp]
+\centering
+\caption{Overview of book chapters and their relationship to Chapter~1 foundations.}
+\label{tab:roadmap}
+\small
+\begin{tabular}{cll}
+\hline
+\textbf{Ch.} & \textbf{Title} & \textbf{Key Connection to Ch.~1} \\
+\hline
+2  & Sentiment Analysis
+   & FinancialPhraseBank; temperature; FinBERT vs.\ GPT-4o \\
+3  & Information Extraction from Filings
+   & FinQA; grounding and citation to reduce hallucination \\
+4  & Earnings Calls and Transcripts
+   & ECTSum; context-window limits; cost model \\
+5  & Retrieval-Augmented Generation
+   & RAG as hallucination mitigation; context-window architecture \\
+6  & Fine-tuning LLMs on Financial Data
+   & Instruction tuning; RLHF; GDPR considerations \\
+7  & AI Agents in Finance
+   & Reasoning models; agentic loops; fiduciary questions \\
+8  & Multi-Agent Systems and Workflows
+   & Chain-of-thought; multi-agent coordination protocols \\
+9  & Risk and Compliance Applications
+   & EU AI Act; hallucination auditing; on-premises deployment \\
+10 & Portfolio Construction with LLMs
+   & Cost-latency trade-offs; structured output from LLMs \\
+11 & Trading Systems and Execution
+   & Real-time latency; reasoning vs.\ generative model choice \\
+12 & Regulatory Technology
+   & Geographic bias; MiFID~II / IFRS; GDPR in practice \\
+13 & Evaluation and Benchmarking
+   & FLUE; cross-lingual evaluation; bias quantification \\
+14 & Frontiers and Future Directions
+   & Scaling laws; multimodal models; next-generation reasoning \\
+\hline
+\end{tabular}
+\end{table}
+
+Each chapter is self-contained enough to be read independently, but the sequence is
+deliberate.  Chapters~2--4 address the three core financial text sources (news,
+filings, transcripts) and establish empirical baselines that later chapters build upon.
+Chapters~5--6 introduce the two principal adaptation strategies (retrieval and
+fine-tuning) that transform raw LLM capabilities into production-grade financial NLP
+systems.  Chapters~7--8 extend the paradigm from single models to agentic systems
+capable of multi-step reasoning and action.  Chapters~9--12 turn to the institutional
+and regulatory dimensions that govern real-world deployment.  Chapter~13 provides a
+unified evaluation framework, and Chapter~14 surveys open research questions at the
+frontier.
+
+The thread running through all chapters is the one introduced here: language models
+are powerful but imperfect tools, and the financial practitioner's task is to deploy
+them in ways that harness their strengths---scale, speed, and breadth of
+knowledge---while managing their risks through careful system design, rigorous
+evaluation, and meaningful human oversight.
+

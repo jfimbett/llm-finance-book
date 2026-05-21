@@ -12,3 +12,4 @@
 | 2026-05-21 | 23 files | chore(skills): migrate skills from flat .md files to subdirectories;chore: session log 2026-05-21;chore: session log 2026-05-21; | — |
 | 2026-05-21 | 25 files | chore: initialize project via /interview-me;chore: session log 2026-05-21;chore(skills): migrate skills from flat .md files to subdirectories; | — |
 | 2026-05-21 | 33 files | chore: scaffold topic 01-intro with outline-curator-approved section structure;chore: session log 2026-05-21;chore: initialize project via /interview-me; | — |
+| 2026-05-21 | 6 files | feat(ch01): draft Introduction chapter — 8.4/10, all dimensions ≥ 8, PASS;feat(ch01): draft sections 6 and 7 (RNNs to Transformer);feat(ch01): draft sections 8-11 (LLM landscape, API, limitations, roadmap); | — |

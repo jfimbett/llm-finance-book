@@ -1845,6 +1845,168 @@ shared system prompt is among the highest-ROI optimisations available.
 \end{remark}
 
 % ---------------------------------------------------------------
+\section{Retrieval-Augmented Generation}
+\label{sec:rag}
+
+Large language models are trained on a fixed corpus with a knowledge cutoff.  In
+finance, the most relevant information is almost always recent: a 10-K filed last
+quarter, a central bank statement from this morning, or a credit agreement amended
+last week.  \emph{Retrieval-augmented generation} (RAG) addresses this by augmenting
+the model's prompt with passages retrieved at inference time from an external corpus,
+combining the parametric knowledge encoded in the model's weights with up-to-date,
+verifiable source material \citep{lewis2020rag}.
+
+\subsection{The RAG Pipeline}
+\label{sec:rag-pipeline}
+
+\begin{definition}[Retrieval-Augmented Generation]
+\label{def:rag}
+Let $\mathcal{D} = \{d_1,\ldots,d_N\}$ be a corpus of documents (or passages),
+$q$ a user query, and $k \in \mathbb{N}$ the number of retrieved passages.
+A RAG system operates in three stages:
+\begin{enumerate}
+  \item \emph{Retrieval:} compute a relevance score $s(q, d_i)$ for each
+        $d_i \in \mathcal{D}$ and return the top-$k$ passages
+        $\mathcal{R}(q) = \{d_{(1)},\ldots,d_{(k)}\}$.
+  \item \emph{Augmentation:} construct the augmented prompt
+        $\tilde{q} = [d_{(1)},\ldots,d_{(k)},\, q]$.
+  \item \emph{Generation:} produce the answer $a \sim P_\theta(\,\cdot \mid \tilde{q})$.
+\end{enumerate}
+\end{definition}
+
+RAG transfers the burden of factual accuracy from the model's parameters to the
+retrieval index.  This has two important consequences for financial applications.
+First, the knowledge base can be updated---by adding new filings to the index---without
+any model retraining.  Second, every factual claim in the model's output can be
+traced back to a retrieved passage, enabling auditors to verify provenance and detect
+hallucination.  For these reasons, RAG has become the dominant architecture for
+document question-answering and compliance search in production financial systems.
+
+\subsection{Dense Retrieval and Vector Databases}
+\label{sec:rag-dense}
+
+The most widely used relevance function in RAG is cosine similarity between dense
+vector representations of the query and each passage.  A bi-encoder model (typically
+a fine-tuned transformer such as SBERT, \citet{reimers2019}) maps both
+query and passage into the same embedding space; the relevance score between query
+$q$ and passage $d_i$ is
+\begin{equation}
+  s_{\text{dense}}(q, d_i) = \frac{\phi(q) \cdot \phi(d_i)}{\|\phi(q)\| \|\phi(d_i)\|},
+  \label{eq:cosine-sim}
+\end{equation}
+where $\phi : \text{text} \to \mathbb{R}^m$ is the encoder.
+
+Computing \eqref{eq:cosine-sim} exhaustively over a corpus of millions of passages
+is infeasible at query time.  In practice, approximate nearest-neighbour (ANN)
+search is used.  The FAISS library \citep{johnson2019} provides efficient
+ANN search via the inverted file index (IVF) and hierarchical navigable small-world
+(HNSW) graph algorithms.  Managed vector databases such as Pinecone, Chroma, and
+Weaviate build FAISS-like indices behind a REST API and add features such as
+metadata filtering, versioning, and access control.
+
+For financial documents, a critical preprocessing decision is how to \emph{chunk}
+the source text.  Long filings must be divided into passages of manageable size before
+embedding, because an embedding of a full 10-K loses all local context.  A standard
+heuristic is to split on paragraph or section boundaries, capping passages at 512
+tokens with a 50-token overlap between adjacent chunks so that sentences near a
+boundary appear in at least one complete passage.
+
+\subsection{Sparse Retrieval and Hybrid Methods}
+\label{sec:rag-sparse}
+
+Dense retrieval excels at semantic similarity but can fail on exact-match queries
+that are common in finance: a specific CUSIP number, a precise clause reference such
+as ``Section 6.4(b) of the Indenture'', or an exact ticker symbol.  For these cases,
+sparse \emph{lexical} retrieval methods outperform dense approaches because they
+match on exact token overlap rather than learned semantic proximity.
+
+BM25 \citep{robertson2009probabilistic} is the standard sparse retrieval baseline.
+For a query $q = \{t_1, \ldots, t_{|q|}\}$ and document $d$, the BM25 score is
+\begin{equation}
+  \text{BM25}(q, d) = \sum_{t \in q} \text{IDF}(t) \cdot
+  \frac{f(t, d)\,(k_1 + 1)}{f(t, d) + k_1\!\left(1 - b + b\,\frac{|d|}{\text{avgdl}}\right)},
+  \label{eq:bm25}
+\end{equation}
+where $f(t, d)$ is the term frequency of $t$ in $d$, $|d|$ is the document length,
+$\text{avgdl}$ is the average document length in the corpus, and $k_1 \approx 1.5$,
+$b \approx 0.75$ are smoothing parameters.  The IDF weight penalises terms that
+appear in many documents.
+
+Hybrid retrieval combines dense and sparse scores.  A simple but effective fusion
+strategy is \emph{reciprocal rank fusion} \citep{cormack2009reciprocal}:
+\begin{equation}
+  \text{RRF}(d) = \sum_{r \in \{\text{dense},\,\text{sparse}\}}
+    \frac{1}{k_{\text{rrf}} + \text{rank}_r(d)},
+  \label{eq:rrf}
+\end{equation}
+where $k_{\text{rrf}} = 60$ is the standard constant and $\text{rank}_r(d)$ is the
+position of $d$ in the ranking produced by retriever $r$.  RRF is robust to score
+scale differences between the two retrievers and requires no learned weighting parameter.
+
+\subsection{Re-Ranking}
+\label{sec:rag-reranking}
+
+A two-stage pipeline that first retrieves a large candidate set and then re-ranks it
+with a more expensive model often achieves better precision than a single-stage
+retriever.  The re-ranker is a \emph{cross-encoder}: it takes a query-passage pair
+as a single input and outputs a scalar relevance score, allowing richer interactions
+between query and passage tokens than the bi-encoder architecture.
+
+A standard production setup retrieves the top-100 passages with a fast BM25 or
+ANN-based retriever, then re-ranks them with a cross-encoder to obtain the final top-5
+context passages.  The ColBERT \citep{khattab2020colbert} late-interaction model
+offers a middle ground: it computes token-level embeddings for both query and passage,
+scores via a MaxSim operator, and achieves cross-encoder-level accuracy at
+bi-encoder-level latency.
+
+\subsection{RAG for Financial Documents}
+\label{sec:rag-finance}
+
+The following listing implements a minimal but production-relevant RAG pipeline for
+answering questions about a 10-K filing.  It uses FAISS for dense retrieval and
+the Anthropic API for generation.  Citation of passage numbers in the system prompt
+enables answer verification.
+
+\begin{lstlisting}[language=Python,
+  caption={Minimal RAG pipeline for a 10-K filing.}]
+from sentence_transformers import SentenceTransformer
+import faiss, numpy as np, anthropic
+
+def build_index(passages: list[str]):
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    embeddings = model.encode(passages, normalize_embeddings=True)
+    index = faiss.IndexFlatIP(embeddings.shape[1])
+    index.add(embeddings.astype("float32"))
+    return index, model
+
+def rag_query(query: str, passages: list[str],
+              index, embed_model, k: int = 5) -> str:
+    q_emb = embed_model.encode([query], normalize_embeddings=True)
+    _, ids = index.search(q_emb.astype("float32"), k)
+    context = "\n\n".join(
+        f"[{i+1}] {passages[ids[0][i]]}" for i in range(k))
+    client = anthropic.Anthropic()
+    msg = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=512,
+        system=("Answer using only the provided passages. "
+                "Cite passage numbers as [N]."),
+        messages=[{"role": "user",
+                   "content": f"{context}\n\nQuestion: {query}"}])
+    return msg.content[0].text
+\end{lstlisting}
+
+Three features of this design merit emphasis.  First, normalising the embeddings
+before adding them to the FAISS \texttt{IndexFlatIP} (inner product) index converts
+the inner product to cosine similarity, so the retrieval score is \eqref{eq:cosine-sim}
+exactly.  Second, the system prompt constrains the model to answer only from the
+provided passages; pairing this with low temperature ($\tau = 0$) makes hallucination
+outside the retrieved context extremely unlikely.  Third, requiring the model to cite
+passage numbers creates an audit trail that allows a downstream verification step to
+check each factual claim against the source passage---a key step in the SelfCheckGPT
+and FActScore pipelines described in Section~\ref{sec:hallucinations-detection}.
+
+% ---------------------------------------------------------------
 \section{Limitations and Responsible Use}
 \label{sec:limitations}
 

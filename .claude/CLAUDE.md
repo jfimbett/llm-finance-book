@@ -37,6 +37,8 @@ The subject matter, audience, and quality settings are defined in `TOPIC.md`.
 5. **Skills are workflows:** Run a skill when the user invokes it by name (e.g.,
    `/draft-chapter`). Follow the skill's steps exactly.
 
+6. **Exercise difficulty tags:** Exercises use `[B]` (beginner), `[I]` (intermediate), `[A]` (advanced). Every exercises.md file should include at least one of each.
+
 ---
 
 ## Directory Quick Reference
@@ -45,7 +47,7 @@ The subject matter, audience, and quality settings are defined in `TOPIC.md`.
 .claude/agents/     Role-based AI personas — read the relevant one before acting
 .claude/skills/     Workflow scripts — follow step by step
 .claude/hooks/      Shell hooks — do not modify unless updating hook behavior
-book/               LaTeX source — compile with pdflatex + biber
+book/               LaTeX source — compile from book/ directory: cd book && pdflatex main.tex && biber main && pdflatex main.tex
 course/             Lecture materials — markdown + Beamer
 code/               Python package + Jupyter notebooks
 docs/quality/       JSON score reports — read these to see what needs improvement

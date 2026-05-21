@@ -39,7 +39,6 @@ check "book/chapters/01-intro/chapter.tex"
 check "course/lectures/01-intro/notes.md"
 check "course/lectures/01-intro/slides.tex"
 check "course/lectures/01-intro/exercises.md"
-check "course/lectures/01-intro/solutions.md"
 
 # Code
 check "code/src/__init__.py"

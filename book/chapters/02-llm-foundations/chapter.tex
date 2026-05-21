@@ -2138,77 +2138,166 @@ NLP.  For most practitioners, quantisation and LoRA offer a better trade-off bet
 compression and implementation complexity.
 
 % ---------------------------------------------------------------
-\section{Limitations and Responsible Use}
-\label{sec:limitations}
+\section{Hallucinations: Detection and Mitigation}
+\label{sec:hallucinations}
 
-The preceding sections present LLMs as powerful tools for financial NLP.  This section
-provides a necessary counterbalance: a rigorous account of their failure modes and the
-ethical and regulatory context in which financial AI systems operate.
+A language model \emph{hallucination} is an output that is fluent, confident, and
+wrong.  In general text generation this is a nuisance; in finance it is a liability.
+A model that fabricates a debt-to-equity ratio, invents a regulatory citation, or
+confuses two companies with similar names can cause material harm.  This section
+classifies hallucinations, surveys modern detection methods, and presents the
+state-of-the-art mitigation techniques that practitioners should deploy before using
+LLMs in production financial systems.
 
-\subsection{Hallucinations in Financial Contexts}
-\label{sec:limitations-hallucinations}
+\subsection{A Taxonomy of Hallucinations}
+\label{sec:hallucinations-taxonomy}
 
 \begin{definition}[Hallucination]
 \label{def:hallucination}
 A language model \emph{hallucination} is an output that is (a) presented with apparent
 confidence, yet (b) is not supported by---or actively contradicts---the model's input
-or the external world.  Following the taxonomy of~\cite{maynez2020faithfulness},
-% [CITE: maynez2020faithfulness Maynez et al. 2020]
+or the external world.  Following \citet{maynez2020faithfulness},
 hallucinations are classified as:
 \begin{enumerate}
-  \item \textbf{Intrinsic hallucinations:} the output contradicts information
+  \item \emph{Intrinsic hallucinations:} the output contradicts information
     explicitly present in the input document.
-  \item \textbf{Extrinsic hallucinations:} the output introduces information not
+  \item \emph{Extrinsic hallucinations:} the output introduces information not
     present in the input that cannot be verified from any accessible source.
 \end{enumerate}
 \end{definition}
 
-Both types are particularly dangerous in finance, where incorrect numerical claims or
-fabricated regulatory citations can constitute material misstatements.
+Within financial NLP, three sub-types deserve particular attention.
+Numerical hallucination occurs when the model outputs a figure---a ratio, a revenue
+number, an interest rate---that differs from the value stated in the source document.
+Such errors are especially dangerous because they are indistinguishable in format from
+correct figures; a downstream system or non-expert reader has no visual signal that
+anything is wrong.  Entity hallucination substitutes one company, person, or
+regulatory body for another: a common failure mode when two organisations have similar
+names or when the model is uncertain about a rare entity.  Citation hallucination
+fabricates a regulatory reference, court ruling, or standard that does not exist---a
+failure mode documented in multiple legal and financial AI deployments \citep{ji2023survey}.
 
 \begin{example}[Hallucination in Financial Analysis]
 \label{ex:hallucination}
 A financial analyst uses an LLM to summarise a 10-K filing.  The filing states that
 the company's debt-to-equity ratio is 1.8.  The LLM summarises this as ``a
 debt-to-equity ratio of 0.8, indicating a conservatively leveraged balance sheet.''
-This is an \emph{intrinsic} hallucination: a direct numerical error that inverts the
-true risk profile.  Separately, the LLM notes that ``the company's accounting
-practices comply with IFRS 16 as confirmed by the PCAOB in their 2023 inspection
-report.''  No such report is mentioned in the filing; this is an \emph{extrinsic}
-hallucination.  Both errors could materially mislead an investor relying on the LLM
-output without cross-checking the source document.
+This is an intrinsic numerical hallucination: a direct transcription error that
+inverts the true risk profile.  Separately, the LLM notes that ``the company's
+accounting practices comply with IFRS~16 as confirmed by the PCAOB in their 2023
+inspection report.''  No such report is mentioned in the filing; this is an extrinsic
+citation hallucination.  Both errors could materially mislead an investor relying on
+the LLM output without cross-checking the source document.
 \end{example}
 
-The root cause of hallucination is not a simple bug but an intrinsic property of
-autoregressive generation: the model is trained to produce \emph{plausible} text, and
-plausibility correlates with---but is not identical to---factual accuracy.
-% [CITE: ji2023survey Ji et al. 2023, survey of hallucination in NLG]
+The root cause is not a simple bug but an intrinsic property of autoregressive
+generation: the model is trained to produce plausible text, and plausibility
+correlates with, but is not identical to, factual accuracy \citep{ji2023survey}.
+Reducing temperature to zero eliminates stochasticity but does not eliminate
+hallucination, because the model's most probable completion may still be factually
+incorrect.
 
-Several mitigation strategies reduce the incidence and impact of hallucination in financial applications.
-\begin{itemize}
-  \item \textbf{Retrieval-Augmented Generation (RAG).}  Rather than relying on
-    parametric knowledge, the model is provided with retrieved passages from a verified
-    document store, substantially reducing extrinsic hallucination.  This is the
-    primary architecture for financial information extraction in Chapter~5.
-  \item \textbf{Grounding with citations.}  Prompting the model to cite specific
-    sentences or page numbers from the source document for every factual claim provides
-    an auditable trail.  This technique is demonstrated in Chapter~3.
-  \item \textbf{Chain-of-thought prompting.}  Requiring the model to show its
-    reasoning steps before producing an answer reduces hallucination on numerical and
-    multi-hop reasoning tasks. % [CITE: wei2022chain Wei et al. 2022]
-  \item \textbf{Calibration and confidence elicitation.}  Asking the model to express
-    uncertainty or to generate multiple candidate responses and identify disagreements
-    can flag unreliable outputs for human review.
-\end{itemize}
+\subsection{Detection}
+\label{sec:hallucinations-detection}
+
+Detecting hallucinations without access to ground-truth labels requires methods that
+measure \emph{internal consistency} rather than external verification.
+
+SelfCheckGPT \citep{manakul2023selfcheckgpt} is a zero-resource detection method
+that exploits the observation that hallucinated claims are less consistently reproduced
+across independent samples than factual claims.  For a generated statement $s$, it
+draws $N$ additional samples from the model (with temperature $\tau > 0$) and measures
+the average probability of $s$ under each sample using a lightweight natural-language
+inference (NLI) model:
+\begin{equation}
+  \text{score}_{\text{SelfCheck}}(s)
+    = \frac{1}{N} \sum_{n=1}^{N} \bigl(1 - P_{\text{NLI}}(s \mid \text{sample}_n)\bigr).
+  \label{eq:selfcheckgpt}
+\end{equation}
+A high score indicates that $s$ is inconsistent with the independently sampled
+passages and is therefore likely hallucinated.  The method requires no external
+knowledge base and works with any black-box API that returns text.
+
+FActScore \citep{min2023factscore} decomposes a long-form answer into atomic factual
+claims, then verifies each claim against a retrieval-backed knowledge source.  The
+overall \emph{factual precision} score is the fraction of atomic claims that are
+supported.  For financial document Q\&A, FActScore can be adapted to use the source
+filing as the knowledge base, providing a fine-grained sentence-level audit of model
+outputs.
+
+\subsection{State-of-the-Art Mitigation Techniques}
+\label{sec:hallucinations-mitigation}
+
+The mitigation landscape has matured considerably since 2022.  The following techniques
+represent the current practitioner consensus; they are complementary and may be
+combined in a production pipeline.
+
+Retrieval-augmented generation (Section~\ref{sec:rag}) is the single most effective
+mitigation for extrinsic hallucination.  By grounding the model's context in retrieved
+passages from verified sources, RAG replaces the model's implicit parametric memory
+with an explicit, auditable document store.  A model prompted with the relevant passage
+and instructed to answer only from provided context will almost never fabricate figures
+that appear nowhere in the retrieved text.
+
+Self-consistency sampling \citep{wang2022selfconsistency} draws $K$ independent
+reasoning chains from the model at temperature $\tau > 0$ and takes the majority vote
+over final answers:
+\begin{equation}
+  \hat{a} = \arg\max_{a} \sum_{k=1}^{K} \mathbf{1}[a_k = a].
+  \label{eq:self-consistency}
+\end{equation}
+This is particularly effective for numerical reasoning tasks such as discounted cash
+flow calculations, ratio analysis, and multi-step financial arithmetic, where a single
+chain may make an error at any intermediate step but the correct answer is more likely
+to appear in the majority of independent traces.
+
+Chain-of-thought prompting \citep{wei2022chain} instructs the model to produce explicit
+intermediate reasoning steps before its final answer.  For financial applications, this
+means the model must write out the formula it is applying, the values it is substituting,
+and the arithmetic it is performing.  Each intermediate step is independently
+verifiable, so errors can be caught by a downstream checking step or by the analyst
+before the final answer is accepted.  Reasoning models (Section~\ref{sec:landscape-genreason})
+implement a form of chain-of-thought natively via their extended thinking mechanism.
+
+Claim decomposition and verification, formalised in the FActScore framework
+\citep{min2023factscore}, breaks the model's output into atomic claims and verifies
+each against a structured source (a database, a specific document section, or an
+API endpoint).  In a production compliance-checking pipeline, this approach allows
+each factual claim in a generated report to be tagged with its verification status---
+supported, unsupported, or contradicted---before the report reaches a human analyst.
+
+Constitutional AI \citep{bai2022constitutional} trains models to critique and revise
+their own outputs against a set of explicit principles.  For financial systems,
+domain-specific principles can include rules such as ``all numerical figures must be
+drawn from the provided source document'' or ``do not attribute regulatory positions
+to agencies not mentioned in the input.''  Applying these principles as a self-critique
+step after initial generation, and revising the output until no violations remain,
+substantially reduces the incidence of fabricated numerical and citation hallucinations.
+
+Confidence elicitation and abstention asks the model to express its uncertainty and
+to refuse or flag answers where it is below a confidence threshold.  A prompt fragment
+such as ``if you are not certain about a figure, say so and cite the passage you would
+need to answer'' shifts the model toward epistemic humility at the cost of reduced
+answer completeness.  Calibration curves---plotting accuracy against elicited
+confidence---can be used to set thresholds that balance recall and reliability for a
+given application.
 
 \begin{remark}
-Reasoning models (Section~\ref{sec:landscape-genreason}) exhibit reduced hallucination
-rates on tasks with verifiable answers because the chain-of-thought trace provides a
+Reasoning models exhibit reduced hallucination rates on tasks with verifiable
+intermediate steps because the chain-of-thought trace provides a built-in
 self-checking mechanism.  However, they are not immune: extrinsic hallucinations
-persist, especially on obscure regulatory facts or firm-specific historical data not
-well represented in the training corpus.  The mitigation strategies above remain
+persist on obscure regulatory facts or firm-specific historical data not well
+represented in the training corpus.  The mitigation strategies above remain
 necessary regardless of model type.
 \end{remark}
+
+% ---------------------------------------------------------------
+\section{Limitations and Responsible Use}
+\label{sec:limitations}
+
+The preceding sections present LLMs as powerful tools for financial NLP.  The following
+discussion provides a necessary counterbalance: a rigorous account of the ethical
+and regulatory context in which financial AI systems operate.
 
 \subsection{Regulatory and Ethical Considerations}
 \label{sec:limitations-ethics}

@@ -1,56 +1,816 @@
 \chapter{Introduction}
 \label{ch:intro}
 
-% TODO: Replace placeholders with actual content. Invoke /draft-chapter to generate a first draft.
-
-% Outline approved by outline-curator agent. Sections mirror course/lectures/01-intro/notes.md.
-
 % ---------------------------------------------------------------
 \section{A Brief History of Textual Analysis in Finance}
 \label{sec:history}
 
+Language is the medium through which economic agents transmit intentions, negotiate
+contracts, reveal expectations, and argue about value.  Long before the advent of
+statistical machine learning, financial economists had recognised that the words
+contained in annual reports, earnings calls, central-bank communiqués, and newspaper
+columns carry information that prices do not yet fully reflect.  The challenge has always
+been to extract that information systematically.  This section traces the intellectual
+lineage of textual analysis in finance from its sociological origins in content analysis,
+through the first dictionary-based sentiment tools, and onward to the statistical and
+neural methods that underpin modern large language model (LLM) applications.
+
+% ---------------------------------------------------------------
 \subsection{Early Approaches: Keyword Counting and Dictionary Methods}
 \label{sec:history-early}
 
-[Placeholder]
+\paragraph{Content analysis and the General Inquirer.}
+The modern project of quantifying the meaning of text began in the social sciences.
+In the 1950s and 1960s researchers in sociology and communication studies developed
+\emph{content analysis} as a formal methodology: a researcher defines a coding scheme
+of categories, reads passages, and assigns them to categories according to explicit
+rules.  The goal was to turn a fundamentally qualitative object---human language---into
+a quantitative variable amenable to statistical inference.
 
+The methodological ambitions grew quickly.  In 1961 Philip Stone and colleagues at
+Harvard published the \emph{General Inquirer} system
+\cite{stone1966general}, % [CITE: Stone, P.J., Dunphy, D.C., Smith, M.S., Ogilvie, D.M. (1966). The General Inquirer: A Computer Approach to Content Analysis. MIT Press.]
+a computer-assisted program that matched words in a document against hand-coded
+psychological and semantic dictionaries.  The Harvard IV-4 dictionary, which became one
+of its most widely used components, classifies roughly 11\,000 word stems into
+categories such as \textsc{Positive}, \textsc{Negative}, \textsc{Strong},
+\textsc{Weak}, \textsc{Active}, and \textsc{Passive}.  To compute a sentiment score for
+a document one simply counts the number of words belonging to each category and
+normalises by document length.  The appeal is transparency: every score can be
+explained by pointing to the words that generated it.
+
+\paragraph{The Tetlock (2007) milestone.}
+Within finance, the landmark empirical application of dictionary-based sentiment analysis
+is the paper by Paul Tetlock published in the \emph{Journal of Finance}
+\cite{tetlock2007giving}. % [CITE: Tetlock, P.C. (2007). Giving Content to Investor Sentiment: The Role of Media in the Stock Market. Journal of Finance, 62(3), 1139–1168.]
+Tetlock extracted the daily ``Abreast of the Market'' column from the \emph{Wall Street
+Journal} over the period 1984--1999 and applied the General Inquirer's Harvard IV-4
+dictionary to measure the fraction of negative words in each column.  His empirical
+findings are striking: (i) high media negativity predicts downward pressure on Dow Jones
+Industrial Average returns on the following trading day, followed by a mean-reversion
+over the subsequent week; and (ii) unusually high or low negativity predicts high
+trading volume.  He interprets the return predictability as consistent with investor
+sentiment temporarily depressing prices below fundamental value, and the mean reversion
+as the subsequent correction.
+
+The Tetlock study demonstrated three things that shaped the subsequent literature.
+First, textual sentiment can be quantified in a reproducible way.  Second, the resulting
+signal has economically meaningful predictive content for asset prices even in a world
+where professional arbitrageurs are active.  Third, the choice of dictionary matters:
+the Harvard IV-4 list was designed for general English prose, not for the specialised
+register of financial and legal language.
+
+\paragraph{The Loughran--McDonald financial sentiment dictionary.}
+The inadequacy of general-purpose dictionaries for financial text was made rigorous by
+Tim Loughran and Bill McDonald in a highly influential 2011 paper
+\cite{loughran2011liability}. % [CITE: Loughran, T. & McDonald, B. (2011). When is a Liability not a Liability? Textual Analysis, Dictionaries, and 10-Ks. Journal of Finance, 66(1), 35–65.]
+They examined the textual content of a large sample of 10-K annual filings submitted to
+the SEC's EDGAR database and measured the fraction of words classified as negative by
+the Harvard IV-4 dictionary.  They then checked, word by word, whether the negative
+classification was appropriate for financial text.  Their finding was sobering: a large
+share of the ``negative'' words in financial documents---for example \emph{tax},
+\emph{liability}, \emph{depreciation}, \emph{cost}---are not negative in the financial
+register; they are simply technical vocabulary.  Using the Harvard IV-4 dictionary on
+financial filings therefore introduces substantial measurement error.
+
+In response, Loughran and McDonald constructed their own \emph{financial sentiment
+dictionary} (often abbreviated LM dictionary) by reading thousands of 10-K filings and
+manually assigning financial connotations to words.  The resulting word lists span six
+tone categories: Negative, Positive, Uncertainty, Litigious, Strong Modal (words
+implying certainty), and Weak Modal (words implying tentativeness).  Their empirical
+application showed that the LM Negative list outperformed the Harvard IV-4 list in
+predicting initial public offering underperformance, earnings surprise, and subsequent
+abnormal returns, among other outcomes.
+
+The LM dictionary remains a standard benchmark in financial NLP.  Most subsequent
+studies report results using both the Harvard IV-4 and LM lists to allow comparability.
+However, both suffer from the same fundamental limitation: they are static.  Words are
+classified once, by human judgment, and the classifications do not adapt to new usages,
+new jargon, or sector-specific connotations.  Moreover, dictionary methods score only
+the words they recognise, ignoring syntax, negation, context, and word order entirely.
+The sentence ``earnings did \emph{not} decline'' receives the same score as ``earnings
+\emph{did} decline'' if the word \emph{not} is not explicitly handled, and even
+negation-aware heuristics remain fragile.
+
+\paragraph{Beyond single documents: readability and textual complexity.}
+Before leaving the dictionary era it is worth noting that scholars also developed
+\emph{readability} measures applied to corporate disclosures.  Li (2008)
+\cite{li2008annual} % [CITE: Li, F. (2008). Annual Report Readability, Current Earnings, and Earnings Persistence. Journal of Accounting and Economics, 45(2–3), 221–247.]
+showed that annual reports that are more difficult to read (as measured by the
+Fog Index, a formula based on average sentence length and the fraction of polysyllabic
+words) are associated with lower future earnings, suggesting that complexity may serve as
+obfuscation.  This line of research extended the textual analysis toolkit to stylistic
+features beyond sentiment, opening the door to a broader conception of what ``textual
+information'' means in a financial context.
+
+% ---------------------------------------------------------------
 \subsection{The Shift to Statistical and Neural Methods}
 \label{sec:history-shift}
 
-[Placeholder]
+\paragraph{Topic models and the limits of hand-crafted features.}
+By the mid-2000s the natural language processing (NLP) community had largely moved beyond
+dictionary-based methods toward \emph{statistical} representations that learn structure
+from data.  The most influential of these for finance is \emph{Latent Dirichlet
+Allocation} (LDA), introduced by Blei, Ng, and Jordan in 2003
+\cite{blei2003latent}. % [CITE: Blei, D.M., Ng, A.Y. & Jordan, M.I. (2003). Latent Dirichlet Allocation. Journal of Machine Learning Research, 3, 993–1022.]
+LDA is a generative probabilistic model: it posits that each document is a mixture of a
+small number of latent \emph{topics}, and each topic is a distribution over vocabulary
+words.  The model is fit by approximate Bayesian inference and requires no labelled data.
+
+The application of LDA to financial text proved fertile.  Methodology-wise the key
+advantage over dictionary methods is that topics are discovered from the corpus rather
+than pre-specified.  Earnings calls, for instance, might reveal latent topics
+corresponding to supply-chain concerns, margin pressure, new product introductions, and
+macroeconomic commentary, each represented by a characteristic cluster of co-occurring
+words.  Researchers such as Boudoukh et al.\ \cite{boudoukh2013news} % [CITE: Boudoukh, J., Feldman, R., Kogan, S. & Richardson, M.P. (2013). Which News Moves Stock Prices? A Textual Analysis. NBER Working Paper 18725.]
+and Hansen, McMahon, and Prat \cite{hansen2018transparency} % [CITE: Hansen, S., McMahon, M. & Prat, A. (2018). Transparency and Deliberation within the FOMC: A Computational Linguistics Approach. Quarterly Journal of Economics, 133(2), 801–870.]
+used topic models to analyse, respectively, firm-level news and Federal Open Market
+Committee transcripts, demonstrating that data-driven topic discovery can reveal
+structure invisible to dictionary counting.
+
+Despite these successes, bag-of-words topic models share a fundamental limitation with
+dictionary methods: they ignore word order and syntax.  The model treats a document as
+an unordered multiset of words, discarding the sequential structure that makes language
+meaningful.  Negation, qualification, conditionality, and argumentative structure are
+all lost.  This was the central motivation for the neural turn.
+
+\paragraph{Word embeddings: distributional semantics in low-dimensional space.}
+A transformative shift came with the introduction of \emph{word2vec} by Mikolov et al.\
+in 2013 \cite{mikolov2013efficient}. % [CITE: Mikolov, T., Chen, K., Corrado, G. & Dean, J. (2013). Efficient Estimation of Word Representations in Vector Space. ICLR Workshop.]
+Word2vec trains a shallow neural network to predict either a word from its context
+(the Continuous Bag-of-Words model) or the context from a word (the Skip-gram model).
+As a by-product, each word receives a dense vector representation---an
+\emph{embedding}---in $\mathbb{R}^d$ for some moderate $d$ (typically 100--300).
+These embeddings capture distributional semantics: words that appear in similar contexts
+end up close together in the embedding space.  The famous example is that
+$\text{vec}(\textit{king}) - \text{vec}(\textit{man}) + \text{vec}(\textit{woman})
+\approx \text{vec}(\textit{queen})$.
+
+For finance, word embeddings offered the prospect of capturing semantic similarity
+without hand-crafted dictionaries.  Researchers trained word2vec on large corpora of
+earnings call transcripts, news articles, and 10-K filings and used the resulting
+embeddings as features for downstream tasks such as sentiment classification and return
+prediction.  Manela and Moreira \cite{manela2017news} % [CITE: Manela, A. & Moreira, A. (2017). News Implied Volatility and Disaster Concerns. Journal of Financial Economics, 123(1), 137–162.]
+used text-based features including embedding-based similarities to construct a news-based
+measure of disaster risk.  Simultaneously, GloVe (Global Vectors for Word
+Representation) \cite{pennington2014glove} % [CITE: Pennington, J., Socher, R. & Manning, C.D. (2014). GloVe: Global Vectors for Word Representation. EMNLP 2014.]
+offered an alternative factorisation approach that explicitly minimised the
+difference between the dot product of word vectors and the logarithm of the words'
+co-occurrence count, yielding embeddings with similarly useful geometric properties.
+
+\paragraph{The deep learning era: sequence models.}
+The combination of word embeddings with \emph{recurrent neural networks} (RNNs), and
+specifically with Long Short-Term Memory (LSTM) networks
+\cite{hochreiter1997long}, % [CITE: Hochreiter, S. & Schmidhuber, J. (1997). Long Short-Term Memory. Neural Computation, 9(8), 1735–1780.]
+allowed models to read a document sequentially and maintain a hidden state summarising
+everything read so far.  Applied to financial text, LSTM-based models could, in
+principle, handle negation and long-range dependencies that defeat bag-of-words
+approaches.  They achieved state-of-the-art performance on financial sentiment
+benchmarks such as FiQA and Financial Phrase Bank throughout 2016--2018.
+
+\paragraph{Transformers and BERT-based models.}
+The attention mechanism introduced by Bahdanau et al.\ \cite{bahdanau2015neural} % [CITE: Bahdanau, D., Cho, K. & Bengio, Y. (2015). Neural Machine Translation by Jointly Learning to Align and Translate. ICLR 2015.]
+and then generalised to the \emph{Transformer} architecture by Vaswani et al.\
+\cite{vaswani2017attention} % [CITE: Vaswani, A., Shazeer, N., Parmar, N., et al. (2017). Attention Is All You Need. NeurIPS 2017.]
+changed the landscape completely.  The Transformer processes all tokens in a sequence in
+parallel via \emph{self-attention}, computing for each token a weighted average of all
+other tokens' representations, where the weights are learned and reflect relevance.
+This design enabled training on far larger datasets than RNNs could accommodate, and it
+enabled \emph{pre-training}: a model could be trained on massive unlabelled corpora to
+predict masked words or the next sentence, learning rich contextual representations,
+and then \emph{fine-tuned} on a small labelled dataset for a specific downstream task.
+
+BERT (Bidirectional Encoder Representations from Transformers)
+\cite{devlin2019bert} % [CITE: Devlin, J., Chang, M.-W., Lee, K. & Toutanova, K. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. NAACL-HLT 2019.]
+exemplified this paradigm.  Fine-tuned BERT models rapidly surpassed prior state of the
+art on nearly every NLP benchmark.  The finance community responded quickly.
+FinBERT \cite{araci2019finbert} % [CITE: Araci, D. (2019). FinBERT: Financial Sentiment Analysis with Pre-trained Language Models. ArXiv:1908.10063.]
+and a succession of similar models pre-trained on financial corpora achieved markedly
+better sentiment classification accuracy on financial datasets than generic BERT.  They
+represent the direct antecedents of the large language models---GPT-4, Claude, Gemini,
+Llama---that form the subject of this book.
+
+The history just sketched is not merely background; it is directly relevant to how one
+should think about and deploy LLMs in practice.  Each generation of methods addressed
+shortcomings of the previous one, but also introduced new failure modes.  Understanding
+where the field came from illuminates why LLMs behave the way they do, what they can be
+expected to do well, and where they remain unreliable.
 
 % ---------------------------------------------------------------
 \section{Why Text Matters in Finance}
 \label{sec:motivation}
 
+Financial economics is built on the notion that prices aggregate information.  If all
+relevant information is already incorporated in prices, there is no role for additional
+analysis---textual or otherwise.  Yet text-based signals have repeatedly demonstrated
+predictive power in careful empirical studies.  This section reconciles that finding
+with the efficient markets hypothesis, catalogues the landscape of financial text, and
+introduces a formal framework for thinking about text as a signal.
+
+% ---------------------------------------------------------------
 \subsection{The Information Content of Earnings Calls, News, and Filings}
 \label{sec:motivation-info}
 
-[Placeholder]
+\paragraph{Semi-strong efficiency and the residual role for text.}
+The semi-strong form of the efficient markets hypothesis (EMH), associated with Fama
+\cite{fama1970efficient}, % [CITE: Fama, E.F. (1970). Efficient Capital Markets: A Review of Empirical Work. Journal of Finance, 25(2), 383–417.]
+holds that prices at any time fully reflect all \emph{publicly available} information.
+Under strict semi-strong efficiency, reading a newspaper or an earnings call transcript
+provides no trading advantage, because everything in those documents is already impounded
+in prices the moment it is published.  Textual analysis would then be, at best, a way of
+checking one's understanding of the market---not a way of generating alpha.
 
+Why, then, has such a substantial empirical literature found otherwise?  Several
+non-mutually-exclusive explanations are consistent with market efficiency:
+
+\begin{enumerate}
+  \item \textbf{Processing costs and limited attention.} Markets aggregate information
+    through the trading of many investors, each of whom has limited attention and
+    cognitive capacity.  If processing the full text of a 100-page 10-K filing
+    requires substantial effort, and if only a small fraction of market participants
+    perform that analysis, prices may not immediately reflect all the information the
+    filing contains.  Once cheap NLP tools make processing feasible at scale, the
+    anomaly should attenuate---and indeed Li, Lundholm, and Minnis
+    \cite{li2013measuring} % [CITE: Li, F., Lundholm, R. & Minnis, M. (2013). A Measure of Competition Based on 10-K Filings. Journal of Accounting Research, 51(2), 399–436.]
+    and others document that textual signals are most powerful precisely for documents
+    that are longest, most complex, and hence most costly to process.
+
+  \item \textbf{Soft information and interpretive disagreement.} Even when a document is
+    widely read, its implications may be ambiguous.  A cautious management tone on an
+    earnings call might reflect genuine uncertainty about business conditions, or it might
+    be strategic communication designed to manage analyst expectations.  If sophisticated
+    investors disagree about the correct interpretation, prices reflect an average of
+    beliefs, and no single interpretation is instantly impounded.  NLP tools that can
+    classify the \emph{degree} of hedging or strategic obfuscation thus extract a signal
+    not already priced.
+
+  \item \textbf{Latent information.} Corporate disclosures are subject to legal and
+    regulatory constraints.  Managers cannot say anything material that is not disclosed
+    to all investors simultaneously (Regulation FD in the US context).  However,
+    information may be conveyed implicitly through word choice, rhetorical structure, and
+    what is \emph{omitted} rather than stated.  Analysing the \emph{sentiment} or
+    \emph{readability} of a disclosure can extract this latent signal even when the
+    explicit content is already known.
+\end{enumerate}
+
+Under any of these accounts, textual analysis adds value not because the market is
+irrational but because information extraction from text is genuinely costly and the
+technology for doing it at scale has improved dramatically in recent years.  LLMs
+represent the latest---and most powerful---step in that technological progression.
+
+\paragraph{A taxonomy of financial text.}
+The empirical literature draws on several distinct categories of financial text, each
+with its own characteristics, frequency, regulatory environment, and information content.
+
+\begin{description}
+  \item[Earnings call transcripts.] Publicly traded companies in most major markets
+    hold quarterly earnings calls in which senior management (typically the CEO and CFO)
+    presents financial results and answers questions from sell-side analysts.  Transcripts
+    are produced by services such as Refinitiv or Bloomberg and are widely studied.  The
+    call has two parts: a scripted management presentation and an unscripted Q\&A.  The
+    Q\&A is particularly informative because responses are spontaneous and harder to
+    rehearse.  Davis, Ge, Matsumoto, and Zhang \cite{davis2015effect} % [CITE: Davis, A.K., Ge, W., Matsumoto, D. & Zhang, J.L. (2015). The Effect of Manager-Specific Optimism on the Tone of Earnings Conference Calls. Review of Accounting Studies, 20(2), 639–673.]
+    and a large subsequent literature show that sentiment extracted from transcripts
+    predicts abnormal returns and subsequent earnings surprises.
+
+  \item[10-K and 10-Q filings.] Annual (10-K) and quarterly (10-Q) reports filed with
+    the SEC contain management discussion and analysis (MD\&A), risk factor disclosures,
+    financial statements, and extensive footnotes.  These are the primary data source in
+    the Loughran--McDonald (2011) study.  10-K filings can exceed 200 pages, presenting
+    significant information-extraction challenges that NLP is uniquely well-placed to
+    address.
+
+  \item[Newswire and newspaper articles.] Tetlock (2007) worked with \emph{Wall Street
+    Journal} columns.  A larger body of work uses machine-readable newswire feeds from
+    Reuters or Bloomberg.  A key feature of news is high frequency: material news events
+    trigger immediate repricing, and the window for exploiting a textual signal is
+    therefore narrow.  The value of NLP-based news analysis lies partly in speed (reading
+    and classifying thousands of articles per second) and partly in breadth (aggregating
+    signals across many sources simultaneously).
+
+  \item[Analyst reports.] Sell-side research reports combine quantitative analysis with
+    extensive narrative commentary.  They are produced by financial analysts who have
+    specialised knowledge of the companies they cover, making the text informationally
+    dense.  Lehavy, Li, and Merkley \cite{lehavy2011benefit} % [CITE: Lehavy, R., Li, F. & Merkley, K. (2011). The Benefit of Investment Bank Analyst Monitoring. Journal of Finance, 66(4), 1223–1260.]
+    show that the textual complexity of analyst reports is associated with greater investor
+    uncertainty and higher information asymmetry.
+
+  \item[Central bank communications.] Minutes and statements from central banks (the US
+    Federal Reserve, the European Central Bank, the Bank of England) move interest rates
+    and equity prices when published.  The FOMC transcripts used by Hansen et al.\
+    \cite{hansen2018transparency} are now publicly available with a five-year lag and
+    provide a rich laboratory for studying deliberation and its market effects.
+
+  \item[Social media and alternative data.] Twitter (now X), Reddit (especially
+    r/wallstreetbets), StockTwits, and similar platforms provide high-frequency, noisy,
+    unstructured text.  Bollen, Mao, and Zeng \cite{bollen2011twitter} % [CITE: Bollen, J., Mao, H. & Zeng, X. (2011). Twitter Mood Predicts the Stock Market. Journal of Computational Science, 2(1), 1–8.]
+    showed that aggregate Twitter mood states predict DJIA returns in a time-series
+    regression, though subsequent work has questioned the robustness of this finding.
+    Social media data is particularly challenging due to bot activity, sarcasm, slang,
+    and the mixing of retail and institutional sentiment.
+\end{description}
+
+% ---------------------------------------------------------------
 \subsection{Text as a Signal: Evidence from the Literature}
 \label{sec:motivation-evidence}
 
-[Placeholder]
+\paragraph{Empirical findings.}
+Before formalising the framework, it is useful to have in mind the empirical regularities
+the theory must explain.  The key stylised facts from the literature are:
+
+\begin{enumerate}
+  \item \textbf{Negative tone predicts negative returns (short-run).}  Tetlock (2007)
+    found that the fraction of negative words in the WSJ column predicts DJIA returns
+    with a negative coefficient: more pessimistic prose is followed by lower next-day
+    returns.  The effect reverses over the subsequent week, suggesting temporary
+    sentiment-driven mispricing.
+
+  \item \textbf{Financial-domain dictionaries outperform general-domain ones.}
+    Loughran and McDonald (2011) showed that the LM Negative word list has substantially
+    higher predictive power for filing-date abnormal returns than the Harvard IV-4 list,
+    confirming that domain specificity matters.
+
+  \item \textbf{Earnings call tone predicts future earnings surprises.}  Multiple
+    studies, including Larcker and Zakolyukina \cite{larcker2012detecting}, % [CITE: Larcker, D.F. & Zakolyukina, A.A. (2012). Detecting Deceptive Discussions in Conference Calls. Journal of Accounting Research, 50(2), 495–540.]
+    find that the linguistic characteristics of CEO and CFO speech on earnings calls
+    contain information about the accuracy of disclosed earnings, and that deceptive
+    speech has distinct linguistic markers.
+
+  \item \textbf{LLM-based signals show incremental predictive power.}  More recent work
+    has found that prompt-based or fine-tuned LLMs generate sentiment signals with
+    higher out-of-sample predictive accuracy than dictionary or classical ML methods on
+    the same financial text datasets \cite{lopezleal2023can}. % [CITE: Lopez-Leal, A., et al. (2023). Can ChatGPT Forecast Stock Price Movements? SSRN Working Paper.]
+\end{enumerate}
+
+\paragraph{A formal framework: text as a signal.}
+We now introduce a minimal formal model that will underpin the empirical analyses
+throughout this book.
+
+\begin{definition}[Textual Signal]
+\label{def:textual-signal}
+Let $\mathcal{D}$ denote the space of documents (finite sequences of tokens drawn from
+a vocabulary $\mathcal{V}$).  Let $(\Omega, \mathcal{F}, \mathbb{P})$ be a probability
+space on which all random variables are defined.  A \emph{textual signal} is a
+measurable function
+\[
+  f \colon \mathcal{D} \to \mathbb{R}^k,
+\]
+that maps a document $d_t \in \mathcal{D}$ observed at time $t$ to a $k$-dimensional
+real vector $s_t = f(d_t)$ called the \emph{signal value}.  When $k = 1$ we speak of a
+\emph{scalar} textual signal; when $k > 1$ of a \emph{vector} signal.
+\end{definition}
+
+In the simplest setting $k = 1$ and $s_t$ is a sentiment score.  In more complex
+settings it is a vector of topic proportions, an embedding vector in $\mathbb{R}^{768}$,
+or the output of a classifier head over a set of discrete categories.
+
+The central object of interest in empirical asset pricing is the predictive relationship
+between the signal and future excess returns.  Letting $r_{t+1}$ denote the excess
+return (return in excess of the risk-free rate) of a security or portfolio over the
+period $[t, t+1]$, the most basic question is whether the signal has forecasting content:
+
+\begin{equation}
+\label{eq:signal-predictability}
+  \mathrm{Cov}(s_t,\, r_{t+1}) \neq 0.
+\end{equation}
+
+If this covariance is non-zero, a long--short strategy that takes positions proportional
+to $s_t$ earns a non-zero expected return in a linear projection model.  More precisely,
+under a linear factor model:
+
+\begin{equation}
+\label{eq:linear-factor}
+  r_{t+1} = \alpha + \beta^\top s_t + \varepsilon_{t+1}, \qquad
+  \mathbb{E}[\varepsilon_{t+1} \mid s_t] = 0,
+\end{equation}
+
+the coefficient $\beta$ captures the marginal predictive content of the signal.  The
+signal is \emph{economically significant} if $|\beta| > 0$ \emph{after} controlling for
+known return predictors (size, value, momentum, and so forth), and if the associated
+Sharpe ratio exceeds plausible transaction costs.
+
+\begin{remark}[Identification challenges]
+\label{rem:identification}
+Establishing that $\mathrm{Cov}(s_t, r_{t+1}) \neq 0$ is a necessary but not sufficient
+condition for claiming that the signal is \emph{causally} informative about future
+returns.  Several identification challenges arise:
+
+\begin{itemize}
+  \item \textbf{Reverse causality.} The document $d_t$ may be written \emph{in response
+    to} lagged returns rather than in anticipation of future ones.  For example, a
+    pessimistic earnings call might reflect a poor quarter already priced in.  One must
+    carefully identify the \emph{component} of $s_t$ that is not predictable from public
+    information already in prices.
+
+  \item \textbf{Confounding.} Macroeconomic conditions simultaneously affect the tone of
+    news coverage and asset returns.  A negative correlation between negativity and
+    returns may simply reflect a common dependence on the business cycle rather than a
+    causal channel from text to prices.  Standard practice is to control for
+    contemporaneous return, volatility, and macro variables, and to use high-frequency
+    event studies where the information release time is known precisely.
+
+  \item \textbf{Overfitting and multiple testing.} With modern NLP tools one can
+    construct an enormous number of candidate signals from the same corpus.  Without
+    correction for multiple testing or out-of-sample validation, spurious correlations
+    are likely.  Throughout this book we emphasise genuine out-of-sample evaluation
+    using a strict temporal split (training on pre-2010 data, evaluating on post-2010
+    data, for example) rather than in-sample $t$-statistics.
+
+  \item \textbf{Model misspecification.} The mapping $f$ from document to signal is
+    itself an assumption.  Dictionary-based $f$ imposes strong restrictions (only word
+    counts matter, word order is irrelevant).  LLM-based $f$ relaxes these restrictions
+    but introduces its own assumptions (training data distribution, fine-tuning
+    objective, prompt design).  The empirical signal-to-noise ratio of $\hat{\beta}$
+    depends on how well $f$ captures the true information in the document.
+\end{itemize}
+\end{remark}
+
+This framework is deliberately abstract.  Its value is that it makes precise what we
+mean by ``text contains information'': the signal $s_t = f(d_t)$ has information content
+about future returns if and only if it is correlated with $r_{t+1}$ conditional on the
+information set available at $t$.  The rest of this book can be read as an investigation
+of the best choice of $f$: from simple word counts, to topic models, to transformer
+embeddings, to instruction-tuned LLMs used as zero-shot classifiers or reasoning agents.
 
 % ---------------------------------------------------------------
 \section{Classical Text Representations}
 \label{sec:classical}
 
+Before turning to neural representations it is essential to understand classical methods,
+for several reasons.  First, they remain competitive baselines in many financial
+applications.  Second, neural methods such as self-attention can be understood as
+learning to construct, dynamically, context-dependent analogues of the static
+representations described here.  Third, the vocabulary and notation introduced in this
+section are used throughout the book.
+
+% ---------------------------------------------------------------
 \subsection{Vocabulary, Tokens, and the Bag-of-Words Model}
 \label{sec:classical-bow}
 
-[Placeholder]
+\begin{definition}[Corpus and Vocabulary]
+\label{def:corpus-vocab}
+A \emph{corpus} $\mathcal{C} = \{d_1, d_2, \ldots, d_N\}$ is a finite collection of
+$N$ documents.  Each document $d_i$ is a finite sequence of \emph{tokens} drawn from a
+\emph{vocabulary} $\mathcal{V}$.  The vocabulary $\mathcal{V}$ is a finite set with
+$|\mathcal{V}| = V$ elements called \emph{types}.  We write a document as a sequence
+$d_i = (w_{i,1}, w_{i,2}, \ldots, w_{i,n_i})$ where each $w_{i,j} \in \mathcal{V}$
+and $n_i$ is the document length.
+\end{definition}
 
+\paragraph{Tokenisation.}
+The process of converting a raw character string into a sequence of tokens is called
+\emph{tokenisation}.  In the simplest case tokens are whitespace-delimited words.
+In more sophisticated pipelines (used by LLMs) the unit of tokenisation is a
+\emph{sub-word} piece: for example, the word \textit{earnings} might be represented
+as the two pieces \textit{earn} and \textit{ings}, allowing the model to represent
+rare words as combinations of more frequent sub-units.  For the classical methods
+described in this section, word-level tokenisation is standard.
+
+\paragraph{Text pre-processing.}
+Before building a vocabulary, practitioners typically apply several normalisation steps:
+
+\begin{enumerate}
+  \item \textbf{Case folding.} Convert all tokens to lower case so that ``Revenue'' and
+    ``revenue'' are treated as the same type.
+
+  \item \textbf{Stop word removal.} Remove high-frequency function words (``the'',
+    ``and'', ``of'', ``is'', \ldots) that carry little discriminative information across
+    documents.  Standard stop word lists (e.g.\ the NLTK English stop word list) contain
+    100--300 words.  In financial text, some researchers also remove common financial
+    jargon (``company'', ``year'', ``quarter'') that appears in nearly every document.
+
+  \item \textbf{Stemming and lemmatisation.} Stemming applies rule-based suffix stripping
+    to map inflected forms to a common stem: \textit{earnings}, \textit{earned},
+    \textit{earns} $\to$ \textit{earn}.  Lemmatisation uses a morphological dictionary to
+    map words to their canonical lemma: \textit{better} $\to$ \textit{good}.
+    Lemmatisation is linguistically more accurate but slower.  Both reduce $V$ and
+    increase effective document frequency of important terms.
+
+  \item \textbf{Vocabulary truncation.} It is common to retain only the $V'$ most
+    frequent types (after stop word removal) and to discard types with very low document
+    frequency, on the grounds that very rare words are either noise or proper nouns
+    whose meaning is document-specific.
+\end{enumerate}
+
+\paragraph{The bag-of-words model.}
+After tokenisation and pre-processing, the dominant classical representation discards
+word order entirely.
+
+\begin{definition}[Bag-of-Words Representation]
+\label{def:bow}
+Let $\mathcal{V} = \{v_1, v_2, \ldots, v_V\}$ be an ordered vocabulary.  The
+\emph{bag-of-words} (BoW) representation of a document $d$ with respect to
+$\mathcal{V}$ is the vector
+\[
+  \mathbf{x}(d) = \bigl(\mathrm{count}(v_1, d),\,
+                         \mathrm{count}(v_2, d),\, \ldots,\,
+                         \mathrm{count}(v_V, d)\bigr)^\top \in \mathbb{Z}_{\geq 0}^V,
+\]
+where $\mathrm{count}(v, d)$ is the number of times token $v$ appears in document $d$.
+The representation is called a ``bag'' because it loses the sequential order of tokens,
+retaining only the multiset of token occurrences.
+\end{definition}
+
+The BoW representation is the foundation of the classical NLP pipeline.  Its principal
+virtues are simplicity and interpretability.  Its principal deficiency is exactly the
+information it discards: position, syntax, and context.  The sentences ``the fund
+outperformed the market'' and ``the market outperformed the fund'' have identical BoW
+representations, despite having opposite meanings.
+
+The BoW matrix for an entire corpus $\mathcal{C}$ of $N$ documents is the term-document
+matrix $\mathbf{X} \in \mathbb{Z}_{\geq 0}^{N \times V}$ whose $i$-th row is
+$\mathbf{x}(d_i)^\top$.  For large vocabularies and corpora, $\mathbf{X}$ is typically
+very sparse: most documents use a small fraction of the full vocabulary, so most entries
+are zero.  Sparse matrix formats (CSR, CSC) are used in practice.
+
+% ---------------------------------------------------------------
 \subsection{One-Hot Encoding}
 \label{sec:classical-onehot}
 
-[Placeholder]
+\begin{definition}[One-Hot Vector]
+\label{def:one-hot}
+Let $\mathcal{V} = \{v_1, \ldots, v_V\}$ be an ordered vocabulary.  The \emph{one-hot
+encoding} of a token $v_k \in \mathcal{V}$ is the indicator vector
+\[
+  \mathbf{e}_k = (\underbrace{0, \ldots, 0}_{k-1}, 1,
+                  \underbrace{0, \ldots, 0}_{V - k})^\top \in \{0,1\}^V,
+\]
+i.e.\ the $k$-th standard basis vector in $\mathbb{R}^V$.  The set
+$\{\mathbf{e}_1, \ldots, \mathbf{e}_V\}$ forms an orthonormal basis of $\mathbb{R}^V$
+under the Euclidean inner product.
+\end{definition}
 
+One-hot encoding is not an alternative to the bag-of-words model; it is a complementary
+concept that operates at the level of individual tokens rather than whole documents.  A
+document is represented under the BoW model as $\mathbf{x}(d) = \sum_{j=1}^{n}
+\mathbf{e}_{k(w_j)}$, the sum of the one-hot vectors of its constituent tokens.
+
+\paragraph{Properties and limitations.}
+One-hot vectors have two defining geometric properties.  First, all vectors have unit
+$\ell_2$ norm: $\|\mathbf{e}_k\|_2 = 1$ for all $k$.  Second, any two distinct vectors
+are orthogonal: $\langle \mathbf{e}_j, \mathbf{e}_k \rangle = \mathbf{e}_j^\top
+\mathbf{e}_k = \mathbb{1}[j = k]$.  The second property encodes the implicit
+assumption that every pair of distinct words is equally (dis)similar, which is
+semantically incorrect.  The cosine similarity between \textit{revenue} and
+\textit{income} is zero under one-hot encoding, identical to the similarity between
+\textit{revenue} and any other word---yet a financial analyst knows these words are
+nearly synonymous in most contexts.
+
+Formally, the metric structure induced on the vocabulary by one-hot cosine similarity
+is the discrete metric: $\mathrm{sim}(v_j, v_k) = \mathbb{1}[j = k]$.  This is a
+profound limitation because much of the value of language lies precisely in the
+\emph{partial} similarities between words.  Word embeddings (Section~\ref{sec:embeddings})
+were developed specifically to replace this discrete metric with a continuous one that
+reflects distributional similarity.
+
+\paragraph{Dimensionality and sparsity.}
+For a vocabulary of size $V$, the one-hot representation lives in $\mathbb{R}^V$.  For
+typical NLP applications $V \in [10\,000,\, 100\,000]$, so the representation is
+extremely high-dimensional.  Only one entry per token is non-zero; the vectors are
+$(1 - 1/V)$-sparse.  For a document of $n$ tokens, the BoW vector
+$\sum_j \mathbf{e}_{k(w_j)}$ has at most $n$ non-zero entries out of $V$, and for short
+documents this fraction is small.  This sparsity makes direct computation on one-hot
+features (e.g.\ training a linear classifier) feasible via sparse linear algebra, but it
+makes the features unsuitable as inputs to dense neural network layers without a
+dimensionality reduction step such as an embedding layer.
+
+% ---------------------------------------------------------------
 \subsection{TF-IDF Weighting}
 \label{sec:classical-tfidf}
 
-[Placeholder]
+A fundamental problem with raw BoW count vectors is that they are dominated by common
+words.  In a corpus of 10-K filings, the word \textit{the} appears in every document
+and contributes nothing to distinguishing documents from one another.  TF-IDF weighting
+addresses this by discounting words that appear frequently across the corpus.
+
+\begin{definition}[Term Frequency]
+\label{def:tf}
+The \emph{term frequency} of token $v$ in document $d$ is
+\[
+  \mathrm{tf}(v, d) = \frac{\mathrm{count}(v, d)}{|d|},
+\]
+where $|d| = \sum_{v' \in \mathcal{V}} \mathrm{count}(v', d)$ is the total number of
+tokens in $d$ (after pre-processing).
+\end{definition}
+
+\begin{definition}[Inverse Document Frequency]
+\label{def:idf}
+The \emph{document frequency} of token $v$ in corpus $\mathcal{C}$ is
+\[
+  \mathrm{df}(v, \mathcal{C}) = \bigl|\{d \in \mathcal{C} : \mathrm{count}(v, d) > 0\}\bigr|,
+\]
+the number of documents in which $v$ appears at least once.  The \emph{inverse document
+frequency} is
+\[
+  \mathrm{idf}(v, \mathcal{C}) = \log\!\left(\frac{|\mathcal{C}|}{\mathrm{df}(v, \mathcal{C})}\right),
+\]
+where the logarithm may be taken in any base (typically natural or base 2).  A
+smoothed variant commonly used in practice adds 1 to the denominator to avoid division
+by zero:
+\[
+  \mathrm{idf}_{\text{smooth}}(v, \mathcal{C})
+    = \log\!\left(\frac{|\mathcal{C}|}{1 + \mathrm{df}(v, \mathcal{C})}\right) + 1.
+\]
+\end{definition}
+
+\begin{definition}[TF-IDF Weight]
+\label{def:tfidf}
+The \emph{TF-IDF weight} of token $v$ in document $d$ with respect to corpus
+$\mathcal{C}$ is
+\begin{equation}
+\label{eq:tfidf}
+  \mathrm{tfidf}(v, d, \mathcal{C}) = \mathrm{tf}(v, d) \times \mathrm{idf}(v, \mathcal{C}).
+\end{equation}
+The \emph{TF-IDF representation} of document $d$ is the vector
+\[
+  \tilde{\mathbf{x}}(d) = \bigl(\mathrm{tfidf}(v_1, d, \mathcal{C}),\,
+                                 \mathrm{tfidf}(v_2, d, \mathcal{C}),\, \ldots,\,
+                                 \mathrm{tfidf}(v_V, d, \mathcal{C})\bigr)^\top
+  \in \mathbb{R}_{\geq 0}^V.
+\]
+\end{definition}
+
+\paragraph{Interpretation.}
+The IDF acts as an automatic stop-word suppressor.  A word that appears in every
+document has $\mathrm{df} = |\mathcal{C}|$, so $\mathrm{idf} = \log(1) = 0$ and its
+TF-IDF weight is zero regardless of how often it appears in a particular document.
+Conversely, a word that appears in only a few documents receives a high IDF weight,
+and if it is also frequent in those few documents it receives a high TF-IDF weight,
+signalling that it is \emph{characteristic} of those documents.  This makes TF-IDF
+particularly useful for document retrieval and classification: the dimensions with the
+highest TF-IDF weights tend to be the words that most sharply differentiate documents.
+
+\paragraph{Cosine similarity on TF-IDF vectors.}
+TF-IDF vectors are typically $\ell_2$-normalised before computing document similarity:
+\begin{equation}
+\label{eq:cosine-sim}
+  \mathrm{sim}(d_i, d_j) = \frac{\tilde{\mathbf{x}}(d_i)^\top \tilde{\mathbf{x}}(d_j)}
+                                 {\|\tilde{\mathbf{x}}(d_i)\|_2\, \|\tilde{\mathbf{x}}(d_j)\|_2}.
+\end{equation}
+This cosine similarity lies in $[-1, 1]$ (in $[0,1]$ for non-negative TF-IDF vectors)
+and is invariant to document length, making it a natural measure of topical similarity
+between documents.  In information retrieval, ranking documents by cosine similarity to
+a query document is the basis of the classic vector space model
+\cite{salton1975vector}. % [CITE: Salton, G., Wong, A. & Yang, C.S. (1975). A Vector Space Model for Automatic Indexing. Communications of the ACM, 18(11), 613–620.]
+
+\begin{example}[TF-IDF Computation on Financial Sentences]
+\label{ex:tfidf-example}
+To make the definitions concrete, we compute the TF-IDF matrix for a small corpus of
+three financial sentences.  After lower-casing and removing the stop words \{``the'',
+``a'', ``of'', ``in'', ``by'', ``is''\} the corpus is:
+
+\medskip
+\begin{center}
+\begin{tabular}{cl}
+\toprule
+$d$ & Pre-processed tokens \\
+\midrule
+$d_1$ & \texttt{revenue grew strong earnings} \\
+$d_2$ & \texttt{earnings declined weak guidance} \\
+$d_3$ & \texttt{revenue guidance raised strong} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\medskip
+
+The vocabulary (sorted alphabetically) is
+$\mathcal{V} = \{$\texttt{declined}, \texttt{earnings}, \texttt{grew}, \texttt{guidance},
+\texttt{raised}, \texttt{revenue}, \texttt{strong}, \texttt{weak}$\}$, so $V = 8$ and
+$|\mathcal{C}| = 3$.
+
+\paragraph{Step 1: Term frequency.}
+Each document has $|d| = 4$ tokens, so $\mathrm{tf}(v, d) = \mathrm{count}(v, d) / 4$.
+
+\medskip
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Token & $\mathrm{tf}(v, d_1)$ & $\mathrm{tf}(v, d_2)$ & $\mathrm{tf}(v, d_3)$ \\
+\midrule
+\texttt{declined} & 0       & 0.25    & 0 \\
+\texttt{earnings} & 0.25    & 0.25    & 0 \\
+\texttt{grew}     & 0.25    & 0       & 0 \\
+\texttt{guidance} & 0       & 0.25    & 0.25 \\
+\texttt{raised}   & 0       & 0       & 0.25 \\
+\texttt{revenue}  & 0.25    & 0       & 0.25 \\
+\texttt{strong}   & 0.25    & 0       & 0.25 \\
+\texttt{weak}     & 0       & 0.25    & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Step 2: Inverse document frequency.}
+Document frequencies: \texttt{declined} appears in 1 document; \texttt{earnings} in 2;
+\texttt{grew} in 1; \texttt{guidance} in 2; \texttt{raised} in 1; \texttt{revenue} in 2;
+\texttt{strong} in 2; \texttt{weak} in 1.  Using $\mathrm{idf}(v)
+= \ln(3 / \mathrm{df}(v))$:
+
+\medskip
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Token & $\mathrm{idf}(v)$ \\
+\midrule
+\texttt{declined} & $\ln(3/1) \approx 1.099$ \\
+\texttt{earnings} & $\ln(3/2) \approx 0.405$ \\
+\texttt{grew}     & $\ln(3/1) \approx 1.099$ \\
+\texttt{guidance} & $\ln(3/2) \approx 0.405$ \\
+\texttt{raised}   & $\ln(3/1) \approx 1.099$ \\
+\texttt{revenue}  & $\ln(3/2) \approx 0.405$ \\
+\texttt{strong}   & $\ln(3/2) \approx 0.405$ \\
+\texttt{weak}     & $\ln(3/1) \approx 1.099$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Step 3: TF-IDF weights.}
+Multiplying term frequencies by IDF values gives the TF-IDF matrix
+$\tilde{X} \in \mathbb{R}^{3 \times 8}$:
+
+\medskip
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Token & $\tilde{x}_{1,v}$ & $\tilde{x}_{2,v}$ & $\tilde{x}_{3,v}$ \\
+\midrule
+\texttt{declined} & 0       & $0.25 \times 1.099 \approx 0.275$ & 0 \\
+\texttt{earnings} & $0.25 \times 0.405 \approx 0.101$ & $0.101$ & 0 \\
+\texttt{grew}     & $0.25 \times 1.099 \approx 0.275$ & 0       & 0 \\
+\texttt{guidance} & 0       & $0.25 \times 0.405 \approx 0.101$ & $0.101$ \\
+\texttt{raised}   & 0       & 0       & $0.25 \times 1.099 \approx 0.275$ \\
+\texttt{revenue}  & $0.101$ & 0       & $0.101$ \\
+\texttt{strong}   & $0.101$ & 0       & $0.101$ \\
+\texttt{weak}     & 0       & $0.275$ & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+Several observations are immediate.  First, \texttt{grew}, \texttt{declined},
+\texttt{raised}, and \texttt{weak}---each appearing in exactly one document---receive
+the highest IDF weight ($\approx 1.099$) and therefore the highest TF-IDF weights
+among words that appear in their respective documents.  These are the words that most
+sharply characterise individual documents.  Second, \texttt{revenue}, \texttt{strong},
+and \texttt{earnings} appear in two documents each and receive a lower but non-zero
+weight, capturing their moderate discriminative value.  Third, no word appears in all
+three documents, so no word is suppressed to zero---a reflection of the small corpus
+size.  In a real corpus of thousands of 10-K filings, the most common words would be
+concentrated near zero.
+
+The cosine similarity between $d_1$ and $d_3$ reflects their shared tokens
+\texttt{revenue} and \texttt{strong}:
+\begin{align*}
+  \mathrm{sim}(d_1, d_3)
+  &= \frac{\tilde{\mathbf{x}}(d_1)^\top \tilde{\mathbf{x}}(d_3)}
+          {\|\tilde{\mathbf{x}}(d_1)\|_2\, \|\tilde{\mathbf{x}}(d_3)\|_2} \\
+  &= \frac{2 \times (0.101)^2}
+          {\sqrt{(0.275)^2 + (0.101)^2 + (0.101)^2}\;\sqrt{(0.275)^2 + (0.101)^2 + (0.101)^2}} \\
+  &= \frac{2 \times 0.0102}{(0.275)^2 + 2(0.101)^2}
+   \approx \frac{0.0204}{0.0756 + 0.0204}
+   \approx \frac{0.0204}{0.0960}
+   \approx 0.213,
+\end{align*}
+a modest positive similarity consistent with the two documents sharing a positive-tone
+vocabulary (\texttt{revenue} grew or was mentioned, \texttt{strong} appears in both).
+The similarity between $d_1$ and $d_2$ is lower, since they share only \texttt{earnings}:
+\[
+  \mathrm{sim}(d_1, d_2)
+  = \frac{(0.101)^2}{\sqrt{(0.275)^2 + 2(0.101)^2}\;\sqrt{(0.275)^2 + 2(0.101)^2}}
+  = \frac{(0.101)^2}{(0.275)^2 + 2(0.101)^2}
+  \approx \frac{0.0102}{0.0960}
+  \approx 0.106,
+\]
+correctly reflecting minimal lexical overlap between the optimistic $d_1$ and the
+negative $d_2$.
+\end{example}
+
+\paragraph{Limitations of TF-IDF.}
+TF-IDF is a powerful improvement over raw counts, but it inherits all the fundamental
+limitations of the bag-of-words framework:
+
+\begin{enumerate}
+  \item \textbf{Order invariance.}  The representation is unchanged by permuting the
+    words of a document.  The sentences ``earnings beat estimates'' and ``estimates beat
+    earnings'' receive the same TF-IDF vector.
+
+  \item \textbf{No semantic similarity.}  Two synonymous words (\textit{revenue} and
+    \textit{sales}) that never co-occur will have zero cosine similarity in TF-IDF space,
+    even though they are semantically interchangeable.
+
+  \item \textbf{Fixed vocabulary.}  TF-IDF is defined with respect to a fixed vocabulary
+    learned at training time.  New words (e.g.\ a newly coined acronym or a company
+    name) that appear in test documents are out-of-vocabulary and are discarded.
+
+  \item \textbf{High dimensionality.}  For large corpora the vocabulary $V$ can be
+    in the tens or hundreds of thousands.  Even with IDF weighting, the vectors are
+    high-dimensional and sparse, posing challenges for downstream models that prefer
+    dense, low-dimensional inputs.
+\end{enumerate}
+
+These limitations motivate the transition to distributional word embeddings discussed in
+Section~\ref{sec:embeddings}, which replace the discrete, high-dimensional one-hot
+basis with a continuous, low-dimensional space in which semantically similar words are
+represented by geometrically close vectors.
 
 % ---------------------------------------------------------------
 \section{Word Embeddings}
@@ -805,108 +1565,848 @@ computational cost that has no universal solution; practitioners should
 benchmark all three on their specific downstream task.
 \end{remark}
 
-% ---------------------------------------------------------------
-\section{Sequential Models: From RNNs to Attention}
-\label{sec:sequential}
-
-\subsection{Recurrent Neural Networks and the Vanishing Gradient Problem}
-\label{sec:sequential-rnn}
-
-[Placeholder]
-
-\subsection{LSTMs and GRUs}
-\label{sec:sequential-lstm}
-
-[Placeholder]
-
-\subsection{The Attention Mechanism}
-\label{sec:sequential-attention}
-
-[Placeholder]
-
-% ---------------------------------------------------------------
-\section{The Transformer Architecture}
-\label{sec:transformer}
-
-\subsection{Self-Attention (Mathematics)}
-\label{sec:transformer-selfattn}
-
-[Placeholder]
-
-\subsection{Multi-Head Attention}
-\label{sec:transformer-mha}
-
-[Placeholder]
-
-\subsection{Positional Encoding}
-\label{sec:transformer-pos}
-
-[Placeholder]
-
-\subsection{Encoder--Decoder Structure}
-\label{sec:transformer-encdec}
-
-[Placeholder]
-
-\subsection{Pre-training, Fine-tuning, and BERT vs.\ GPT}
-\label{sec:transformer-pretrain}
-
-[Placeholder]
 
 % ---------------------------------------------------------------
 \section{The Modern LLM Landscape}
 \label{sec:landscape}
 
+The preceding sections established the architectural foundations of the Transformer
+and the pre-training paradigm.  We now survey the landscape of deployed large language
+models (LLMs) as it stands in the mid-2020s, drawing distinctions that will recur
+throughout this book.
+
 \subsection{Generative Models vs.\ Reasoning Models}
 \label{sec:landscape-genreason}
 
-[Placeholder]
+\begin{definition}[Autoregressive Generative Language Model]
+\label{def:autoregressive}
+An \emph{autoregressive language model} is a probability distribution over sequences
+of tokens.  Given a vocabulary $\mathcal{V}$, the model factorises the joint
+probability of a sequence $\mathbf{x} = (x_1, x_2, \ldots, x_n)$ as a product of
+conditional probabilities:
+\begin{equation}
+  P(x_1, x_2, \ldots, x_n) = \prod_{t=1}^{n} P\!\left(x_t \mid x_1, \ldots, x_{t-1}\right).
+  \label{eq:autoregressive}
+\end{equation}
+Generation proceeds by sampling one token at a time, conditioning on all previously
+generated tokens.  Each forward pass through the network produces a probability
+distribution over $\mathcal{V}$; the next token is obtained by drawing from this
+distribution (or selecting its mode, as discussed in
+Section~\ref{sec:api-concepts}).
+\end{definition}
+
+This factorisation is not merely a modelling convenience: it imposes a \emph{causal}
+(left-to-right) structure that corresponds naturally to how language and, indeed, how
+financial disclosures are read.  An earnings call transcript, a research report, or a
+regulatory filing all unfold sequentially, and the meaning of a phrase frequently
+depends on all that precedes it.
+
+Standard autoregressive generation produces output token by token in a \emph{single
+chain of forward passes}: given a prompt of $L$ tokens, the model runs $L$ attention
+computations in parallel (using a KV-cache for efficiency) to generate each successive
+output token.  For many financial NLP tasks---sentiment labelling, named-entity
+recognition, brief summarisation---this single-pass regime is entirely adequate.
+
+However, it is ill-suited to tasks requiring multi-step deliberation: valuing a firm
+under a discounted-cash-flow (DCF) framework from a noisy earnings call, reasoning
+about whether a merger satisfies regulatory criteria across three jurisdictions, or
+constructing a quantitative argument from a numerical table embedded in a 10-K filing.
+Such tasks require the model to \emph{plan}, backtrack, and verify intermediate
+results before committing to a final answer.  This motivated a second paradigm.
+
+\begin{definition}[Reasoning (Extended-Thinking) Language Model]
+\label{def:reasoning}
+A \emph{reasoning model} is an autoregressive language model trained (typically via
+reinforcement learning with verifiable rewards) to generate a structured
+\emph{chain-of-thought} (CoT) before producing its final answer.  Formally, the
+model samples a latent reasoning trace $\mathbf{r} = (r_1, \ldots, r_m)$ prior to
+the answer tokens $\mathbf{a}$:
+\begin{equation}
+  P(\mathbf{a} \mid \mathbf{x})
+  = \sum_{\mathbf{r}} P(\mathbf{a} \mid \mathbf{x}, \mathbf{r})\,
+    P(\mathbf{r} \mid \mathbf{x}).
+  \label{eq:cot}
+\end{equation}
+The trace $\mathbf{r}$ may be exposed to the user (as in OpenAI o1/o3 and
+DeepSeek-R1) or kept internal (as in the \emph{extended thinking} mode of
+Claude 3.7/4.x).  In either case, the effective compute invested per query is
+substantially larger than in standard autoregressive generation.
+\end{definition}
+
+\begin{remark}
+The distinction in Definition~\ref{def:reasoning} is one of \emph{training
+objective} and \emph{inference regime}, not of architecture.  Both paradigms use the
+same decoder-only Transformer building block.  What differs is that reasoning models
+are rewarded for producing correct final answers, with the chain-of-thought providing
+a scratch-pad that can represent thousands of intermediate tokens.  This has been
+shown to dramatically improve performance on mathematical proofs, competitive
+programming, and, increasingly, on quantitative finance tasks such as numerical
+reasoning over financial statements.  It does not, however, eliminate hallucination
+(see Section~\ref{sec:limitations-hallucinations}).
+\end{remark}
+
+\begin{example}[Merger Valuation from an Earnings Call]
+\label{ex:merger-valuation}
+Consider the following excerpt from an earnings call (paraphrased for illustration):
+
+\begin{quote}
+``We are acquiring TechCo for \$4.2 billion.  TechCo's trailing twelve-month EBITDA
+is \$310 million, and we expect \$150 million in synergies within three years.  Our
+current weighted average cost of capital is 8.5\%.''
+\end{quote}
+
+\noindent\textbf{Standard generative model (GPT-4o, temperature $= 0$):}  The model
+reads the excerpt and directly outputs a one-paragraph assessment, typically noting
+that the EV/EBITDA multiple is approximately $13.5\times$ and characterising the deal
+as \emph{``strategically sound given the synergy guidance.''}  This response is often
+plausible but does not verify whether the synergy NPV actually justifies the purchase
+price premium.
+
+\noindent\textbf{Reasoning model (o3, DeepSeek-R1):}  The model first computes the
+implied enterprise value, then discounts the synergy stream at 8.5\% over three years
+(approximated as a growing annuity), compares this to the purchase premium over a
+benchmarked stand-alone valuation, and checks internal consistency before concluding
+that the deal is modestly value-accretive under the stated assumptions but sensitive
+to the synergy realisation timeline.  The reasoning trace makes each step auditable.
+
+This contrast recurs throughout the book.  For tasks with a verifiable numerical or
+logical answer, reasoning models offer a meaningful and measurable advantage.  For
+primarily generative tasks (summarisation, translation, drafting), the additional
+latency and cost of extended thinking may not be justified.
+\end{example}
 
 \subsection{Major Model Families}
 \label{sec:landscape-families}
 
-[Placeholder]
+Table~\ref{tab:model-families} provides a structured overview of the major model
+families referenced throughout this book.
+
+\begin{table}[htbp]
+\centering
+\caption{Major language model families relevant to financial NLP (as of 2024--2025).
+Parameter counts are approximate.  ``Finance'' indicates whether the model was
+trained or fine-tuned specifically on financial corpora.}
+\label{tab:model-families}
+\small
+\begin{tabular}{llllll}
+\hline
+\textbf{Model} & \textbf{Organisation} & \textbf{Arch.} & \textbf{Params} &
+\textbf{Training Data} & \textbf{Finance} \\
+\hline
+GPT-4 / GPT-4o   & OpenAI        & Decoder-only & $\sim$1T (est.) & Web + RLHF       & No  \\
+Claude 3.x/4.x   & Anthropic     & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
+Llama 3 (405B)   & Meta          & Decoder-only & 405B             & 15T tokens       & No  \\
+Gemini 1.5 Pro   & Google DM     & Decoder-only & Undisclosed      & Multimodal web   & No  \\
+FinBERT          & Araci (2019)  & Encoder      & 110M             & Financial news   & Yes \\
+BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ tok.  & Yes \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{Open vs.\ Proprietary Models.}
+The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
+weights are not released, and access is mediated through pay-per-token APIs.  This
+raises important issues for financial practitioners.  First, there is a
+\emph{data-privacy} concern: sending confidential earnings call transcripts, trading
+strategies, or client portfolios to a third-party API may conflict with internal
+compliance policies, GDPR obligations, or NDA terms.  Second, there is an
+\emph{auditability} concern: the model's exact behaviour cannot be reproduced or
+independently audited.
+
+Open-weight models such as Llama~3 (Meta, released under a community licence) address
+both concerns: they can be deployed on-premises, fine-tuned on proprietary data
+without data leaving the organisation, and their inference behaviour can be exactly
+reproduced given the same random seed.  The trade-off is that the largest open models
+require substantial GPU infrastructure (a 405-billion-parameter model at 16-bit
+precision requires approximately 810~GB of GPU memory).
+% [CITE: touvron2023llama]
+
+\paragraph{Why Domain-Adapted Models Do Not Always Win.}
+BloombergGPT~\cite{wu2023bloomberggpt} % [CITE: wu2023bloomberggpt Wu et al. 2023]
+was trained on 363 billion financial tokens (news, filings, analyst reports) alongside
+345 billion general-domain tokens, and represented the first large-scale demonstration
+that domain-specific pre-training on financial text was feasible at scale.
+
+Subsequent benchmarks revealed a nuanced picture.  On tasks requiring deep financial
+\emph{knowledge} (entity recognition in financial news, financial sentiment on
+FinancialPhraseBank), BloombergGPT outperforms same-size general-purpose baselines.
+But general-purpose models at significantly larger scale---GPT-4 or Claude 3---often
+match or exceed BloombergGPT on the same benchmarks, because scale compensates for
+domain specificity.  This is an instance of the \emph{emergent capability} effect:
+beyond a threshold of model scale and training compute, models acquire domain knowledge
+implicitly, even without targeted domain training. % [CITE: wei2022emergent]
+The practical implication is that \emph{task-specific fine-tuning of a general-purpose
+model} often outperforms a domain-pre-trained model of the same size, and
+\emph{prompt engineering} applied to a large general model often outperforms
+both---a theme developed extensively in Chapter~6.
+
+\paragraph{Instruction Tuning and RLHF.}
+Raw pre-trained models (\emph{base} models) are not directly usable as assistants.
+\emph{Instruction tuning} fine-tunes a base model on curated (instruction, response)
+pairs, teaching the model to follow natural-language directives.
+\emph{Reinforcement Learning from Human Feedback} (RLHF) \cite{ouyang2022training}
+% [CITE: ouyang2022training Ouyang et al. 2022, InstructGPT]
+further aligns the model with human preferences by training a reward model on pairwise
+human rankings and optimising the language model's policy via proximal policy
+optimisation (PPO).  The result is the \emph{chat} or \emph{instruct} variant
+familiar to practitioners.  For financial NLP, instruction tuning is especially
+important: it makes models reliably follow structured output formats (JSON, Markdown
+tables) that downstream data pipelines depend on.
 
 \subsection{Financial NLP Benchmarks and Datasets}
 \label{sec:landscape-benchmarks}
 
-[Placeholder]
+Progress in financial NLP is measured against a set of standardised benchmarks.
+Table~\ref{tab:benchmarks} summarises the major ones; all are used in evaluation
+experiments in subsequent chapters.
+
+\begin{table}[htbp]
+\centering
+\caption{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
+``Metric'' is the primary evaluation metric used in the literature.}
+\label{tab:benchmarks}
+\small
+\begin{tabular}{lllll}
+\hline
+\textbf{Benchmark} & \textbf{Task} & \textbf{Size} & \textbf{Metric} &
+\textbf{Reference} \\
+\hline
+FinancialPhraseBank & Sentiment (3-class)  & 4,840 sent.       & Accuracy       & \cite{malo2014good} \\
+FiQA SA / QA        & Opinion mining; Q\&A & $\sim$1,200 sent. & F1, NDCG       & \cite{fiqa2018} \\
+ECTSum              & Earnings call summ.  & 2,425 docs        & ROUGE-L        & \cite{mukherjee2022ectsum} \\
+FinQA               & Numerical reasoning  & 8,281 Q\&A pairs  & Execution acc. & \cite{chen2021finqa} \\
+FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  & \cite{shah2022flue} \\
+\hline
+\end{tabular}
+\end{table}
+% [CITE: malo2014good] Malo et al. (2014), FinancialPhraseBank
+% [CITE: fiqa2018] Maia et al. (2018), FiQA challenge
+% [CITE: mukherjee2022ectsum] Mukherjee et al. (2022), ECTSum
+% [CITE: chen2021finqa] Chen et al. (2021), FinQA
+% [CITE: shah2022flue] Shah et al. (2022), FLUE
+
+\textbf{FinancialPhraseBank} (Malo et al.\ 2014) \cite{malo2014good} consists of
+4,840 sentences sampled from English-language financial news articles, each annotated
+by sixteen domain experts with one of three sentiment labels: \texttt{positive},
+\texttt{negative}, or \texttt{neutral}.  The standard evaluation uses the subset where
+all annotators agreed (\emph{Agree-all}, 2,264 sentences), yielding a highly reliable
+gold standard.  This dataset is used in Chapter~2 as the primary benchmark for
+sentiment analysis experiments.
+
+\textbf{FiQA} (2018) \cite{fiqa2018} was released as part of a shared task on
+financial opinion mining.  It contains two subtasks: (SA-C) aspect-based sentiment
+analysis of financial microblogs and news headlines, and (QA) question answering over
+financial documents.  The QA subtask has proven particularly challenging due to the
+requirement to retrieve relevant passages before generating an answer---a natural fit
+for the retrieval-augmented generation (RAG) systems discussed in Chapter~5.
+
+\textbf{ECTSum} (Mukherjee et al.\ 2022) \cite{mukherjee2022ectsum} provides 2,425
+earnings call transcript--summary pairs, where the reference summaries were written by
+domain experts and verified for factual consistency.  It is the primary benchmark for
+Chapter~4 (Earnings Calls and Transcripts) and is used to evaluate both extractive and
+abstractive summarisation methods.
+
+\textbf{FinQA} (Chen et al.\ 2021) \cite{chen2021finqa} requires models to answer
+questions that demand \emph{multi-step numerical reasoning} over structured tables and
+unstructured prose extracted from SEC 10-K and 10-Q filings.  Correct answers require
+executing a sequence of arithmetic operations (addition, division, percentage change)
+with values drawn from the document.  This dataset is the primary evaluation target in
+Chapter~3 and illustrates clearly why reasoning models
+(Section~\ref{sec:landscape-genreason}) outperform standard generative models on
+structured financial analysis tasks.
+
+\textbf{FLUE} (Shah et al.\ 2022) \cite{shah2022flue} is a Financial Language
+Understanding Evaluation benchmark comprising five tasks: financial sentiment analysis,
+news headline classification, named entity recognition in financial documents, structure
+boundary detection in filings, and the FiQA-SA subtask.  It is the most comprehensive
+single-number evaluation framework for general financial NLP capability and is the
+primary evaluation target in Chapter~13.
+
+\begin{remark}
+All five benchmarks described above were constructed primarily from English-language,
+North American financial documents.  Chapter~13 discusses the implications of this
+distributional bias for evaluating models intended for European or Asian financial
+markets, and Chapter~12 highlights specific challenges that arise when FLUE-trained
+models are applied to MiFID~II or IFRS filings.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Working with LLMs via API}
 \label{sec:api}
 
+The transition from understanding how LLMs work to using them in practice requires
+familiarity with a small set of engineering concepts.  This section covers those
+concepts and provides working code examples for the three ecosystems most relevant to
+financial practitioners.
+
 \subsection{Core Concepts: Tokens, Context Windows, and Sampling}
 \label{sec:api-concepts}
 
-[Placeholder]
+\begin{definition}[Token]
+\label{def:token}
+A \emph{token} is the atomic unit of input and output processed by a language model.
+Tokens are produced by a \emph{tokeniser}, a deterministic mapping from strings to
+integer sequences.  Modern LLMs use sub-word tokenisation schemes such as Byte-Pair
+Encoding (BPE) \cite{sennrich2016bpe} % [CITE: sennrich2016bpe Sennrich et al. 2016]
+or WordPiece \cite{wu2016wordpiece}, % [CITE: wu2016wordpiece Wu et al. 2016]
+in which the vocabulary consists neither of individual characters nor of whole words,
+but of frequently occurring sub-word fragments.
+\end{definition}
+
+\paragraph{Byte-Pair Encoding.}
+BPE builds the vocabulary iteratively:
+\begin{enumerate}
+  \item Initialise the vocabulary with the set of all individual Unicode characters
+    (or bytes) appearing in the training corpus.
+  \item Count the frequency of all adjacent symbol pairs in the current tokenised
+    corpus.
+  \item Merge the most frequent pair into a single new symbol, updating the corpus.
+  \item Repeat steps 2--3 until the vocabulary reaches a target size $|V|$
+    (typically 32,000--100,000 for LLMs).
+\end{enumerate}
+
+\begin{example}[BPE Tokenisation of a Financial Term]
+\label{ex:bpe}
+Consider the word \texttt{"earnings"}.  A BPE tokeniser with vocabulary size 50,000
+(as used by GPT-2 and GPT-3) would likely tokenise this as two sub-words:
+\texttt{["earn", "ings"]}.  Rarer financial terms may receive more fragmented
+tokenisations; for example, \texttt{"EBITDA"} might tokenise as
+\texttt{["EB",\,"IT",\,"DA"]}, and \texttt{"Berkshire"} as
+\texttt{["Berk",\,"shire"]}.  As a rule of thumb, one English word corresponds to
+approximately 1.3 tokens on average; a typical earnings call transcript of 5,000 words
+therefore contains roughly 6,500 tokens.  This conversion factor is used in the cost
+analysis in Section~\ref{sec:api-practical}.
+\end{example}
+
+\begin{definition}[Context Window]
+\label{def:context-window}
+The \emph{context window} (or \emph{context length}) of a language model is the
+maximum number of tokens $L_{\max}$ that the model can process in a single forward
+pass.  Formally, the attention mechanism in a Transformer of context length $L_{\max}$
+can only attend to positions $j \leq \min(t, L_{\max})$ when computing the
+representation of position $t$.  Any input exceeding $L_{\max}$ tokens must be
+truncated or split across multiple calls.
+\end{definition}
+
+Context windows grew rapidly in the 2022--2024 period: GPT-3 offered 4,096 tokens;
+GPT-4-turbo extended this to 128,000 tokens; Gemini 1.5 Pro supports 1,000,000
+tokens; Claude 3/4 supports up to 200,000 tokens with plans to expand further.  For
+financial NLP, the context window determines whether an entire 10-K filing (which may
+exceed 100,000 tokens) can be processed in a single call---a question with significant
+implications for retrieval-augmented generation architectures (Chapter~5).
+
+\paragraph{Sampling Parameters.}
+Given the logit vector $\mathbf{z} \in \mathbb{R}^{|\mathcal{V}|}$ produced by the
+final Transformer layer, the model converts logits to a probability distribution and
+samples the next token.  Three hyperparameters govern this process.
+
+\begin{definition}[Temperature Sampling]
+\label{def:temperature}
+\emph{Temperature} $\tau > 0$ scales the logit vector before the softmax:
+\begin{equation}
+  p_i = \frac{\exp(z_i / \tau)}{\sum_{j=1}^{|\mathcal{V}|} \exp(z_j / \tau)},
+  \quad i = 1, \ldots, |\mathcal{V}|.
+  \label{eq:temperature}
+\end{equation}
+As $\tau \to 0^+$, all probability mass concentrates on the highest-logit token
+(\emph{greedy decoding}).  As $\tau \to \infty$, the distribution approaches uniform
+over $\mathcal{V}$.  For financial analysis tasks requiring precision and
+reproducibility, $\tau = 0$ (or $\tau = 0.1$) is recommended.  For creative tasks,
+$\tau \in [0.7, 1.0]$ is common.
+\end{definition}
+
+\begin{definition}[Nucleus (Top-$p$) Sampling]
+\label{def:top-p}
+\emph{Nucleus sampling} \cite{holtzman2020curious} % [CITE: holtzman2020curious]
+draws the next token from the smallest set $\mathcal{S} \subseteq \mathcal{V}$
+satisfying
+\begin{equation}
+  \sum_{i \in \mathcal{S}} p_i \geq p,
+  \label{eq:top-p}
+\end{equation}
+where $p \in (0, 1]$ is a user-specified threshold.  Tokens outside $\mathcal{S}$ are
+assigned zero probability and renormalised over $\mathcal{S}$.  Top-$p$ sampling
+adapts the effective vocabulary size to the confidence of the model: when the model is
+certain, $|\mathcal{S}|$ is small; when uncertain, $|\mathcal{S}|$ grows.  Common
+values are $p \in [0.9, 0.95]$.
+\end{definition}
+
+\begin{definition}[Top-$k$ Sampling]
+\label{def:top-k}
+\emph{Top-$k$ sampling} restricts sampling to the $k$ tokens with the highest
+probabilities, renormalising over this set.  Unlike top-$p$, the effective vocabulary
+size is fixed at $k$ regardless of the model's confidence.  Top-$k$ sampling
+(with $k = 50$) was used in GPT-2 generation and remains a common baseline.
+\end{definition}
+
+\begin{remark}
+In practice, many API providers expose only temperature and top-$p$, not top-$k$, as
+user-controllable parameters.  For financial NLP tasks where reproducibility and
+factual precision are paramount---such as extracting numerical data from filings or
+generating compliance summaries---\emph{greedy decoding} ($\tau = 0$) is strongly
+recommended: it is the only sampling regime that is deterministic across identical
+inputs (modulo floating-point non-determinism on GPU hardware).
+\end{remark}
 
 \subsection{Python Walkthrough: OpenAI, Anthropic, and HuggingFace}
 \label{sec:api-python}
 
-[Placeholder]
+We now demonstrate how to call three distinct LLM ecosystems from Python.  All
+examples use the same financial NLP task---sentiment analysis of an earnings call
+excerpt---to facilitate direct comparison.
+
+\paragraph{OpenAI API (GPT-4o).}
+The OpenAI Python SDK follows a \emph{chat completion} model: the user submits a list
+of messages (with roles \texttt{system}, \texttt{user}, and \texttt{assistant}), and
+the API returns a completion.
+
+\begin{lstlisting}[language=Python, caption={OpenAI API: financial sentiment with GPT-4o.}, label={lst:openai}]
+from openai import OpenAI
+
+client = OpenAI(api_key="YOUR_API_KEY")  # or set OPENAI_API_KEY env var
+
+EXCERPT = (
+    "Revenue increased 12% year-over-year to $4.1 billion, "
+    "driven by strong demand in cloud services. However, "
+    "operating margins contracted 200 basis points due to "
+    "elevated infrastructure investment."
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {
+            "role": "system",
+            "content": (
+                "You are a financial analyst. Classify the sentiment "
+                "of earnings call excerpts as POSITIVE, NEGATIVE, or "
+                "NEUTRAL. Provide a one-sentence justification."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"Classify the sentiment: {EXCERPT}",
+        },
+    ],
+    temperature=0.0,    # greedy: maximally deterministic
+    max_tokens=128,
+)
+
+print(response.choices[0].message.content)
+# MIXED/NEUTRAL -- Revenue growth is positive but margin compression
+# partially offsets the top-line improvement.
+
+# Token usage (important for cost tracking):
+usage = response.usage
+print(f"Input tokens:  {usage.prompt_tokens}")
+print(f"Output tokens: {usage.completion_tokens}")
+\end{lstlisting}
+
+\paragraph{Anthropic API (Claude).}
+The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
+list, passing it as a top-level argument rather than as the first message.  This
+structural difference reflects Anthropic's Constitutional AI training approach, where
+the system prompt receives special treatment during RLHF.
+% [CITE: bai2022constitutional]
+
+\begin{lstlisting}[language=Python, caption={Anthropic API: financial sentiment with claude-sonnet-4-6.}, label={lst:anthropic}]
+import anthropic
+
+client = anthropic.Anthropic(api_key="YOUR_API_KEY")  # or ANTHROPIC_API_KEY
+
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=128,
+    system=(
+        "You are a financial analyst. Classify the sentiment "
+        "of earnings call excerpts as POSITIVE, NEGATIVE, or "
+        "NEUTRAL. Provide a one-sentence justification."
+    ),
+    messages=[
+        {
+            "role": "user",
+            "content": f"Classify the sentiment: {EXCERPT}",
+        }
+    ],
+    temperature=0.0,
+)
+
+print(message.content[0].text)
+
+# Token usage:
+print(f"Input tokens:  {message.usage.input_tokens}")
+print(f"Output tokens: {message.usage.output_tokens}")
+\end{lstlisting}
+
+\paragraph{HuggingFace Transformers (FinBERT).}
+FinBERT \cite{araci2019finbert} % [CITE: araci2019finbert Araci (2019)]
+is a BERT-based encoder fine-tuned on financial news for three-class sentiment
+classification.  It runs locally without any API key or per-token cost.
+
+\begin{lstlisting}[language=Python, caption={FinBERT sentiment classification via HuggingFace pipeline.}, label={lst:finbert}]
+from transformers import pipeline
+
+# Downloads model weights (~440 MB) on first run; cached thereafter.
+nlp = pipeline(
+    "text-classification",
+    model="ProsusAI/finbert",
+    device=0,       # GPU 0; set device=-1 for CPU
+)
+
+result = nlp("The company reported record earnings this quarter.")
+print(result)
+# [{'label': 'positive', 'score': 0.9834}]
+
+# Batch inference (more efficient for large corpora):
+excerpts = [
+    "Revenue declined 8% amid weakening consumer demand.",
+    "The Board declared a special dividend of $2.50 per share.",
+    "Management reiterated full-year guidance.",
+]
+results = nlp(excerpts, batch_size=32)
+for text, res in zip(excerpts, results):
+    print(f"[{res['label']:8s} {res['score']:.2f}]  {text[:60]}")
+\end{lstlisting}
+
+\paragraph{Comparing the Three Ecosystems.}
+
+Table~\ref{tab:api-comparison} summarises the key structural differences.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of LLM API designs for financial NLP tasks.}
+\label{tab:api-comparison}
+\small
+\begin{tabular}{llll}
+\hline
+\textbf{Feature} & \textbf{OpenAI (GPT-4o)} & \textbf{Anthropic (Claude)} &
+\textbf{HuggingFace (FinBERT)} \\
+\hline
+System prompt   & First message (\texttt{"system"}) & Top-level \texttt{system=} arg & N/A \\
+Output access   & \texttt{choices[0].message}       & \texttt{content[0].text}        & List of dicts \\
+Local deploy    & No  & No  & Yes \\
+Cost model      & Per input/output token & Per input/output token & Compute only \\
+Context window  & 128K tokens & 200K tokens & 512 tokens \\
+Task type       & Generative / reasoning & Generative / reasoning & Classification \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Cost, Latency, and Practical Considerations}
 \label{sec:api-practical}
 
-[Placeholder]
+\paragraph{Cost Model.}
+API providers charge separately for input tokens (the prompt) and output tokens
+(the generated response):
+\begin{equation}
+  \text{cost} = N_{\text{in}} \cdot c_{\text{in}} + N_{\text{out}} \cdot c_{\text{out}},
+  \label{eq:cost-model}
+\end{equation}
+where $N_{\text{in}}$, $N_{\text{out}}$ are token counts and $c_{\text{in}}$,
+$c_{\text{out}}$ are the provider's per-token prices.
+Table~\ref{tab:api-costs} gives approximate 2024 prices in USD per million tokens.
+
+\begin{table}[htbp]
+\centering
+\caption{Approximate 2024 API pricing.  Prices in USD per million tokens (MTok).
+Verify current prices on provider websites before budgeting.}
+\label{tab:api-costs}
+\small
+\begin{tabular}{llll}
+\hline
+\textbf{Model} & \textbf{Input (\$/MTok)} & \textbf{Output (\$/MTok)} &
+\textbf{Notes} \\
+\hline
+GPT-4o                 & \$5.00       & \$15.00       & OpenAI, proprietary \\
+Claude 3 Sonnet        & \$3.00       & \$15.00       & Anthropic, proprietary \\
+Claude 3 Haiku         & \$0.25       & \$1.25        & Smaller, faster \\
+Llama 3 70B (via API)  & \$0.59       & \$0.79        & E.g.\ Together AI \\
+Llama 3 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{Worked Cost Calculation.}
+Suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
+each approximately 5,000 words.  At 1.3 tokens per word (see
+Example~\ref{ex:bpe}), each transcript is $\approx 6{,}500$ input tokens.  Adding a
+500-token system prompt and $\approx 400$ output tokens, and applying
+\eqref{eq:cost-model}:
+
+\begin{align}
+  \text{cost}_{\text{GPT-4o}}
+  &= 10{,}000 \times \left(\frac{7{,}000}{10^6} \times 5.00
+    + \frac{400}{10^6} \times 15.00 \right) \nonumber \\
+  &= 10{,}000 \times (0.035 + 0.006) \;=\; \$410.
+  \label{eq:cost-example}
+\end{align}
+
+The same workload on Claude 3 Haiku costs approximately \$20---a twenty-fold
+reduction.  This illustrates the core cost-optimisation decision in financial NLP
+pipelines: a small, cheap model handles straightforward extraction tasks, while a
+large model is reserved for complex reasoning steps.
+
+\paragraph{Batching, Caching, and Latency Trade-offs.}
+\begin{itemize}
+  \item \textbf{Batching.}  For offline workloads (historical transcript processing,
+    regulatory filing analysis), maximum parallelism reduces wall-clock time without
+    increasing cost.  OpenAI's Batch API offers a 50\% price discount in exchange for
+    up to 24 hours of processing latency---appropriate for end-of-day compliance runs
+    but unsuitable for real-time applications.
+  \item \textbf{Latency.}  For real-time applications (live earnings call
+    summarisation, intraday news monitoring), latency is a binding constraint.
+    Time-to-first-token for GPT-4o is typically 1--3 seconds; for Claude 3 Haiku
+    under 500 ms.  Locally-hosted Llama 3 (8B, single A100 GPU) can achieve
+    sub-100 ms first-token latency.
+  \item \textbf{Model selection heuristic.}  A common two-stage financial NLP
+    pipeline: (1) use a cheap, fast model (FinBERT, Claude Haiku) to filter and
+    classify large volumes of text; (2) route only the high-signal subset to a large
+    model for deep analysis.  This can reduce total API cost by 80--95\% on typical
+    workloads.
+\end{itemize}
+
+\begin{remark}[Prompt Caching]
+\label{rem:prompt-caching}
+Anthropic's \emph{prompt caching} API allows users to designate a prefix of the
+system prompt as cacheable.  Subsequent requests that share this prefix incur a
+reduced input-token price (approximately 10\% of the standard rate for cache hits),
+reducing costs by up to 90\% in applications with a fixed, long system prompt---such
+as a financial analysis assistant with fixed instructions and a reference document.
+OpenAI offers analogous automatic prompt caching for context windows exceeding 1,024
+tokens.  When designing pipelines that issue many similar requests (e.g., processing
+all filings from a given company under the same analytical framework), caching the
+shared system prompt is among the highest-ROI optimisations available.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Limitations and Responsible Use}
 \label{sec:limitations}
 
+The preceding sections present LLMs as powerful tools for financial NLP.  This section
+provides a necessary counterbalance: a rigorous account of their failure modes and the
+ethical and regulatory context in which financial AI systems operate.
+
 \subsection{Hallucinations in Financial Contexts}
 \label{sec:limitations-hallucinations}
 
-[Placeholder]
+\begin{definition}[Hallucination]
+\label{def:hallucination}
+A language model \emph{hallucination} is an output that is (a) presented with apparent
+confidence, yet (b) is not supported by---or actively contradicts---the model's input
+or the external world.  Following the taxonomy of~\cite{maynez2020faithfulness},
+% [CITE: maynez2020faithfulness Maynez et al. 2020]
+hallucinations are classified as:
+\begin{enumerate}
+  \item \textbf{Intrinsic hallucinations:} the output contradicts information
+    explicitly present in the input document.
+  \item \textbf{Extrinsic hallucinations:} the output introduces information not
+    present in the input that cannot be verified from any accessible source.
+\end{enumerate}
+\end{definition}
+
+Both types are particularly dangerous in finance, where incorrect numerical claims or
+fabricated regulatory citations can constitute material misstatements.
+
+\begin{example}[Hallucination in Financial Analysis]
+\label{ex:hallucination}
+A financial analyst uses an LLM to summarise a 10-K filing.  The filing states that
+the company's debt-to-equity ratio is 1.8.  The LLM summarises this as ``a
+debt-to-equity ratio of 0.8, indicating a conservatively leveraged balance sheet.''
+This is an \emph{intrinsic} hallucination: a direct numerical error that inverts the
+true risk profile.  Separately, the LLM notes that ``the company's accounting
+practices comply with IFRS 16 as confirmed by the PCAOB in their 2023 inspection
+report.''  No such report is mentioned in the filing; this is an \emph{extrinsic}
+hallucination.  Both errors could materially mislead an investor relying on the LLM
+output without cross-checking the source document.
+\end{example}
+
+The root cause of hallucination is not a simple bug but an intrinsic property of
+autoregressive generation: the model is trained to produce \emph{plausible} text, and
+plausibility correlates with---but is not identical to---factual accuracy.
+% [CITE: ji2023survey Ji et al. 2023, survey of hallucination in NLG]
+
+\paragraph{Mitigation Strategies.}
+\begin{itemize}
+  \item \textbf{Retrieval-Augmented Generation (RAG).}  Rather than relying on
+    parametric knowledge, the model is provided with retrieved passages from a verified
+    document store, substantially reducing extrinsic hallucination.  This is the
+    primary architecture for financial information extraction in Chapter~5.
+  \item \textbf{Grounding with citations.}  Prompting the model to cite specific
+    sentences or page numbers from the source document for every factual claim provides
+    an auditable trail.  This technique is demonstrated in Chapter~3.
+  \item \textbf{Chain-of-thought prompting.}  Requiring the model to show its
+    reasoning steps before producing an answer reduces hallucination on numerical and
+    multi-hop reasoning tasks. % [CITE: wei2022chain Wei et al. 2022]
+  \item \textbf{Calibration and confidence elicitation.}  Asking the model to express
+    uncertainty or to generate multiple candidate responses and identify disagreements
+    can flag unreliable outputs for human review.
+\end{itemize}
+
+\begin{remark}
+Reasoning models (Section~\ref{sec:landscape-genreason}) exhibit reduced hallucination
+rates on tasks with verifiable answers because the chain-of-thought trace provides a
+self-checking mechanism.  However, they are not immune: extrinsic hallucinations
+persist, especially on obscure regulatory facts or firm-specific historical data not
+well represented in the training corpus.  The mitigation strategies above remain
+necessary regardless of model type.
+\end{remark}
 
 \subsection{Regulatory and Ethical Considerations}
 \label{sec:limitations-ethics}
 
-[Placeholder]
+\begin{remark}
+Nothing in this book constitutes legal, regulatory, or investment advice.  The
+discussion below describes the regulatory landscape for educational purposes only.
+Practitioners deploying AI systems in financial contexts must obtain qualified legal
+counsel and ensure compliance with all applicable laws and regulations in their
+jurisdiction.
+\end{remark}
+
+\paragraph{EU AI Act.}
+The European Union's AI Act (Regulation 2024/1689), which entered into force in
+August 2024, establishes a risk-based classification for AI systems.
+% [CITE: eu-ai-act-2024]
+AI systems used for credit scoring, insurance risk assessment, pricing of life
+insurance products, and AI-assisted securities pricing fall into the \emph{high-risk}
+category (Annex III).  High-risk systems are subject to mandatory conformity
+assessments, post-market monitoring, transparency obligations towards regulators, and
+human oversight requirements.  An LLM deployed as part of an algorithmic trading
+system or a loan-approval pipeline would likely qualify as high-risk under the Act,
+requiring documentation of the model's training data, performance metrics, and the
+mechanisms ensuring human oversight before market deployment.
+
+\paragraph{SEC Guidance on AI in Investment Research.}
+The U.S.\ Securities and Exchange Commission has issued staff guidance indicating that
+investment advisers using AI-generated research must demonstrate that reasonable care
+was exercised in evaluating the AI's output, and that AI-generated recommendations are
+consistent with the adviser's fiduciary duty to clients.
+% [CITE: sec2023ai]
+The \emph{fiduciary duty} question is particularly acute: whether an LLM's output
+constitutes a ``recommendation'' under the Investment Advisers Act of 1940 has not
+been definitively resolved by case law, but the SEC's enforcement posture has been to
+hold advisers fully responsible for AI-generated outputs used in client-facing
+communications.
+
+\paragraph{GDPR and Private Financial Data.}
+Fine-tuning or retrieval-augmented generation on proprietary client data---transaction
+histories, portfolio compositions, know-your-customer (KYC) files---raises significant
+obligations under the General Data Protection Regulation (GDPR, EU 2016/679).
+% [CITE: gdpr2016]
+Key issues include: (a) whether training on personal data requires explicit consent;
+(b) the right to erasure and whether a model trained on a data subject's information
+can comply with an erasure request without full retraining; (c) data-transfer
+restrictions if API calls route personal data to non-EU servers.  Chapter~6
+(Fine-tuning) and Chapter~9 (Risk and Compliance) discuss technical mitigations
+including federated learning, differential privacy, and on-premises deployment.
+
+\paragraph{Model Bias and Geographic Coverage.}
+General-purpose LLMs are trained predominantly on English-language data from North
+American and Western European sources.  Financial training data is similarly skewed:
+the largest available corpora (SEC filings, English-language Bloomberg terminals,
+Reuters news) disproportionately represent US-listed equities and USD-denominated
+instruments.  As a consequence:
+\begin{itemize}
+  \item Sentiment models calibrated on US earnings calls may systematically
+    mis-classify sentiment in Japanese, Chinese, or Indian financial contexts.
+  \item Named entity recognition models fine-tuned on EDGAR filings may fail on
+    corporate structures common in family-controlled firms typical of Asian or Latin
+    American markets.
+  \item Regulatory knowledge embedded in LLM weights is heavily biased toward US/EU
+    rules; extrapolation to other jurisdictions should be treated with extreme caution.
+\end{itemize}
+Chapter~13 quantifies these biases empirically using cross-lingual evaluation of
+FLUE-equivalent tasks in French, German, and Chinese.
+
+\paragraph{The Fiduciary Duty Question.}
+The deepest ethical question for financial LLM applications is whether a system that
+generates investment recommendations---even as decision-support rather than autonomous
+execution---triggers fiduciary obligations and, if so, who bears them.  Current legal
+consensus is that the \emph{human adviser} (or firm) deploying the AI retains full
+fiduciary responsibility for its outputs, making thorough testing, documentation, and
+human oversight essential rather than optional.  Chapter~7 (AI Agents in Finance) and
+Chapter~8 (Multi-Agent Systems) return to this question in the context of agentic
+systems that take actions---executing trades, sending communications---rather than
+merely producing text.
 
 % ---------------------------------------------------------------
 \section{Roadmap of This Book}
 \label{sec:roadmap}
 
-[Placeholder]
+\subsection*{Summary of Chapter~1}
+
+This chapter established the technical and conceptual foundations for the rest of the
+book.  We traced the history of textual analysis in finance from keyword dictionaries
+through distributional word vectors to the Transformer architecture, developing the
+mathematics of self-attention, positional encoding, and the encoder--decoder structure.
+We surveyed the modern LLM landscape, distinguishing standard autoregressive models
+from reasoning models trained to produce explicit chains of thought.  We introduced
+the major model families (GPT-4o, Claude, Llama, FinBERT, BloombergGPT) and the
+principal financial NLP benchmarks (FinancialPhraseBank, FiQA, ECTSum, FinQA, FLUE)
+against which models are evaluated throughout the book.  We covered the practical
+mechanics of LLM APIs---tokenisation, context windows, sampling parameters, and cost
+models---and concluded with an honest account of the limitations: hallucination,
+regulatory exposure, data-privacy obligations, and the fiduciary responsibility that
+financial AI practitioners inherit.
+
+The remainder of the book proceeds from these foundations, moving from established
+tasks (sentiment analysis, information extraction) to frontier applications (multi-agent
+trading systems, regulatory technology), and from single-model pipelines to complex
+multi-agent workflows.
+
+\subsection*{Chapter-by-Chapter Overview}
+
+\begin{table}[htbp]
+\centering
+\caption{Overview of book chapters and their relationship to Chapter~1 foundations.}
+\label{tab:roadmap}
+\small
+\begin{tabular}{cll}
+\hline
+\textbf{Ch.} & \textbf{Title} & \textbf{Key Connection to Ch.~1} \\
+\hline
+2  & Sentiment Analysis
+   & FinancialPhraseBank; temperature; FinBERT vs.\ GPT-4o \\
+3  & Information Extraction from Filings
+   & FinQA; grounding and citation to reduce hallucination \\
+4  & Earnings Calls and Transcripts
+   & ECTSum; context-window limits; cost model \\
+5  & Retrieval-Augmented Generation
+   & RAG as hallucination mitigation; context-window architecture \\
+6  & Fine-tuning LLMs on Financial Data
+   & Instruction tuning; RLHF; GDPR considerations \\
+7  & AI Agents in Finance
+   & Reasoning models; agentic loops; fiduciary questions \\
+8  & Multi-Agent Systems and Workflows
+   & Chain-of-thought; multi-agent coordination protocols \\
+9  & Risk and Compliance Applications
+   & EU AI Act; hallucination auditing; on-premises deployment \\
+10 & Portfolio Construction with LLMs
+   & Cost-latency trade-offs; structured output from LLMs \\
+11 & Trading Systems and Execution
+   & Real-time latency; reasoning vs.\ generative model choice \\
+12 & Regulatory Technology
+   & Geographic bias; MiFID~II / IFRS; GDPR in practice \\
+13 & Evaluation and Benchmarking
+   & FLUE; cross-lingual evaluation; bias quantification \\
+14 & Frontiers and Future Directions
+   & Scaling laws; multimodal models; next-generation reasoning \\
+\hline
+\end{tabular}
+\end{table}
+
+Each chapter is self-contained enough to be read independently, but the sequence is
+deliberate.  Chapters~2--4 address the three core financial text sources (news,
+filings, transcripts) and establish empirical baselines that later chapters build upon.
+Chapters~5--6 introduce the two principal adaptation strategies (retrieval and
+fine-tuning) that transform raw LLM capabilities into production-grade financial NLP
+systems.  Chapters~7--8 extend the paradigm from single models to agentic systems
+capable of multi-step reasoning and action.  Chapters~9--12 turn to the institutional
+and regulatory dimensions that govern real-world deployment.  Chapter~13 provides a
+unified evaluation framework, and Chapter~14 surveys open research questions at the
+frontier.
+
+The thread running through all chapters is the one introduced here: language models
+are powerful but imperfect tools, and the financial practitioner's task is to deploy
+them in ways that harness their strengths---scale, speed, and breadth of
+knowledge---while managing their risks through careful system design, rigorous
+evaluation, and meaningful human oversight.

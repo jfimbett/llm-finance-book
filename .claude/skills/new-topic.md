@@ -25,8 +25,19 @@ When the user wants to add a new topic to the course. Run before `/draft-chapter
 8. Create `course/lectures/NN-name/solutions.md` with three placeholder solutions.
 9. Create `code/notebooks/NN-name/demo.ipynb` and `code/notebooks/NN-name/exercises.ipynb` — minimal valid notebooks with one markdown cell each.
 10. Update `docs/STATUS.md` — append a new row: `| NN | [Topic Name] | No | No | — | — | — | — | — | No |`
-11. Run `bash scripts/validate-scaffold.sh` to verify the new directories exist.
-12. Stage and commit: `git add book/chapters/NN-name course/lectures/NN-name code/notebooks/NN-name docs/STATUS.md && git commit -m "chore: scaffold topic NN-name"`
+
+**Step 11: Update `book/main.tex` to include the new chapter**
+
+Open `book/main.tex` and find the `% Add new chapters here` comment. Add the following line immediately before it:
+
+```latex
+\include{chapters/NN-name/chapter}
+```
+
+Replace `NN-name` with the actual chapter directory segment (e.g., `02-linear-algebra`). This ensures the chapter is compiled when you run `/build-book`.
+
+12. Run `bash scripts/validate-scaffold.sh` to verify the new directories exist.
+13. Stage and commit: `git add book/chapters/NN-name course/lectures/NN-name code/notebooks/NN-name docs/STATUS.md book/main.tex && git commit -m "chore: scaffold topic NN-name"`
 
 ## Expected Output
 

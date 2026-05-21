@@ -81,7 +81,7 @@ First thing after cloning the template. Also run to update any project settings.
 
 ## Expected Output
 
-`TOPIC.md` fully populated with all 12 YAML fields. `book/preamble.tex` updated. Git remote configured if provided. Setup summary printed.
+`TOPIC.md` fully populated with all 13 YAML fields. `book/preamble.tex` updated. Git remote configured if provided. Setup summary printed.
 
 ## Error Handling
 

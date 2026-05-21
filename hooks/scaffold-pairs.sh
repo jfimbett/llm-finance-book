@@ -73,6 +73,12 @@ EOF
 
 printf "**Exercise placeholder**\n\n[Invoke /draft-exercises to generate]\n" > "$LECDIR/exercises.md"
 
+cat > "${LECDIR}/solutions.md" << PLACEHOLDER
+# Solutions — Lecture ${NUM}: ${TITLE}
+
+> Placeholder — replace with actual solutions.
+PLACEHOLDER
+
 # Create notebook dir
 NBDIR="code/notebooks/$DIRNAME"
 mkdir -p "$NBDIR"
@@ -84,5 +90,18 @@ echo "Auto-scaffolded lecture and notebook for $DIRNAME"
 
 # Stage new files
 git add "$LECDIR" "$NBDIR" 2>/dev/null || true
+
+# Update book/main.tex to include the new chapter
+MAIN_TEX="book/main.tex"
+if [ -f "$MAIN_TEX" ]; then
+  DIR_SEGMENT="$DIRNAME"
+  INCLUDE_LINE="\\\\include{chapters/${DIR_SEGMENT}/chapter}"
+  # Only add if not already present
+  if ! grep -q "include{chapters/${DIR_SEGMENT}/chapter}" "$MAIN_TEX"; then
+    sed -i.bak "s|% Add new chapters here|${INCLUDE_LINE}\n% Add new chapters here|" "$MAIN_TEX" 2>/dev/null \
+      && rm -f "${MAIN_TEX}.bak" || true
+    git add "$MAIN_TEX" 2>/dev/null || true
+  fi
+fi
 
 exit 0

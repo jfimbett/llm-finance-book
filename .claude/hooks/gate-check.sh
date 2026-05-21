@@ -4,6 +4,10 @@
 # Exit 0 = pass, Exit 1 = block.
 # Trigger: pre-commit
 
+# Note: set -e is intentionally omitted. This script manually tracks FAILURES/WARNINGS
+# counts across multiple files. set -e would cause the script to exit immediately on
+# any non-zero command (including the python3 quality check) before FAILURES is incremented.
+
 # Read threshold
 THRESHOLD=$(grep 'quality_threshold:' TOPIC.md 2>/dev/null | sed 's/quality_threshold://' | tr -d ' \r\n')
 THRESHOLD="${THRESHOLD:-7}"
@@ -65,6 +69,15 @@ if [ "$FAILED" -gt 0 ]; then
     echo ""
     echo "Commit blocked: $FAILED file(s) below quality threshold ($THRESHOLD/10)"
     echo "Run /refine-until-threshold on each failing file, then retry."
+    echo ""
+    echo "Run iterate.sh on the failing files to see which agent to invoke:"
+    while IFS= read -r file; do
+        case "$file" in
+            .claude/*|scripts/*|hooks/*|docs/superpowers/*|docs/STATUS.md|docs/SESSION_LOG.md) continue ;;
+            README.md|TOPIC.md) continue ;;
+        esac
+        bash .claude/hooks/iterate.sh "$file" 2>/dev/null || true
+    done <<< "$STAGED"
     exit 1
 fi
 

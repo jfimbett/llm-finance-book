@@ -24,12 +24,17 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/score-on-save.sh",
-            "description": "Score content files on save and write quality report"
+            "description": "Remind user to run /score-content after saving content files."
           },
           {
             "type": "command",
             "command": "bash .claude/hooks/scaffold-pairs.sh",
             "description": "Auto-create paired lecture/notebook when a new chapter is created"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/notify-threshold.sh",
+            "description": "Print banner when a quality score file first reaches passing threshold"
           }
         ]
       }

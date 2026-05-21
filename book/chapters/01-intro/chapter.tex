@@ -41,7 +41,6 @@ neural methods that underpin modern large language model (LLM) applications.
 \subsection{Early Approaches: Keyword Counting and Dictionary Methods}
 \label{sec:history-early}
 
-\paragraph{Content analysis and the General Inquirer.}
 The modern project of quantifying the meaning of text began in the social sciences.
 In the 1950s and 1960s researchers in sociology and communication studies developed
 \emph{content analysis} as a formal methodology: a researcher defines a coding scheme
@@ -61,7 +60,6 @@ a document one simply counts the number of words belonging to each category and
 normalises by document length.  The appeal is transparency: every score can be
 explained by pointing to the words that generated it.
 
-\paragraph{The Tetlock (2007) milestone.}
 Within finance, the landmark empirical application of dictionary-based sentiment analysis
 is the paper by Paul Tetlock published in the \emph{Journal of Finance}
 \cite{tetlock2007giving}. % [CITE: Tetlock, P.C. (2007). Giving Content to Investor Sentiment: The Role of Media in the Stock Market. Journal of Finance, 62(3), 1139–1168.]
@@ -82,7 +80,6 @@ where professional arbitrageurs are active.  Third, the choice of dictionary mat
 the Harvard IV-4 list was designed for general English prose, not for the specialised
 register of financial and legal language.
 
-\paragraph{The Loughran--McDonald financial sentiment dictionary.}
 The inadequacy of general-purpose dictionaries for financial text was made rigorous by
 Tim Loughran and Bill McDonald in a highly influential 2011 paper
 \cite{loughran2011liability}. % [CITE: Loughran, T. & McDonald, B. (2011). When is a Liability not a Liability? Textual Analysis, Dictionaries, and 10-Ks. Journal of Finance, 66(1), 35–65.]
@@ -114,8 +111,7 @@ The sentence ``earnings did \emph{not} decline'' receives the same score as ``ea
 \emph{did} decline'' if the word \emph{not} is not explicitly handled, and even
 negation-aware heuristics remain fragile.
 
-\paragraph{Beyond single documents: readability and textual complexity.}
-Before leaving the dictionary era it is worth noting that scholars also developed
+Before leaving the dictionary era, it is worth noting that scholars also developed
 \emph{readability} measures applied to corporate disclosures.  Li (2008)
 \cite{li2008annual} % [CITE: Li, F. (2008). Annual Report Readability, Current Earnings, and Earnings Persistence. Journal of Accounting and Economics, 45(2–3), 221–247.]
 showed that annual reports that are more difficult to read (as measured by the
@@ -129,7 +125,6 @@ information'' means in a financial context.
 \subsection{The Shift to Statistical and Neural Methods}
 \label{sec:history-shift}
 
-\paragraph{Topic models and the limits of hand-crafted features.}
 By the mid-2000s the natural language processing (NLP) community had largely moved beyond
 dictionary-based methods toward \emph{statistical} representations that learn structure
 from data.  The most influential of these for finance is \emph{Latent Dirichlet
@@ -156,7 +151,6 @@ an unordered multiset of words, discarding the sequential structure that makes l
 meaningful.  Negation, qualification, conditionality, and argumentative structure are
 all lost.  This was the central motivation for the neural turn.
 
-\paragraph{Word embeddings: distributional semantics in low-dimensional space.}
 A transformative shift came with the introduction of \emph{word2vec} by Mikolov et al.\
 in 2013 \cite{mikolov2013efficient}. % [CITE: Mikolov, T., Chen, K., Corrado, G. & Dean, J. (2013). Efficient Estimation of Word Representations in Vector Space. ICLR Workshop.]
 Word2vec trains a shallow neural network to predict either a word from its context
@@ -180,8 +174,7 @@ offered an alternative factorisation approach that explicitly minimised the
 difference between the dot product of word vectors and the logarithm of the words'
 co-occurrence count, yielding embeddings with similarly useful geometric properties.
 
-\paragraph{The deep learning era: sequence models.}
-The combination of word embeddings with \emph{recurrent neural networks} (RNNs), and
+The deep learning era brought a further step: the combination of word embeddings with \emph{recurrent neural networks} (RNNs), and
 specifically with Long Short-Term Memory (LSTM) networks
 \cite{hochreiter1997long}, % [CITE: Hochreiter, S. & Schmidhuber, J. (1997). Long Short-Term Memory. Neural Computation, 9(8), 1735–1780.]
 allowed models to read a document sequentially and maintain a hidden state summarising
@@ -190,7 +183,6 @@ principle, handle negation and long-range dependencies that defeat bag-of-words
 approaches.  They achieved state-of-the-art performance on financial sentiment
 benchmarks such as FiQA and Financial Phrase Bank throughout 2016--2018.
 
-\paragraph{Transformers and BERT-based models.}
 The attention mechanism introduced by Bahdanau et al.\ \cite{bahdanau2015neural} % [CITE: Bahdanau, D., Cho, K. & Bengio, Y. (2015). Neural Machine Translation by Jointly Learning to Align and Translate. ICLR 2015.]
 and then generalised to the \emph{Transformer} architecture by Vaswani et al.\
 \cite{vaswani2017attention} % [CITE: Vaswani, A., Shazeer, N., Parmar, N., et al. (2017). Attention Is All You Need. NeurIPS 2017.]
@@ -233,7 +225,6 @@ introduces a formal framework for thinking about text as a signal.
 \subsection{The Information Content of Earnings Calls, News, and Filings}
 \label{sec:motivation-info}
 
-\paragraph{Semi-strong efficiency and the residual role for text.}
 The semi-strong form of the efficient markets hypothesis (EMH), associated with Fama
 \cite{fama1970efficient}, % [CITE: Fama, E.F. (1970). Efficient Capital Markets: A Review of Empirical Work. Journal of Finance, 25(2), 383–417.]
 holds that prices at any time fully reflect all \emph{publicly available} information.
@@ -280,7 +271,6 @@ irrational but because information extraction from text is genuinely costly and 
 technology for doing it at scale has improved dramatically in recent years.  LLMs
 represent the latest---and most powerful---step in that technological progression.
 
-\paragraph{A taxonomy of financial text.}
 The empirical literature draws on several distinct categories of financial text, each
 with its own characteristics, frequency, regulatory environment, and information content.
 
@@ -336,7 +326,6 @@ with its own characteristics, frequency, regulatory environment, and information
 \subsection{Text as a Signal: Evidence from the Literature}
 \label{sec:motivation-evidence}
 
-\paragraph{Empirical findings.}
 Before formalising the framework, it is useful to have in mind the empirical regularities
 the theory must explain.  The key stylised facts from the literature are:
 
@@ -364,7 +353,6 @@ the theory must explain.  The key stylised facts from the literature are:
     the same financial text datasets \cite{lopezleal2023can}. % [CITE: Lopez-Leal, A., et al. (2023). Can ChatGPT Forecast Stock Price Movements? SSRN Working Paper.]
 \end{enumerate}
 
-\paragraph{A formal framework: text as a signal.}
 We now introduce a minimal formal model that will underpin the empirical analyses
 throughout this book.
 
@@ -479,7 +467,6 @@ $d_i = (w_{i,1}, w_{i,2}, \ldots, w_{i,n_i})$ where each $w_{i,j} \in \mathcal{V
 and $n_i$ is the document length.
 \end{definition}
 
-\paragraph{Tokenisation.}
 The process of converting a raw character string into a sequence of tokens is called
 \emph{tokenisation}.  In the simplest case tokens are whitespace-delimited words.
 In more sophisticated pipelines (used by LLMs) the unit of tokenisation is a
@@ -488,7 +475,6 @@ as the two pieces \textit{earn} and \textit{ings}, allowing the model to represe
 rare words as combinations of more frequent sub-units.  For the classical methods
 described in this section, word-level tokenisation is standard.
 
-\paragraph{Text pre-processing.}
 Before building a vocabulary, practitioners typically apply several normalisation steps:
 
 \begin{enumerate}
@@ -514,7 +500,6 @@ Before building a vocabulary, practitioners typically apply several normalisatio
     whose meaning is document-specific.
 \end{enumerate}
 
-\paragraph{The bag-of-words model.}
 After tokenisation and pre-processing, the dominant classical representation discards
 word order entirely.
 
@@ -567,7 +552,6 @@ concept that operates at the level of individual tokens rather than whole docume
 document is represented under the BoW model as $\mathbf{x}(d) = \sum_{j=1}^{n}
 \mathbf{e}_{k(w_j)}$, the sum of the one-hot vectors of its constituent tokens.
 
-\paragraph{Properties and limitations.}
 One-hot vectors have two defining geometric properties.  First, all vectors have unit
 $\ell_2$ norm: $\|\mathbf{e}_k\|_2 = 1$ for all $k$.  Second, any two distinct vectors
 are orthogonal: $\langle \mathbf{e}_j, \mathbf{e}_k \rangle = \mathbf{e}_j^\top
@@ -585,7 +569,6 @@ profound limitation because much of the value of language lies precisely in the
 were developed specifically to replace this discrete metric with a continuous one that
 reflects distributional similarity.
 
-\paragraph{Dimensionality and sparsity.}
 For a vocabulary of size $V$, the one-hot representation lives in $\mathbb{R}^V$.  For
 typical NLP applications $V \in [10\,000,\, 100\,000]$, so the representation is
 extremely high-dimensional.  Only one entry per token is non-zero; the vectors are
@@ -652,7 +635,6 @@ The \emph{TF-IDF representation} of document $d$ is the vector
 \]
 \end{definition}
 
-\paragraph{Interpretation.}
 The IDF acts as an automatic stop-word suppressor.  A word that appears in every
 document has $\mathrm{df} = |\mathcal{C}|$, so $\mathrm{idf} = \log(1) = 0$ and its
 TF-IDF weight is zero regardless of how often it appears in a particular document.
@@ -662,7 +644,6 @@ signalling that it is \emph{characteristic} of those documents.  This makes TF-I
 particularly useful for document retrieval and classification: the dimensions with the
 highest TF-IDF weights tend to be the words that most sharply differentiate documents.
 
-\paragraph{Cosine similarity on TF-IDF vectors.}
 TF-IDF vectors are typically $\ell_2$-normalised before computing document similarity:
 \begin{equation}
 \label{eq:cosine-sim}
@@ -700,8 +681,7 @@ $\mathcal{V} = \{$\texttt{declined}, \texttt{earnings}, \texttt{grew}, \texttt{g
 \texttt{raised}, \texttt{revenue}, \texttt{strong}, \texttt{weak}$\}$, so $V = 8$ and
 $|\mathcal{C}| = 3$.
 
-\paragraph{Step 1: Term frequency.}
-Each document has $|d| = 4$ tokens, so $\mathrm{tf}(v, d) = \mathrm{count}(v, d) / 4$.
+The first step is to compute term frequency. Each document has $|d| = 4$ tokens, so $\mathrm{tf}(v, d) = \mathrm{count}(v, d) / 4$.
 
 \medskip
 \begin{center}
@@ -721,8 +701,7 @@ Token & $\mathrm{tf}(v, d_1)$ & $\mathrm{tf}(v, d_2)$ & $\mathrm{tf}(v, d_3)$ \\
 \end{tabular}
 \end{center}
 
-\paragraph{Step 2: Inverse document frequency.}
-Document frequencies: \texttt{declined} appears in 1 document; \texttt{earnings} in 2;
+The second step is to compute the inverse document frequency. Document frequencies: \texttt{declined} appears in 1 document; \texttt{earnings} in 2;
 \texttt{grew} in 1; \texttt{guidance} in 2; \texttt{raised} in 1; \texttt{revenue} in 2;
 \texttt{strong} in 2; \texttt{weak} in 1.  Using $\mathrm{idf}(v)
 = \ln(3 / \mathrm{df}(v))$:
@@ -745,8 +724,7 @@ Token & $\mathrm{idf}(v)$ \\
 \end{tabular}
 \end{center}
 
-\paragraph{Step 3: TF-IDF weights.}
-Multiplying term frequencies by IDF values gives the TF-IDF matrix
+The third step multiplies term frequencies by IDF values to obtain the TF-IDF matrix
 $\tilde{X} \in \mathbb{R}^{3 \times 8}$:
 
 \medskip
@@ -806,7 +784,6 @@ correctly reflecting minimal lexical overlap between the optimistic $d_1$ and th
 negative $d_2$.
 \end{example}
 
-\paragraph{Limitations of TF-IDF.}
 TF-IDF is a powerful improvement over raw counts, but it inherits all the fundamental
 limitations of the bag-of-words framework:
 
@@ -855,7 +832,6 @@ another in the embedding space.
 \subsection{Distributional Semantics and the Embedding Idea}
 \label{sec:embeddings-idea}
 
-\paragraph{The distributional hypothesis.}
 The theoretical foundation of word embeddings is the
 \emph{distributional hypothesis}, articulated most famously by the
 British linguist J.R.\ Firth:
@@ -869,7 +845,6 @@ corpus.  Words with similar meanings tend to appear in similar
 contexts; therefore a representation that captures contextual
 co-occurrence patterns will capture semantic similarity.
 
-\paragraph{One-hot encoding and its sparsity problem.}
 Recall that the classical one-hot encoding assigns to each word
 $w \in \mathcal{V}$ the indicator vector $\mathbf{e}_w \in \{0,1\}^{|\mathcal{V}|}$
 with a single non-zero entry at the position indexed by $w$.  This
@@ -884,7 +859,6 @@ representation has two critical deficiencies:
         The representation encodes no information about semantic relatedness.
 \end{enumerate}
 
-\paragraph{Word embeddings: formal definition.}
 A word embedding is a function that maps discrete vocabulary items to
 dense, low-dimensional vectors.
 
@@ -941,8 +915,7 @@ Word2Vec frames the embedding problem as a supervised prediction task.
 The \emph{Skip-Gram} variant trains a word to predict the words that
 appear in a sliding window of $\pm c$ positions around it.
 
-\paragraph{Notation.}
-Let the corpus consist of a sequence of $T$ tokens
+Throughout this section, let the corpus consist of a sequence of $T$ tokens
 $w_1, w_2, \dots, w_T$ drawn from vocabulary $\mathcal{V}$.  Each
 word $w \in \mathcal{V}$ is associated with two embedding vectors:
 a \emph{centre-word} vector $\hat{\mathbf{v}}_w \in \mathbb{R}^d$ (used when
@@ -952,7 +925,6 @@ This two-vector convention simplifies the mathematics and is discarded
 after training (often the two sets are averaged or the context vectors
 are thrown away).
 
-\paragraph{The Skip-Gram objective.}
 For each centre word $w_t$ and each context position $k \in
 \{-c, \ldots, -1, 1, \ldots, c\}$, the model defines the conditional
 probability of observing context word $w_{t+k}$ given centre word
@@ -976,7 +948,6 @@ centre--context pairs:
   \label{eq:skipgram-obj}
 \end{equation}
 
-\paragraph{Computational intractability and negative sampling.}
 The normalising constant in \eqref{eq:skipgram-softmax} sums over
 all $V \approx 10^4$--$10^5$ words at every gradient step, making
 exact optimisation prohibitively expensive.  \emph{Negative Sampling}
@@ -1001,7 +972,6 @@ for large corpora, with $P_n(w) \propto \text{freq}(w)^{3/4}$ (the
 unigram distribution raised to the $3/4$ power), which down-weights
 the most frequent stop-words.
 
-\paragraph{Gradient update.}
 Taking the gradient of \eqref{eq:neg-sampling-obj} with respect to the
 context vector $\mathbf{v}_{w_{t+k}}$ (positive sample) gives
 \begin{equation}
@@ -1029,7 +999,6 @@ Stochastic gradient descent with these updates is extremely efficient:
 each step touches only $K + 1$ rows of the embedding matrix rather
 than all $V$ rows.
 
-\paragraph{Analogy structure.}
 A celebrated property of Word2Vec embeddings is the emergence of
 \emph{linear analogical relationships}.  The classic example is
 \begin{equation}
@@ -1056,7 +1025,6 @@ Whereas Word2Vec processes one context window at a time,
 directly factorises the global word--word co-occurrence matrix,
 explicitly encoding corpus-level statistics.
 
-\paragraph{Co-occurrence matrix.}
 Let $X_{ij}$ denote the number of times word $j$ appears in the
 context window of word $i$ across the entire corpus, and let
 $X_i = \sum_j X_{ij}$ be the total context count for word $i$.
@@ -1076,7 +1044,6 @@ $\mathbf{X} \in \mathbb{N}^{V \times V}$ has entries
 \end{equation}
 \end{definition}
 
-\paragraph{The GloVe objective.}
 The key theoretical insight of GloVe is that the \emph{ratio} of
 co-occurrence probabilities $P_{ik}/P_{jk}$ encodes relational
 meaning more faithfully than the raw probabilities.  This motivates
@@ -1193,8 +1160,7 @@ embeddings encode domain-specific semantic structure.  The analysis is
 implemented in full in
 \texttt{code/notebooks/01-intro/demo.ipynb}.
 
-\paragraph{Setup.}
-We load a pre-trained GloVe model (either the 300-dimensional
+To begin, we load a pre-trained GloVe model (either the 300-dimensional
 \texttt{glove.6B.300d} release or a finance-tuned variant) and extract
 the embedding vectors for the following 30 financial terms:
 \begin{center}
@@ -1216,8 +1182,7 @@ These terms span four semantic groups:
         merger, acquisition.
 \end{enumerate}
 
-\paragraph{Dimensionality reduction.}
-Let $\mathbf{E} \in \mathbb{R}^{30 \times d}$ be the matrix whose
+To project the embeddings into two dimensions, let $\mathbf{E} \in \mathbb{R}^{30 \times d}$ be the matrix whose
 $i$-th row is the (mean-centred) embedding vector of the $i$-th term.
 We apply principal component analysis (PCA) to obtain a
 $30 \times 2$ matrix of scores:
@@ -1231,7 +1196,6 @@ where $\mathbf{P} \in \mathbb{R}^{d \times d}$ contains the principal
 components (eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$) sorted by
 descending eigenvalue, and $\mathbf{P}_{:,1:2}$ retains the first two.
 
-\paragraph{Results and interpretation.}
 Figure~\ref{fig:embeddings-pca} shows the scatter plot of the 30 terms
 in the two-dimensional PCA space, coloured by semantic group.
 
@@ -1322,7 +1286,6 @@ The \emph{mean embedding} of $d$ is
 \end{equation}
 \end{definition}
 
-\paragraph{Connection to Bag-of-Words.}
 Mean embedding is algebraically equivalent to multiplying the
 Bag-of-Words term-frequency vector $\mathbf{tf}(d) \in \mathbb{R}^V$
 by the (column-normalised) embedding matrix.  Specifically, let
@@ -1368,7 +1331,6 @@ token sequence; word order is discarded.
   \]
 \end{proof}
 
-\paragraph{Limitations of mean embedding.}
 Despite its simplicity and computational efficiency, mean embedding
 has several well-documented weaknesses:
 \begin{enumerate}
@@ -1465,8 +1427,7 @@ incorrectly transfer that sentiment to sentences about river flooding.
 
 \subsubsection{Contextual Embeddings and Sentence-BERT}
 
-\paragraph{From static to contextual embeddings.}
-The solution is to produce embeddings that depend on the full
+The solution to polysemy is to produce embeddings that depend on the full
 surrounding context.  ELMo \cite{peters2018} % [CITE: Peters et al. (2018). Deep contextualized word representations. NAACL]
 introduced deep contextual embeddings from a bidirectional language
 model; BERT \cite{devlin2019} % [CITE: Devlin et al. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. NAACL]
@@ -1476,8 +1437,7 @@ is a function of the entire input sentence, so it will differ in
 ``\emph{The Federal Reserve Bank raised rates}'' versus
 ``\emph{The river bank flooded after the storm}.''
 
-\paragraph{Sentence-BERT (SBERT).}
-Vanilla BERT was designed for token-level tasks (named entity
+Sentence-BERT (SBERT) addresses the gap between contextual word representations and sentence-level embeddings. Vanilla BERT was designed for token-level tasks (named entity
 recognition, question answering) rather than for producing
 sentence- or document-level representations.  Naively averaging the
 BERT token representations (mean pooling) or using the \texttt{[CLS]}
@@ -1512,7 +1472,6 @@ $n$-token input sequence (including special tokens \texttt{[CLS]} and
 where $m_i \in \{0, 1\}$ is an attention mask excluding padding tokens.
 \end{definition}
 
-\paragraph{Mean pooling vs.\ \texttt{[CLS]} token.}
 BERT's \texttt{[CLS]} token is prepended to every input sequence and
 its final hidden state $\mathbf{h}_{\texttt{[CLS]}}$ is used in
 classification tasks; one might expect it to encode sentence-level
@@ -1526,7 +1485,6 @@ benchmarks.  After SBERT fine-tuning, both pooling strategies converge
 to high-quality representations, with mean pooling retaining a slight
 advantage.
 
-\paragraph{Computational efficiency.}
 A key practical advantage of SBERT is that sentence embeddings can be
 \emph{pre-computed and indexed}: once the corpus of $N$ documents has
 been encoded, semantic search reduces to a nearest-neighbour query in
@@ -1538,7 +1496,6 @@ BERT would require $N$ separate forward passes; SBERT bi-encoding
 requires only one forward pass per document, reducing inference time
 from $O(N)$ to $O(1)$ at query time.
 
-\paragraph{Financial applications.}
 
 \begin{example}
 \label{ex:doc-similarity-finance}
@@ -1633,7 +1590,6 @@ The recurrence in~\eqref{eq:rnn-hidden} allows information to propagate across t
 steps: $\mathbf{h}_t$ summarises the history $\mathbf{x}_1, \ldots, \mathbf{x}_t$.
 All parameters are \emph{shared} across time steps, giving the RNN its weight tying.
 
-\paragraph{Backpropagation through time.}
 Training requires $\partial \mathcal{L} / \partial \theta$ for each parameter in
 $\{W_h, W_x, W_y, \mathbf{b}, \mathbf{b}_y\}$,
 where $\mathcal{L} = \sum_{t=1}^{T} \ell_t$.
@@ -1685,8 +1641,7 @@ is the standard remedy for explosion, but there is no analogous in-architecture 
 for vanishing gradients in the vanilla RNN.
 \end{remark}
 
-\paragraph{Practical consequences for financial text.}
-An S\&P~500 earnings-call transcript is typically 8,000--12,000 tokens.
+These theoretical constraints have concrete consequences for financial text. An S\&P~500 earnings-call transcript is typically 8,000--12,000 tokens.
 Management guidance on page~20 may negate a claim on page~3.
 Proposition~\ref{thm:vanish-explode} implies the gradient from position $t = 100$
 contributes essentially nothing to $W_h$ after $T - t \approx 9{,}900$ BPTT
@@ -1740,8 +1695,7 @@ Intuitive interpretations:
         which cell-state components are exposed as $\mathbf{h}_t$.
 \end{itemize}
 
-\paragraph{Why the cell state avoids vanishing gradients.}
-The update~\eqref{eq:lstm-cell} is \emph{additive} in $\mathbf{g}_t$, unlike the
+The reason the LSTM cell state avoids vanishing gradients lies in the additive structure of its update. The update~\eqref{eq:lstm-cell} is \emph{additive} in $\mathbf{g}_t$, unlike the
 purely multiplicative vanilla RNN update~\eqref{eq:rnn-hidden}.
 The cell-state gradient satisfies
 \begin{equation}
@@ -1812,7 +1766,6 @@ fixed-length vector before the decoder can generate output.
 proposed \emph{attention}, allowing the decoder to consult all encoder hidden states
 at each step.
 
-\paragraph{Seq2seq notation.}
 Let $\mathbf{h}_1, \ldots, \mathbf{h}_T \in \mathbb{R}^{d_h}$ be encoder hidden
 states and $\mathbf{s}_t \in \mathbb{R}^{d_s}$ the decoder state at step $t$.
 
@@ -1852,7 +1805,6 @@ The context vector $\mathbf{c}_t$ is a convex combination of encoder states.
 In a financial summariser, the decoder generating a sentence about net income assigns
 high $\alpha_{t,i}$ to tokens where income figures appear in the source.
 
-\paragraph{Connection to self-attention.}
 Applying attention within a \emph{single} sequence --- each token attending to all
 others --- yields \emph{self-attention}, the core primitive of the Transformer
 (Section~\ref{sec:transformer}).
@@ -1899,7 +1851,6 @@ The \emph{scaled dot-product attention} output is
 where $\mathrm{softmax}$ is applied row-wise.
 \end{definition}
 
-\paragraph{Dimensional accounting.}
 $QK^{\top} \in \mathbb{R}^{n \times n}$; entry $(i,j)$ is
 $\mathbf{q}_i^{\top}\mathbf{k}_j$.
 Row-wise softmax gives the attention matrix
@@ -1932,7 +1883,6 @@ $\partial\sigma(z)/\partial z = \sigma(z)(1-\sigma(z)) \approx 0$.
 Dividing by $\sqrt{d_k}$ normalises variance to $1$, restoring gradient flow.
 \end{proof}
 
-\paragraph{Causal masking for autoregressive generation.}
 In decoder-only models, token $i$ must not attend to $j > i$.
 This is enforced by
 \begin{equation}
@@ -1963,13 +1913,11 @@ Define $\mathrm{head}_i = \mathrm{Attention}(XW^Q_i, XW^K_i, XW^V_i)$ and
 In the original Transformer: $h = 8$, $d_{\mathrm{model}} = 512$, $d_k = d_v = 64$.
 \end{definition}
 
-\paragraph{Computational cost.}
 Summing $O(n^2 d_k)$ per head over $h$ heads gives $O(n^2 d_{\mathrm{model}})$.
 For $n = 4{,}096$ tokens, the attention matrix requires $\approx 134\,\mathrm{M}$
 values per layer, motivating efficient variants such as FlashAttention
 \cite{dao2022flashattention}. % [CITE: Dao et al. 2022, FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness]
 
-\paragraph{What different heads learn.}
 Probing studies \cite{clark2019bert} % [CITE: Clark et al. 2019, What Does BERT Look at? An Analysis of BERT's Attention]
 show lower-layer heads capture syntactic dependency relations (subject--verb
 agreement) and deeper heads capture semantic associations (co-reference, entity
@@ -2057,8 +2005,7 @@ which embed the rotation directly into query--key dot products.
 \subsection{Encoder--Decoder Structure}
 \label{sec:transformer-encdec}
 
-\paragraph{Encoder layer.}
-Let $X^{(\ell)} \in \mathbb{R}^{n \times d_{\mathrm{model}}}$ be layer-$\ell$ input.
+The encoder layer transforms its input through self-attention followed by a feed-forward network. Let $X^{(\ell)} \in \mathbb{R}^{n \times d_{\mathrm{model}}}$ be the layer-$\ell$ input.
 With residual connections \cite{he2016resnet} % [CITE: He et al. 2016, Deep Residual Learning for Image Recognition]
 and Layer Normalisation \cite{ba2016layernorm}: % [CITE: Ba et al. 2016, Layer Normalization]
 \begin{align}
@@ -2084,8 +2031,7 @@ The $\max(0,\cdot)$ is ReLU; later variants use GELU \cite{hendrycks2016gelu}. %
 Residual connections ensure direct gradient pathways and LayerNorm stabilises
 activations across the $d_{\mathrm{model}}$ dimension.
 
-\paragraph{Decoder layer.}
-The decoder has three sub-layers: (i) masked self-attention
+The decoder layer consists of three sub-layers: (i) masked self-attention
 (mask~\eqref{eq:causal-mask}), (ii) \emph{cross-attention} with encoder output, and
 (iii) FFN.
 With $Y^{(\ell)} \in \mathbb{R}^{m \times d_{\mathrm{model}}}$ and
@@ -2134,8 +2080,7 @@ BERT \cite{devlin2019bert} % [CITE: Devlin et al. 2019, BERT: Pre-training of De
 (Bidirectional Encoder Representations from Transformers) is an encoder-only
 Transformer trained on two self-supervised objectives.
 
-\paragraph{Masked Language Model (MLM).}
-$15\%$ of input tokens are selected; $80\%$ replaced with \texttt{[MASK]},
+The Masked Language Model (MLM) objective selects $15\%$ of input tokens; $80\%$ replaced with \texttt{[MASK]},
 $10\%$ with a random token, and $10\%$ left unchanged.
 The model predicts original tokens at masked positions:
 \begin{equation}
@@ -2148,8 +2093,7 @@ where $\mathcal{M}$ is the set of masked positions and
 $\mathbf{x}_{\backslash\mathcal{M}}$ the unmasked context.
 Bidirectional attention means both left and right context inform each prediction.
 
-\paragraph{Next Sentence Prediction (NSP).}
-A \texttt{[CLS]} binary head predicts whether sentence $B$ follows sentence $A$.
+The Next Sentence Prediction (NSP) objective uses a \texttt{[CLS]} binary head to predict whether sentence $B$ follows sentence $A$.
 \citet{liu2018} % [CITE: Liu et al. 2019, RoBERTa: A Robustly Optimized BERT Pretraining Approach]
 later showed NSP is unhelpful and removed it in RoBERTa.
 
@@ -2356,7 +2300,6 @@ BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ 
 \end{tabular}
 \end{table}
 
-\paragraph{Open vs.\ Proprietary Models.}
 The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
 weights are not released, and access is mediated through pay-per-token APIs.  This
 raises important issues for financial practitioners.  First, there is a
@@ -2374,7 +2317,6 @@ require substantial GPU infrastructure (a 405-billion-parameter model at 16-bit
 precision requires approximately 810~GB of GPU memory).
 % [CITE: touvron2023llama]
 
-\paragraph{Why Domain-Adapted Models Do Not Always Win.}
 BloombergGPT~\cite{wu2023bloomberggpt} % [CITE: wu2023bloomberggpt Wu et al. 2023]
 was trained on 363 billion financial tokens (news, filings, analyst reports) alongside
 345 billion general-domain tokens, and represented the first large-scale demonstration
@@ -2393,7 +2335,6 @@ model} often outperforms a domain-pre-trained model of the same size, and
 \emph{prompt engineering} applied to a large general model often outperforms
 both---a theme developed extensively in Chapter~6.
 
-\paragraph{Instruction Tuning and RLHF.}
 Raw pre-trained models (\emph{base} models) are not directly usable as assistants.
 \emph{Instruction tuning} fine-tunes a base model on curated (instruction, response)
 pairs, teaching the model to follow natural-language directives.
@@ -2506,8 +2447,7 @@ in which the vocabulary consists neither of individual characters nor of whole w
 but of frequently occurring sub-word fragments.
 \end{definition}
 
-\paragraph{Byte-Pair Encoding.}
-BPE builds the vocabulary iteratively:
+Byte-Pair Encoding builds the vocabulary iteratively:
 \begin{enumerate}
   \item Initialise the vocabulary with the set of all individual Unicode characters
     (or bytes) appearing in the training corpus.
@@ -2548,8 +2488,7 @@ financial NLP, the context window determines whether an entire 10-K filing (whic
 exceed 100,000 tokens) can be processed in a single call---a question with significant
 implications for retrieval-augmented generation architectures (Chapter~5).
 
-\paragraph{Sampling Parameters.}
-Given the logit vector $\mathbf{z} \in \mathbb{R}^{|\mathcal{V}|}$ produced by the
+Three hyperparameters govern sampling. Given the logit vector $\mathbf{z} \in \mathbb{R}^{|\mathcal{V}|}$ produced by the
 final Transformer layer, the model converts logits to a probability distribution and
 samples the next token.  Three hyperparameters govern this process.
 
@@ -2608,7 +2547,6 @@ We now demonstrate how to call three distinct LLM ecosystems from Python.  All
 examples use the same financial NLP task---sentiment analysis of an earnings call
 excerpt---to facilitate direct comparison.
 
-\paragraph{OpenAI API (GPT-4o).}
 The OpenAI Python SDK follows a \emph{chat completion} model: the user submits a list
 of messages (with roles \texttt{system}, \texttt{user}, and \texttt{assistant}), and
 the API returns a completion.
@@ -2655,7 +2593,6 @@ print(f"Input tokens:  {usage.prompt_tokens}")
 print(f"Output tokens: {usage.completion_tokens}")
 \end{lstlisting}
 
-\paragraph{Anthropic API (Claude).}
 The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
 list, passing it as a top-level argument rather than as the first message.  This
 structural difference reflects Anthropic's Constitutional AI training approach, where
@@ -2691,7 +2628,6 @@ print(f"Input tokens:  {message.usage.input_tokens}")
 print(f"Output tokens: {message.usage.output_tokens}")
 \end{lstlisting}
 
-\paragraph{HuggingFace Transformers (FinBERT).}
 FinBERT \cite{araci2019finbert} % [CITE: araci2019finbert Araci (2019)]
 is a BERT-based encoder fine-tuned on financial news for three-class sentiment
 classification.  It runs locally without any API key or per-token cost.
@@ -2721,9 +2657,7 @@ for text, res in zip(excerpts, results):
     print(f"[{res['label']:8s} {res['score']:.2f}]  {text[:60]}")
 \end{lstlisting}
 
-\paragraph{Comparing the Three Ecosystems.}
-
-Table~\ref{tab:api-comparison} summarises the key structural differences.
+Table~\ref{tab:api-comparison} summarises the key structural differences across the three ecosystems.
 
 \begin{table}[htbp]
 \centering
@@ -2748,7 +2682,6 @@ Task type       & Generative / reasoning & Generative / reasoning & Classificati
 \subsection{Cost, Latency, and Practical Considerations}
 \label{sec:api-practical}
 
-\paragraph{Cost Model.}
 API providers charge separately for input tokens (the prompt) and output tokens
 (the generated response):
 \begin{equation}
@@ -2779,8 +2712,7 @@ Llama 3 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
 \end{tabular}
 \end{table}
 
-\paragraph{Worked Cost Calculation.}
-Suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
+To make this concrete, suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
 each approximately 5,000 words.  At 1.3 tokens per word (see
 Example~\ref{ex:bpe}), each transcript is $\approx 6{,}500$ input tokens.  Adding a
 500-token system prompt and $\approx 400$ output tokens, and applying
@@ -2799,7 +2731,7 @@ reduction.  This illustrates the core cost-optimisation decision in financial NL
 pipelines: a small, cheap model handles straightforward extraction tasks, while a
 large model is reserved for complex reasoning steps.
 
-\paragraph{Batching, Caching, and Latency Trade-offs.}
+Several engineering considerations govern the cost-latency trade-off in production pipelines.
 \begin{itemize}
   \item \textbf{Batching.}  For offline workloads (historical transcript processing,
     regulatory filing analysis), maximum parallelism reduces wall-clock time without
@@ -2878,7 +2810,7 @@ autoregressive generation: the model is trained to produce \emph{plausible} text
 plausibility correlates with---but is not identical to---factual accuracy.
 % [CITE: ji2023survey Ji et al. 2023, survey of hallucination in NLG]
 
-\paragraph{Mitigation Strategies.}
+Several mitigation strategies reduce the incidence and impact of hallucination in financial applications.
 \begin{itemize}
   \item \textbf{Retrieval-Augmented Generation (RAG).}  Rather than relying on
     parametric knowledge, the model is provided with retrieved passages from a verified
@@ -2915,7 +2847,6 @@ counsel and ensure compliance with all applicable laws and regulations in their
 jurisdiction.
 \end{remark}
 
-\paragraph{EU AI Act.}
 The European Union's AI Act (Regulation 2024/1689), which entered into force in
 August 2024, establishes a risk-based classification for AI systems.
 % [CITE: eu-ai-act-2024]
@@ -2928,8 +2859,7 @@ system or a loan-approval pipeline would likely qualify as high-risk under the A
 requiring documentation of the model's training data, performance metrics, and the
 mechanisms ensuring human oversight before market deployment.
 
-\paragraph{SEC Guidance on AI in Investment Research.}
-The U.S.\ Securities and Exchange Commission has issued staff guidance indicating that
+In the United States, the Securities and Exchange Commission has issued staff guidance indicating that
 investment advisers using AI-generated research must demonstrate that reasonable care
 was exercised in evaluating the AI's output, and that AI-generated recommendations are
 consistent with the adviser's fiduciary duty to clients.
@@ -2940,7 +2870,6 @@ been definitively resolved by case law, but the SEC's enforcement posture has be
 hold advisers fully responsible for AI-generated outputs used in client-facing
 communications.
 
-\paragraph{GDPR and Private Financial Data.}
 Fine-tuning or retrieval-augmented generation on proprietary client data---transaction
 histories, portfolio compositions, know-your-customer (KYC) files---raises significant
 obligations under the General Data Protection Regulation (GDPR, EU 2016/679).
@@ -2952,7 +2881,6 @@ restrictions if API calls route personal data to non-EU servers.  Chapter~6
 (Fine-tuning) and Chapter~9 (Risk and Compliance) discuss technical mitigations
 including federated learning, differential privacy, and on-premises deployment.
 
-\paragraph{Model Bias and Geographic Coverage.}
 General-purpose LLMs are trained predominantly on English-language data from North
 American and Western European sources.  Financial training data is similarly skewed:
 the largest available corpora (SEC filings, English-language Bloomberg terminals,
@@ -2970,7 +2898,6 @@ instruments.  As a consequence:
 Chapter~13 quantifies these biases empirically using cross-lingual evaluation of
 FLUE-equivalent tasks in French, German, and Chinese.
 
-\paragraph{The Fiduciary Duty Question.}
 The deepest ethical question for financial LLM applications is whether a system that
 generates investment recommendations---even as decision-support rather than autonomous
 execution---triggers fiduciary obligations and, if so, who bears them.  Current legal

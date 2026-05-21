@@ -1367,6 +1367,145 @@ self-consistency (Section~\ref{sec:hallucinations-mitigation}) improves reliabil
 at modest additional cost.
 
 % ---------------------------------------------------------------
+\section{Structured Generation}
+\label{sec:structured-gen}
+
+Financial applications rarely need free prose.  A risk-management system extracting
+covenant violations from loan agreements needs a precise structured record, not a
+narrative.  A trading signal pipeline processing earnings call transcripts requires
+numerically reliable fields, not approximate summaries.  \emph{Structured generation}
+refers to techniques that constrain the output of a language model to conform to a
+predefined schema, grammar, or format, transforming what is otherwise a stochastic
+text generator into a deterministic extraction or classification engine.
+
+\subsection{Constrained Decoding}
+\label{sec:structured-gen-constrained}
+
+The central idea of constrained decoding is to apply a \emph{validity mask} at each
+generation step, blocking any token that would render the partial output inconsistent
+with the target schema.  This mask is computed from the grammar or schema together
+with the tokens generated so far, and is applied before the softmax so that invalid
+tokens receive $-\infty$ log-probability and contribute zero probability mass.
+
+\begin{definition}[Token-Level Validity Mask]
+\label{def:validity-mask}
+Given a target grammar $\mathcal{G}$ and partial output $x_{<t}$, the
+\emph{validity mask} $M_t \in \{0,1\}^{|\mathcal{V}|}$ is defined by
+\begin{equation}
+  M_t[i] = \mathbf{1}\bigl[\text{token } i \text{ can extend } x_{<t}
+            \text{ to a string in } \mathcal{L}(\mathcal{G})\bigr],
+  \label{eq:validity-mask}
+\end{equation}
+where $\mathcal{L}(\mathcal{G})$ is the language defined by $\mathcal{G}$.
+The masked logits are $\tilde{z}_i = z_i + \log M_t[i]$, so invalid tokens
+receive $-\infty$ before softmax.
+\end{definition}
+
+This is not a post-hoc filter.  Applying the mask pre-softmax means that the model's
+sampling distribution is renormalised over valid tokens only, so it always produces
+a syntactically valid continuation in a single forward pass.  Parsing the partial
+output against the grammar to compute $M_t$ efficiently is the core implementation
+challenge; in practice this is done with incremental parsers (e.g.\ Earley or
+pushdown automata) that maintain parse state across tokens in $O(|\mathcal{V}|)$
+per step.
+
+\subsection{JSON Mode and Tool Use}
+\label{sec:structured-gen-json}
+
+Modern LLM APIs expose structured generation without requiring the user to manage
+grammars explicitly.  Anthropic's \emph{tool use} (also called function calling)
+instructs the model to produce a JSON object conforming to a JSON Schema, and the
+API guarantees that the returned object is valid.  Internally, this is implemented
+using constrained decoding against the schema-derived grammar.  The approach
+substantially simplifies application code: rather than parsing free-text and hoping
+the model produced the right fields, the developer declares a Pydantic model, converts
+it to a JSON Schema, passes that schema as a tool definition, and receives a typed
+Python object in return.
+
+\begin{lstlisting}[language=Python,
+  caption={Structured earnings extraction with the Anthropic API and Pydantic.}]
+import anthropic
+from pydantic import BaseModel
+from typing import Optional
+
+class EarningsReport(BaseModel):
+    revenue_bn: Optional[float] = None
+    net_income_bn: Optional[float] = None
+    eps: Optional[float] = None
+    guidance_bn: Optional[float] = None
+
+client = anthropic.Anthropic()
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=256,
+    tools=[{
+        "name": "record_earnings",
+        "description": "Record structured earnings figures from text.",
+        "input_schema": EarningsReport.model_json_schema(),
+    }],
+    tool_choice={"type": "tool", "name": "record_earnings"},
+    messages=[{"role": "user",
+               "content": ("Extract earnings: Revenue $4.2B, net income $820M, "
+                           "EPS $1.34, guidance raised to $5.1B.")}],
+)
+result = EarningsReport(**message.content[0].input)
+print(result)
+# EarningsReport(revenue_bn=4.2, net_income_bn=0.82, eps=1.34, guidance_bn=5.1)
+\end{lstlisting}
+
+Note the \texttt{tool\_choice} parameter: setting it to a specific tool name forces the
+model to invoke that tool rather than choosing between text response and tool call.
+This is essential in production pipelines where the absence of a structured response
+should be an error, not a silent degradation to free text.
+
+\subsection{Grammar-Based Generation}
+\label{sec:structured-gen-grammar}
+
+For outputs that do not map cleanly to flat JSON---nested financial hierarchies,
+XBRL-like taxonomies, or domain-specific interchange formats---grammar-based generation
+offers more expressive control.  The \texttt{outlines} library \citep{willard2023efficient}
+implements constrained decoding against Extended Backus--Naur Form (EBNF) grammars
+for any Hugging Face model.  The GBNF format supported by \texttt{llama.cpp} extends
+this to locally deployed quantised models.
+
+In financial reporting, SEC EDGAR's inline XBRL specification and MiFID~II's
+transaction reporting format both impose schemas far richer than flat JSON.  A
+constrained decoder that encodes those schemas as grammars can serve as a zero-shot
+structured extraction layer without any task-specific fine-tuning.
+
+\subsection{Why Structured Generation Is Critical in Finance}
+\label{sec:structured-gen-finance}
+
+Three failure modes of unstructured LLM output are particularly consequential for
+financial applications.
+
+The first is numerical hallucination.  When asked to extract earnings figures, an
+unconstrained model may output values that are internally consistent with its training
+distribution but factually wrong.  A number that looks like a plausible EPS figure
+is far more dangerous than an obviously malformed output, because downstream systems
+may ingest it without detecting the error.  Constrained decoding does not guarantee
+factual accuracy---the model can still produce an incorrect number if the number
+tokens are all syntactically valid---but pairing it with temperature $\tau = 0$ and
+a retrieval-grounded prompt (Section~\ref{sec:rag}) dramatically reduces the incidence
+of fabricated figures.
+
+The second failure mode is silent field omission.  A free-text model asked to extract
+a dozen fields from a 10-K will occasionally omit a field without any signal that the
+field is missing.  A structured schema with required and optional fields, enforced at
+the token level, forces the model to produce a null-valued field rather than silently
+skipping it, making the absence detectable and auditable.
+
+The third is unit confusion.  Financial text uses millions (M), billions (B), and
+trillions (T) inconsistently, and some documents mix currencies without explicit labels.
+A Pydantic model with a canonical unit (e.g.\ all monetary fields in billions of USD)
+and explicit validation logic can detect and reject outputs where the scale is
+implausible, triggering a re-query or escalation to human review rather than propagating
+a scale error into a portfolio management system.
+
+Taken together, these considerations make structured generation not an optional
+optimisation but an architectural requirement for any production financial NLP pipeline.
+
+% ---------------------------------------------------------------
 \section{Working with LLMs via API}
 \label{sec:api}
 

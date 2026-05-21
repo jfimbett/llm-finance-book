@@ -1,6 +1,7 @@
 #!/bin/bash
 # session-log.sh — append one-line session summary to docs/SESSION_LOG.md
-# Trigger: Stop (session end). Exit 0 always.
+# Trigger: Stop (session end).
+# Exit 0 always.
 
 LOGFILE="docs/SESSION_LOG.md"
 DATE=$(date +%Y-%m-%d 2>/dev/null || echo "unknown")

@@ -1,6 +1,7 @@
 #!/bin/bash
 # update-status.sh — regenerate docs/STATUS.md from quality JSON reports
-# Trigger: PostToolUse or post-commit. Exit 0 always.
+# Trigger: PostToolUse or post-commit.
+# Exit 0 always.
 
 set -euo pipefail
 

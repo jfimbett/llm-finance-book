@@ -1,7 +1,8 @@
 #!/bin/bash
 # iterate.sh — find lowest-scoring dimension and print action instruction
 # Called with FILE=$1 when gate-check fails on a specific file.
-# Exit 0 = instruction printed, Exit 2 = needs AI intervention.
+# Exit 0 = no action needed, Exit 1 = hard failure, Exit 2 = AI intervention required.
+# Trigger: programmatic (called by gate-check or /refine-until-threshold)
 
 FILE="$1"
 if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
@@ -22,7 +23,51 @@ if [ ! -f "$REPORT" ]; then
     exit 2
 fi
 
+# Read threshold to determine if all dimensions pass
+THRESHOLD=$(grep 'quality_threshold:' TOPIC.md 2>/dev/null | sed 's/quality_threshold://' | tr -d ' \r\n')
+THRESHOLD="${THRESHOLD:-7}"
+
 # Find lowest-scoring dimension
+DIMENSION=$(python3 << PYEOF
+import json, sys
+
+try:
+    with open("$REPORT") as f:
+        report = json.load(f)
+except Exception:
+    print("error")
+    sys.exit(0)
+
+scores = report.get("scores", {})
+if not scores:
+    print("error")
+    sys.exit(0)
+
+threshold = int("$THRESHOLD")
+
+# Check if all dimensions are at or above threshold
+if all(v >= threshold for v in scores.values()):
+    print("none")
+    sys.exit(0)
+
+# Find lowest dimension below threshold
+below = {k: v for k, v in scores.items() if v < threshold}
+lowest_dim = min(below, key=below.get)
+print(lowest_dim)
+PYEOF
+)
+
+if [ "$DIMENSION" = "none" ]; then
+  echo "iterate.sh: all dimensions at threshold or above — no action needed"
+  exit 0
+fi
+
+if [ "$DIMENSION" = "error" ]; then
+  echo "iterate.sh: could not parse score file $SCORE_FILE"
+  exit 1
+fi
+
+# Map dimension to agent and print instruction
 python3 << PYEOF
 import json
 
@@ -30,15 +75,9 @@ with open("$REPORT") as f:
     report = json.load(f)
 
 scores = report.get("scores", {})
-if not scores:
-    print("No scores found in report.")
-    exit(2)
+lowest_dim = "$DIMENSION"
+lowest_score = scores.get(lowest_dim, "?")
 
-# Find lowest dimension
-lowest_dim = min(scores, key=scores.get)
-lowest_score = scores[lowest_dim]
-
-# Map dimension to agent
 agent_map = {
     "clarity": "editor agent",
     "rigor": "math-checker agent",

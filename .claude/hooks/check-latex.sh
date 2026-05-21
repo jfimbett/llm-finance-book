@@ -2,6 +2,7 @@
 # check-latex.sh — verify LaTeX compiles before commit (pre-commit integrity check)
 # Called by pre-commit-checks.sh when a git commit is detected.
 # Exit 0 = OK, Exit 1 = block commit
+# Trigger: pre-commit
 
 set -euo pipefail
 

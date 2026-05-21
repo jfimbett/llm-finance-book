@@ -20,6 +20,24 @@ check_hook() {
     return
   fi
 
+  if ! grep -q "^# Trigger:" "$path"; then
+    echo "  NO_TRIGGER  $name"
+    FAIL=$((FAIL+1))
+    return
+  fi
+
+  if ! grep -q "^# Exit" "$path"; then
+    echo "  NO_EXIT  $name"
+    FAIL=$((FAIL+1))
+    return
+  fi
+
+  if [ ! -x "$path" ]; then
+    echo "  NOT_EXECUTABLE  $name"
+    FAIL=$((FAIL+1))
+    return
+  fi
+
   echo "  OK  $name"
   PASS=$((PASS+1))
 }

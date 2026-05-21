@@ -124,3 +124,5 @@ git add "book/chapters/$DIRNAME" "course/lectures/$DIRNAME" "code/notebooks/$DIR
 git commit -m "chore: scaffold topic $DIRNAME" 2>/dev/null || true
 
 echo "Done. Next: /draft-chapter $DIRNAME"
+
+exit 0

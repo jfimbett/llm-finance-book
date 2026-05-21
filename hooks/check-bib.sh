@@ -1,6 +1,7 @@
 #!/bin/bash
 # check-bib.sh — validate BibTeX entries have required fields
 # Exit 0 = OK, Exit 1 = block commit
+# Trigger: pre-commit
 
 set -euo pipefail
 

@@ -1,6 +1,8 @@
 #!/bin/bash
 # gate-check.sh — block commit if staged content files have scores below threshold
-# Called by pre-commit-checks.sh. Exit 0 = pass, Exit 1 = block.
+# Called by pre-commit-checks.sh.
+# Exit 0 = pass, Exit 1 = block.
+# Trigger: pre-commit
 
 set -euo pipefail
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 # check-refs.sh — scan for undefined LaTeX references in staged files
 # Exit 0 = OK, Exit 1 = block commit
+# Trigger: pre-commit
 
 set -euo pipefail
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 # check-notation.sh — advisory check for undefined math commands (WARNING only, never blocks)
 # Exit 0 always
+# Trigger: pre-commit
 
 STAGED_TEX=$(git diff --cached --name-only | grep '\.tex$' || true)
 if [ -z "$STAGED_TEX" ]; then

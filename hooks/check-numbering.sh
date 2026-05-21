@@ -1,6 +1,7 @@
 #!/bin/bash
 # check-numbering.sh — verify chapter/lecture pairs exist (advisory, never blocks)
 # Exit 0 always
+# Trigger: pre-commit
 
 echo "Checking chapter/lecture pairing..."
 

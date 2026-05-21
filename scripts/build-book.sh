@@ -34,3 +34,5 @@ if [ "${1:-}" = "--open" ]; then
         MINGW*|CYGWIN*|MSYS*) start main.pdf ;;
     esac
 fi
+
+exit 0

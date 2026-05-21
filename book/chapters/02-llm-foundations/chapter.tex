@@ -1018,19 +1018,20 @@ is \$310 million, and we expect \$150 million in synergies within three years.  
 current weighted average cost of capital is 8.5\%.''
 \end{quote}
 
-\noindent\textbf{Standard generative model (GPT-4o, temperature $= 0$):}  The model
-reads the excerpt and directly outputs a one-paragraph assessment, typically noting
-that the EV/EBITDA multiple is approximately $13.5\times$ and characterising the deal
-as \emph{``strategically sound given the synergy guidance.''}  This response is often
+A standard generative model (GPT-4o, temperature $= 0$) reads the excerpt and
+directly outputs a one-paragraph assessment, typically noting that the EV/EBITDA
+multiple is approximately $13.5\times$ and characterising the deal as
+\emph{``strategically sound given the synergy guidance.''}  This response is often
 plausible but does not verify whether the synergy NPV actually justifies the purchase
 price premium.
 
-\noindent\textbf{Reasoning model (o3, DeepSeek-R1):}  The model first computes the
-implied enterprise value, then discounts the synergy stream at 8.5\% over three years
-(approximated as a growing annuity), compares this to the purchase premium over a
-benchmarked stand-alone valuation, and checks internal consistency before concluding
-that the deal is modestly value-accretive under the stated assumptions but sensitive
-to the synergy realisation timeline.  The reasoning trace makes each step auditable.
+A reasoning model (o3, DeepSeek-R1) approaches the same input differently.  It first
+computes the implied enterprise value, then discounts the synergy stream at 8.5\% over
+three years (approximated as a growing annuity), compares this to the purchase premium
+over a benchmarked stand-alone valuation, and checks internal consistency before
+concluding that the deal is modestly value-accretive under the stated assumptions but
+sensitive to the synergy realisation timeline.  The reasoning trace makes each step
+auditable.
 
 This contrast recurs throughout the book.  For tasks with a verifiable numerical or
 logical answer, reasoning models offer a meaningful and measurable advantage.  For
@@ -1145,42 +1146,39 @@ FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  
 % [CITE: chen2021finqa] Chen et al. (2021), FinQA
 % [CITE: shah2022flue] Shah et al. (2022), FLUE
 
-\textbf{FinancialPhraseBank} (Malo et al.\ 2014) \cite{malo2014good} consists of
-4,840 sentences sampled from English-language financial news articles, each annotated
-by sixteen domain experts with one of three sentiment labels: \texttt{positive},
-\texttt{negative}, or \texttt{neutral}.  The standard evaluation uses the subset where
-all annotators agreed (\emph{Agree-all}, 2,264 sentences), yielding a highly reliable
-gold standard.  This dataset is used in Chapter~2 as the primary benchmark for
-sentiment analysis experiments.
+The FinancialPhraseBank of \citet{malo2014good} consists of 4,840 sentences sampled
+from English-language financial news articles, each annotated by sixteen domain experts
+with one of three sentiment labels: \texttt{positive}, \texttt{negative}, or
+\texttt{neutral}.  The standard evaluation uses the subset where all annotators agreed
+(\emph{Agree-all}, 2,264 sentences), yielding a highly reliable gold standard.  This
+dataset is used in Chapter~2 as the primary benchmark for sentiment analysis experiments.
 
-\textbf{FiQA} (2018) \cite{fiqa2018} was released as part of a shared task on
-financial opinion mining.  It contains two subtasks: (SA-C) aspect-based sentiment
-analysis of financial microblogs and news headlines, and (QA) question answering over
-financial documents.  The QA subtask has proven particularly challenging due to the
-requirement to retrieve relevant passages before generating an answer---a natural fit
-for the retrieval-augmented generation (RAG) systems discussed in Chapter~5.
+The FiQA benchmark \citep{fiqa2018} was released as part of a shared task on financial
+opinion mining.  It contains two subtasks: (SA-C) aspect-based sentiment analysis of
+financial microblogs and news headlines, and (QA) question answering over financial
+documents.  The QA subtask has proven particularly challenging due to the requirement
+to retrieve relevant passages before generating an answer---a natural fit for the
+retrieval-augmented generation systems discussed in Section~\ref{sec:rag}.
 
-\textbf{ECTSum} (Mukherjee et al.\ 2022) \cite{mukherjee2022ectsum} provides 2,425
-earnings call transcript--summary pairs, where the reference summaries were written by
-domain experts and verified for factual consistency.  It is the primary benchmark for
-Chapter~4 (Earnings Calls and Transcripts) and is used to evaluate both extractive and
+The ECTSum dataset of \citet{mukherjee2022ectsum} provides 2,425 earnings call
+transcript--summary pairs, where the reference summaries were written by domain experts
+and verified for factual consistency.  It is the primary benchmark for Chapter~4
+(Earnings Calls and Transcripts) and is used to evaluate both extractive and
 abstractive summarisation methods.
 
-\textbf{FinQA} (Chen et al.\ 2021) \cite{chen2021finqa} requires models to answer
-questions that demand \emph{multi-step numerical reasoning} over structured tables and
-unstructured prose extracted from SEC 10-K and 10-Q filings.  Correct answers require
-executing a sequence of arithmetic operations (addition, division, percentage change)
-with values drawn from the document.  This dataset is the primary evaluation target in
-Chapter~3 and illustrates clearly why reasoning models
+The FinQA dataset of \citet{chen2021finqa} requires models to answer questions that
+demand multi-step numerical reasoning over structured tables and unstructured prose
+extracted from SEC 10-K and 10-Q filings.  Correct answers require executing a
+sequence of arithmetic operations (addition, division, percentage change) with values
+drawn from the document.  This dataset illustrates clearly why reasoning models
 (Section~\ref{sec:landscape-genreason}) outperform standard generative models on
 structured financial analysis tasks.
 
-\textbf{FLUE} (Shah et al.\ 2022) \cite{shah2022flue} is a Financial Language
-Understanding Evaluation benchmark comprising five tasks: financial sentiment analysis,
-news headline classification, named entity recognition in financial documents, structure
-boundary detection in filings, and the FiQA-SA subtask.  It is the most comprehensive
-single-number evaluation framework for general financial NLP capability and is the
-primary evaluation target in Chapter~13.
+The Financial Language Understanding Evaluation benchmark, FLUE, of
+\citet{shah2022flue} comprises five tasks: financial sentiment analysis, news headline
+classification, named entity recognition in financial documents, structure boundary
+detection in filings, and the FiQA-SA subtask.  It is the most comprehensive
+single-number evaluation framework for general financial NLP capability.
 
 \begin{remark}
 All five benchmarks described above were constructed primarily from English-language,
@@ -1569,57 +1567,14 @@ financial NLP, the context window determines whether an entire 10-K filing (whic
 exceed 100,000 tokens) can be processed in a single call---a question with significant
 implications for retrieval-augmented generation architectures (Chapter~5).
 
-Three hyperparameters govern sampling. Given the logit vector $\mathbf{z} \in \mathbb{R}^{|\mathcal{V}|}$ produced by the
-final Transformer layer, the model converts logits to a probability distribution and
-samples the next token.  Three hyperparameters govern this process.
-
-\begin{definition}[Temperature Sampling]
-\label{def:temperature}
-\emph{Temperature} $\tau > 0$ scales the logit vector before the softmax:
-\begin{equation}
-  p_i = \frac{\exp(z_i / \tau)}{\sum_{j=1}^{|\mathcal{V}|} \exp(z_j / \tau)},
-  \quad i = 1, \ldots, |\mathcal{V}|.
-  \label{eq:temperature}
-\end{equation}
-As $\tau \to 0^+$, all probability mass concentrates on the highest-logit token
-(\emph{greedy decoding}).  As $\tau \to \infty$, the distribution approaches uniform
-over $\mathcal{V}$.  For financial analysis tasks requiring precision and
-reproducibility, $\tau = 0$ (or $\tau = 0.1$) is recommended.  For creative tasks,
-$\tau \in [0.7, 1.0]$ is common.
-\end{definition}
-
-\begin{definition}[Nucleus (Top-$p$) Sampling]
-\label{def:top-p}
-\emph{Nucleus sampling} \cite{holtzman2020curious} % [CITE: holtzman2020curious]
-draws the next token from the smallest set $\mathcal{S} \subseteq \mathcal{V}$
-satisfying
-\begin{equation}
-  \sum_{i \in \mathcal{S}} p_i \geq p,
-  \label{eq:top-p}
-\end{equation}
-where $p \in (0, 1]$ is a user-specified threshold.  Tokens outside $\mathcal{S}$ are
-assigned zero probability and renormalised over $\mathcal{S}$.  Top-$p$ sampling
-adapts the effective vocabulary size to the confidence of the model: when the model is
-certain, $|\mathcal{S}|$ is small; when uncertain, $|\mathcal{S}|$ grows.  Common
-values are $p \in [0.9, 0.95]$.
-\end{definition}
-
-\begin{definition}[Top-$k$ Sampling]
-\label{def:top-k}
-\emph{Top-$k$ sampling} restricts sampling to the $k$ tokens with the highest
-probabilities, renormalising over this set.  Unlike top-$p$, the effective vocabulary
-size is fixed at $k$ regardless of the model's confidence.  Top-$k$ sampling
-(with $k = 50$) was used in GPT-2 generation and remains a common baseline.
-\end{definition}
-
-\begin{remark}
-In practice, many API providers expose only temperature and top-$p$, not top-$k$, as
-user-controllable parameters.  For financial NLP tasks where reproducibility and
-factual precision are paramount---such as extracting numerical data from filings or
-generating compliance summaries---\emph{greedy decoding} ($\tau = 0$) is strongly
-recommended: it is the only sampling regime that is deterministic across identical
-inputs (modulo floating-point non-determinism on GPU hardware).
-\end{remark}
+The three principal sampling hyperparameters are temperature $\tau$, nucleus threshold
+$p$, and top-$k$ cutoff.  Their mathematical definitions and finance-specific selection
+guidance appear in Section~\ref{sec:sampling}; here it suffices to note that most API
+providers expose temperature and top-$p$ as named parameters, while top-$k$ is less
+universally supported.  For financial tasks where reproducibility is paramount---
+extracting numerical data from filings, generating compliance summaries---greedy
+decoding ($\tau = 0$) is the recommended default, as it is the only deterministic
+regime across identical inputs (modulo floating-point non-determinism on GPU hardware).
 
 \subsection{Python Walkthrough: OpenAI, Anthropic, and HuggingFace}
 \label{sec:api-python}
@@ -2375,12 +2330,12 @@ merely producing text.
 \section{Chapter Summary}
 \label{sec:ch2-summary}
 
-\subsection*{Summary of Chapter~1}
+\subsection*{Summary of Chapter~2}
 
-This chapter established the technical and conceptual foundations for the rest of the
-book.  We traced the history of textual analysis in finance from keyword dictionaries
-through distributional word vectors to the Transformer architecture, developing the
-mathematics of self-attention, positional encoding, and the encoder--decoder structure.
+This chapter developed the technical and practical foundations for working with large
+language models in finance.  We traced the progression from distributional word
+vectors through recurrent architectures to the Transformer, deriving the mathematics
+of self-attention, positional encoding, and the encoder--decoder structure.
 We surveyed the modern LLM landscape, distinguishing standard autoregressive models
 from reasoning models trained to produce explicit chains of thought.  We introduced
 the major model families (GPT-4o, Claude, Llama, FinBERT, BloombergGPT) and the

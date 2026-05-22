@@ -1,6 +1,7 @@
 \documentclass{beamer}
 \usetheme{Madrid}
 \usepackage{amsmath, amssymb}
+\usepackage{booktabs}
 
 \title{Introduction to Large Language Models in Finance}
 \subtitle{Lecture 1}
@@ -20,111 +21,307 @@
 
 % ---------------------------------------------------------------
 \section{A Brief History of Textual Analysis in Finance}
-\begin{frame}{\secname}
-  % TODO: invoke /draft-lecture to fill in slides
+
+\begin{frame}{The Founding Moment}
+  \begin{block}{Tetlock (2007), \textit{Journal of Finance}}
+    Daily fraction of negative words in the \textit{Wall Street Journal}
+    ``Abreast of the Market'' column predicts next-day DJIA returns.
+  \end{block}
+  \medskip
   \begin{itemize}
-    \item Dictionary and keyword-counting methods
-    \item Statistical NLP in finance
-    \item The neural turn
+    \item High negativity $\Rightarrow$ lower next-day returns, then \emph{reversal} over the week
+    \item Interpretation: temporary sentiment-driven mispricing
+    \item Puzzle: efficient markets should already price public newspaper sentiment
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Dictionary Methods}
+  \begin{itemize}
+    \item \textbf{General Inquirer} (Stone et al., 1966): 11,000 word stems classified
+          into Positive, Negative, Strong, Weak, \ldots
+    \item Applied to 10-K filings: \emph{tax}, \emph{liability}, \emph{depreciation}
+          flagged as ``negative'' --- but these are merely technical vocabulary in finance
+    \item \textbf{Loughran--McDonald (LM) dictionary} (2011): hand-coded from 10-K filings;
+          six tone categories including Negative, Positive, Uncertainty, Litigious
+  \end{itemize}
+  \medskip
+  \begin{alertblock}{Fundamental limitation}
+    Dictionaries are static and discard word order, negation, and syntax entirely.\\
+    ``Earnings did \emph{not} decline'' scores identically to ``Earnings \emph{did} decline.''
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{The Neural Turn}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    Era & Method & Key property \\
+    \midrule
+    2003 & Latent Dirichlet Allocation & Data-driven topics, no labels needed \\
+    2013 & Word2Vec / GloVe & Dense embeddings, semantic geometry \\
+    1997/2015 & LSTM / Attention & Sequential context, negation handling \\
+    2017 & Transformer & Parallel self-attention, massive scale \\
+    2018--19 & BERT / FinBERT & Pre-train then fine-tune \\
+    2020+ & GPT-4, Claude, Llama & Instruction-following, reasoning \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+  \begin{itemize}
+    \item Each generation fixes the limitations of the previous one
+    \item Understanding this history explains \emph{why} LLMs behave the way they do
   \end{itemize}
 \end{frame}
 
 % ---------------------------------------------------------------
 \section{Why Text Matters in Finance}
-\begin{frame}{\secname}
+
+\begin{frame}{The EMH Puzzle and Its Resolution}
+  \textbf{Semi-strong EMH (Fama 1970):} prices reflect all publicly available information.
+  So why do textual signals predict returns?
+  \medskip
+  \begin{enumerate}
+    \item \textbf{Processing costs \& limited attention} \\
+          {\small Reading a 200-page 10-K is costly; not all investors do it}
+    \item \textbf{Soft information \& interpretive disagreement} \\
+          {\small Cautious tone = genuine uncertainty or expectation management?}
+    \item \textbf{Latent information} \\
+          {\small Regulation FD limits explicit disclosures; information leaks
+           through word choice, omissions, and rhetorical structure}
+  \end{enumerate}
+  \medskip
+  \small Textual analysis adds value because information extraction from text is genuinely
+  costly and NLP technology has improved dramatically.
+\end{frame}
+
+\begin{frame}{Types of Financial Text}
+  \begin{description}
+    \item[\textbf{Earnings calls}] Scripted presentation + unscripted Q\&A;
+          spontaneous Q\&A is especially informative
+    \item[\textbf{10-K / 10-Q filings}] MD\&A, risk factors; up to 200 pages;
+          primary source for LM (2011)
+    \item[\textbf{Newswire / news}] High frequency; narrow signal-exploitation window
+    \item[\textbf{Analyst reports}] Informationally dense; complexity $\propto$
+          information asymmetry
+    \item[\textbf{Central bank comms}] FOMC minutes and statements move rates and
+          equity prices on release
+    \item[\textbf{Social media}] High-frequency, noisy; predictive power documented
+          but robustness debated
+  \end{description}
+\end{frame}
+
+\begin{frame}{The Textual Signal Framework}
+  \begin{block}{Definition: Textual Signal}
+    A \textbf{textual signal} is a measurable function
+    $f \colon \mathcal{D} \to \mathbb{R}^k$
+    mapping document $d_t$ to a signal $s_t = f(d_t)$.
+  \end{block}
+  \medskip
+  The central empirical question:
+  \[
+    \mathrm{Cov}(s_t,\, r_{t+1}) \neq 0 \; ?
+  \]
+  Under a linear factor model:
+  \[
+    r_{t+1} = \alpha + \beta^\top s_t + \varepsilon_{t+1}
+  \]
+  \medskip
+  $\beta$ is economically significant if it survives standard controls
+  \emph{and} yields a Sharpe ratio above transaction costs.
+\end{frame}
+
+\begin{frame}{Identification Challenges}
+  Showing $\mathrm{Cov}(s_t, r_{t+1}) \neq 0$ is necessary but not sufficient:
+  \medskip
   \begin{itemize}
-    \item Earnings calls, news, regulatory filings
-    \item Text as a return-predictive signal
+    \item \textbf{Reverse causality} --- documents may be written in response to
+          lagged returns, not in anticipation of future ones
+    \item \textbf{Confounding} --- macroeconomic conditions drive both tone and returns
+    \item \textbf{Multiple testing} --- NLP produces thousands of candidate signals;
+          use strict temporal out-of-sample splits
+    \item \textbf{Model misspecification} --- the choice of $f$ (dictionary vs.\ LLM)
+          is itself an assumption affecting signal-to-noise
   \end{itemize}
+  \medskip
+  \small Four empirical facts: (1) negative tone $\Rightarrow$ negative short-run returns;
+  (2) LM dictionary $>$ Harvard IV-4; (3) earnings call tone predicts earnings surprises;
+  (4) ChatGPT signals show incremental power (Lopez-Lira \& Tang 2023).
 \end{frame}
 
 % ---------------------------------------------------------------
 \section{Classical Text Representations}
-\begin{frame}{\secname}
+
+\begin{frame}{Pre-processing and Vocabulary}
+  Before computing any representation:
+  \begin{enumerate}
+    \item \textbf{Case folding} --- ``Revenue'' $\equiv$ ``revenue''
+    \item \textbf{Stop-word removal} --- remove ``the'', ``and'', ``of'', \ldots
+    \item \textbf{Stemming / lemmatisation} --- \textit{earnings}, \textit{earned},
+          \textit{earns} $\to$ \textit{earn}
+    \item \textbf{Vocabulary truncation} --- retain top $V'$ types by frequency
+  \end{enumerate}
+  \medskip
+  Result: a finite vocabulary $\mathcal{V}$ of size $V$ (typically $10\,000$--$100\,000$)
+\end{frame}
+
+\begin{frame}{Bag-of-Words and One-Hot Encoding}
+  \begin{block}{Bag-of-Words (BoW)}
+    \[
+      \mathbf{x}(d) = \bigl(\mathrm{count}(v_1, d), \ldots, \mathrm{count}(v_V, d)\bigr)^\top
+      \in \mathbb{Z}_{\geq 0}^V
+    \]
+    Word order is discarded.
+  \end{block}
+  \medskip
+  \begin{block}{One-Hot Encoding}
+    Each token $v_k$ maps to the standard basis vector $\mathbf{e}_k \in \{0,1\}^V$.
+    BoW = sum of one-hot vectors.\\[4pt]
+    \textbf{Problem:} $\mathbf{e}_j^\top \mathbf{e}_k = \mathbb{1}[j=k]$
+    --- every pair of distinct words is equally (dis)similar.\\
+    \textit{revenue} and \textit{sales} are as distant as \textit{revenue} and \textit{penguin}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{TF-IDF Weighting}
+  Raw counts are dominated by common words. TF-IDF weights by rarity:
+  \[
+    \mathrm{tfidf}(v, d, \mathcal{C})
+    = \underbrace{\frac{\mathrm{count}(v,d)}{|d|}}_{\text{term freq.}}
+    \times
+    \underbrace{\log\!\left(\frac{|\mathcal{C}|}{\mathrm{df}(v,\mathcal{C})}\right)}_{\text{inverse doc.\ freq.}}
+  \]
   \begin{itemize}
-    \item Vocabulary and tokenisation
-    \item Bag-of-Words and one-hot encoding
-    \item TF-IDF weighting
+    \item Word in \emph{every} document: IDF $= \log(1) = 0$ (suppressed)
+    \item Word in \emph{one} document: highest IDF weight
+    \item Document similarity: cosine similarity on $\ell_2$-normalised TF-IDF vectors
   \end{itemize}
+  \medskip
+  \textbf{Limitations:} order invariant $\cdot$ no semantic similarity $\cdot$
+  fixed vocabulary $\cdot$ high-dimensional sparse vectors
 \end{frame}
 
 % ---------------------------------------------------------------
 \section{Word Embeddings}
-\begin{frame}{\secname}
+
+\begin{frame}{The Distributional Hypothesis}
+  \begin{block}{Firth (1957)}
+    \emph{``You shall know a word by the company it keeps.''}
+  \end{block}
+  \medskip
   \begin{itemize}
-    \item Distributional hypothesis
-    \item Word2Vec and GloVe
+    \item Words with similar meanings appear in similar contexts
+    \item Learn contextual co-occurrence patterns $\Rightarrow$ learn semantic similarity
+    \item A \textbf{word embedding} is a map $\varphi : \mathcal{V} \to \mathbb{R}^d$
+          with $d \ll V$
+    \item Embedding matrix $\mathbf{W} \in \mathbb{R}^{V \times d}$;
+          typical $d \in \{50, 100, 300\}$
   \end{itemize}
+  \medskip
+  \textbf{Goal:} semantically related words $\Rightarrow$ geometrically close vectors
+\end{frame}
+
+\begin{frame}{Word2Vec: Skip-Gram}
+  Train each centre word to predict its context words (window $\pm c$):
+  \[
+    J_{\mathrm{SG}}
+    = \frac{1}{T} \sum_{t=1}^{T}
+      \sum_{\substack{k=-c \\ k \neq 0}}^{c}
+      \log P(w_{t+k} \mid w_t)
+  \]
+  \begin{itemize}
+    \item Full softmax over vocabulary is too expensive ($O(V)$ per step)
+    \item \textbf{Negative sampling}: distinguish true context word from $K$ noise words;
+          only $K{+}1$ embedding rows updated per step
+    \item Recommended $K = 5$--$20$ (small corpora), $K = 2$--$5$ (large corpora)
+  \end{itemize}
+  \medskip
+  \textbf{Emergent property --- linear analogies:}
+  \[
+    \hat{\mathbf{v}}_{\text{king}} - \hat{\mathbf{v}}_{\text{man}}
+    + \hat{\mathbf{v}}_{\text{woman}} \approx \hat{\mathbf{v}}_{\text{queen}}
+  \]
+\end{frame}
+
+\begin{frame}{GloVe: Global Vectors}
+  GloVe factorises the global co-occurrence matrix $X_{ij}$
+  (times word $j$ appears in context of word $i$ across the full corpus):
+  \[
+    J_{\mathrm{GloVe}}
+    = \sum_{i,j=1}^{V}
+      f(X_{ij})
+      \Bigl(\mathbf{w}_i^\top \tilde{\mathbf{w}}_j + b_i + \tilde{b}_j - \log X_{ij}\Bigr)^2
+  \]
+  \begin{itemize}
+    \item Weighting $f$ down-weights rare and very frequent co-occurrences
+    \item Pairs that never co-occur contribute nothing ($f(0) = 0$)
+    \item GloVe vs.\ Word2Vec: similar results in practice;
+          GloVe faster with precomputed counts, Word2Vec scales to streaming data
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Finance-Domain Embeddings}
+  Nearest neighbours of \textbf{risk} differ dramatically by training corpus:
+  \medskip
+  \begin{center}
+    \begin{tabular}{lll}
+      \toprule
+      Rank & General (Wikipedia) & Finance (10-K) \\
+      \midrule
+      1 & danger      & uncertainty \\
+      2 & threat      & exposure    \\
+      3 & hazard      & volatility  \\
+      4 & possibility & credit risk \\
+      5 & factor      & downside    \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \medskip
+  Domain adaptation strategies:
+  \begin{enumerate}
+    \item Pre-train from scratch on financial corpus
+    \item Fine-tune transformer embeddings (FinBERT)
+    \item Retrofitting with financial ontology
+  \end{enumerate}
 \end{frame}
 
 \begin{frame}{Case Study: PCA on Financial Vocabulary}
-  % TODO: insert figure from code/notebooks/01-intro/demo.ipynb
-  [Figure placeholder]
+  Project 30 financial terms into 2D via PCA on GloVe vectors.
+  Four semantic groups colour-coded:
+  \textcolor{blue}{rates \& macro} $\cdot$
+  \textcolor{green!60!black}{equities \& returns} $\cdot$
+  \textcolor{red}{risk concepts} $\cdot$
+  \textcolor{orange}{corporate actions \& derivatives}
+  \medskip
+  \begin{block}{Consistent patterns across pre-trained models}
+    \begin{itemize}
+      \item \textit{option, futures, derivative} $\to$ tight cluster
+      \item \textit{default, credit} $\to$ cluster together, away from equities
+      \item \textit{merger, acquisition} $\to$ nearly identical vectors
+      \item \textit{yield, spread, inflation, interest rate} $\to$ most cohesive cluster
+    \end{itemize}
+  \end{block}
+  \small Full implementation: \texttt{code/notebooks/01-intro/demo.ipynb}
 \end{frame}
 
 % ---------------------------------------------------------------
-\section{Document-Level Representations}
-\begin{frame}{\secname}
+\section{Looking Ahead}
+
+\begin{frame}{What We Have Covered and What Comes Next}
+  \textbf{This lecture:}
   \begin{itemize}
-    \item Averaging word vectors
-    \item Sentence Transformers
+    \item From dictionary counting $\to$ distributional word embeddings
+    \item Formal textual signal framework and identification challenges
+    \item Classical representations: BoW, TF-IDF, Word2Vec, GloVe
   \end{itemize}
-\end{frame}
-
-% ---------------------------------------------------------------
-\section{Sequential Models: From RNNs to Attention}
-\begin{frame}{\secname}
+  \medskip
+  \textbf{Lecture 2 (LLM Foundations):}
   \begin{itemize}
-    \item RNNs and the vanishing gradient problem
-    \item LSTMs and GRUs
-    \item The attention mechanism
+    \item Recurrent networks and the vanishing-gradient problem
+    \item LSTM cell state as a solution
+    \item Scaled dot-product attention and the Transformer
+    \item Pre-training objectives: masked LM (BERT) vs.\ autoregressive (GPT)
   \end{itemize}
-\end{frame}
-
-% ---------------------------------------------------------------
-\section{The Transformer Architecture}
-\begin{frame}{\secname}
-  \begin{itemize}
-    \item Self-attention (query, key, value)
-    \item Multi-head attention
-    \item Positional encoding
-    \item Encoder--decoder; BERT vs.\ GPT
-  \end{itemize}
-\end{frame}
-
-% ---------------------------------------------------------------
-\section{The Modern LLM Landscape}
-\begin{frame}{\secname}
-  \begin{itemize}
-    \item Generative vs.\ reasoning models
-    \item GPT, Claude, Llama, FinBERT, BloombergGPT
-    \item Financial NLP benchmarks
-  \end{itemize}
-\end{frame}
-
-% ---------------------------------------------------------------
-\section{Working with LLMs via API}
-\begin{frame}{\secname}
-  \begin{itemize}
-    \item Tokens, context windows, sampling parameters
-    \item OpenAI, Anthropic, HuggingFace APIs in Python
-    \item Cost and latency trade-offs
-  \end{itemize}
-\end{frame}
-
-% ---------------------------------------------------------------
-\section{Limitations and Responsible Use}
-\begin{frame}{\secname}
-  \begin{itemize}
-    \item Hallucinations in financial contexts
-    \item Regulatory and ethical considerations
-  \end{itemize}
-\end{frame}
-
-% ---------------------------------------------------------------
-\section{Roadmap of This Book}
-\begin{frame}{\secname}
-  [Placeholder --- map concepts to later chapters]
+  \medskip
+  \textbf{Key references:} Tetlock (2007) $\cdot$ LM (2011) $\cdot$ Mikolov (2013)
+  $\cdot$ Pennington (2014) $\cdot$ Lopez-Lira \& Tang (2023)
 \end{frame}
 
 \end{document}

@@ -18,3 +18,4 @@
 | 2026-05-21 | 5 files | fix: remove Princeton UP branding from title page;chore: session log 2026-05-21;chore: professional typography — Palatino, titlesec chapter headings, fancyhdr running headers, caption/listing polish; | — |
 | 2026-05-21 | 4 files | refine(ch01): remove all 68 \paragraph{} labels — prose now flows without inline headings;chore: session log 2026-05-21;fix: remove Princeton UP branding from title page; | — |
 | 2026-05-21 | 4 files | feat(ch02): complete LLM foundations chapter — temperature, structured gen, RAG, distillation, hallucinations;feat(ch02): expand hallucinations to full section with SOTA mitigation;feat(ch02): add knowledge distillation and model compression section; | — |
+| 2026-05-22 | 5 files | chore: session log 2026-05-21;feat(ch02): complete LLM foundations chapter — temperature, structured gen, RAG, distillation, hallucinations;feat(ch02): expand hallucinations to full section with SOTA mitigation; | — |

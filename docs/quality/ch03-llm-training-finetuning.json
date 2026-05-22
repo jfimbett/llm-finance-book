@@ -1,0 +1,49 @@
+{
+  "file": "book/chapters/03-llm-training-finetuning/chapter.tex",
+  "scored_by": "scorer-agent",
+  "date": "2026-05-22",
+  "quality_threshold": 8,
+  "scores": {
+    "clarity": {
+      "score": 9,
+      "justification": "Context boxes establish motivation at every section entry. Definitions are precise, labelled, and use consistent notation. After editorial revision, sentence length is well varied. The LoRA parameter-count calculation is shown step by step. The adaptation spectrum is laid out as a concrete decision framework. Minor density remains in the ZeRO deep dive, insufficient to lower the score."
+    },
+    "rigor": {
+      "score": 8,
+      "justification": "All major mathematical objects are formally defined with equations and \\label tags: BPE (Eq. eq:bpe-merge), MinHash (Eq. eq:minhash), Chinchilla loss and optimality conditions (Eqs. eq:chinchilla-loss through eq:chinchilla-Nstar), LoRA (Eq. eq:lora), reward model Bradley-Terry objective (Eq. eq:reward-model), PPO objective (Eq. eq:ppo-objective), DPO reparameterisation (Eqs. eq:dpo-reward and eq:dpo), perplexity (Eq. eq:perplexity), Macro-F1 (Eq. eq:macro-f1), ROUGE-N (Eq. eq:rouge). The Chinchilla theorem was corrected: the ratio D*/N* is now stated as an empirical approximation at a reference compute scale rather than a false algebraic constant. The proof is technically sound. Empirical claims (FinBERT accuracy, BloombergGPT benchmark gaps) are cited but lack explicit confidence bounds — a minor gap for the stated audience level."
+    },
+    "completeness": {
+      "score": 9,
+      "justification": "All six approved sections and all 22 subsections are present with substantive content replacing every placeholder. Coverage includes: web/book/code corpora, EDGAR/earnings call/news financial sources, BPE and SentencePiece tokenisation, MinHash deduplication, data mixing and curriculum, CLM vs MLM vs span-corruption objectives, Chinchilla laws with worked numerical example, data/model/pipeline/ZeRO distributed training, mixed-precision and gradient checkpointing and FlashAttention, adaptation spectrum (zero-shot through full fine-tuning), LoRA/prefix-tuning/adapter PEFT methods, RLHF (SFT+RM+PPO) and DPO, two-stage domain adaptation, FinBERT, BloombergGPT with ALiBi, NER/numerical-reasoning/summarisation task fine-tuning, perplexity, F1/ROUGE, FinQA/FiQA/FPB/ConvFinQA benchmarks, red-teaming, survivorship/temporal/geographic bias, hallucination and RAG mitigation, MiFID II/SR 11-7/EU AI Act regulatory discussion, and a four-component governance framework. Minor deduction: no closing summary paragraph synthesising chapter themes."
+    },
+    "pedagogy": {
+      "score": 9,
+      "justification": "Learning objectives are eight specific, measurable competencies keyed to chapter sections. Every section uses at least one tcolorbox environment (context, deepdive, remark, example) to vary pedagogical mode. Worked examples include: GPT-3 corpus composition table, Chinchilla numerical calculation with explicit constant substitution, LoRA parameter-count calculation with step-by-step arithmetic, two-stage domain adaptation with concrete hyperparameters and accuracy figures, and FinQA/FiQA/FPB benchmark table. The red-teaming section is directly actionable for practitioners. Regulatory section maps MiFID II/SR 11-7/EU AI Act to technical requirements, bridging theory and practice. Exercises not included (separate skill)."
+    },
+    "style": {
+      "score": 8,
+      "justification": "Consistent with the book's Princeton UP monograph style established in Chapters 1 and 2. No \\paragraph{} or \\textbf{} paragraph headings appear. Sentences are varied in length; filler phrases were removed during editorial revision. Context and deepdive boxes match preamble tcolorbox definitions. Finance-specific examples are concrete (tickers, CUSIP/ISIN codes, MiFID II article numbers, EDGAR form types). A few passive constructions remain in the regulatory section (e.g., 'are classified as high-risk') that could be active; insufficient to lower the score below threshold."
+    }
+  },
+  "overall": 8.6,
+  "status": "PASS",
+  "math_review": {
+    "verdict": "PASS",
+    "issues_found": 1,
+    "issues_resolved": 1,
+    "details": [
+      {
+        "ref": "Eq. eq:chinchilla-ratio (original)",
+        "type": "ERROR",
+        "description": "The original draft claimed N*/D* = (alpha/beta)*(B/A) as a constant derived from the FOC. This is algebraically incorrect: the optimal ratio D*/N* depends on the compute budget C through the exponents alpha and beta. The formula as written would be dimensionally inconsistent.",
+        "resolution": "Theorem rewritten. Scaling laws N*(C) and D*(C) are stated as power laws in C. The '20 tokens per parameter' rule is characterised as an empirical approximation valid near C ~ 10^22-10^23 FLOPs, with explanation of why it is slowly varying. Proof rewritten to correctly solve the first-order condition and state N*(C) in closed form."
+      }
+    ]
+  },
+  "flags_for_human_review": [
+    "BloombergGPT corpus composition table (Table tab:bloomberggpt-corpus): Bloomberg's exact token counts are from the 2023 preprint; verify against final published version if journal publication occurs.",
+    "FinBERT accuracy figures (88.5%, 80.7%, etc.): reproduced from Yang et al. (2020) arXiv; verify if updated evaluations exist.",
+    "EU AI Act timeline: entry-into-force date (August 2024) and Annex III applicability (August 2026) should be verified against the final Official Journal publication.",
+    "SR 11-7 tiered validation guidance: the three-tier classification is a synthesis for pedagogical purposes, not a direct quote from the guidance document; practitioners should consult the primary source."
+  ]
+}

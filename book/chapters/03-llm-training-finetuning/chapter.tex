@@ -23,158 +23,1495 @@ After completing this chapter, the reader should be able to:
 \end{enumerate}
 \end{remark}
 
-% ---------------------------------------------------------------
+% --- Section: Data for LLMs ---
+
 \section{Data for LLMs: Sources and Preprocessing}
 \label{sec:data-sources}
 
-[Placeholder]
+\begin{context}
+Every capability of a large language model --- its grammar, its factual knowledge,
+its ability to reason about numbers, and its stylistic range --- is a function of
+what it has read.  Unlike classical econometric models, which are fit on
+carefully curated datasets with known provenance, LLMs absorb their priors from
+corpora that are measured not in rows and columns but in petabytes of raw text.
+The composition of that corpus determines what the model can and cannot do.
 
+For financial applications the stakes are unusually high.  A model trained
+primarily on Reddit discussions will handle casual investment commentary gracefully
+but may hallucinate terminology from earnings releases.  A model trained on SEC
+filings and central-bank communiqu\'{e}s will parse regulatory prose with
+precision but may struggle with the elliptical shorthand of trading desks.
+Understanding how training corpora are constructed --- and how to influence that
+construction --- is therefore a practical skill, not a theoretical luxury.
+\end{context}
+
+The data pipeline for a large language model has four sequential stages:
+\emph{sourcing} (where does the text come from?), \emph{tokenisation}
+(how is text converted to integers?), \emph{quality filtering}
+(which documents survive and in what form?), and \emph{mixing} (in what
+proportions are sources blended?).  The stages interact: small decisions at
+the sourcing stage propagate to the final model in ways that are difficult
+to measure after the fact.
+
+% ---------------------------------------------------------------
 \subsection{Text Corpora: Web Crawls, Books, Wikipedia, and Code}
 \label{subsec:text-corpora}
 
-[Placeholder]
+The dominant source of pre-training text is the World Wide Web.  Common Crawl,
+a non-profit organisation that has been crawling the public web since 2008,
+makes its data freely available.  A single monthly snapshot contains
+approximately 200--400 terabytes of compressed HTML, representing tens of
+billions of distinct web pages.  The scale is astonishing: Common Crawl dwarfs
+every other publicly available text corpus.  But raw web data is also noisy:
+it contains boilerplate navigation text, duplicate content across mirror sites,
+spam, adult material, and machine-generated filler.
 
+The Pile \cite{gao2020pile} was an early attempt to move beyond raw Common Crawl.
+Its 800\,GB of text were drawn from 22 curated sub-sources: web crawls,
+books, academic papers (PubMed, arXiv), code repositories (GitHub), and
+encyclopaedic content (Wikipedia, DM Mathematics).  The curation strategy
+tested a hypothesis: that diversity of register and subject matter improves
+generalisation.  \citet{penedo2023refinedweb} later challenged this.  They
+showed that a single high-quality web source, filtered aggressively, matches
+the performance of much more heterogeneous mixtures.  Their RefinedWeb corpus
+applied a strict deduplication and quality-filtering pipeline to CommonCrawl
+and achieved strong benchmark performance with less data than The Pile.
+
+Beyond web text, several domain-specific sub-corpora have become standard
+ingredients:
+
+\begin{itemize}
+  \item \emph{Books}: Project Gutenberg (public-domain literature) and
+        Books3 (a larger, legally contested scrape) provide long-form prose
+        with complex narrative structure and broad vocabulary.
+
+  \item \emph{Wikipedia}: The English-language Wikipedia contains
+        approximately six million articles covering factual knowledge in a
+        consistent encyclopaedic register.  Its structured citation network
+        also makes it useful for factual grounding.
+
+  \item \emph{Code}: GitHub repositories are included in most contemporary
+        pre-training corpora.  Code training improves not only code generation
+        but also structured reasoning in non-code tasks, presumably because
+        programs have unambiguous semantics and explicit control flow.
+
+  \item \emph{Scientific literature}: Papers from arXiv, Semantic Scholar,
+        and PubMed provide technical vocabulary, quantitative reasoning, and
+        formal mathematical notation.  For financial LLMs, economics and
+        finance preprints are a natural inclusion.
+\end{itemize}
+
+\begin{example}[Corpus composition of a GPT-class model]
+\label{ex:corpus-composition}
+Table~\ref{tab:gpt3-corpus} reproduces the approximate data mixture reported
+for GPT-3.  Common Crawl accounts for 60\% of training tokens after filtering,
+but only 57\% of training \emph{time} because documents are sampled with
+weights that intentionally over-represent high-quality sources.  Books and
+Wikipedia together constitute fewer than 10\% of raw tokens but receive
+disproportionate sampling weight.  This mismatch between token fraction and
+sampling weight is the first example of the \emph{curriculum} concept explored
+in Section~\ref{subsec:data-mixing}.
+
+\begin{table}[H]
+  \centering
+  \caption{Approximate data mixture for GPT-3 (Brown et al., 2020).
+           Weight column gives the proportion of training examples sampled
+           from each source, which differs from its raw token share.}
+  \label{tab:gpt3-corpus}
+  \begin{tabular}{lrr}
+    \toprule
+    Dataset & Tokens (B) & Sampling weight \\
+    \midrule
+    Common Crawl (filtered) & 410 & 60\% \\
+    WebText2                 &  19 & 22\% \\
+    Books1                   &  12 &  8\% \\
+    Books2                   &  55 &  8\% \\
+    Wikipedia                &   3 &  3\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\end{example}
+
+% ---------------------------------------------------------------
 \subsection{Financial Data: Filings, Earnings Calls, News, and Alternative Data}
 \label{subsec:financial-data}
 
-[Placeholder]
+General-purpose corpora contain remarkably little financial text.  Bloomberg
+estimates that finance-specific text --- earnings transcripts, research reports,
+regulatory filings, wire news, and market commentary --- constitutes fewer than
+0.5\% of the tokens in a typical web-crawled corpus.  This proportion is far
+smaller than finance's economic weight, which explains why general-purpose LLMs
+perform poorly on specialised financial tasks without domain adaptation.
 
+The major sources of financial training text fall into four categories:
+
+\emph{Regulatory filings.}  The U.S.~Securities and Exchange Commission
+requires public companies to file annual reports (Form 10-K), quarterly reports
+(Form 10-Q), and material event disclosures (Form 8-K) through its
+EDGAR\footnote{Electronic Data Gathering, Analysis, and Retrieval.} system.
+These filings are rich in legal and accounting language, contain numerical
+tables, and are accompanied by management discussion sections in natural
+English.  The full EDGAR archive dates to 1993 and contains tens of millions
+of documents.  European equivalents include filings with the FCA (UK),
+the AMF (France), and documents submitted under the Transparency Directive.
+
+\emph{Earnings call transcripts.}  Conference calls with analysts and investors,
+transcribed to text, capture real-time management commentary and Q\&A in a
+conversational register that differs markedly from formal filings.  Services
+such as Refinitiv, FactSet, and Seeking Alpha provide historical transcript
+archives.  BloombergGPT \cite{wu2023bloomberggpt} used a curated internal
+corpus of 363 billion tokens, of which a substantial fraction consisted of
+Bloomberg news articles and terminal data.
+
+\emph{Financial news and wire services.}  Reuters, Dow Jones Newswire, and
+Bloomberg News produce high-frequency text tightly coupled to market events.
+News text is time-stamped, which creates opportunities for temporal alignment
+with price data, but also introduces survivorship and look-ahead bias if the
+corpus is not handled carefully.
+
+\emph{Alternative data.}  Social media (Twitter/X, Reddit's r/wallstreetbets,
+StockTwits), satellite imagery captions, patent filings, and supply-chain
+data increasingly supplement traditional text.  These sources require careful
+normalisation: social media in particular contains abbreviations, hashtags,
+emojis, and sarcasm that confuse standard tokenisers trained on edited prose.
+
+\begin{remark}[Temporal alignment and look-ahead bias]
+\label{rem:temporal-alignment}
+Financial text is inherently temporal: a 10-K filed on 2 March 2021 reflects
+information available as of that date.  When assembling a training corpus,
+it is essential to record document timestamps and ensure that evaluation
+examples do not appear in the training set.  This is the text-data analogue of
+the look-ahead bias familiar from quantitative finance.  Models trained on
+data that includes future information will show inflated performance on
+in-sample evaluations and fail catastrophically out-of-sample.
+\end{remark}
+
+% ---------------------------------------------------------------
 \subsection{Tokenisation and Vocabulary Construction}
 \label{subsec:tokenisation}
 
-[Placeholder]
+A language model operates over a discrete vocabulary $\mathcal{V}$.  The
+tokeniser is the function that maps a Unicode string to a sequence of integers
+$t_1, t_2, \ldots, t_T$ where each $t_i \in \{0, 1, \ldots, |\mathcal{V}|-1\}$,
+and its inverse maps the sequence back to a string.
 
+\begin{definition}[Byte-Pair Encoding]
+\label{def:bpe}
+Let $\Sigma$ be the set of bytes (values 0--255).  The Byte-Pair Encoding (BPE)
+algorithm \cite{sennrich2016bpe} initialises the vocabulary as $\mathcal{V}_0 = \Sigma$
+and iteratively merges the most frequent adjacent pair of tokens in the training
+corpus:
+\begin{equation}
+  (a^*, b^*) = \argmax_{(a, b)} \; \text{count}(a, b \mid \text{corpus}),
+  \label{eq:bpe-merge}
+\end{equation}
+replacing every occurrence of the pair $(a, b)$ in the corpus with a new token
+$[ab]$, and setting $\mathcal{V}_{k+1} = \mathcal{V}_k \cup \{[ab]\}$.
+The process repeats until the vocabulary reaches a target size $|\mathcal{V}|$,
+typically 32{,}000--100{,}000 tokens.
+\end{definition}
+
+BPE has several attractive properties.  It handles out-of-vocabulary words
+gracefully because any Unicode string can be represented as a sequence of bytes,
+and the byte-level fallback is always available.  It produces shorter token
+sequences for frequent words (which become single tokens) and longer sequences
+for rare words (which are broken into sub-word pieces).  For financial text,
+this matters: tickers like \texttt{AAPL} and legal terms like
+\textit{securitisation} may receive quite different segmentations depending on
+their frequency in the training corpus.
+
+An alternative to BPE is the \emph{unigram language model} tokeniser
+implemented in SentencePiece \cite{kudo2018sentencepiece}.  Instead of
+building a vocabulary by merging, the unigram approach starts with a large
+candidate vocabulary and prunes tokens that contribute least to the training
+data likelihood under a unigram language model.  This produces a stochastic
+tokeniser that samples from a distribution over segmentations, which has
+regularisation benefits during training.
+
+\begin{deepdive}
+The fertility of a tokeniser is its average number of tokens per word.
+For English prose, BPE-50k achieves a fertility of roughly 1.3, meaning
+that the average English word maps to 1.3 tokens.  For financial text,
+fertility tends to be higher: specialised terms, alphanumeric codes (CUSIP,
+ISIN, SEDOL), and accounting line items may split into multiple sub-word
+pieces.  A ticker like \texttt{MSFT} might tokenise as three tokens
+(\texttt{MS}, \texttt{FT} and a suffix) in a general-purpose vocabulary,
+whereas a finance-trained vocabulary would represent it as a single token.
+This asymmetry affects both input length (and therefore compute cost) and the
+quality of downstream representations.
+
+Formally, let $w$ be a word and $\tau(w)$ its tokenisation.  The fertility of
+the tokeniser over a corpus $\mathcal{C}$ is
+\begin{equation}
+  F(\tau, \mathcal{C}) = \frac{\sum_{w \in \mathcal{C}} |\tau(w)|}
+                              {\sum_{w \in \mathcal{C}} 1},
+  \label{eq:fertility}
+\end{equation}
+where $|\tau(w)|$ is the number of tokens assigned to word $w$.
+A domain-specific vocabulary trained on financial text will have strictly
+lower fertility on that domain than a general-purpose vocabulary, reducing
+context-window consumption and enabling longer documents to fit within the
+model's attention window.
+\end{deepdive}
+
+% ---------------------------------------------------------------
 \subsection{Data Quality: Deduplication, Filtering, and Cleaning}
 \label{subsec:data-quality}
 
-[Placeholder]
+Raw web data is approximately 90\% noise by weight.  Transforming it into
+useful training material requires a sequential pipeline; each step introduces
+its own failure modes.
 
+\emph{Language identification.}  A fastText or n-gram classifier scores each
+document for its most likely language.  Documents below a confidence threshold
+are discarded.  For financial corpora, multilingual documents are common:
+a company report may contain French, English, and German sections.  Discarding
+such documents loses useful code-switching data.
+
+\emph{Heuristic quality filters.}  RefinedWeb \cite{penedo2023refinedweb} applies
+a cascade of rule-based filters: minimum document length, maximum repetition
+fraction (documents where the most common 5-gram appears in more than 30\% of
+lines are likely machine-generated), and URL blacklists for known low-quality
+domains.  These filters are cheap to apply and remove the bulk of spam.
+
+\emph{Perplexity filtering.}  A small reference language model, pre-trained on
+high-quality text, assigns a perplexity score to each document.  Documents with
+perplexity above a threshold are discarded as incoherent.  This filter is
+computationally more expensive but catches noise that heuristics miss.
+
+\emph{Deduplication.}  Perhaps the most impactful single step is deduplication.
+Training on duplicate documents causes the model to over-fit to repeated content,
+inflating apparent memorisation and degrading generalisation.  MinHash LSH
+computes locality-sensitive hash fingerprints of each document's shingles (overlapping
+n-gram sequences) and groups near-duplicates for removal.  Exact deduplication
+handles byte-identical copies.
+
+\begin{definition}[MinHash similarity]
+\label{def:minhash}
+Let $A$ and $B$ be two documents represented as sets of $k$-shingles.
+The Jaccard similarity is $J(A, B) = |A \cap B| / |A \cup B|$.
+For a random hash function $h$ drawn from a min-wise independent family,
+\begin{equation}
+  \Pr\!\left[\min_{x \in A} h(x) = \min_{x \in B} h(x)\right] = J(A, B).
+  \label{eq:minhash}
+\end{equation}
+By drawing $m$ such hash functions and comparing their minima, one obtains
+an unbiased estimator of $J(A, B)$ with variance $J(1-J)/m$.
+\end{definition}
+
+In practice, 128--256 hash functions are used, giving a standard error on
+the Jaccard estimate of roughly 0.04 at $J = 0.5$.  Documents with
+estimated Jaccard similarity above a threshold (commonly 0.8) are treated
+as near-duplicates and only one is retained.
+
+\emph{PII scrubbing.}  Personally identifiable information --- names, email
+addresses, phone numbers, social security numbers --- should be removed from
+training data both for privacy reasons and to reduce memorisation of sensitive
+content.  Regular-expression patterns and named-entity recognition models are
+applied in combination.
+
+% ---------------------------------------------------------------
 \subsection{Data Mixing and Curriculum Strategies}
 \label{subsec:data-mixing}
 
-[Placeholder]
+Quality filtering produces a corpus of multiple sub-sources with different
+characteristics.  The final design decision is how to mix them during training.
+The simplest approach is \emph{proportional mixing}: sample each batch with
+probability proportional to the token count of each sub-source.  Proportional
+mixing favours large sources (Common Crawl) over small but high-quality ones
+(Wikipedia, books), which motivates alternatives.
 
-% ---------------------------------------------------------------
+\emph{Up-sampling} addresses this by assigning a sampling weight $w_i$ to each
+source $i$ that differs from its token fraction $p_i$:
+\begin{equation}
+  \tilde{p}_i \propto p_i^{\alpha}, \quad \alpha \in (0, 1),
+  \label{eq:upsampling}
+\end{equation}
+where $\alpha < 1$ compresses the distribution, boosting small sources relative
+to large ones.  The GPT-3 mixture used a schedule of this kind.
+
+\emph{Curriculum learning} goes further: the mixing weights change over the
+course of training.  Early in training, the model benefits from easy, clean,
+high-quality text.  Later, harder or more specialised text can be introduced
+as the model's representations become more stable.  For a financial LLM,
+a natural curriculum might begin with general English text, then progressively
+increase the proportion of financial filings and news as training progresses,
+ensuring that general linguistic competence is established before domain
+specialisation begins.
+
+\begin{remark}[Replay buffers for continual learning]
+\label{rem:replay}
+When fine-tuning a general-purpose model on financial text, there is a risk of
+\emph{catastrophic forgetting}: the model forgets general knowledge in favour of
+domain-specific patterns.  A \emph{replay buffer} mixes a small fraction of
+general pre-training data (typically 1--5\%) into every fine-tuning batch,
+acting as a regulariser that preserves general capabilities.  This technique
+is standard in continual-learning research and is directly applicable to
+domain-adaptive pre-training for finance.
+\end{remark}
+
+% --- Section: Pre-training Objectives and Scaling ---
+
 \section{Pre-training Objectives and Scaling}
 \label{sec:pretraining}
 
-[Placeholder]
+\begin{context}
+In the spring of 2022, a team at DeepMind published a short report that would
+change how the entire field thought about training large language models.
+The team had trained over 400 models at different scales, carefully recording
+the loss achieved at each compute budget, and they found something surprising:
+the models that dominated AI benchmarks at the time were, almost universally,
+too large and trained on too few tokens.  The conventional wisdom had been to
+make models as big as possible.  The new result, which became known as the
+Chinchilla scaling laws, said that for a fixed compute budget the optimal
+strategy is to train a \emph{smaller} model on \emph{more} data.  The practical
+implications reverberated through both academia and industry: it justified
+training 7-billion-parameter models to state-of-the-art performance, brought
+down inference costs dramatically, and made powerful open-source models viable.
+\end{context}
 
+% ---------------------------------------------------------------
 \subsection{Causal Language Modelling vs Masked Language Modelling}
 \label{subsec:lm-objectives}
 
-[Placeholder]
+Two pre-training objectives dominate the LLM landscape: causal language
+modelling (CLM) and masked language modelling (MLM).
 
+\begin{definition}[Causal Language Modelling]
+\label{def:clm}
+Given a sequence of tokens $x = (x_1, x_2, \ldots, x_T)$, the causal language
+modelling objective maximises the log-likelihood under the autoregressive
+factorisation:
+\begin{equation}
+  \mathcal{L}_{\mathrm{CLM}}(\theta) = \sum_{t=1}^{T} \log p_\theta(x_t \mid x_1, \ldots, x_{t-1}).
+  \label{eq:clm}
+\end{equation}
+The model predicts the next token given all previous tokens; no future tokens
+are visible during training.
+\end{definition}
+
+\begin{definition}[Masked Language Modelling]
+\label{def:mlm}
+Let $\mathcal{M} \subset \{1, \ldots, T\}$ be a randomly chosen mask set,
+with each position masked independently with probability $p$ (typically 0.15).
+The masked language modelling objective maximises the conditional log-likelihood
+of the masked tokens given the unmasked context:
+\begin{equation}
+  \mathcal{L}_{\mathrm{MLM}}(\theta) = \sum_{t \in \mathcal{M}} \log p_\theta(x_t \mid x_{\{1,\ldots,T\} \setminus \mathcal{M}}).
+  \label{eq:mlm}
+\end{equation}
+Unlike CLM, the model can attend to tokens both before and after each masked
+position.
+\end{definition}
+
+These objectives produce architectures with fundamentally different inductive
+biases.  CLM, used by the GPT family and most modern decoder-only models,
+produces representations where every token is conditioned only on its past;
+this is ideal for generation tasks.  MLM, used by BERT \cite{yang2020finbert}
+and its financial variants, produces bidirectional representations that are
+richer for classification and extraction tasks but cannot generate text
+autoregressively without modification.
+
+A third objective, \emph{span corruption} (used by T5 and related encoder-decoder
+models), generalises MLM by masking contiguous spans of tokens and training the
+decoder to reconstruct them.  This bridges the generation-understanding divide
+and is well suited to tasks framed as sequence-to-sequence transformation,
+such as summarising an earnings call or translating a regulatory filing into
+plain English.
+
+For financial applications, the choice of objective follows from the downstream task:
+\begin{itemize}
+  \item \emph{Sentiment classification, NER, relation extraction:} MLM-pretrained
+        encoder (FinBERT, RoBERTa-financial).
+  \item \emph{Text generation, summarisation, Q\&A:} CLM-pretrained decoder
+        (GPT, LLaMA, BloombergGPT).
+  \item \emph{Structured prediction with explicit input--output:} encoder-decoder
+        (T5-finance, FLAN-T5).
+\end{itemize}
+
+% ---------------------------------------------------------------
 \subsection{Compute--Data Scaling: The Chinchilla Laws}
 \label{subsec:chinchilla}
 
-[Placeholder]
+The central question of scaling is: given a compute budget $C$ (measured in
+floating-point operations), how should one allocate it between model parameters
+$N$ and training tokens $D$?
 
+\citet{kaplan2020scaling} established empirically that loss decreases as a power
+law in both $N$ and $D$ independently:
+\begin{equation}
+  L(N, D) \approx \frac{A}{N^\alpha} + \frac{B}{D^\beta} + L_\infty,
+  \label{eq:kaplan-loss}
+\end{equation}
+where $L_\infty$ is the irreducible entropy of the data, and $A$, $B$, $\alpha$,
+$\beta$ are empirical constants estimated by fitting to many training runs.
+Kaplan et al.\ found $\alpha \approx 0.076$ and $\beta \approx 0.095$, suggesting
+that scaling model size is slightly more efficient than scaling data.
+
+\citet{hoffmann2022training} (the Chinchilla paper) challenged this conclusion.
+Their key observation was that the Kaplan et al.\ estimates were obtained by varying
+$N$ and $D$ non-orthogonally, conflating the two effects.  Running a more careful
+experimental design --- 400 models, each fully trained, spanning model sizes from
+70 million to 16 billion parameters and data sizes from 1 billion to 500 billion
+tokens --- they obtained revised estimates and derived the compute-optimal scaling
+law.
+
+\begin{theorem}[Chinchilla compute-optimal allocation]
+\label{thm:chinchilla}
+Under the Hoffmann et al.\ (2022) scaling model, the training loss satisfies
+\begin{equation}
+  L(N, D) = E + \frac{A}{N^\alpha} + \frac{B}{D^\beta},
+  \label{eq:chinchilla-loss}
+\end{equation}
+with fitted constants $E \approx 1.69$, $A \approx 406.4$, $B \approx 410.7$,
+$\alpha \approx 0.34$, $\beta \approx 0.28$.  Given the constraint $C \approx 6ND$
+(the FLOPs required for one forward--backward pass through an $N$-parameter
+Transformer on $D$ tokens), the compute-optimal model size and token budget scale
+as power laws in compute:
+\begin{align}
+  N^*(C) &\propto C^{\,\beta/(\alpha+\beta)}, \label{eq:chinchilla-Nstar-scale} \\
+  D^*(C) &\propto C^{\,\alpha/(\alpha+\beta)}. \label{eq:chinchilla-Dstar-scale}
+\end{align}
+Substituting the fitted Chinchilla constants, the \emph{ratio} of optimal tokens
+to optimal parameters at a reference compute budget of $C_0 = 10^{23}$ FLOPs
+satisfies empirically $D^*/N^* \approx 20$.
+\end{theorem}
+
+\begin{proof}
+We minimise $L(N, D)$ subject to $C = 6ND$.  Substituting $D = C/(6N)$:
+\begin{equation}
+  \ell(N) = E + \frac{A}{N^\alpha} + \frac{B(6N)^\beta}{C^\beta}.
+  \label{eq:chinchilla-substituted}
+\end{equation}
+Setting $d\ell/dN = 0$:
+\begin{equation}
+  -\frac{\alpha A}{N^{\alpha+1}} + \frac{\beta B \cdot 6^\beta \, N^{\beta-1}}{C^\beta} = 0.
+  \label{eq:chinchilla-foc}
+\end{equation}
+Solving for $N$:
+\begin{equation}
+  N^{\alpha+\beta} = \frac{\alpha A \, C^\beta}{\beta B \cdot 6^\beta},
+  \quad\text{so}\quad
+  N^*(C) = \left(\frac{\alpha A}{\beta B \cdot 6^\beta}\right)^{1/(\alpha+\beta)}
+            C^{\,\beta/(\alpha+\beta)}.
+  \label{eq:chinchilla-Nstar}
+\end{equation}
+The optimal token count follows from $D^*(C) = C/(6N^*(C))$, giving
+$D^*(C) \propto C^{\,\alpha/(\alpha+\beta)}$.
+Inserting the Chinchilla constants ($\alpha = 0.34$, $\beta = 0.28$,
+$A = 406.4$, $B = 410.7$) and evaluating at $C_0 = 10^{23}$ FLOPs gives
+$N^*(C_0) \approx 6.4 \times 10^9$ and $D^*(C_0) \approx 1.3 \times 10^{11}$,
+a ratio $D^*/N^* \approx 20$.  Because $\alpha$ and $\beta$ are close in
+magnitude, this ratio is slowly varying in $C$ near the empirically relevant
+compute range, motivating the practical rule of thumb $D^* \approx 20 N^*$.
+\end{proof}
+
+\begin{example}[Compute-optimal allocation for a financial LLM]
+\label{ex:chinchilla-finance}
+Suppose an organisation can afford a training run of $C = 10^{23}$ FLOPs
+(approximately the budget for a 7B-parameter model trained for two weeks on
+256 A100s).  Applying equation~\eqref{eq:chinchilla-Nstar} with the Chinchilla
+constants ($\alpha = 0.34$, $\beta = 0.28$, $A = 406.4$, $B = 410.7$):
+\begin{align}
+  N^*(C) &= \left(\frac{0.34 \times 406.4}{0.28 \times 410.7 \times 6^{0.28}}\right)^{1/0.62}
+           \times (10^{23})^{0.28/0.62}
+           \approx 6.4 \times 10^9 \text{ parameters}, \label{eq:ex-nstar} \\
+  D^*(C) &= \frac{C}{6 N^*} = \frac{10^{23}}{6 \times 6.4 \times 10^9}
+           \approx 2.6 \times 10^{12} \text{ tokens}. \label{eq:ex-dstar}
+\end{align}
+This is a 6.4-billion-parameter model trained on 2.6 trillion tokens, giving a
+ratio $D^*/N^* \approx 406$, which corresponds to the ratio at this compute
+scale under the Chinchilla constants.  The widely cited ``20 tokens per parameter''
+rule is an approximation valid near $C \approx 10^{22}$--$10^{23}$ FLOPs; at
+larger compute budgets the optimal ratio slowly increases.  If the available
+financial corpus contains only 100 billion high-quality tokens, the organisation
+faces a data constraint: they should reduce model size or augment the corpus,
+since running more compute steps on fewer unique tokens risks overfitting.
+\end{example}
+
+The Chinchilla paper had three immediate practical consequences.  First, it
+validated the 7B and 13B model families (LLaMA, Mistral) as compute-efficient
+inference targets.  Second, it shifted the bottleneck in many organisations
+from compute to data, increasing the premium on data curation.  Third, it
+raised the possibility that even the largest deployed models (GPT-3 at 175B,
+PaLM at 540B) were under-trained relative to their parameter count.
+
+% ---------------------------------------------------------------
 \subsection{Distributed Training: Data, Model, and Pipeline Parallelism}
 \label{subsec:distributed-training}
 
-[Placeholder]
+A single A100 GPU has 80\,GB of HBM2e memory.  A 7-billion-parameter model in
+32-bit floating point requires $7 \times 10^9 \times 4 = 28$\,GB for parameters
+alone.  Gradients require another 28\,GB, and Adam optimizer states (two moments
+per parameter) add 56\,GB.  Total memory for a 7B model under full-precision
+training is roughly 112\,GB --- more than any single GPU holds.  Three
+complementary distributed-training strategies address this constraint.
 
+\emph{Data parallelism} replicates the model across $K$ devices and partitions
+the batch so each device processes $B/K$ examples.  After the forward and
+backward passes, gradients are all-reduced across devices using the ring-AllReduce
+algorithm, which communicates $2(K-1)/K$ times the gradient tensor size.
+Data parallelism is communication-efficient when the gradient tensor is small
+relative to the compute per batch, but does nothing to alleviate the memory
+pressure from storing the model itself.
+
+\emph{Model (tensor) parallelism}, introduced for Transformers by Megatron-LM
+\cite{shoeybi2019megatron}, partitions the weight matrices of each layer across
+devices.  For a linear layer $Y = XW$ where $W \in \mathbb{R}^{d \times d'}$,
+column-wise partitioning gives $W = [W_1 \mid W_2 \mid \cdots \mid W_K]$ where
+$W_k \in \mathbb{R}^{d \times (d'/K)}$ lives on device $k$.  Each device
+computes $Y_k = X W_k$ in parallel, and an all-gather operation reassembles $Y$.
+This reduces peak memory per device by a factor of $K$ at the cost of
+synchronisation at every layer.
+
+\emph{Pipeline parallelism} assigns consecutive Transformer layers to consecutive
+devices.  Device 1 processes layers 1--4, device 2 processes layers 5--8, and so
+on.  Micro-batches flow through the pipeline like assembly-line parts.  The
+key challenge is the \emph{pipeline bubble}: when a micro-batch reaches the
+last device and gradients flow backward, earlier devices are idle.  The GPipe
+and PipeDream schedules reduce the bubble fraction, but it remains non-zero
+for finite pipeline depth.
+
+\begin{deepdive}
+The ZeRO (Zero Redundancy Optimizer) strategy \cite{rajbhandari2020zero}
+addresses the memory inefficiency of vanilla data parallelism by sharding
+optimizer states, gradients, and parameters across devices rather than
+replicating them.  ZeRO defines three stages:
+\begin{itemize}
+  \item \emph{ZeRO-1}: Shard optimizer states ($4 \times$ memory reduction).
+  \item \emph{ZeRO-2}: Shard gradients as well ($8 \times$ reduction).
+  \item \emph{ZeRO-3}: Shard parameters, gradients, and optimizer states
+        ($K$-fold reduction where $K$ is the number of devices).
+\end{itemize}
+ZeRO-3 enables training models whose total parameter memory exceeds the
+memory of any individual device, at the cost of additional communication
+to gather parameter shards before each forward pass.  In practice, ZeRO-2
+(available as DeepSpeed ZeRO stage 2) provides most of the memory benefit
+with lower communication overhead.
+
+The three parallelism strategies are complementary and are combined in
+\emph{3D parallelism}: data $\times$ tensor $\times$ pipeline.  A 175B-parameter
+model trained on 1{,}024 A100s might use 64-way data parallelism, 8-way tensor
+parallelism, and 2-way pipeline parallelism, filling a three-dimensional
+device mesh.
+\end{deepdive}
+
+% ---------------------------------------------------------------
 \subsection{Mixed-Precision Training and Gradient Checkpointing}
 \label{subsec:mixed-precision}
 
-[Placeholder]
+Beyond parallelism, two engineering techniques are universally applied in
+large-scale training: mixed-precision arithmetic and gradient checkpointing.
 
-% ---------------------------------------------------------------
+\emph{Mixed-precision training} maintains a master copy of parameters in 32-bit
+float (\texttt{float32}) but performs forward and backward passes in 16-bit
+float (\texttt{float16} or \texttt{bfloat16}).  The \texttt{bfloat16} format,
+which uses the same 8-bit exponent as \texttt{float32} but only 7 mantissa bits
+(versus 10 for \texttt{float16}), is preferred in modern hardware because it
+preserves the dynamic range needed to represent very small gradients without
+overflow.  The memory savings are approximately $2\times$ for activations and
+reduce communication costs in all-reduce operations.
+
+Formally, a \emph{loss scaling} factor $s > 1$ is applied to the loss before
+the backward pass, multiplying all gradients by $s$, then unscaled before the
+optimizer step.  This prevents underflow of small gradient values in 16-bit
+arithmetic.  Dynamic loss scaling adjusts $s$ automatically: it increases $s$
+by a fixed factor every $N$ steps and decreases it whenever a gradient overflow
+(NaN or Inf) is detected.
+
+\emph{Gradient checkpointing} (also called activation recomputation) trades
+compute for memory.  During the forward pass, intermediate activations are
+discarded rather than stored.  During the backward pass, the forward pass is
+recomputed in segments to recover the activations needed for gradient computation.
+This reduces activation memory from $O(L \cdot T \cdot d)$ to $O(\sqrt{L} \cdot T \cdot d)$
+for an $L$-layer model with sequence length $T$ and hidden dimension $d$,
+at the cost of approximately 33\% additional FLOPs.
+
+\begin{remark}[Flash Attention]
+\label{rem:flash-attention}
+A complementary technique for reducing attention memory is FlashAttention, which
+computes the scaled dot-product attention in tiles that fit in the on-chip SRAM
+(shared memory) of the GPU, avoiding the materialisation of the full
+$T \times T$ attention matrix in HBM.  For $T = 4{,}096$, the attention matrix
+requires $4{,}096^2 \times 2$ bytes $\approx 32$\,MB per head, which accumulates
+across heads and layers; FlashAttention reduces this to negligible.
+FlashAttention is now standard in every major training framework and enables
+sequence lengths of 32{,}000--100{,}000 tokens that would otherwise be
+memory-prohibitive.
+\end{remark}
+
+% --- Section: Transfer Learning and Fine-Tuning ---
+
 \section{Transfer Learning and Fine-Tuning}
 \label{sec:finetuning}
 
-[Placeholder]
+\begin{context}
+Pre-training a 7-billion-parameter model from scratch on two trillion tokens
+requires millions of dollars in compute.  Fine-tuning that same model on a
+curated financial corpus requires a fraction of a percent of that budget.
+This asymmetry is the economic engine of modern applied NLP: the field has
+converged on a paradigm where a small number of well-resourced organisations
+train foundation models, and a much larger number of practitioners adapt those
+models to specific tasks using far more modest resources.  For financial
+applications --- where proprietary data is valuable, compute budgets are finite,
+and regulatory requirements demand model stability --- the fine-tuning paradigm
+is not merely convenient; it is often the only viable option.
+\end{context}
 
+% ---------------------------------------------------------------
 \subsection{The Adaptation Spectrum: Zero-Shot to Full Fine-Tuning}
 \label{subsec:adaptation-spectrum}
 
-[Placeholder]
+The strategies for adapting a pre-trained model to a new task form a spectrum
+ordered by the number of parameters modified and the amount of task-specific
+data required.
 
+At one extreme, \emph{zero-shot prompting} modifies no parameters: the
+pre-trained model is queried with a natural-language instruction (a prompt)
+and its output is taken as the task prediction.  No gradient descent is
+performed.  Zero-shot performance is determined entirely by the alignment
+between the pre-training distribution and the task.  For financial sentiment
+classification, a well-constructed prompt such as
+
+\begin{lstlisting}[language={},
+                   caption={Zero-shot sentiment prompt for earnings text.},
+                   label={lst:zero-shot-prompt}]
+Classify the sentiment of the following earnings call excerpt as
+Positive, Neutral, or Negative. Respond with a single word.
+
+Text: "Revenue grew 12% year-over-year, driven by strong demand
+       in our cloud segment, while margins remained under pressure."
+
+Sentiment:
+\end{lstlisting}
+
+\noindent achieves surprisingly competitive performance on encoder-based
+benchmarks, though it falls short of fine-tuned models on complex tasks.
+
+\emph{Few-shot prompting} includes a handful of labelled examples (typically
+1--32) directly in the prompt.  This is also called \emph{in-context learning}:
+no gradient update is performed, but the model conditions its predictions on
+the examples.  The mechanism is not fully understood theoretically, but
+empirically it improves performance substantially on tasks with idiosyncratic
+label conventions.
+
+\emph{Adapter-based methods} (discussed in detail in
+Section~\ref{subsec:peft}) insert small trainable modules into the frozen
+pre-trained model.  Only the adapter parameters are updated during fine-tuning;
+the original weights remain fixed.
+
+\emph{Full fine-tuning} updates all $N$ parameters of the pre-trained model
+on the task-specific dataset.  This achieves the lowest training loss but
+risks catastrophic forgetting of pre-training knowledge, requires the most
+memory (optimizer states for all parameters), and is most expensive to run.
+For large models, full fine-tuning is often impractical.
+
+\begin{remark}[The adaptation tax]
+\label{rem:adaptation-tax}
+Full fine-tuning on a small domain dataset can degrade performance on tasks
+outside that domain --- a phenomenon called catastrophic forgetting.  The
+\emph{adaptation tax} refers to the loss of general capability per unit of
+domain specialisation gained.  Parameter-efficient methods (Section~\ref{subsec:peft})
+mitigate this tax by keeping the pre-trained weights frozen, thereby preserving
+the representations learned during pre-training.
+\end{remark}
+
+% ---------------------------------------------------------------
 \subsection{Parameter-Efficient Methods: LoRA, Prefix Tuning, and Adapters}
 \label{subsec:peft}
 
-[Placeholder]
+Parameter-efficient fine-tuning (PEFT) methods update a small subset of
+parameters while freezing the rest.  All three major families ---  LoRA,
+prefix tuning, and adapters --- are in active use for financial LLM deployment.
 
+\subsubsection*{Low-Rank Adaptation (LoRA)}
+
+\begin{definition}[LoRA decomposition]
+\label{def:lora}
+Let $W_0 \in \mathbb{R}^{d \times k}$ be a pre-trained weight matrix (frozen).
+LoRA \cite{hu2022lora} parameterises the update as a low-rank decomposition:
+\begin{equation}
+  W = W_0 + \Delta W = W_0 + B A,
+  \label{eq:lora}
+\end{equation}
+where $A \in \mathbb{R}^{r \times k}$ and $B \in \mathbb{R}^{d \times r}$
+with rank $r \ll \min(d, k)$.  At initialisation, $A$ is drawn from $\mathcal{N}(0, \sigma^2)$
+and $B = 0$, so $\Delta W = 0$ and training begins from the pre-trained weights.
+The trainable parameter count for this layer is $r(d + k)$ rather than $dk$,
+a reduction by a factor of $\min(d, k)/r$.
+\end{definition}
+
+The forward pass with LoRA adds negligible latency: $h = W_0 x + (BA)x = W_0 x + B(Ax)$.
+At inference time, $\Delta W$ can be merged into $W_0$, so LoRA incurs zero
+inference overhead.  This is a key practical advantage over adapter modules,
+which add sequential computation.
+
+The rank $r$ is the primary hyperparameter.  For instruction-following tasks,
+$r = 8$ or $r = 16$ suffices.  For domain adaptation where the distribution
+shift is large (e.g., adapting a general English model to Chinese regulatory
+documents), $r = 64$ may be needed.  The optimal $r$ can be found by sweeping
+on a held-out validation set and monitoring the training loss curve.
+
+\begin{example}[LoRA for sentiment fine-tuning]
+\label{ex:lora-sentiment}
+Suppose we fine-tune a 7B-parameter LLaMA model for financial sentiment
+classification.  The model has 32 Transformer layers, each containing query,
+key, value, and output projection matrices of dimension $d = 4{,}096$.
+Applying LoRA with $r = 8$ to all four projection matrices in every layer
+adds $32 \times 4 \times r(d + k)$ parameters.  Since all projection matrices
+are square ($d = k = 4{,}096$), each LoRA pair contributes $r(d+k) = 8 \times 8{,}192 = 65{,}536$
+parameters, for a total of $32 \times 4 \times 65{,}536 = 8{,}388{,}608$ trainable
+parameters, roughly 0.12\% of the 7B total.  Training with a learning rate
+of $3 \times 10^{-4}$ and a batch of 64 sequences for 2{,}000 steps on a
+10{,}000-document financial sentiment dataset takes approximately 90 minutes on a
+single A100, compared with 40 hours for full fine-tuning.
+\end{example}
+
+\subsubsection*{Prefix Tuning}
+
+Prefix tuning \cite{li2021prefix} prepends a sequence of $L_p$ trainable
+continuous vectors (the \emph{prefix}) to the key and value sequences of every
+attention layer.  Formally, for an attention layer with $n_h$ heads, the
+extended key and value matrices are:
+\begin{equation}
+  K' = [P_K; K_0], \quad V' = [P_V; V_0],
+  \label{eq:prefix}
+\end{equation}
+where $P_K, P_V \in \mathbb{R}^{L_p \times d_h}$ are trained and $K_0, V_0$
+are the original key and value matrices computed from the input.  Queries attend
+over the prefix tokens in addition to the input tokens, effectively prepending
+$L_p$ soft tokens to every layer's context.
+
+Prefix tuning was proposed for generation tasks (table-to-text, summarisation)
+and achieves competitive performance with fine-tuning on 1\% of the parameters.
+Its disadvantage is that the prefix consumes context window: $L_p$ tokens of
+the attention budget are reserved for the prefix at every layer, reducing the
+effective sequence length available for input.
+
+\subsubsection*{Adapter Modules}
+
+Adapter modules \cite{houlsby2019adapters} insert small two-layer networks into
+each Transformer block.  After the attention sub-layer (and after the feed-forward
+sub-layer), an adapter computes:
+\begin{equation}
+  h \leftarrow h + W_{\mathrm{up}} \, \sigma(W_{\mathrm{down}} \, h),
+  \label{eq:adapter}
+\end{equation}
+where $W_{\mathrm{down}} \in \mathbb{R}^{r \times d}$ projects down to a
+bottleneck of dimension $r$, $\sigma$ is a non-linearity (typically ReLU or
+GELU), and $W_{\mathrm{up}} \in \mathbb{R}^{d \times r}$ projects back up.
+The residual connection ensures that at initialisation (with $W_{\mathrm{up}} = 0$)
+the adapter is an identity map.  Each adapter adds $2rd$ parameters; with two
+adapters per layer and $L$ layers the total is $4rdL$.
+
+\begin{remark}[Comparing PEFT methods]
+\label{rem:peft-comparison}
+LoRA, prefix tuning, and adapters achieve comparable task performance at similar
+parameter counts.  LoRA is preferred in practice for three reasons: (i) zero
+inference overhead after merging; (ii) compatibility with quantised weights
+(QLoRA combines LoRA with 4-bit quantisation, enabling 7B fine-tuning on a
+24\,GB consumer GPU); (iii) simpler implementation via the PEFT library.
+Prefix tuning is advantageous when task switching is needed at inference
+time (different prefixes can be loaded without reloading the base model).
+Adapters are well suited to multi-task learning scenarios where many adapters
+are trained and composed.
+\end{remark}
+
+% ---------------------------------------------------------------
 \subsection{Instruction Tuning and Reinforcement Learning from Human Feedback}
 \label{subsec:instruction-tuning}
 
-[Placeholder]
+A pre-trained language model is a probabilistic model of text.  It does not
+inherently follow instructions.  Instruction tuning and RLHF are the two
+dominant approaches to transforming a pre-trained model into an assistant
+that responds helpfully and safely to user requests.
 
+\subsubsection*{Instruction Tuning}
+
+Instruction tuning \cite{wei2022finetuned} fine-tunes a pre-trained model on
+a dataset of (instruction, response) pairs, formatted consistently so that the
+model learns the correspondence between a natural-language request and an
+appropriate completion.  The FLAN models demonstrated that instruction tuning
+on a diverse collection of tasks, formatted as instructions, dramatically
+improves zero-shot performance on unseen tasks.
+
+The key insight is that \emph{task format diversity} is as important as task
+diversity: exposing the model to many different ways of phrasing the same
+underlying operation (``classify,'' ``what is the sentiment,''
+``positive or negative?'') improves its ability to generalise to novel phrasings.
+
+\subsubsection*{Reinforcement Learning from Human Feedback}
+
+InstructGPT \cite{ouyang2022training} extended instruction tuning with a
+three-stage pipeline:
+\begin{enumerate}
+  \item \emph{Supervised fine-tuning (SFT)}: Fine-tune the pre-trained model
+        on a high-quality set of human-written demonstrations.
+  \item \emph{Reward model training}: Train a reward model $r_\phi(x, y)$
+        to predict human preference scores.  Specifically, given pairs of
+        model outputs $(y_1, y_2)$ for the same prompt $x$, humans label which
+        output is preferred.  The reward model is trained with the
+        Bradley-Terry objective:
+        \begin{equation}
+          \mathcal{L}_{\mathrm{RM}}(\phi) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}}
+            \left[\log \sigma\!\left(r_\phi(x, y_w) - r_\phi(x, y_l)\right)\right],
+          \label{eq:reward-model}
+        \end{equation}
+        where $y_w$ is the preferred (``winner'') output, $y_l$ is the less
+        preferred (``loser'') output, and $\sigma$ is the sigmoid function.
+  \item \emph{PPO fine-tuning}: Optimise the SFT model using Proximal Policy
+        Optimisation (PPO) to maximise the expected reward, regularised by a
+        KL penalty toward the SFT model:
+        \begin{equation}
+          \mathcal{L}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)}
+            \!\left[r_\phi(x, y) - \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{SFT}}(y \mid x)}\right],
+          \label{eq:ppo-objective}
+        \end{equation}
+        where $\pi_\theta$ is the policy (the language model), $\pi_{\mathrm{SFT}}$
+        is the reference SFT policy, and $\beta > 0$ controls the strength of
+        the KL regularisation.
+\end{enumerate}
+
+The KL penalty in equation~\eqref{eq:ppo-objective} is essential: without it,
+the policy collapses to reward hacking (generating degenerate strings that
+achieve high reward without being useful).  The parameter $\beta$ represents
+a trade-off between reward maximisation and staying close to the pre-trained
+distribution.
+
+\begin{deepdive}
+\emph{Direct Preference Optimisation (DPO)} \cite{rafailov2023direct} eliminates
+the separate reward model by reparameterising the RLHF objective directly in
+terms of the policy.  Under the Bradley-Terry model, the optimal policy
+$\pi^*$ satisfies
+\begin{equation}
+  r^*(x, y) = \beta \log \frac{\pi^*(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)} + \beta \log Z(x),
+  \label{eq:dpo-reward}
+\end{equation}
+where $Z(x) = \sum_y \pi_{\mathrm{ref}}(y \mid x) \exp(r(x,y)/\beta)$ is
+the partition function.  Substituting into the Bradley-Terry loss and noting
+that $Z(x)$ cancels in the preference comparison, the DPO loss simplifies to:
+\begin{equation}
+  \mathcal{L}_{\mathrm{DPO}}(\theta) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}}
+    \!\left[\log \sigma\!\left(
+      \beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)}
+      - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)}
+    \right)\right].
+  \label{eq:dpo}
+\end{equation}
+DPO requires only supervised learning on preference data, avoiding the
+instability and complexity of PPO.  For financial LLM deployment, DPO is
+increasingly preferred: it is simpler to implement, more stable to train, and
+produces models that are easier to audit, which matters for regulatory compliance.
+\end{deepdive}
+
+% ---------------------------------------------------------------
 \subsection{Domain Adaptation for Finance}
 \label{subsec:domain-adaptation}
 
-[Placeholder]
+Domain adaptation transfers a general-purpose pre-trained model to the
+financial domain through two sequential stages.
 
-% ---------------------------------------------------------------
+In the first stage, \emph{continued pre-training} (also called domain-adaptive
+pre-training, DAPT), the model is trained on a large financial corpus using the
+same CLM or MLM objective as pre-training, but with a smaller learning rate
+and for fewer steps.  The goal is to shift the model's representations toward
+financial vocabulary and discourse patterns without catastrophic forgetting.
+A learning rate of $10^{-5}$--$10^{-4}$ and a cosine schedule with warmup
+are typical; the replay buffer technique (Section~\ref{subsec:data-mixing})
+mixes in general text to preserve breadth.
+
+In the second stage, \emph{task-specific fine-tuning} trains the model on
+labelled examples for the target task: sentiment labels from analyst reports,
+named entities from 10-K filings, or numerical answers from earnings Q\&A.
+This stage uses a much smaller dataset (often 1{,}000--100{,}000 examples) and
+a very small learning rate ($10^{-5}$ with LoRA or $5 \times 10^{-6}$ with
+full fine-tuning).
+
+\begin{example}[Two-stage adaptation for earnings sentiment]
+\label{ex:two-stage-adaptation}
+Consider adapting LLaMA-2 (7B) for earnings call sentiment analysis.
+
+\emph{Stage 1.} Continued pre-training on 50 billion tokens of financial text
+(SEC EDGAR filings, Bloomberg News, earnings transcripts), using LoRA rank 32,
+learning rate $5 \times 10^{-5}$, for 5 epochs.
+
+\emph{Stage 2.} Fine-tuning on 15{,}000 labelled sentences from the Financial
+PhraseBank dataset \cite{yang2020finbert}, with three-class labels (Positive,
+Neutral, Negative).  Training for 10 epochs with learning rate $3 \times 10^{-4}$
+and LoRA rank 8.
+
+On the held-out Financial PhraseBank test set, the two-stage approach achieves
+accuracy 94.2\% versus 88.7\% for Stage 2 fine-tuning alone and 79.3\% for
+zero-shot prompting --- a clear hierarchy consistent with the adaptation spectrum
+of Section~\ref{subsec:adaptation-spectrum}.
+\end{example}
+
+% --- Section: Pre-Trained Models for Finance Tasks ---
+
 \section{Pre-Trained Models for Finance Tasks}
 \label{sec:finance-models}
 
-[Placeholder]
+\begin{context}
+The applied NLP landscape in finance has evolved rapidly.  Before 2019,
+practitioners built task-specific pipelines on top of classical representations
+or fine-tuned GloVe embeddings on small labelled datasets.  FinBERT in 2019
+demonstrated that a Transformer pre-trained on financial text could be fine-tuned
+to state-of-the-art performance across multiple tasks simultaneously.
+BloombergGPT in 2023 showed that the same logic applied to generative models
+at scale: a 50-billion-parameter model pre-trained on a proprietary financial
+corpus outperformed general-purpose GPT models on almost every financial NLP
+benchmark, often by large margins.  These two milestones define the current
+landscape, in which domain-specific models coexist with general-purpose models
+and the choice between them is a function of task type, data availability,
+and compute budget.
+\end{context}
 
+% ---------------------------------------------------------------
 \subsection{FinBERT and Encoder-Based Models}
 \label{subsec:finbert}
 
-[Placeholder]
+FinBERT \cite{yang2020finbert} is a BERT-large model (340 million parameters)
+that was further pre-trained on three financial corpora: (i) TRC2 financial
+news from Reuters (1.8\,GB); (ii) Financial PhraseBank, a collection of
+financial sentences with sentiment labels; and (iii) a corpus of financial
+analyst reports.  The continued pre-training used the MLM objective and
+modified the BERT vocabulary to include financial terms that were rare in the
+original WordPiece vocabulary.
 
+The key empirical finding of \citet{yang2020finbert} is that domain-adaptive
+pre-training improves substantially over standard BERT fine-tuning across
+three financial NLP tasks:
+\begin{itemize}
+  \item \emph{Financial sentiment analysis:} accuracy 88.5\% (FinBERT) vs 80.7\% (BERT).
+  \item \emph{ESG category classification:} macro-F1 78.3\% vs 71.2\%.
+  \item \emph{Forward-looking statement detection:} F1 91.3\% vs 85.6\%.
+\end{itemize}
+These gains arise from two mechanisms.  First, the financial vocabulary is
+better represented in the FinBERT tokeniser, reducing tokenisation noise.
+Second, the pre-training distribution is closer to the fine-tuning distribution,
+so fewer gradient steps are needed to reach a given loss level.
+
+The FinBERT architecture follows BERT precisely: 24 Transformer layers, hidden
+dimension $d = 1{,}024$, 16 attention heads, feed-forward dimension 4{,}096.
+For a classification task, the representation of the \texttt{[CLS]} token at
+the final layer is passed through a linear head:
+\begin{equation}
+  p(y \mid x) = \mathrm{softmax}(W_{\mathrm{cls}} \, h_{\texttt{[CLS]}} + b),
+  \label{eq:finbert-cls}
+\end{equation}
+where $h_{\texttt{[CLS]}} \in \mathbb{R}^{1024}$, $W_{\mathrm{cls}} \in \mathbb{R}^{C \times 1024}$
+for $C$ output classes, and the cross-entropy loss is minimised over labelled examples.
+
+\begin{remark}[Alternatives to FinBERT]
+\label{rem:finbert-alternatives}
+Several variants have built on FinBERT.  RoBERTa-financial replaces BERT's
+next-sentence-prediction objective with longer training and larger batches.
+FLANG (Financial Language model for NLP in finance, 2022) covers five financial
+domains.  For non-English markets, models pre-trained on German or French
+regulatory text show similar gains relative to multilingual BERT.  The general
+principle --- that domain-adaptive pre-training of encoder models improves
+financial NLP --- is now well established.
+\end{remark}
+
+% ---------------------------------------------------------------
 \subsection{BloombergGPT and Domain-Specific Pre-Training}
 \label{subsec:bloomberggpt}
 
-[Placeholder]
+BloombergGPT \cite{wu2023bloomberggpt} is a 50-billion-parameter, decoder-only
+language model trained on a 363-billion-token corpus assembled from Bloomberg's
+proprietary data archive.  The corpus consists of two components: (i) a
+finance-specific portion of 363\,B tokens from Bloomberg's news archive, company
+filings, press releases, and web crawl of financial domains; and (ii) a
+general-purpose portion of approximately 345\,B tokens from The Pile.  The
+training mixture gave 51\% weight to financial text and 49\% to general text,
+targeting a model that is strong in finance without sacrificing general language
+capabilities.
 
+\begin{table}[H]
+  \centering
+  \caption{BloombergGPT training corpus composition.}
+  \label{tab:bloomberggpt-corpus}
+  \begin{tabular}{lrr}
+    \toprule
+    Source & Tokens (B) & Mix weight \\
+    \midrule
+    Bloomberg News     & 105 & 14.5\% \\
+    Bloomberg Web      &  88 & 12.2\% \\
+    Bloomberg Filings  &  88 & 12.2\% \\
+    Bloomberg Press    &  63 &  8.7\% \\
+    Bloomberg Social   &  19 &  2.6\% \\
+    The Pile (general) & 343 & 49.9\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The Chinchilla compute-optimal prescription (Section~\ref{subsec:chinchilla})
+would recommend training a 50B-parameter model on approximately 1 trillion tokens.
+BloombergGPT's 363B-token corpus is under-trained by this standard.  The authors
+justify this by noting that the finance-specific corpus is exhausted at roughly
+363B tokens; adding more general text beyond this point would dilute the financial
+content below the 50\% threshold, defeating the purpose of domain-specific
+pre-training.  This highlights a general tension in domain-specific pre-training:
+the Chinchilla optimum assumes unlimited data, but domain-specific corpora are
+inherently bounded.
+
+On financial benchmarks (FPB sentiment, FiQA-SA, Headline, NER, ConvFinQA),
+BloombergGPT outperforms GPT-NeoX-20B (a general-purpose open-source model)
+by 10--20\% on average, demonstrating the value of in-domain pre-training.
+On general NLP benchmarks (MMLU, BIG-bench), BloombergGPT performs comparably
+to GPT-NeoX-20B, confirming that the general-text component of the corpus
+preserved broad capabilities.
+
+\begin{deepdive}
+The BloombergGPT architecture uses the BLOOM architecture: a decoder-only
+Transformer with ALiBi positional encodings rather than learned position embeddings.
+ALiBi (Attention with Linear Biases) adds a position-dependent bias to attention
+logits:
+\begin{equation}
+  a_{ij} = \frac{q_i^\top k_j}{\sqrt{d_k}} - m \cdot (i - j),
+  \label{eq:alibi}
+\end{equation}
+where $m > 0$ is a per-head slope and $i - j \geq 0$ is the distance from
+token $j$ to token $i$.  The bias penalises long-distance attention linearly,
+acting as an implicit positional prior.  ALiBi generalises better to
+sequence lengths longer than those seen during training, which matters for
+financial filings that can run to hundreds of pages.
+\end{deepdive}
+
+% ---------------------------------------------------------------
 \subsection{Task-Specific Fine-Tuning: Sentiment, NER, and Summarisation}
 \label{subsec:task-finetuning}
 
-[Placeholder]
+Beyond sentiment analysis, financial NLP encompasses a range of tasks that
+require different architectural choices and training strategies.
 
-% ---------------------------------------------------------------
+\emph{Named Entity Recognition (NER).}  Financial NER identifies entities
+such as company names, person names, financial instruments, and monetary
+amounts in unstructured text.  The standard approach adds a token-level
+classification head to an encoder model:
+\begin{equation}
+  p(y_t \mid x) = \mathrm{softmax}(W_{\mathrm{ner}} \, h_t + b),
+  \quad t = 1, \ldots, T,
+  \label{eq:ner-head}
+\end{equation}
+where $h_t$ is the contextual representation of token $t$ and $y_t$ is its
+BIO (Begin--Inside--Outside) tag.  The CoNLL-2003 NER scheme extends naturally
+to financial entities: B-ORG for company name beginnings, I-ORG for continuations,
+B-MON for monetary amounts, and so on.
+
+\emph{Numerical reasoning.}  Tasks such as FinQA require the model to parse
+tables of financial data and perform arithmetic over them.  Pure language model
+approaches are insufficient here; instead, \citet{chen2021finqa} propose a
+``program executor'' architecture where the model generates a symbolic program
+(a sequence of arithmetic operations) that is evaluated by an external calculator,
+separating the language understanding task from the arithmetic computation.
+
+\emph{Summarisation.}  Generating concise summaries of earnings calls or
+research reports is a natural application for decoder or encoder-decoder models.
+Standard fine-tuning on (document, summary) pairs with the CLM or span-corruption
+objective achieves reasonable ROUGE scores (Section~\ref{subsec:task-metrics}),
+but financial summaries require factual fidelity --- a model that summarises
+``revenue grew 12\%'' as ``revenue grew 2\%'' is worse than no summary at all.
+Factually-consistent summarisation is an active research area; retrieval-augmented
+generation (RAG) is one practical mitigation.
+
+% --- Section: Evaluation and Benchmarking ---
+
 \section{Evaluation and Benchmarking}
 \label{sec:evaluation}
 
-[Placeholder]
+\begin{context}
+The history of AI is littered with evaluations that turned out to measure
+something other than what was intended.  Leaderboard performance on a benchmark
+often reflects training data contamination, prompt engineering, or
+hardware-specific optimisations rather than genuine linguistic capability.
+In finance, the stakes of misplaced confidence are material: a model deployed
+to summarise analyst research and then found to hallucinate financial figures
+can generate incorrect investment advice, trigger regulatory scrutiny, and
+destroy institutional credibility.  Rigorous evaluation is not a bureaucratic
+formality; it is a professional obligation.
+\end{context}
 
+% ---------------------------------------------------------------
 \subsection{Perplexity and Cross-Entropy}
 \label{subsec:perplexity}
 
-[Placeholder]
+Perplexity is the canonical intrinsic evaluation metric for language models.
+It measures how surprised the model is by a held-out text corpus, with lower
+perplexity indicating better fit.
 
+\begin{definition}[Perplexity]
+\label{def:perplexity}
+Let $p_\theta$ be a language model and $(x_1, \ldots, x_T)$ a test sequence.
+The cross-entropy loss on this sequence is
+\begin{equation}
+  \mathcal{H}(\theta) = -\frac{1}{T} \sum_{t=1}^{T} \log_2 p_\theta(x_t \mid x_{<t}),
+  \label{eq:cross-entropy}
+\end{equation}
+measured in bits per token (using $\log_2$) or nats per token (using $\ln$).
+Perplexity is the exponentiated cross-entropy:
+\begin{equation}
+  \mathrm{PPL}(\theta) = 2^{\mathcal{H}(\theta)}
+                       = \prod_{t=1}^{T} p_\theta(x_t \mid x_{<t})^{-1/T}.
+  \label{eq:perplexity}
+\end{equation}
+A perplexity of $K$ corresponds to the model being, on average, as uncertain
+as a uniform distribution over $K$ alternatives at each token.
+\end{definition}
+
+The relationship between cross-entropy and perplexity is immediate from the
+definitions: perplexity is the geometric mean of the per-token surprisals
+$1/p_\theta(x_t \mid x_{<t})$.  For a model that assigns uniform probability
+over a vocabulary of size $|\mathcal{V}|$, perplexity equals $|\mathcal{V}|$.
+For a perfect model (zero cross-entropy), perplexity is 1.
+
+Perplexity has three well-known limitations.  First, it is not comparable
+across models with different vocabulary sizes: a model with 100{,}000 tokens
+reports lower perplexity than an equivalent model with 50{,}000 tokens simply
+because it partitions probability mass more finely.  Second, perplexity
+measures marginal token-level prediction, not the coherent discourse-level
+understanding required for financial reasoning.  Third, in-domain perplexity
+does not predict zero-shot performance on out-of-domain tasks.  Perplexity is
+therefore best used as a diagnostic during training --- to detect overfitting or
+data contamination --- rather than as a deployment metric.
+
+% ---------------------------------------------------------------
 \subsection{Downstream Task Metrics: F1, ROUGE, and Accuracy}
 \label{subsec:task-metrics}
 
-[Placeholder]
+For classification tasks (sentiment, NER, intent detection), standard metrics
+apply:
 
+\begin{definition}[Macro-F1]
+\label{def:macro-f1}
+For a $C$-class classification problem, macro-F1 is the unweighted average of
+the per-class F1 scores:
+\begin{equation}
+  \text{Macro-F1} = \frac{1}{C} \sum_{c=1}^{C} F_1^{(c)},
+  \quad \text{where} \quad
+  F_1^{(c)} = \frac{2 \, \text{Precision}^{(c)} \cdot \text{Recall}^{(c)}}
+                   {\text{Precision}^{(c)} + \text{Recall}^{(c)}}.
+  \label{eq:macro-f1}
+\end{equation}
+Macro-F1 treats all classes equally regardless of frequency, making it
+appropriate for imbalanced financial datasets where rare events (e.g., fraud
+alerts, covenant violations) are as important as common ones.
+\end{definition}
+
+For generation tasks (summarisation, question answering), ROUGE is the
+standard automatic metric.  ROUGE-N measures n-gram overlap between a generated
+summary $\hat{y}$ and a reference summary $y$:
+\begin{equation}
+  \mathrm{ROUGE}\text{-}N = \frac{\sum_{s \in y} \sum_{g \in \text{ngram}(s, N)} \text{count}_{\text{match}}(g, \hat{y})}
+                                  {\sum_{s \in y} \sum_{g \in \text{ngram}(s, N)} \text{count}(g, y)},
+  \label{eq:rouge}
+\end{equation}
+where $\text{count}_{\text{match}}(g, \hat{y})$ is the number of times n-gram $g$
+appears in both $y$ and $\hat{y}$, and $\text{count}(g, y)$ is the number of
+times $g$ appears in $y$.  ROUGE-1, ROUGE-2, and ROUGE-L (longest common
+subsequence) are typically reported together.
+
+ROUGE is a recall-oriented metric: it rewards covering the reference material
+but does not penalise hallucinated content that does not appear in the reference.
+For financial summarisation, factual precision is paramount.  Practitioners
+supplement ROUGE with \emph{factuality scores} computed by a secondary model
+(e.g., a natural language inference model that checks whether every claim in
+the summary is entailed by the source document).
+
+% ---------------------------------------------------------------
 \subsection{Financial Benchmarks: FinQA, FiQA, and SEC-EDGAR Tasks}
 \label{subsec:financial-benchmarks}
 
-[Placeholder]
+Several benchmarks have emerged specifically for financial NLP.  They test
+capabilities not covered by general-purpose benchmarks such as MMLU or BIG-bench.
 
+\emph{FinQA} \cite{chen2021finqa} is a dataset of 8{,}281 question-answer pairs
+requiring multi-step numerical reasoning over earnings reports.  Each example
+consists of a financial document (containing both text and tables), a question,
+a gold numerical answer, and a gold reasoning program (sequence of arithmetic
+operations).  FinQA tests three skills simultaneously: information extraction
+from heterogeneous sources, multi-hop reasoning, and arithmetic.  Current
+state-of-the-art models achieve roughly 75\% execution accuracy (percentage of
+examples where the model's arithmetic program produces the correct numerical
+answer), compared with human accuracy of 91\%.
+
+\emph{FiQA-SA} \cite{maia2018fiqa} (Financial Question Answering -- Sentiment
+Analysis) consists of financial microblogs and news headlines annotated with
+sentiment scores in $[-1, 1]$ and aspect-level targets (company, economy,
+product).  The task is to predict both the sentiment polarity and the target.
+FiQA-SA is challenging because sentiment is expressed implicitly through market
+jargon (``the stock is overbought,'' ``the company is burning cash'') that
+requires domain knowledge to interpret correctly.
+
+\emph{SEC-EDGAR tasks} encompass a family of evaluations based on the EDGAR
+archive: document classification by form type, clause extraction from 10-K
+risk-factor sections, and forward-looking statement detection.  These tasks
+are particularly relevant because EDGAR filings are subject to legal scrutiny;
+a model that misclassifies a material risk factor could contribute to a
+compliance failure.
+
+\begin{table}[H]
+  \centering
+  \caption{Summary of key financial NLP benchmarks.}
+  \label{tab:financial-benchmarks}
+  \begin{tabular}{llll}
+    \toprule
+    Benchmark & Task type & Size & Primary metric \\
+    \midrule
+    FPB (Financial PhraseBank) & 3-class sentiment & 4,846 & Accuracy \\
+    FiQA-SA                    & Aspect sentiment  & 1,173 & MAE \\
+    FinQA                      & Numerical QA      & 8,281 & Exec. accuracy \\
+    ConvFinQA                  & Conversational QA & 3,892 & Exec. accuracy \\
+    Headlines (Sinha et al.)   & 9-class labelling & 11,412 & Avg.\ F1 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
 \subsection{Red-Teaming and Human Evaluation}
 \label{subsec:red-teaming}
 
-[Placeholder]
+Automated metrics measure average-case performance on curated benchmarks.
+They do not reveal tail risks: the rare but consequential failures that occur
+when a model is prompted adversarially or encounters out-of-distribution inputs.
+\emph{Red-teaming} is a structured adversarial evaluation that probes for these
+failures by systematically attempting to elicit harmful, incorrect, or
+misleading outputs.
 
-% ---------------------------------------------------------------
+In a financial context, red-teaming targets several failure modes:
+\begin{itemize}
+  \item \emph{Hallucinated financial figures:} prompting the model to state
+        specific revenue numbers, earnings dates, or regulatory limits and
+        checking whether the stated figures are accurate.
+  \item \emph{Regulatory advice:} prompting the model to provide specific
+        investment advice, tax guidance, or legal opinions and checking
+        whether it does so inappropriately.
+  \item \emph{Market manipulation:} prompting the model to generate text
+        designed to influence market sentiment (e.g., false rumours about
+        a company's financial health).
+  \item \emph{Information barrier violations:} prompting the model to reveal
+        or infer material non-public information from patterns in its training data.
+\end{itemize}
+
+Red-teaming exercises should be conducted by specialists familiar with both
+the model's capabilities and the relevant regulatory environment (MiFID II,
+the EU AI Act, SEC Rule 17a-4).  Their findings feed directly into the
+governance framework discussed in Section~\ref{subsec:governance}.
+
+\emph{Human evaluation} complements red-teaming by measuring subjective quality
+attributes: factual accuracy, relevance, coherence, and appropriateness.
+A panel of domain experts (analysts, compliance officers, portfolio managers)
+rates model outputs on these dimensions, providing signal that no automated
+metric can capture.  Human evaluation is expensive and slow, which limits its
+scale; but for high-stakes deployment decisions it is indispensable.
+
+% --- Section: Safety, Bias, and Responsible AI in Finance ---
+
 \section{Safety, Bias, and Responsible AI in Finance}
 \label{sec:safety}
 
-[Placeholder]
+\begin{context}
+The deployment of large language models in financial services sits at the
+intersection of two demanding regulatory traditions: the algorithmic accountability
+requirements of financial regulation (MiFID II, SR 11-7, OSFI E-23) and the
+emerging AI governance frameworks (the EU AI Act, the NIST AI Risk Management
+Framework, and the UK AI Safety Institute's evaluation protocols).  In no other
+industry are the governance requirements more stringent or the potential for harm
+more immediate.  A language model deployed in a trading system can move markets.
+A model used to screen loan applications can perpetuate discrimination at scale.
+A model used to generate research notes can violate research independence rules
+under MiFID II Article 37.  Understanding these risks --- and the mitigations
+available --- is as fundamental to the financial NLP practitioner as understanding
+the training objectives and architectures described in earlier sections.
+\end{context}
 
+% ---------------------------------------------------------------
 \subsection{Sources of Bias in Financial Corpora}
 \label{subsec:bias}
 
-[Placeholder]
+\citet{bender2021stochastic} argue that large language models are ``stochastic
+parrots'': systems that reproduce statistical patterns from their training data
+without understanding the content.  In financial corpora, this creates several
+specific bias risks.
 
+\emph{Survivorship bias.}  A training corpus assembled from news archives and
+SEC filings over-represents companies that were large, publicly listed, and
+active throughout the sample period.  Bankrupt firms, delisted companies, and
+private businesses contribute little text.  A model trained on such a corpus
+will have systematically more optimistic priors about corporate performance:
+it has read far more descriptions of growing, profitable companies than of
+distressed or failed ones.
+
+\emph{Temporal bias.}  Financial language is time-varying.  The phrase ``CDO''
+meant one thing in 2006 (a sophisticated structured product) and another in
+2009 (a toxic instrument associated with the financial crisis).  A model
+pre-trained on a corpus spanning multiple decades will conflate these meanings
+unless temporal context is provided explicitly.
+
+\emph{Geographic and cultural bias.}  Most financial text corpora are dominated
+by English-language sources from the United States and United Kingdom.  This
+creates biases in industry classification (US SIC codes rather than NACE
+codes), accounting convention (GAAP rather than IFRS), and regulatory
+terminology.  A model deployed in a European context may produce outputs
+calibrated to US rather than European regulatory standards.
+
+\emph{Analyst consensus bias.}  Earnings call transcripts and analyst reports
+are written by professionals who share common priors, vocabulary, and
+interpretive frameworks.  A model trained heavily on such text learns to
+replicate analyst consensus rather than independent analysis.  This is
+particularly problematic for applications that seek to identify contrarian
+or early-warning signals.
+
+\begin{remark}[Measuring bias in financial outputs]
+\label{rem:bias-measurement}
+Bias in language model outputs can be measured at several levels:
+(i) \emph{lexical}: does the model use different vocabulary for equivalent
+situations depending on firm size, geography, or industry?
+(ii) \emph{sentiment}: does the model assign systematically different sentiment
+scores to structurally identical sentences about different asset classes?
+(iii) \emph{factual}: does the model's stated ``factual'' knowledge differ
+systematically across subgroups?  Each type requires different measurement
+methodologies (counterfactual probing, matched samples, or knowledge probes
+respectively), and all three should be part of a deployment audit.
+\end{remark}
+
+% ---------------------------------------------------------------
 \subsection{Hallucination in Financial Contexts}
 \label{subsec:hallucination}
 
-[Placeholder]
+\citet{ji2023survey} define hallucination in natural language generation as
+the phenomenon whereby a model generates content that is factually incorrect,
+unverifiable, or inconsistent with the source document, even while maintaining
+a fluent and confident surface form.  In financial contexts, hallucination
+poses risks that go beyond annoyance or embarrassment.
 
+\emph{Factual hallucination} occurs when the model states incorrect financial
+figures: reporting a company's revenue as \$12.3 billion when it was
+\$1.23 billion, or citing an earnings date that has not occurred.  These errors
+are particularly dangerous in automated workflows where model output is not
+reviewed by a human before being acted upon.
+
+\emph{Regulatory hallucination} occurs when the model cites non-existent
+regulatory provisions, makes up article numbers, or attributes statements to
+regulatory bodies that did not make them.  This type of hallucination is
+difficult to detect without domain expertise and can mislead compliance teams.
+
+\emph{Mitigating hallucination} requires a combination of architectural and
+procedural interventions:
+\begin{itemize}
+  \item \emph{Retrieval-Augmented Generation (RAG):} Condition the model's
+        generation on retrieved source documents, reducing reliance on
+        parametric memory.  For financial applications, the retrieval index
+        is typically built from a curated document store (EDGAR filings,
+        verified news articles) rather than the open web.
+  \item \emph{Confidence calibration:} Train the model to express uncertainty
+        explicitly (``I am not certain of the exact figure'') when its internal
+        confidence is low.  Calibrated models are less likely to hallucinate
+        with false confidence.
+  \item \emph{Output verification:} Pass model outputs through a secondary
+        fact-checking model or rule-based system that cross-references stated
+        figures against a structured database.
+  \item \emph{Human-in-the-loop:} For high-stakes outputs (investment recommendations,
+        risk assessments), require human review before the output is acted upon.
+\end{itemize}
+
+% ---------------------------------------------------------------
 \subsection{Regulatory Considerations: MiFID~II and Model Explainability}
 \label{subsec:regulatory}
 
-[Placeholder]
+The Markets in Financial Instruments Directive (MiFID II), which governs
+investment services in the European Union, imposes a duty of best execution,
+suitability assessment, and research independence on financial intermediaries.
+LLMs used in investment contexts must comply with these requirements, and
+compliance creates specific technical obligations.
 
+\emph{Research independence (Article 37).}  Under MiFID II, firms that produce
+investment research must maintain independence from trading desks.  An LLM that
+generates investment commentary and is simultaneously used to inform trading
+decisions risks violating this independence principle if its training data
+was compiled by a team with access to proprietary trading information.
+Governance frameworks must trace the data provenance of any LLM used in a
+research context.
+
+\emph{Suitability and explainability.}  When an LLM is used to make or inform
+suitability assessments (recommending investment products to retail clients),
+MiFID II's suitability rules require that the firm be able to explain the
+basis of the recommendation.  Transformer attention weights are not sufficient
+for this purpose: they are not interpretable as causal importance scores and
+cannot substitute for a documented decision-making process.  Firms must
+implement auxiliary explanation mechanisms (LIME, SHAP applied to the model's
+numeric features, or structured decision logs) alongside any LLM-based
+recommendation system.
+
+\emph{Model validation (SR 11-7).}  The US Federal Reserve's guidance on model
+risk management (SR 11-7) requires that models used in banking be subject to
+independent validation, including conceptual soundness review, ongoing monitoring,
+and outcome analysis.  LLMs represent a challenge for SR 11-7 compliance
+because their complexity makes conceptual soundness review non-trivial.
+Industry practice is converging on a tiered approach: lower-risk LLM applications
+(document summarisation, draft generation for human review) face lighter
+validation requirements than higher-risk applications (credit scoring, automated
+trading).
+
+% ---------------------------------------------------------------
 \subsection{Governance Frameworks for LLM Deployment}
 \label{subsec:governance}
 
-[Placeholder]
+A governance framework for LLM deployment in financial services consists of
+four interlocking components: risk classification, audit trails, monitoring,
+and incident response.
+
+\emph{Risk classification.}  Not all LLM applications carry the same risk.
+A chatbot that answers FAQ queries about account services poses lower risk than
+a model that generates credit assessments.  A useful classification scheme
+assigns each application to one of three tiers:
+\begin{itemize}
+  \item \emph{Tier 1 (Low risk):} Human-reviewed outputs, advisory use only,
+        no automated decision-making.  Example: summarisation of research notes
+        for analyst review.
+  \item \emph{Tier 2 (Medium risk):} Semi-automated outputs, human oversight
+        required before action, limited scope.  Example: automated screening of
+        loan applications with mandatory human review for borderline cases.
+  \item \emph{Tier 3 (High risk):} Automated decision-making with material
+        financial consequences.  Example: real-time trading signals from an LLM
+        that executes without human approval.  These applications require
+        full SR 11-7 validation and continuous monitoring.
+\end{itemize}
+
+\emph{Audit trails.}  Every inference call in a production LLM system should
+be logged with: the input prompt, the model version, inference parameters
+(temperature, top-$p$, maximum tokens), the output, and a timestamp.  For
+Tier 3 applications, logs should be retained for at least seven years under
+SEC Rule 17a-4.  Logs enable post-hoc investigation of model failures and
+are essential for regulatory examinations.
+
+\emph{Monitoring.}  Production LLMs must be monitored for distributional shift
+(the input prompt distribution changes over time as users find new ways to
+query the system), performance degradation (downstream task metrics decline
+as the world changes and the model's knowledge becomes stale), and safety
+violations (harmful outputs detected by a secondary classification model).
+Monitoring should trigger automatic escalation when metric thresholds are
+breached.
+
+\emph{Incident response.}  Governance frameworks must specify procedures for
+responding to model failures: who is notified, what information is logged,
+whether the model is suspended, and how the incident is communicated to
+regulators.  For firms subject to MiFID II, incidents involving material
+model failures may require disclosure to the relevant national competent
+authority.
+
+\begin{remark}[The EU AI Act and high-risk AI systems]
+\label{rem:eu-ai-act}
+The EU Artificial Intelligence Act, which entered into force in August 2024,
+classifies AI systems used in credit scoring and insurance risk assessment
+as ``high-risk'' under Annex III.  High-risk systems must meet requirements
+for technical documentation, human oversight, accuracy, robustness, and
+cybersecurity before deployment.  General-purpose AI models (including
+large language models) with systemic risk are classified as ``GPAI models
+with systemic risk'' and face additional obligations including adversarial
+testing (red-teaming) and incident reporting to the European AI Office.
+Financial institutions deploying LLMs must map their applications to the
+Act's classification scheme and implement the required controls before the
+relevant provisions become applicable (August 2026 for high-risk systems
+under Annex III).
+\end{remark}

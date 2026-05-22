@@ -47,3 +47,4 @@
 | 2026-05-22 | 2 files | chore: session log 2026-05-22;chore: session log 2026-05-22;feat(ch03): wrap sections in context/deepdive boxes (dual-mode split); | — |
 | 2026-05-22 | 2 files | chore: session log 2026-05-22;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 2 files | docs: add ssrn-enrich skill design spec;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
+| 2026-05-22 | 3 files | docs: add /ssrn-enrich implementation plan;chore: session log 2026-05-22;docs: add ssrn-enrich skill design spec; | — |

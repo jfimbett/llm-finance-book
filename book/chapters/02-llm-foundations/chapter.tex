@@ -102,27 +102,25 @@ token sequence; word order is discarded.
 Despite its simplicity and computational efficiency, mean embedding
 has several well-documented weaknesses:
 \begin{enumerate}
-  \item \textbf{Equal weighting.}  Common words such as \emph{the},
-        \emph{is}, and \emph{of} contribute as much to the mean as
-        domain-specific terms such as \emph{default} or
-        \emph{liquidity}.  Stop-word removal partially addresses this,
-        but introduces a pre-processing dependency.
-  \item \textbf{No word order.}  The mean embedding of
-        ``\emph{the company did not meet earnings expectations}'' is
-        identical to that of ``\emph{earnings expectations met the
-        company not did}'' — a garbled sentence that contains the same
-        words.  Syntactic structure, negation, and conditionals are
-        invisible.
-  \item \textbf{Poor performance on long documents.}  As $n$ grows,
-        the mean converges (by the law of large numbers) toward the
-        corpus-wide average embedding, losing document-specific
-        signal.  Empirically, mean embedding performs well for short
-        texts (headlines, short paragraphs) but degrades for filings
-        or call transcripts \cite{reimers2019}. % [CITE: Reimers & Gurevych (2019). Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks. EMNLP]
-  \item \textbf{Out-of-vocabulary words.}  Words absent from
-        $\mathcal{V}$ (e.g.\ rare tickers, neologisms) must be mapped
-        to a special \texttt{<UNK>} vector or dropped, both of which
-        introduce noise.
+  \item Common words such as \emph{the}, \emph{is}, and \emph{of}
+        contribute as much to the mean as domain-specific terms such as
+        \emph{default} or \emph{liquidity} (equal weighting).
+        Stop-word removal partially addresses this, but introduces a
+        pre-processing dependency.
+  \item The mean embedding of ``\emph{the company did not meet earnings
+        expectations}'' is identical to that of ``\emph{earnings
+        expectations met the company not did}'' --- a garbled sentence
+        containing the same words.  Syntactic structure, negation, and
+        conditionals are invisible (no word order).
+  \item As $n$ grows, the mean converges (by the law of large numbers)
+        toward the corpus-wide average embedding, losing
+        document-specific signal.  Mean embedding performs well for
+        short texts but degrades for filings or call transcripts
+        \cite{reimers2019}. % [CITE: Reimers & Gurevych (2019). Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks. EMNLP]
+  \item Words absent from $\mathcal{V}$ (e.g.\ rare tickers,
+        neologisms) must be mapped to a special \texttt{<UNK>} vector
+        or dropped, both of which introduce noise (out-of-vocabulary
+        words).
 \end{enumerate}
 
 % ----------------------------------------------------------------
@@ -258,7 +256,7 @@ A key practical advantage of SBERT is that sentence embeddings can be
 been encoded, semantic search reduces to a nearest-neighbour query in
 $\mathbb{R}^{d_{\text{model}}}$, which can be accelerated with
 approximate nearest-neighbour (ANN) data structures (e.g.\ FAISS
-\cite{johnson2019}, % [CITE: Johnson et al. (2019). Billion-scale similarity search with GPUs. IEEE TPAMI]
+\cite{johnson2019billion}, % [CITE: Johnson et al. (2019). Billion-scale similarity search with GPUs. IEEE TPAMI]
 HNSW).  Cross-encoding a query against all $N$ documents with vanilla
 BERT would require $N$ separate forward passes; SBERT bi-encoding
 requires only one forward pass per document, reducing inference time
@@ -270,29 +268,23 @@ from $O(N)$ to $O(1)$ at query time.
 The following applications of contextual document embeddings are
 documented in the finance literature:
 \begin{enumerate}
-  \item \textbf{Earnings call similarity.}
-        Encode all earnings call transcripts in a corpus using SBERT
+  \item Encode all earnings call transcripts in a corpus using SBERT
         (or a finance-tuned variant such as FinBERT-SBERT).  At each
-        reporting period, retrieve the $k$ most similar past calls
-        using cosine similarity.  The similarity score can serve as a
-        feature for predicting short-window abnormal returns
-        \cite{ko2020}. % [CITE: Ko et al. (2020). or relevant FinNLP earnings similarity paper]
-  \item \textbf{Merger target identification.}
-        Encode 10-K business description sections for all public firms.
+        reporting period, retrieve the $k$ most similar past calls by
+        cosine similarity; the score serves as a feature for predicting
+        short-window abnormal returns \cite{ko2020}. % [CITE: Ko et al. (2020). or relevant FinNLP earnings similarity paper]
+  \item Encode 10-K business description sections for all public firms.
         High cosine similarity between two firms' descriptions predicts
-        product-market proximity, which is a strong predictor of
-        acquisition likelihood \cite{frattaroli2019}. % [CITE: relevant M&A text paper]
-  \item \textbf{Regulatory document search.}
-        A compliance team encodes a large corpus of regulatory guidance
-        documents (Basel III, IFRS 9, MiFID II).  When a new
-        regulation is published, SBERT-based retrieval identifies
-        the most relevant precedents, replacing keyword search with
-        semantic search.
-  \item \textbf{Factor model narrative alignment.}
-        Embed analyst research notes and quarterly earnings guidance.
-        Measure the cosine similarity between the guidance embedding
-        and subsequent actual results narratives as a proxy for
-        management credibility or guidance quality.
+        product-market proximity, a strong predictor of acquisition
+        likelihood \cite{frattaroli2019}. % [CITE: relevant M&A text paper]
+  \item Encode a corpus of regulatory guidance documents (Basel III,
+        IFRS 9, MiFID II).  When a new regulation is published,
+        SBERT-based retrieval identifies the most relevant precedents,
+        replacing keyword search with semantic search.
+  \item Embed analyst research notes and quarterly earnings guidance;
+        measure cosine similarity between the guidance embedding and
+        subsequent results narratives as a proxy for management
+        credibility or guidance quality.
 \end{enumerate}
 \end{example}
 
@@ -369,11 +361,12 @@ Applying the chain rule gives the \emph{backpropagation through time} (BPTT)
 formula \cite{werbos1990bptt}: % [CITE: Werbos 1990, Backpropagation Through Time: What It Does and How to Do It]
 \begin{equation}
   \frac{\partial \mathcal{L}}{\partial \mathbf{h}_t}
-  = \frac{\partial \mathcal{L}}{\partial \mathbf{h}_T}
-    \prod_{k=t}^{T-1} \frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k},
+  = \sum_{s=t}^{T}
+    \frac{\partial \ell_s}{\partial \mathbf{h}_s}
+    \prod_{k=t}^{s-1} \frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k},
   \label{eq:bptt-chain}
 \end{equation}
-where each Jacobian factor is
+where the empty product $\prod_{k=t}^{t-1}(\cdot) = \mathbf{I}$ by convention, and each Jacobian factor is
 \begin{equation}
   \frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}
   = \mathrm{diag}\!\left(\sigma'\!\left(W_h\,\mathbf{h}_k +
@@ -454,17 +447,18 @@ weight matrices.
 
 Intuitive interpretations:
 \begin{itemize}
-  \item \textbf{Forget gate} $\mathbf{f}_t \in (0,1)^{d_h}$:
-        fraction of $\mathbf{c}_{t-1}$ to erase ($f_{t,j}\approx 0$: discard;
-        $f_{t,j}\approx 1$: retain). In finance, clears irrelevant preamble
-        sentiment as the transcript shifts to core earnings figures.
-  \item \textbf{Input gate} $\mathbf{i}_t \in (0,1)^{d_h}$:
-        fraction of candidate $\mathbf{g}_t$ to write; filters boilerplate
-        language in 10-K filings.
-  \item \textbf{Candidate} $\mathbf{g}_t \in (-1,1)^{d_h}$:
-        new information from current input and recent context.
-  \item \textbf{Output gate} $\mathbf{o}_t \in (0,1)^{d_h}$:
-        which cell-state components are exposed as $\mathbf{h}_t$.
+  \item The forget gate $\mathbf{f}_t \in (0,1)^{d_h}$ controls what
+        fraction of $\mathbf{c}_{t-1}$ to erase ($f_{t,j}\approx 0$:
+        discard; $f_{t,j}\approx 1$: retain).  In finance, it clears
+        irrelevant preamble sentiment as the transcript shifts to core
+        earnings figures.
+  \item The input gate $\mathbf{i}_t \in (0,1)^{d_h}$ controls what
+        fraction of the candidate $\mathbf{g}_t$ to write, filtering
+        boilerplate language in 10-K filings.
+  \item The candidate $\mathbf{g}_t \in (-1,1)^{d_h}$ carries new
+        information from the current input and recent context.
+  \item The output gate $\mathbf{o}_t \in (0,1)^{d_h}$ selects which
+        cell-state components are exposed as $\mathbf{h}_t$.
 \end{itemize}
 
 The reason the LSTM cell state avoids vanishing gradients lies in the additive structure of its update. The update~\eqref{eq:lstm-cell} is \emph{additive} in $\mathbf{g}_t$, unlike the
@@ -477,13 +471,17 @@ The cell-state gradient satisfies
   \label{eq:lstm-cellgrad}
 \end{equation}
 When $\mathbf{f}_{t+1} \approx \mathbf{1}$, the gradient is transmitted without
-decay --- the \emph{constant error carousel} of \citeauthor{hochreiter1997long}. % [CITE: Hochreiter & Schmidhuber 1997]
+decay --- the \emph{constant error carousel} of \citeauthor{hochreiter1997long} % [CITE: Hochreiter & Schmidhuber 1997]
+--- mitigating, though not eliminating, vanishing gradients: when forget gates
+saturate toward $\mathbf{0}$, exponential decay along the cell-state path
+can still occur over very long sequences \citep{bengio1994learning}.
 
 \subsubsection{Gated Recurrent Units}
 
-\citet{chung2014empirical} % [CITE: Cho et al. 2014, Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation]
+\citet{cho2014learning} % [CITE: Cho et al. 2014, Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation]
 proposed the GRU, which merges cell state and hidden state, reducing parameters
-while retaining essential gating.
+while retaining essential gating; \citet{chung2014empirical} subsequently provided
+an empirical evaluation comparing GRUs to LSTMs across sequence modelling tasks.
 
 \begin{definition}[GRU Equations]
 \label{def:gru}
@@ -852,7 +850,7 @@ Pre-training substantially reduces labelled-data and compute requirements.
 
 \subsubsection{Masked Language Modelling: BERT}
 
-BERT \cite{devlin2019bert} % [CITE: Devlin et al. 2019, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding]
+BERT \cite{devlin2019} % [CITE: Devlin et al. 2019, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding]
 (Bidirectional Encoder Representations from Transformers) is an encoder-only
 Transformer trained on two self-supervised objectives.
 
@@ -889,20 +887,21 @@ model, naturally supporting text generation.
 \subsubsection{Encoder-Only vs.\ Decoder-Only: Task Suitability}
 
 \begin{itemize}
-  \item \textbf{Encoder-only (BERT-family):}
-        Bidirectional attention conditioned on the full input.
-        Ideal for classification (sentiment, credit rating), token-level extraction
-        (NER, financial metric extraction), and semantic similarity.
+  \item Encoder-only models (BERT-family) use bidirectional attention
+        conditioned on the full input, making them ideal for
+        classification (sentiment, credit rating), token-level
+        extraction (NER, financial metric extraction), and semantic
+        similarity.
 
-  \item \textbf{Decoder-only (GPT-family):}
-        Natural generative engine for summarisation, report drafting, and
-        instruction following (RLHF fine-tuning \cite{ouyang2022rlhf}). % [CITE: Ouyang et al. 2022, Training language models to follow instructions with human feedback]
-        Unidirectional attention is suboptimal for tasks requiring full-context
-        understanding.
+  \item Decoder-only models (GPT-family) are the natural generative
+        engine for summarisation, report drafting, and instruction
+        following \cite{ouyang2022training}. % [CITE: Ouyang et al. 2022, Training language models to follow instructions with human feedback]
+        Unidirectional attention is suboptimal for tasks requiring
+        full-context understanding.
 
-  \item \textbf{Encoder--decoder (T5, BART):}
-        Well suited to sequence-to-sequence tasks: abstractive summarisation of
-        earnings calls, multi-document QA \cite{lewis2020bart}. % [CITE: Lewis et al. 2020, BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension]
+  \item Encoder--decoder models (T5, BART) are well suited to
+        sequence-to-sequence tasks: abstractive summarisation of
+        earnings calls and multi-document QA \cite{lewis2020bart}. % [CITE: Lewis et al. 2020, BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension]
 \end{itemize}
 
 \subsubsection{Domain-Adapted Financial Models}
@@ -911,19 +910,23 @@ General-purpose models under-perform on financial text due to distinctive vocabu
 (EBITDA, contango, covenants), regulatory legalese, and distribution shift from
 web-crawl pre-training data.
 
-\begin{example}[FinBERT]
+\begin{example}[FinBERT: Two Distinct Domain-Adapted Models]
 \label{ex:finbert}
+The name ``FinBERT'' designates two related but independently trained models.
 \citet{araci2019finbert} % [CITE: Araci 2019, FinBERT: Financial Sentiment Analysis with Pre-trained Language Models]
-released FinBERT, a BERT-base model further pre-trained on Reuters/Bloomberg news,
-10-K filings, and earnings call transcripts.
-On the Financial PhraseBank dataset \cite{malo2014phrasebank}, % [CITE: Malo et al. 2014, Good Debt or Bad Debt: Detecting Semantic Orientations in Economic Texts]
-FinBERT achieves over $97\%$ accuracy on financial phrase sentiment classification,
-outperforming general BERT-base by approximately 8 percentage points.
-A complementary variant by \citet{huang2023finbert} fine-tunes BERT on analyst report
-sentences labelled by domain experts, achieving state-of-the-art performance on
-three financial sentiment benchmarks and demonstrating that contextual embeddings
-substantially outperform the Loughran--McDonald dictionary and classical machine-learning
-classifiers on sentences that those methods systematically mislabel as neutral.
+released the first variant: a BERT-base model further pre-trained on Reuters/Bloomberg
+news, 10-K filings, and earnings call transcripts.
+On the Financial PhraseBank dataset \cite{malo2014phrasebank} % [CITE: Malo et al. 2014, Good Debt or Bad Debt: Detecting Semantic Orientations in Economic Texts]
+(all-agree split), this model achieves over $97\%$ accuracy on financial phrase
+sentiment classification, outperforming general BERT-base by approximately 8
+percentage points.  A second, independently trained model by \citet{huang2023finbert}
+fine-tunes BERT on analyst report sentences labelled by domain experts, achieving
+state-of-the-art performance on three financial sentiment benchmarks and demonstrating
+that contextual embeddings substantially outperform the Loughran--McDonald dictionary
+and classical machine-learning classifiers on sentences that those methods
+systematically mislabel as neutral.  These two models share the FinBERT name but
+differ in pre-training corpus, fine-tuning labels, and intended use case, and should
+not be conflated when reporting benchmark results.
 \end{example}
 
 \begin{example}[BloombergGPT]
@@ -1165,7 +1168,7 @@ experiments in subsequent chapters.
 \textbf{Benchmark} & \textbf{Task} & \textbf{Size} & \textbf{Metric} &
 \textbf{Reference} \\
 \hline
-FinancialPhraseBank & Sentiment (3-class)  & 4,840 sent.       & Accuracy       & \cite{malo2014good} \\
+FinancialPhraseBank & Sentiment (3-class)  & 4,840 sent.       & Accuracy       & \cite{malo2014phrasebank} \\
 FiQA SA / QA        & Opinion mining; Q\&A & $\sim$1,200 sent. & F1, NDCG       & \cite{fiqa2018} \\
 ECTSum              & Earnings call summ.  & 2,425 docs        & ROUGE-L        & \cite{mukherjee2022ectsum} \\
 FinQA               & Numerical reasoning  & 8,281 Q\&A pairs  & Execution acc. & \cite{chen2021finqa} \\
@@ -1179,7 +1182,7 @@ FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  
 % [CITE: chen2021finqa] Chen et al. (2021), FinQA
 % [CITE: shah2022flue] Shah et al. (2022), FLUE
 
-The FinancialPhraseBank of \citet{malo2014good} consists of 4,840 sentences sampled
+The FinancialPhraseBank of \citet{malo2014phrasebank} consists of 4,840 sentences sampled
 from English-language financial news articles, each annotated by sixteen domain experts
 with one of three sentiment labels: \texttt{positive}, \texttt{negative}, or
 \texttt{neutral}.  The standard evaluation uses the subset where all annotators agreed
@@ -1314,7 +1317,7 @@ set of tokens whose cumulative probability meets or exceeds a threshold $p \in (
   \label{eq:topp}
 \end{equation}
 where the tokens in $S$ are ordered by decreasing probability.
-The model then samples uniformly from $\mathcal{V}_p$ after renormalisation.
+The model then samples from $\mathcal{V}_p$ proportionally to the renormalised original probabilities.
 \end{definition}
 
 Nucleus sampling adapts the vocabulary size to the model's confidence at each step:
@@ -1697,9 +1700,9 @@ print(f"Output tokens: {usage.completion_tokens}")
 
 The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
 list, passing it as a top-level argument rather than as the first message.  This
-structural difference reflects Anthropic's Constitutional AI training approach, where
-the system prompt receives special treatment during RLHF.
-% [CITE: bai2022constitutional]
+is a first-class API design choice: the system turn is processed as a distinct
+input type, enabling finer-grained prefix caching and system-level instruction
+enforcement at the inference layer, independent of conversation history.
 
 \begin{listing}[H]
 \begin{minted}{python}
@@ -1841,21 +1844,22 @@ large model is reserved for complex reasoning steps.
 
 Several engineering considerations govern the cost-latency trade-off in production pipelines.
 \begin{itemize}
-  \item \textbf{Batching.}  For offline workloads (historical transcript processing,
-    regulatory filing analysis), maximum parallelism reduces wall-clock time without
-    increasing cost.  OpenAI's Batch API offers a 50\% price discount in exchange for
-    up to 24 hours of processing latency---appropriate for end-of-day compliance runs
-    but unsuitable for real-time applications.
-  \item \textbf{Latency.}  For real-time applications (live earnings call
-    summarisation, intraday news monitoring), latency is a binding constraint.
-    Time-to-first-token for GPT-4o is typically 1--3 seconds; for Claude 3 Haiku
-    under 500 ms.  Locally-hosted Llama 3 (8B, single A100 GPU) can achieve
-    sub-100 ms first-token latency.
-  \item \textbf{Model selection heuristic.}  A common two-stage financial NLP
-    pipeline: (1) use a cheap, fast model (FinBERT, Claude Haiku) to filter and
-    classify large volumes of text; (2) route only the high-signal subset to a large
-    model for deep analysis.  This can reduce total API cost by 80--95\% on typical
-    workloads.
+  \item For offline workloads (historical transcript processing,
+    regulatory filing analysis), maximum parallelism reduces wall-clock
+    time without increasing cost.  OpenAI's Batch API offers a 50\%
+    price discount in exchange for up to 24 hours of processing
+    latency---appropriate for end-of-day compliance runs but unsuitable
+    for real-time applications.
+  \item For real-time applications (live earnings call summarisation,
+    intraday news monitoring), latency is a binding constraint.
+    Time-to-first-token for GPT-4o is typically 1--3 seconds; for
+    Claude 3 Haiku under 500 ms.  Locally-hosted Llama 3 (8B, single
+    A100 GPU) can achieve sub-100 ms first-token latency.
+  \item A common two-stage financial NLP pipeline uses a cheap, fast
+    model (FinBERT, Claude Haiku) to filter and classify large volumes
+    of text, then routes only the high-signal subset to a large model
+    for deep analysis.  This can reduce total API cost by 80--95\% on
+    typical workloads.
 \end{itemize}
 
 \begin{remark}[Prompt Caching]
@@ -1931,7 +1935,7 @@ where $\phi : \text{text} \to \mathbb{R}^m$ is the encoder.
 
 Computing \eqref{eq:cosine-sim} exhaustively over a corpus of millions of passages
 is infeasible at query time.  In practice, approximate nearest-neighbour (ANN)
-search is used.  The FAISS library \citep{johnson2019} provides efficient
+search is used.  The FAISS library \citep{johnson2019billion} provides efficient
 ANN search via the inverted file index (IVF) and hierarchical navigable small-world
 (HNSW) graph algorithms.  Managed vector databases such as Pinecone, Chroma, and
 Weaviate build FAISS-like indices behind a REST API and add features such as
@@ -2042,7 +2046,7 @@ check each factual claim against the source passage---a key step in the SelfChec
 and FActScore pipelines described in Section~\ref{sec:hallucinations-detection}.
 
 The difficulty of the financial QA task even with retrieval is highlighted by
-\citet{islam2023financebench}, who introduce FinanceBench, a benchmark of over 10,000
+\citet{zhang2024financebench}, who introduce FinanceBench, a benchmark of over 10,000
 questions grounded in SEC filings.  They find that GPT-4-Turbo with a retrieval system
 \emph{incorrectly answers or refuses} 81\% of questions, demonstrating that na\"ive
 RAG pipelines are insufficient for high-stakes financial document QA and that more
@@ -2093,6 +2097,21 @@ divergence, and $\tau^2$ re-scales the gradient magnitude (since temperature sca
 reduces gradient magnitudes by $1/\tau^2$, the factor restores them to the
 scale of the cross-entropy term).
 \end{definition}
+
+\begin{remark}[Forward versus Reverse KL in Distillation]
+\label{rem:kd-kl-direction}
+The distillation loss uses the \emph{forward} KL, $\mathrm{KL}(p_T^{(\tau)} \| p_S^{(\tau)})$,
+rather than the reverse KL, $\mathrm{KL}(p_S^{(\tau)} \| p_T^{(\tau)})$.  Since
+$\mathrm{KL}(p_T \| p_S) = H(p_T, p_S) - H(p_T)$ and $H(p_T)$ does not depend
+on the student parameters $\theta_S$, minimising the forward KL with respect to
+$\theta_S$ is equivalent to minimising the cross-entropy $H(p_T, p_S)$.  The
+forward KL is \emph{mean-seeking}: the student is penalised for assigning low
+probability to any token the teacher assigns non-negligible probability, encouraging
+broad coverage of the teacher's distribution.  The reverse KL is \emph{mode-seeking}
+and would collapse the student toward the teacher's dominant mode, an undesirable
+property when the teacher assigns meaningful probability mass to multiple plausible
+next tokens.
+\end{remark}
 
 In the financial domain, a common distillation scenario is the following: a large
 general-purpose model ($\text{e.g.}$, 70B parameters) is used as teacher on a curated
@@ -2283,7 +2302,7 @@ filing as the knowledge base, providing a fine-grained sentence-level audit of m
 outputs.
 
 A complementary approach exploits the model's own token-level probability estimates.
-\citet{chen2024blackbox} construct an entropy-based \emph{inner confidence} measure
+\citet{chen2024uncertainty} construct an entropy-based \emph{inner confidence} measure
 from the conditional probability distributions of autoregressive LLMs, and show that
 in financial news classification, high-confidence predictions are systematically more
 accurate: a portfolio built from high-inner-confidence LLM signals achieves a Sharpe
@@ -2332,13 +2351,18 @@ API endpoint).  In a production compliance-checking pipeline, this approach allo
 each factual claim in a generated report to be tagged with its verification status---
 supported, unsupported, or contradicted---before the report reaches a human analyst.
 
-Constitutional AI \citep{bai2022constitutional} trains models to critique and revise
-their own outputs against a set of explicit principles.  For financial systems,
-domain-specific principles can include rules such as ``all numerical figures must be
-drawn from the provided source document'' or ``do not attribute regulatory positions
-to agencies not mentioned in the input.''  Applying these principles as a self-critique
-step after initial generation, and revising the output until no violations remain,
-substantially reduces the incidence of fabricated numerical and citation hallucinations.
+Constitutional AI \citep{bai2022constitutional} is a \emph{training-time} alignment
+technique in which a model is fine-tuned to critique and revise its own outputs
+against a set of explicit principles; it requires access to model weights and
+retraining, and is not directly applicable as an inference-time mitigation by
+practitioners using closed API models.  The inference-time analogue is
+\emph{prompted self-critique}: a second pass in which the model is instructed to
+verify each claim against the source document and retract any assertion it cannot
+locate.  For financial systems, domain-specific principles guiding this revision
+include rules such as ``all numerical figures must be drawn from the provided source
+document'' or ``do not attribute regulatory positions to agencies not mentioned in
+the input.''  This revision step substantially reduces the incidence of fabricated
+numerical and citation hallucinations, at the cost of an additional inference pass.
 
 Confidence elicitation and abstention asks the model to express its uncertainty and
 to refuse or flag answers where it is below a confidence threshold.  A prompt fragment

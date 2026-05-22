@@ -17,7 +17,7 @@ By the end of this lecture, students should be able to:
 4. Derive the scaled dot-product attention formula, prove why dividing by $\sqrt{d_k}$ stabilises softmax gradients, and describe how multi-head attention and sinusoidal positional encoding extend the mechanism.
 5. Contrast BERT's masked language modelling objective with GPT's causal language modelling objective and match each architecture type to appropriate downstream tasks.
 6. Navigate the modern LLM landscape — including FinBERT, BloombergGPT, and reasoning models — and apply appropriate financial benchmarks for evaluation.
-7. Design a production-ready pipeline combining the correct sampling strategy, structured generation, RAG, and hallucination-mitigation techniques for a given financial NLP task.
+7. Build a minimal RAG pipeline for financial document QA and classify hallucinations by type, selecting appropriate mitigation techniques (RAG grounding, structured generation, self-consistency, chain-of-thought) for a given deployment scenario.
 
 ---
 
@@ -53,7 +53,7 @@ A critical practical constraint for all BERT-based models is the context-window 
 
 ## Section 2 — Sequential Models: RNNs and the Vanishing Gradient
 
-Documents are sequences, not bags. The sentiment of "the company did not miss its targets" depends on the negation appearing before the noun phrase. An earnings-call transcript unfolds over time; the CFO's guidance on page 20 may qualify a claim on page 3. Static aggregation strategies are blind to these dependencies.
+Documents are sequences, not bags. The sentiment of "the company did not miss its targets" depends on the negation preceding the noun phrase. An earnings-call transcript unfolds over time; the CFO's guidance on page 20 may qualify a claim on page 3. Static aggregation strategies are blind to such dependencies.
 
 Recurrent Neural Networks (RNNs) process sequences by maintaining a hidden state $\mathbf{h}_t$ that summarises the history $\mathbf{x}_1, \ldots, \mathbf{x}_t$:
 
@@ -61,9 +61,9 @@ $$
 \mathbf{h}_t = \sigma\!\left(W_h\,\mathbf{h}_{t-1} + W_x\,\mathbf{x}_t + \mathbf{b}\right)
 $$
 
-All parameters are shared across time steps. Training requires backpropagation through time (BPTT), which chains Jacobians across every time step. The product of $T - t$ Jacobian matrices carries the gradient from loss at step $T$ back to the weights at step $t$.
+All parameters are shared across time steps. Training requires backpropagation through time (BPTT), which chains Jacobians across time steps. The product of $T - t$ such matrices carries the gradient from the loss at step $T$ back to the weights at step $t$.
 
-This creates the fundamental problem. Each Jacobian factor satisfies
+This creates the fundamental problem: each Jacobian factor satisfies
 
 $$
 \left\|\frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}\right\|_2 \leq M_\sigma \cdot \rho
@@ -71,7 +71,7 @@ $$
 
 where $\rho = \|W_h\|_2$ is the spectral norm of the recurrent weight matrix, and $M_\sigma = \sup_z |\sigma'(z)|$ is the maximum derivative of the activation function. The product of $T-t$ such factors is bounded above by $(M_\sigma \rho)^{T-t}$. For the logistic sigmoid $M_\sigma = 1/4$; for tanh $M_\sigma = 1$. Whenever $M_\sigma \rho < 1$, the gradient decays exponentially with sequence length.
 
-For an S&P 500 earnings call of roughly 10,000 tokens, a gradient signal from position 100 contributes essentially nothing to the weight update — long-range financial dependencies are unlearnable. Gradient clipping handles the exploding case (when $\rho > 1/M_\sigma$), but there is no analogous in-architecture fix for vanishing gradients in the vanilla RNN.
+For an S&P 500 earnings call of roughly 10,000 tokens, a gradient signal from position 100 contributes essentially nothing to the weight update, making long-range financial dependencies unlearnable. Gradient clipping handles the exploding case (when $\rho > 1/M_\sigma$), but there is no analogous in-architecture fix for vanishing gradients in the vanilla RNN.
 
 ---
 
@@ -103,13 +103,13 @@ $$
 \mathbf{h}_t = \mathbf{o}_t \odot \tanh(\mathbf{c}_t) \quad \text{(hidden state)}
 $$
 
-The key to understanding why the LSTM works is the cell-state update equation. It is additive in the candidate $\mathbf{g}_t$: the cell state at time $t$ is the old cell state times a forget gate, plus a new candidate times an input gate. The cell-state gradient satisfies:
+The key to the LSTM's effectiveness is the cell-state update equation. It is additive in the candidate $\mathbf{g}_t$: the cell state at time $t$ is the previous cell state scaled by the forget gate, plus a new candidate scaled by the input gate. The cell-state gradient satisfies:
 
 $$
 \frac{\partial \mathcal{L}}{\partial \mathbf{c}_t} = \frac{\partial \mathcal{L}}{\partial \mathbf{c}_{t+1}} \odot \mathbf{f}_{t+1} + \text{(terms via } \mathbf{h}_t\text{)}
 $$
 
-When $\mathbf{f}_{t+1} \approx \mathbf{1}$, the gradient flows back through the cell-state highway without decay — Hochreiter and Schmidhuber called this the "constant error carousel." When the forget gate saturates toward zero, exponential decay can still occur, but the gate values are learned rather than fixed, giving the LSTM the flexibility to protect gradients on tasks that genuinely require long-range memory.
+When $\mathbf{f}_{t+1} \approx \mathbf{1}$, the gradient flows back through the cell-state highway without decay — what Hochreiter and Schmidhuber called the "constant error carousel." When the forget gate saturates toward zero, exponential decay can still occur, but because gate values are learned rather than fixed, the LSTM can protect gradients on tasks that genuinely require long-range memory.
 
 In financial text, the gates have natural interpretations. The forget gate clears irrelevant boilerplate sentiment as an earnings transcript shifts from procedural opening remarks to core financial figures. The input gate filters out legal safe-harbour language that appears in every 10-K filing and carries no firm-specific information. The output gate selects which components of the cell state to expose for a given output prediction.
 
@@ -121,7 +121,9 @@ The Gated Recurrent Unit (GRU) simplifies this to four equations by merging the 
 
 ## Section 4 — Bahdanau Attention: The Bridge to Transformers
 
-Even with LSTMs, the encoder must compress an entire input sequence into a fixed-length vector before the decoder begins generating. For long financial documents, this bottleneck discards information.
+The LSTM solves the gradient problem but introduces a new one: in an encoder-decoder architecture, the decoder still receives only a single fixed-length vector summarising the entire input. For a 10,000-token earnings call, that single vector must somehow encode the opening guidance figure, the mid-call margin discussion, and the closing Q&A — with no mechanism to selectively attend to any one part during generation. The vanishing gradient is gone; the information bottleneck remains.
+
+Bahdanau et al. (2015) proposed a solution: the decoder is allowed to look back at all encoder hidden states at each decoding step, rather than being handed only the final one.
 
 Bahdanau et al. (2015) proposed a solution: the decoder is allowed to look back at all encoder hidden states at each decoding step. For encoder states $\mathbf{h}_1, \ldots, \mathbf{h}_T$ and decoder state $\mathbf{s}_t$, the alignment score is:
 
@@ -131,7 +133,7 @@ $$
 
 Applying softmax yields attention weights $\alpha_{t,i} > 0$ with $\sum_i \alpha_{t,i} = 1$, and the context vector $\mathbf{c}_t = \sum_i \alpha_{t,i} \mathbf{h}_i$ is a convex combination of all encoder states. In a financial summariser, when the decoder generates a sentence about net income, the attention weights concentrate on the tokens in the source where income figures appear.
 
-Applying attention within a single sequence — each token attending to all others — yields self-attention, the core operation of the Transformer. Dot-product attention replaces the additive alignment score with a scaled inner product, reducing cost from $O(T d_a)$ to $O(T d_k)$ per step.
+Applying attention within a single sequence — each token attending to all others — yields self-attention, the core operation of the Transformer. Replacing the additive alignment score with a scaled inner product reduces computation from $O(T d_a)$ to $O(T d_k)$ per step.
 
 ---
 
@@ -145,13 +147,13 @@ $$
 
 Entry $(i, j)$ of the pre-softmax matrix $QK^\top$ is the dot product $\mathbf{q}_i^\top \mathbf{k}_j$. Row-wise softmax converts these scores into attention weights. The output for token $i$ is a weighted combination of value vectors: $\sum_j A_{ij} \mathbf{v}_j$.
 
-Why divide by $\sqrt{d_k}$? Suppose query and key components are i.i.d. with mean zero and unit variance. Then each of the $d_k$ terms in the dot product has unit variance, so:
+Why divide by $\sqrt{d_k}$? If query and key components are i.i.d. with mean zero and unit variance, each of the $d_k$ terms in the dot product has unit variance, so:
 
 $$
 \text{Var}\!\left(\mathbf{q}_i^\top \mathbf{k}_j\right) = d_k
 $$
 
-For large $d_k$, the dot products concentrate near $\pm\sqrt{d_k}$. These large logit magnitudes push the softmax into its saturated regions where the derivative $\sigma(z)(1 - \sigma(z)) \approx 0$ — exactly the vanishing-gradient problem we thought we escaped. Dividing by $\sqrt{d_k}$ normalises the variance to 1, keeping the softmax in its linear region where gradients flow.
+For large $d_k$, dot products concentrate near $\pm\sqrt{d_k}$. These large logit magnitudes push the softmax into its saturated region where the derivative $\sigma(z)(1 - \sigma(z)) \approx 0$ — reintroducing the vanishing-gradient problem. Dividing by $\sqrt{d_k}$ normalises the variance to 1, keeping the softmax in its linear region where gradients flow freely.
 
 For decoder-only models that must not see future tokens, a causal mask sets all pre-softmax scores where $j > i$ to $-\infty$, ensuring zero attention weight on future positions.
 
@@ -161,7 +163,7 @@ $$
 \text{MultiHead}(X) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\,W^O
 $$
 
-The original Transformer used $h = 8$ heads with $d_k = d_v = 64$. Different heads specialise in different aspects of the input: lower heads capture syntactic dependencies, deeper heads capture semantic associations. In financial models, heads specialise on temporal expressions, entity-linking across long documents, and negation scope.
+The original Transformer used $h = 8$ heads with $d_k = d_v = 64$. Heads specialise in different aspects of the input — lower heads capture syntactic dependencies, deeper heads capture semantic associations — and in financial models this specialisation extends to temporal expressions, cross-document entity linking, and negation scope.
 
 ---
 
@@ -252,19 +254,7 @@ FinBERT takes BERT-base and further pre-trains it on Reuters/Bloomberg news and 
 
 ## Section 9 — Financial Benchmarks: Measuring Progress
 
-Five benchmarks are used throughout this course.
-
-**FinancialPhraseBank** (Malo et al., 2014): 4,840 sentences from English-language financial news, labelled positive, negative, or neutral by 16 domain experts. The standard evaluation uses the 2,264-sentence "Agree-all" subset.
-
-**FiQA** (Maia et al., 2018): Two subtasks — aspect-based sentiment analysis (SA-C) and question answering over financial documents (QA). The QA subtask requires retrieval before generation.
-
-**ECTSum** (Mukherjee et al., 2022): 2,425 earnings-call transcript / expert-summary pairs, evaluated by ROUGE-L. The primary summarisation benchmark.
-
-**FinQA** (Chen et al., 2021): 8,281 question-answer pairs requiring multi-step numerical reasoning over tables and prose from SEC filings. Clearly favours reasoning models.
-
-**FLUE** (Shah et al., 2022): A multi-task NLU evaluation covering five financial tasks. The most comprehensive single-number evaluation.
-
-All five benchmarks are constructed from English-language, North American documents. Models evaluated on these should not be assumed to generalise to other financial contexts without further validation.
+Five benchmarks are used throughout this course. FinancialPhraseBank (Malo et al., 2014) contains 4,840 sentences from English-language financial news labelled positive, negative, or neutral by 16 domain experts; the standard split uses the 2,264-sentence "Agree-all" subset where every annotator agreed. FiQA (Maia et al., 2018) has two subtasks — aspect-based sentiment and financial question answering — with the QA subtask requiring retrieval before generation. ECTSum (Mukherjee et al., 2022) provides 2,425 earnings-call transcript / expert-summary pairs evaluated by ROUGE-L, making it the primary summarisation benchmark. FinQA (Chen et al., 2021) contains 8,281 question-answer pairs requiring multi-step numerical reasoning over tables and prose from SEC filings, clearly favouring reasoning models. FLUE (Shah et al., 2022) bundles five financial NLU tasks into a single multi-task evaluation, the most comprehensive single-number benchmark available. All five are constructed from English-language, North American documents. Models evaluated on these should not be assumed to generalise to other financial contexts without further validation.
 
 ---
 

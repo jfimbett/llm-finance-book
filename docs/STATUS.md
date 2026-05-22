@@ -8,3 +8,4 @@
 | 02 | LLM Foundations | Yes | Yes | 8 | 9 | 8 | 8 | 8 | No |
 | 03 | Training and Fine-Tuning LLMs | No | No | — | — | — | — | — | No |
 | 04 | LLM Agents and Finance Applications | No | No | — | — | — | — | — | No |
+| 05 | LLMs for Business Valuation | No | No | — | — | — | — | — | No |

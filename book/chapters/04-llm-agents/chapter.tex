@@ -418,8 +418,8 @@ connectors, and web search interfaces. Each category has distinct design conside
 
 The following Python pseudocode illustrates a minimal tool registration pattern:
 
-\begin{lstlisting}[language=Python, caption={Tool registration with type-validated arguments},
-  label={lst:tool-registration}]
+\begin{listing}[H]
+\begin{minted}{python}
 from pydantic import BaseModel, Field
 from typing import Optional
 import datetime
@@ -457,7 +457,10 @@ def discounted_cash_flow(args: DCFInput) -> dict:
         "pv_terminal": round(pv_terminal, 2),
         "enterprise_value": round(pv_fcfs + pv_terminal, 2),
     }
-\end{lstlisting}
+\end{minted}
+\caption{Tool registration with type-validated arguments}
+\label{lst:tool-registration}
+\end{listing}
 
 The tool's docstring serves a dual purpose: it documents the function for human
 developers and, when formatted into the system prompt, tells the language model what
@@ -1126,8 +1129,8 @@ market data, consensus estimates, key events) in machine-readable format, and th
 agent produces prose that describes this data package, citing each figure with a
 reference to its source.
 
-\begin{lstlisting}[language=Python, caption={Fact-grounded report generation},
-  label={lst:fact-grounded}]
+\begin{listing}[H]
+\begin{minted}{python}
 from dataclasses import dataclass
 from typing import Any
 
@@ -1153,7 +1156,10 @@ Consensus: {facts.consensus_rating}, target ${facts.consensus_target_price:.2f}
 Write 2-3 sentences describing the current valuation and how it compares to growth.
 """
     return llm.invoke(prompt)
-\end{lstlisting}
+\end{minted}
+\caption{Fact-grounded report generation}
+\label{lst:fact-grounded}
+\end{listing}
 
 The fact-grounding discipline ensures that every number in the generated report can be
 audited against a data source. This is not merely a best-practice recommendation; for

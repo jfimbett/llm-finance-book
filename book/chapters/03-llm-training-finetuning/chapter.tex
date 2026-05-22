@@ -673,9 +673,8 @@ performed.  Zero-shot performance is determined entirely by the alignment
 between the pre-training distribution and the task.  For financial sentiment
 classification, a well-constructed prompt such as
 
-\begin{lstlisting}[language={},
-                   caption={Zero-shot sentiment prompt for earnings text.},
-                   label={lst:zero-shot-prompt}]
+\begin{listing}[H]
+\begin{minted}{text}
 Classify the sentiment of the following earnings call excerpt as
 Positive, Neutral, or Negative. Respond with a single word.
 
@@ -683,7 +682,10 @@ Text: "Revenue grew 12% year-over-year, driven by strong demand
        in our cloud segment, while margins remained under pressure."
 
 Sentiment:
-\end{lstlisting}
+\end{minted}
+\caption{Zero-shot sentiment prompt for earnings text.}
+\label{lst:zero-shot-prompt}
+\end{listing}
 
 \noindent achieves surprisingly competitive performance on encoder-based
 benchmarks, though it falls short of fine-tuned models on complex tasks.

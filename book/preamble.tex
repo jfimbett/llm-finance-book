@@ -101,27 +101,15 @@
 }
 \captionsetup[table]{position=above}
 
-% --- Code Listings ---
-\usepackage{listings}
-\lstset{
-  basicstyle       = \ttfamily\small,
-  breaklines       = true,
-  backgroundcolor  = \color{codebg},
-  frame            = single,
-  framerule        = 0.4pt,
-  rulecolor        = \color{coderule},
-  numbers          = left,
-  numberstyle      = \tiny\color{gray},
-  numbersep        = 10pt,
-  keywordstyle     = \bfseries\color{keywordblue},
-  commentstyle     = \itshape\color{commentgray},
-  stringstyle      = \color{stringgreen},
-  showstringspaces = false,
-  tabsize          = 4,
-  xleftmargin      = 18pt,
-  xrightmargin     = 4pt,
-  aboveskip        = 10pt,
-  belowskip        = 6pt,
+% --- Code Listings (minted + Pygments "friendly" theme) ---
+\usepackage{minted}
+\setminted{
+  style      = friendly,
+  fontsize   = \footnotesize,
+  linenos    = true,
+  frame      = lines,
+  framesep   = 3mm,
+  breaklines = true,
 }
 
 % --- Hyperlinks ---

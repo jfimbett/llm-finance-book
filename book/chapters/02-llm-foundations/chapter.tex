@@ -1457,8 +1457,8 @@ the model produced the right fields, the developer declares a Pydantic model, co
 it to a JSON Schema, passes that schema as a tool definition, and receives a typed
 Python object in return.
 
-\begin{lstlisting}[language=Python,
-  caption={Structured earnings extraction with the Anthropic API and Pydantic.}]
+\begin{listing}[H]
+\begin{minted}{python}
 import anthropic
 from pydantic import BaseModel
 from typing import Optional
@@ -1486,7 +1486,9 @@ message = client.messages.create(
 result = EarningsReport(**message.content[0].input)
 print(result)
 # EarningsReport(revenue_bn=4.2, net_income_bn=0.82, eps=1.34, guidance_bn=5.1)
-\end{lstlisting}
+\end{minted}
+\caption{Structured earnings extraction with the Anthropic API and Pydantic.}
+\end{listing}
 
 Note the \texttt{tool\_choice} parameter: setting it to a specific tool name forces the
 model to invoke that tool rather than choosing between text response and tool call.
@@ -1631,7 +1633,8 @@ The OpenAI Python SDK follows a \emph{chat completion} model: the user submits a
 of messages (with roles \texttt{system}, \texttt{user}, and \texttt{assistant}), and
 the API returns a completion.
 
-\begin{lstlisting}[language=Python, caption={OpenAI API: financial sentiment with GPT-4o.}, label={lst:openai}]
+\begin{listing}[H]
+\begin{minted}{python}
 from openai import OpenAI
 
 client = OpenAI(api_key="YOUR_API_KEY")  # or set OPENAI_API_KEY env var
@@ -1671,7 +1674,10 @@ print(response.choices[0].message.content)
 usage = response.usage
 print(f"Input tokens:  {usage.prompt_tokens}")
 print(f"Output tokens: {usage.completion_tokens}")
-\end{lstlisting}
+\end{minted}
+\caption{OpenAI API: financial sentiment with GPT-4o.}
+\label{lst:openai}
+\end{listing}
 
 The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
 list, passing it as a top-level argument rather than as the first message.  This
@@ -1679,7 +1685,8 @@ structural difference reflects Anthropic's Constitutional AI training approach, 
 the system prompt receives special treatment during RLHF.
 % [CITE: bai2022constitutional]
 
-\begin{lstlisting}[language=Python, caption={Anthropic API: financial sentiment with claude-sonnet-4-6.}, label={lst:anthropic}]
+\begin{listing}[H]
+\begin{minted}{python}
 import anthropic
 
 client = anthropic.Anthropic(api_key="YOUR_API_KEY")  # or ANTHROPIC_API_KEY
@@ -1706,13 +1713,17 @@ print(message.content[0].text)
 # Token usage:
 print(f"Input tokens:  {message.usage.input_tokens}")
 print(f"Output tokens: {message.usage.output_tokens}")
-\end{lstlisting}
+\end{minted}
+\caption{Anthropic API: financial sentiment with claude-sonnet-4-6.}
+\label{lst:anthropic}
+\end{listing}
 
 FinBERT \cite{araci2019finbert} % [CITE: araci2019finbert Araci (2019)]
 is a BERT-based encoder fine-tuned on financial news for three-class sentiment
 classification.  It runs locally without any API key or per-token cost.
 
-\begin{lstlisting}[language=Python, caption={FinBERT sentiment classification via HuggingFace pipeline.}, label={lst:finbert}]
+\begin{listing}[H]
+\begin{minted}{python}
 from transformers import pipeline
 
 # Downloads model weights (~440 MB) on first run; cached thereafter.
@@ -1735,7 +1746,10 @@ excerpts = [
 results = nlp(excerpts, batch_size=32)
 for text, res in zip(excerpts, results):
     print(f"[{res['label']:8s} {res['score']:.2f}]  {text[:60]}")
-\end{lstlisting}
+\end{minted}
+\caption{FinBERT sentiment classification via HuggingFace pipeline.}
+\label{lst:finbert}
+\end{listing}
 
 Table~\ref{tab:api-comparison} summarises the key structural differences across the three ecosystems.
 
@@ -1970,8 +1984,8 @@ answering questions about a 10-K filing.  It uses FAISS for dense retrieval and
 the Anthropic API for generation.  Citation of passage numbers in the system prompt
 enables answer verification.
 
-\begin{lstlisting}[language=Python,
-  caption={Minimal RAG pipeline for a 10-K filing.}]
+\begin{listing}[H]
+\begin{minted}{python}
 from sentence_transformers import SentenceTransformer
 import faiss, numpy as np, anthropic
 
@@ -1997,7 +2011,9 @@ def rag_query(query: str, passages: list[str],
         messages=[{"role": "user",
                    "content": f"{context}\n\nQuestion: {query}"}])
     return msg.content[0].text
-\end{lstlisting}
+\end{minted}
+\caption{Minimal RAG pipeline for a 10-K filing.}
+\end{listing}
 
 Three features of this design merit emphasis.  First, normalising the embeddings
 before adding them to the FAISS \texttt{IndexFlatIP} (inner product) index converts

@@ -1849,13 +1849,17 @@ shared system prompt is among the highest-ROI optimisations available.
 \section{Retrieval-Augmented Generation}
 \label{sec:rag}
 
-Large language models are trained on a fixed corpus with a knowledge cutoff.  In
-finance, the most relevant information is almost always recent: a 10-K filed last
-quarter, a central bank statement from this morning, or a credit agreement amended
-last week.  \emph{Retrieval-augmented generation} (RAG) addresses this by augmenting
-the model's prompt with passages retrieved at inference time from an external corpus,
-combining the parametric knowledge encoded in the model's weights with up-to-date,
-verifiable source material \citep{lewis2020rag}.
+\begin{context}
+
+An asset manager wants an LLM that can answer questions about their portfolio
+companies' recent filings.  They try prompting a frontier model directly.  The
+model knows Apple and Microsoft---their 10-Ks are woven into its training
+data---but their portfolio includes thirty mid-cap industrials the model has
+never encountered.  Every answer about those companies is a confident
+hallucination, decorated with plausible-looking numbers.  The solution is not a
+bigger model or a better prompt.  The solution is \emph{retrieval-augmented
+generation}: instead of asking the model what it remembers, you hand it the
+document and ask it to read.
 
 \subsection{The RAG Pipeline}
 \label{sec:rag-pipeline}
@@ -2007,6 +2011,8 @@ passage numbers creates an audit trail that allows a downstream verification ste
 check each factual claim against the source passage---a key step in the SelfCheckGPT
 and FActScore pipelines described in Section~\ref{sec:hallucinations-detection}.
 
+\end{context}
+
 % ---------------------------------------------------------------
 \section{Knowledge Distillation and Model Compression}
 \label{sec:distillation}
@@ -2142,13 +2148,19 @@ compression and implementation complexity.
 \section{Hallucinations: Detection and Mitigation}
 \label{sec:hallucinations}
 
-A language model \emph{hallucination} is an output that is fluent, confident, and
-wrong.  In general text generation this is a nuisance; in finance it is a liability.
-A model that fabricates a debt-to-equity ratio, invents a regulatory citation, or
-confuses two companies with similar names can cause material harm.  This section
-classifies hallucinations, surveys modern detection methods, and presents the
-state-of-the-art mitigation techniques that practitioners should deploy before using
-LLMs in production financial systems.
+\begin{context}
+
+In 2023, a New York attorney submitted a legal brief citing six case precedents
+that did not exist.  ChatGPT had generated them, complete with plausible docket
+numbers and verbatim quotations.  The attorney was sanctioned and the incident
+made international headlines.  But the more instructive story is quieter: the
+hundreds of financial analysts who asked LLMs about earnings figures, covenant
+terms, and regulatory thresholds, received confident wrong answers, and did not
+catch them.  A language model \emph{hallucination} is an output that is fluent,
+confident, and wrong.  In general text generation this is a nuisance.  In finance
+it is a liability.  This section classifies hallucinations by origin, surveys
+modern detection methods, and presents the mitigation techniques that should be
+deployed before any LLM touches a production financial system.
 
 \subsection{A Taxonomy of Hallucinations}
 \label{sec:hallucinations-taxonomy}
@@ -2292,13 +2304,24 @@ represented in the training corpus.  The mitigation strategies above remain
 necessary regardless of model type.
 \end{remark}
 
+\end{context}
+
 % ---------------------------------------------------------------
 \section{Limitations and Responsible Use}
 \label{sec:limitations}
 
-The preceding sections present LLMs as powerful tools for financial NLP.  The following
-discussion provides a necessary counterbalance: a rigorous account of the ethical
-and regulatory context in which financial AI systems operate.
+\begin{context}
+
+In 2024, the EU's AI Act came into force, classifying certain AI applications in
+finance---credit scoring, insurance pricing, certain forms of algorithmic
+trading---as high-risk.  The regulation does not ban these applications.  It
+requires documentation, explainability, human oversight, and ongoing monitoring.
+These requirements are not obstacles to using LLMs in finance; they are the
+engineering specification.  An LLM deployed without explainability
+infrastructure is not a regulatory problem waiting to happen.  It is a model
+risk problem that has already happened, quietly, on every inference.  This
+section provides the vocabulary and framework for thinking about those risks
+rigorously.
 
 \subsection{Regulatory and Ethical Considerations}
 \label{sec:limitations-ethics}
@@ -2371,6 +2394,8 @@ human oversight essential rather than optional.  Chapter~7 (AI Agents in Finance
 Chapter~8 (Multi-Agent Systems) return to this question in the context of agentic
 systems that take actions---executing trades, sending communications---rather than
 merely producing text.
+
+\end{context}
 
 % ---------------------------------------------------------------
 \section{Chapter Summary}

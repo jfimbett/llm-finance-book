@@ -81,6 +81,7 @@ Common entry points:
 - `/draft-lecture` — write a lecture from a chapter
 - `/score-content [file]` — score a file and write a quality report
 - `/refine-until-threshold [file]` — iteratively improve until quality passes
+- `/split-dual-mode [chNN]` — wrap each section in a context or deepdive box
 - `/topic-status` — print the status of all chapters
 
 ---

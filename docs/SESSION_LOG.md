@@ -24,3 +24,4 @@
 | 2026-05-22 | 2 files | docs: add design spec for dual-mode section environments (deepdive/context);chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 3 files | docs: add implementation plan for dual-mode section environments;chore: session log 2026-05-22;docs: add design spec for dual-mode section environments (deepdive/context); | — |
 | 2026-05-22 | 17 files | chore: scaffold topics 03-llm-training-finetuning and 04-llm-agents;feat(ch02): wrap RAG, Hallucinations, Limitations in context boxes, rewrite openings;feat(ch02): wrap Structured Generation and API sections in context, rewrite openings; | — |
+| 2026-05-22 | 18 files | feat(ch02): wrap Knowledge Distillation section in deepdive box;chore: session log 2026-05-22;chore: scaffold topics 03-llm-training-finetuning and 04-llm-agents; | — |

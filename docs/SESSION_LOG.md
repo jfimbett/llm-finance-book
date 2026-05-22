@@ -82,3 +82,4 @@
 | 2026-05-22 | 9 files | feat(lec03): draft Training and Fine-Tuning lecture, practical session, and quality report;feat(lec03): complete Lecture 3 notes, slides, and practical session;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 9 files | feat(lec04): draft LLM Agents lecture, practical session, and quality report;chore: session log 2026-05-22;feat(lec03): draft Training and Fine-Tuning lecture, practical session, and quality report; | — |
 | 2026-05-22 | 13 files | feat(lec06): draft LLMs for Credit Risk lecture and practical;feat(lec05): draft LLMs for Business Valuation lecture and practical;chore: session log 2026-05-22; | — |
+| 2026-05-22 | 13 files | feat(lec07): draft Applications and Future Trends lecture and practical;chore: session log 2026-05-22;feat(lec06): draft LLMs for Credit Risk lecture and practical; | — |

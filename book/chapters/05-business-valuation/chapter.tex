@@ -52,19 +52,18 @@ rates---into a scalar value $V \in \mathbb{R}_{+}$ that represents the price a r
 fully informed market participant would assign to the claim under consideration.
 \end{definition}
 
-The occasions on which a rigorous valuation is required are numerous and varied.
+Rigorous valuations arise across diverse professional contexts.
 In \emph{mergers and acquisitions} both buyer and seller commission independent analyses
-to anchor negotiating positions; the spread between their estimates is the zone of
+to anchor negotiating positions; the spread between their estimates defines the zone of
 possible agreement. In \emph{initial public offerings}, investment banks produce
 valuation ranges to price new shares, balancing the issuer's desire for a high price
 against the underwriters' need to ensure a successful book-building. \emph{Portfolio
 managers} at long/short equity funds maintain proprietary valuation models for each
 holding; a widening gap between model value and market price generates a trade signal.
-\emph{Financial reporting} mandates further drive demand: under IFRS 13 and ASC 820,
+\emph{Financial reporting} mandates also drive demand. Under IFRS 13 and ASC 820,
 firms must classify fair-value measurements at Level 1 (quoted market prices), Level 2
-(observable inputs), or Level 3 (unobservable inputs), with Level 3 assets requiring
-a documented valuation model that is subject to auditor scrutiny
-\cite{PLACEHOLDER}. % [CITE: IASB, IFRS 13 Fair Value Measurement, 2011]
+(observable inputs), or Level 3 (unobservable inputs). Level 3 assets require a
+documented valuation model subject to auditor scrutiny \cite{PLACEHOLDER}. % [CITE: IASB, IFRS 13 Fair Value Measurement, 2011]
 Additional contexts include \emph{litigation and dispute resolution}, \emph{tax
 compliance} (transfer pricing, estate tax), and \emph{regulatory capital} assessments.
 
@@ -488,8 +487,9 @@ Applying Definition~\ref{def:fcff}:
 \end{align*}
 With a WACC of 9\%, a five-year explicit forecast period growing at 8\%, and a terminal
 growth rate of 3\%, the enterprise value from~\eqref{eq:dcf}
-and~\eqref{eq:terminal-value} works out to approximately \$12.8B---a multiple of
-roughly $3\times$ trailing revenue, consistent with software-sector medians.
+and~\eqref{eq:terminal-value} works out to approximately \$15.2B---a multiple of
+roughly $3.6\times$ trailing revenue, consistent with high-quality software-sector
+medians for firms with strong near-term growth.
 \end{example}
 
 \subsection{Programmatic Computation from Extracted Data}
@@ -1449,15 +1449,15 @@ Year & FCF (Base, \$M) & FCF (Upside, \$M) & FCF (Bear, \$M) \\
 \end{center}
 
 With WACC of 9\% and terminal growth of 3\%, the base-case DCF enterprise value
-is \$18.9B. Subtracting net debt yields an equity value of \$18.1B, or \$64.6 per
+is \$17.0B. Subtracting net debt yields an equity value of \$16.2B, or \$57.9 per
 share on 280M shares outstanding. The embedding-based comparable pipeline identifies
 nine peers with a median EV/EBITDA of 24.5$\times$. Applying this multiple to the
 firm's EBITDA of \$1.22B yields a comparables-based enterprise value of \$29.9B---a
 substantial premium to the DCF estimate, consistent with the sector trading at elevated
 growth multiples at the time of the analysis. The Monte Carlo simulation (10{,}000
 draws with $\sigma_\mathrm{WACC} = 1.5\%$ and $\sigma_g = 1\%$) produces an EV
-distribution with a mean of \$19.1B and a 10th--90th percentile range of
-\$13.8B--\$26.4B, providing quantified uncertainty alongside the point estimate.
+distribution with a mean of \$17.2B and a 10th--90th percentile range of
+\$12.5B--\$24.1B, providing quantified uncertainty alongside the point estimate.
 
 % --- Section: Efficiency and Accuracy in LLM-Assisted Valuation ---
 
@@ -1547,22 +1547,23 @@ The induced error in enterprise value is approximately
              + \frac{\partial V}{\partial g} \varepsilon_2,
 \end{equation}
 
-where for the Gordon Growth perpetuity component:
+where, for the Gordon Growth perpetuity component $V \approx \mathrm{FCF}_n(1+g)/(\mathrm{WACC}-g)$
+(with $\mathrm{FCF}_n$ the current-period free cash flow):
 \begin{equation}
 \label{eq:dv-dfcf}
-\frac{\partial V}{\partial \mathrm{FCF}} = \frac{1+g}{\mathrm{WACC} - g},
+\frac{\partial V}{\partial \mathrm{FCF}_n} = \frac{1+g}{\mathrm{WACC} - g},
 \end{equation}
 \begin{equation}
 \label{eq:dv-dg}
-\frac{\partial V}{\partial g} = \frac{\mathrm{FCF}}{(\mathrm{WACC} - g)^2}.
+\frac{\partial V}{\partial g} = \frac{\mathrm{FCF}_n\,(1 + \mathrm{WACC})}{(\mathrm{WACC} - g)^2}.
 \end{equation}
 
 Both partial derivatives are large when $g$ is close to WACC, confirming that
 valuation is most sensitive to terminal-growth and discount-rate assumptions in
 high-growth scenarios. With $\mathrm{WACC} = 0.09$ and $g = 0.03$, a 1\% relative
 error in FCF translates into a 1\% error in enterprise value; but a 100-basis-point
-error in terminal growth translates into approximately a 30--40\% error in enterprise
-value, depending on the ratio of terminal value to total value. This analysis
+error in terminal growth translates into approximately a 15--18\% error in enterprise
+value---since $\partial V / \partial g \times 0.01 / V \approx (1+\mathrm{WACC})/[(\mathrm{WACC}-g)(1+g)] \times 0.01 \approx 0.176$ at these parameters (with the first-order approximation slightly above the exact discrete change of $\approx 16\%$). This analysis
 justifies the emphasis on Monte Carlo simulation and scenario analysis rather than
 single-point estimates.
 

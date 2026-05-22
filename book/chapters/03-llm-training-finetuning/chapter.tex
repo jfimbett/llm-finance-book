@@ -160,7 +160,11 @@ conversational register that differs markedly from formal filings.  Services
 such as Refinitiv, FactSet, and Seeking Alpha provide historical transcript
 archives.  BloombergGPT \cite{wu2023bloomberggpt} used a curated internal
 corpus of 363 billion tokens, of which a substantial fraction consisted of
-Bloomberg news articles and terminal data.
+Bloomberg news articles and terminal data.  The cost and data requirements
+of such from-scratch training motivated open-source alternatives: FinGPT
+\cite{yang2023fingpt_lora} democratises access by applying LoRA fine-tuning
+to publicly available foundation models, reducing training costs to under
+\$300 while achieving competitive performance on standard financial NLP tasks.
 
 \emph{Financial news and wire services.}  Reuters, Dow Jones Newswire, and
 Bloomberg News produce high-frequency text tightly coupled to market events.
@@ -841,6 +845,16 @@ The key insight is that \emph{task format diversity} is as important as task
 diversity: exposing the model to many different ways of phrasing the same
 underlying operation (``classify,'' ``what is the sentiment,''
 ``positive or negative?'') improves its ability to generalise to novel phrasings.
+This principle has been applied directly to financial LLMs.
+\citet{yang2023investlm} demonstrate that fine-tuning LLaMA-65B with a carefully
+curated but small financial instruction dataset --- spanning CFA exam questions,
+SEC filings, and quantitative finance discussion threads --- yields responses
+rated by financial experts as comparable to GPT-3.5 and GPT-4, supporting
+the \emph{Superficial Alignment Hypothesis} that instruction quality matters
+more than raw quantity.  Similarly, \citet{xie2023pixiu} introduce PIXIU and
+its instruction-tuned model FinMA, constructed from 136{,}000 financial
+instruction samples across five task types and nine datasets, providing both
+a fine-tuned model and an open evaluation benchmark for the community.
 
 \subsubsection*{Reinforcement Learning from Human Feedback}
 
@@ -903,6 +917,12 @@ DPO requires only supervised learning on preference data, avoiding the
 instability and complexity of PPO.  For financial LLM deployment, DPO is
 increasingly preferred: it is simpler to implement, more stable to train, and
 produces models that are easier to audit, which matters for regulatory compliance.
+An important practical caution is that RLHF-aligned models may still exhibit
+\emph{information overload}: \citet{BaloghDidisheim2025} show that providing
+LLMs with more context in financial analysis tasks follows an inverted-U
+relationship, where accuracy first rises then falls as the volume of input
+exceeds the model's effective capacity --- a phenomenon directly relevant to
+the design of financial RAG and prompt engineering pipelines.
 
 % ---------------------------------------------------------------
 \subsection{Domain Adaptation for Finance}
@@ -991,6 +1011,14 @@ These gains arise from two mechanisms.  First, the financial vocabulary is
 better represented in the FinBERT tokeniser, reducing tokenisation noise.
 Second, the pre-training distribution is closer to the fine-tuning distribution,
 so fewer gradient steps are needed to reach a given loss level.
+
+A parallel line of work by \citet{huang2023finbert_car} pre-trained FinBERT on a
+much larger corpus of 4.9 billion financial tokens drawn from corporate filings,
+analyst reports, and earnings call transcripts, publishing the study in
+\emph{Contemporary Accounting Research}; they demonstrate that the resulting
+representations substantially outperform the dictionary-based Loughran--McDonald
+lexicon and classical machine-learning approaches on sentiment classification,
+and they apply the model to predict stock returns and corporate fraud.
 
 The FinBERT architecture follows BERT precisely: 24 Transformer layers, hidden
 dimension $d = 1{,}024$, 16 attention heads, feed-forward dimension 4{,}096.
@@ -1114,6 +1142,14 @@ but financial summaries require factual fidelity --- a model that summarises
 Factually-consistent summarisation is an active research area; retrieval-augmented
 generation (RAG) is one practical mitigation.
 
+\emph{LLM-based financial analytics via fine-tuned open models.}
+\citet{zhang2023finllamallora} demonstrate that LoRA fine-tuning of
+Llama~2 for multi-task financial news analytics --- covering sentiment, key-point
+extraction, summarisation, and named-entity recognition simultaneously --- achieves
+competitive accuracy at a fraction of the cost of fine-tuning larger proprietary
+models, confirming that PEFT methods are now viable for end-to-end financial NLP
+pipelines in resource-constrained settings.
+
 \end{context}
 
 % --- Section: Evaluation and Benchmarking ---
@@ -1232,6 +1268,15 @@ the summary is entailed by the source document).
 Several benchmarks have emerged specifically for financial NLP.  They test
 capabilities not covered by general-purpose benchmarks such as MMLU or BIG-bench.
 
+\emph{FinBen} \cite{xie2024finben} is the most comprehensive open-source evaluation
+benchmark for financial LLMs, covering 42 datasets across 24 tasks including
+information extraction, textual analysis, question answering, text generation,
+risk management, forecasting, and decision-making.  Its evaluation of 21 representative
+LLMs (GPT-4, ChatGPT, Gemini, open-source models) reveals that LLMs excel at
+extraction and textual analysis but struggle with advanced numerical forecasting
+and decision-making tasks --- a finding that calibrates realistic expectations
+for financial AI deployment.
+
 \emph{FinQA} \cite{chen2021finqa} is a dataset of 8{,}281 question-answer pairs
 requiring multi-step numerical reasoning over earnings reports.  Each example
 consists of a financial document (containing both text and tables), a question,
@@ -1311,6 +1356,15 @@ A panel of domain experts (analysts, compliance officers, portfolio managers)
 rates model outputs on these dimensions, providing signal that no automated
 metric can capture.  Human evaluation is expensive and slow, which limits its
 scale; but for high-stakes deployment decisions it is indispensable.
+
+A notable example of rigorous out-of-sample evaluation is \citet{LopezLiraTang2023ssrn},
+who evaluate ChatGPT's zero-shot ability to forecast next-day stock returns from
+news headlines for 4{,}123 US common stocks.  They find that the sentiment
+scores generated by GPT-4 predict both the initial market reaction and the
+subsequent price drift, achieving annualised Sharpe ratios above 6 in 2021 and
+declining toward 1 by 2024 as the market absorbed the strategy --- a natural
+experiment illustrating how benchmark performance can degrade under real trading
+conditions once an LLM-based signal becomes publicly known.
 
 \end{context}
 

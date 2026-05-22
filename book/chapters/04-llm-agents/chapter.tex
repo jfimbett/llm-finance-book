@@ -726,7 +726,17 @@ high-level task---``produce a 10-page equity research report on NVIDIA''---and
 decomposes it into subtasks delegated to specialist agents: a data retrieval agent
 assembles financial statements, a quantitative agent computes valuation metrics, a
 sector analyst agent writes the industry context, and an editor agent ensures
-consistency and compliance with house style.
+consistency and compliance with house style. \citet{xiao2024tradingagents} instantiate
+this pattern in the trading domain with TradingAgents, a framework in which specialist
+LLM agents---fundamental analysts, sentiment analysts, technical analysts, and traders
+with varied risk profiles---debate market conditions before a risk management team
+adjudicates the final position, yielding superior cumulative returns and Sharpe ratios
+relative to single-agent baselines across a six-month live trading evaluation. For
+applications in decentralised finance, \citet{ante2024autonomous} survey 306 deployed
+crypto AI agents and document a typology of agent architectures spanning algorithmic
+trading, portfolio management, and sentiment-driven communities, finding that agentic
+autonomy reshapes market coordination and governance in ways that existing regulatory
+frameworks are not designed to address.
 
 The coordinator monitors the status of each delegated subtask, handles failures by
 re-delegating or simplifying the subtask, and assembles the final output from the
@@ -1044,7 +1054,11 @@ Sachs, JPMorgan, Bloomberg, and numerous hedge funds have deployed LLM-based sys
 for tasks ranging from document analysis to automated report generation. This section
 develops five representative applications in sufficient depth for practitioners to
 adapt and implement them, drawing on the agent architectures, tool-use patterns,
-and RAG pipelines described above.
+and RAG pipelines described above. A comprehensive blueprint for implementing such
+systems end-to-end is provided by \citet{an2024finverse}, who introduce FinVerse, an
+autonomous agent system integrating over 600 financial APIs together with an embedded
+code interpreter, enabling complex quantitative tasks that go far beyond single-turn
+question answering.
 
 % --- Subsection: Earnings Analysis ---
 
@@ -1064,6 +1078,12 @@ hedging language) predict abnormal returns. \citet{kogan2009predicting} demonstr
 that textual features of financial reports predict risk. More recently, \citet{ko2024can}
 and \citet{lopez2023large} have shown that LLMs can produce nuanced sentiment
 assessments that predict stock price movements around earnings announcements.
+\citet{kim2024financialstatement} take a complementary approach, showing that GPT-4
+fed anonymised financial statements---without any narrative or industry identifiers---
+predicts the direction of future earnings with 60\% accuracy, outperforming human analysts
+(53\%) and matching a narrowly trained state-of-the-art ML model; trading strategies
+based on the LLM's predictions yield higher Sharpe ratios than analyst-based strategies,
+underscoring the practical value of agentic financial analysis.
 
 A complete earnings call analysis pipeline involves five stages. First, \emph{ingestion}:
 the transcript is retrieved from a vendor API (e.g., Refinitiv Eikon, S\&P Global
@@ -1236,7 +1256,16 @@ verifier---introduces a consistency check that substantially reduces faithfulnes
 failures. The verifier model can be a smaller, faster model than the generator (e.g.,
 a 7B-parameter model) since its task is purely verification rather than generation.
 This architecture is used in the RAGAS evaluation framework \cite{es2023ragas} and
-can be adapted for production citation enforcement.
+can be adapted for production citation enforcement. The practical difficulty of filing
+Q\&A at enterprise scale is documented by \citet{islam2023financebench}, who introduce
+the FinanceBench benchmark of 10{,}231 questions over publicly traded company filings
+and find that even GPT-4-Turbo with retrieval incorrectly answers or refuses 81\% of
+questions, highlighting the gap between research prototypes and production-grade
+financial RAG systems. \citet{wang2025finsage} address this gap with FinSage, a
+multi-aspect RAG framework for financial filings that combines multi-modal preprocessing,
+multi-path sparse-dense retrieval augmented with query expansion, and a compliance-focused
+re-ranking module, achieving 92.51\% recall on expert-curated compliance questions and
+surpassing baseline RAG accuracy on FinanceBench by 24\%.
 
 Formally, let $g$ be the generator model, $v$ the verifier model, $a$ the generated
 answer, and $C_j$ the chunk cited for claim $s_j$ extracted from $a$. The
@@ -1510,7 +1539,13 @@ explicitly. The EU AI Act (2024) classifies AI systems used in financial service
 high-risk categories subject to conformity assessment, logging requirements, and human
 oversight obligations. The SEC's proposed rules on AI in investment advisers (2023)
 would require disclosure of AI use in investment recommendations and impose fiduciary
-obligations on algorithmically generated advice. Practitioners deploying LLM agents
+obligations on algorithmically generated advice. \citet{kurshan2024agenticregulator}
+argue that existing model-risk frameworks are structurally inadequate for LLM-based
+agents because they assume static, well-specified algorithms subject to one-time
+validation; by contrast, multi-agent trading systems learn continuously, exchange
+latent signals, and exhibit emergent behaviour---violations that demand a layered
+governance architecture decomposed into self-regulation modules, firm-level governance
+blocks, and regulator-hosted monitoring agents. Practitioners deploying LLM agents
 in regulated financial workflows should monitor regulatory developments closely and
 build governance architectures that can be audited against evolving requirements. The
 audit trail, HITL checkpoints, and invariant monitoring described in this section

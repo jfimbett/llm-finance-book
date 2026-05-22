@@ -43,7 +43,6 @@ filings and central-bank communiqu\'{e}s will parse regulatory prose with
 precision but may struggle with the elliptical shorthand of trading desks.
 Understanding how training corpora are constructed --- and how to influence that
 construction --- is therefore a practical skill, not a theoretical luxury.
-\end{context}
 
 The data pipeline for a large language model has four sequential stages:
 \emph{sourcing} (where does the text come from?), \emph{tokenisation}
@@ -228,7 +227,6 @@ data likelihood under a unigram language model.  This produces a stochastic
 tokeniser that samples from a distribution over segmentations, which has
 regularisation benefits during training.
 
-\begin{deepdive}
 The fertility of a tokeniser is its average number of tokens per word.
 For English prose, BPE-50k achieves a fertility of roughly 1.3, meaning
 that the average English word maps to 1.3 tokens.  For financial text,
@@ -252,7 +250,6 @@ A domain-specific vocabulary trained on financial text will have strictly
 lower fertility on that domain than a general-purpose vocabulary, reducing
 context-window consumption and enabling longer documents to fit within the
 model's attention window.
-\end{deepdive}
 
 % ---------------------------------------------------------------
 \subsection{Data Quality: Deduplication, Filtering, and Cleaning}
@@ -350,12 +347,14 @@ is standard in continual-learning research and is directly applicable to
 domain-adaptive pre-training for finance.
 \end{remark}
 
+\end{context}
+
 % --- Section: Pre-training Objectives and Scaling ---
 
 \section{Pre-training Objectives and Scaling}
 \label{sec:pretraining}
 
-\begin{context}
+\begin{deepdive}
 In the spring of 2022, a team at DeepMind published a short report that would
 change how the entire field thought about training large language models.
 The team had trained over 400 models at different scales, carefully recording
@@ -368,7 +367,6 @@ strategy is to train a \emph{smaller} model on \emph{more} data.  The practical
 implications reverberated through both academia and industry: it justified
 training 7-billion-parameter models to state-of-the-art performance, brought
 down inference costs dramatically, and made powerful open-source models viable.
-\end{context}
 
 % ---------------------------------------------------------------
 \subsection{Causal Language Modelling vs Masked Language Modelling}
@@ -572,7 +570,6 @@ last device and gradients flow backward, earlier devices are idle.  The GPipe
 and PipeDream schedules reduce the bubble fraction, but it remains non-zero
 for finite pipeline depth.
 
-\begin{deepdive}
 The ZeRO (Zero Redundancy Optimizer) strategy \cite{rajbhandari2020zero}
 addresses the memory inefficiency of vanilla data parallelism by sharding
 optimizer states, gradients, and parameters across devices rather than
@@ -594,7 +591,6 @@ The three parallelism strategies are complementary and are combined in
 model trained on 1{,}024 A100s might use 64-way data parallelism, 8-way tensor
 parallelism, and 2-way pipeline parallelism, filling a three-dimensional
 device mesh.
-\end{deepdive}
 
 % ---------------------------------------------------------------
 \subsection{Mixed-Precision Training and Gradient Checkpointing}
@@ -640,6 +636,8 @@ sequence lengths of 32{,}000--100{,}000 tokens that would otherwise be
 memory-prohibitive.
 \end{remark}
 
+\end{deepdive}
+
 % --- Section: Transfer Learning and Fine-Tuning ---
 
 \section{Transfer Learning and Fine-Tuning}
@@ -657,6 +655,8 @@ applications --- where proprietary data is valuable, compute budgets are finite,
 and regulatory requirements demand model stability --- the fine-tuning paradigm
 is not merely convenient; it is often the only viable option.
 \end{context}
+
+\begin{deepdive}
 
 % ---------------------------------------------------------------
 \subsection{The Adaptation Spectrum: Zero-Shot to Full Fine-Tuning}
@@ -878,7 +878,6 @@ achieve high reward without being useful).  The parameter $\beta$ represents
 a trade-off between reward maximisation and staying close to the pre-trained
 distribution.
 
-\begin{deepdive}
 \emph{Direct Preference Optimisation (DPO)} \cite{rafailov2023direct} eliminates
 the separate reward model by reparameterising the RLHF objective directly in
 terms of the policy.  Under the Bradley-Terry model, the optimal policy
@@ -902,7 +901,6 @@ DPO requires only supervised learning on preference data, avoiding the
 instability and complexity of PPO.  For financial LLM deployment, DPO is
 increasingly preferred: it is simpler to implement, more stable to train, and
 produces models that are easier to audit, which matters for regulatory compliance.
-\end{deepdive}
 
 % ---------------------------------------------------------------
 \subsection{Domain Adaptation for Finance}
@@ -946,6 +944,8 @@ zero-shot prompting --- a clear hierarchy consistent with the adaptation spectru
 of Section~\ref{subsec:adaptation-spectrum}.
 \end{example}
 
+\end{deepdive}
+
 % --- Section: Pre-Trained Models for Finance Tasks ---
 
 \section{Pre-Trained Models for Finance Tasks}
@@ -964,7 +964,6 @@ benchmark, often by large margins.  These two milestones define the current
 landscape, in which domain-specific models coexist with general-purpose models
 and the choice between them is a function of task type, data availability,
 and compute budget.
-\end{context}
 
 % ---------------------------------------------------------------
 \subsection{FinBERT and Encoder-Based Models}
@@ -1062,7 +1061,6 @@ On general NLP benchmarks (MMLU, BIG-bench), BloombergGPT performs comparably
 to GPT-NeoX-20B, confirming that the general-text component of the corpus
 preserved broad capabilities.
 
-\begin{deepdive}
 The BloombergGPT architecture uses the BLOOM architecture: a decoder-only
 Transformer with ALiBi positional encodings rather than learned position embeddings.
 ALiBi (Attention with Linear Biases) adds a position-dependent bias to attention
@@ -1076,7 +1074,6 @@ token $j$ to token $i$.  The bias penalises long-distance attention linearly,
 acting as an implicit positional prior.  ALiBi generalises better to
 sequence lengths longer than those seen during training, which matters for
 financial filings that can run to hundreds of pages.
-\end{deepdive}
 
 % ---------------------------------------------------------------
 \subsection{Task-Specific Fine-Tuning: Sentiment, NER, and Summarisation}
@@ -1115,6 +1112,8 @@ but financial summaries require factual fidelity --- a model that summarises
 Factually-consistent summarisation is an active research area; retrieval-augmented
 generation (RAG) is one practical mitigation.
 
+\end{context}
+
 % --- Section: Evaluation and Benchmarking ---
 
 \section{Evaluation and Benchmarking}
@@ -1131,6 +1130,8 @@ can generate incorrect investment advice, trigger regulatory scrutiny, and
 destroy institutional credibility.  Rigorous evaluation is not a bureaucratic
 formality; it is a professional obligation.
 \end{context}
+
+\begin{deepdive}
 
 % ---------------------------------------------------------------
 \subsection{Perplexity and Cross-Entropy}
@@ -1217,6 +1218,10 @@ For financial summarisation, factual precision is paramount.  Practitioners
 supplement ROUGE with \emph{factuality scores} computed by a secondary model
 (e.g., a natural language inference model that checks whether every claim in
 the summary is entailed by the source document).
+
+\end{deepdive}
+
+\begin{context}
 
 % ---------------------------------------------------------------
 \subsection{Financial Benchmarks: FinQA, FiQA, and SEC-EDGAR Tasks}
@@ -1305,6 +1310,8 @@ rates model outputs on these dimensions, providing signal that no automated
 metric can capture.  Human evaluation is expensive and slow, which limits its
 scale; but for high-stakes deployment decisions it is indispensable.
 
+\end{context}
+
 % --- Section: Safety, Bias, and Responsible AI in Finance ---
 
 \section{Safety, Bias, and Responsible AI in Finance}
@@ -1323,7 +1330,6 @@ A model used to generate research notes can violate research independence rules
 under MiFID II Article 37.  Understanding these risks --- and the mitigations
 available --- is as fundamental to the financial NLP practitioner as understanding
 the training objectives and architectures described in earlier sections.
-\end{context}
 
 % ---------------------------------------------------------------
 \subsection{Sources of Bias in Financial Corpora}
@@ -1515,3 +1521,5 @@ Act's classification scheme and implement the required controls before the
 relevant provisions become applicable (August 2026 for high-risk systems
 under Annex III).
 \end{remark}
+
+\end{context}

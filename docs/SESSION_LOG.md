@@ -30,3 +30,4 @@
 | 2026-05-22 | 15 files | feat(ch04): draft LLM agents and finance applications chapter;chore: session log 2026-05-22;chore: scaffold topic 05-business-valuation; | — |
 | 2026-05-22 | 7 files | chore: merge ch03/ch04 bibliography additions into main bib; update STATUS.md;feat(ch03): draft training and fine-tuning chapter;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 15 files | chore: scaffold topic 06-credit-risk;feat(ch05): draft complete Chapter 5 — LLMs for Business Valuation;chore: session log 2026-05-22; | — |
+| 2026-05-22 | 14 files | chore: session log 2026-05-22;chore: scaffold topic 06-credit-risk;feat(ch05): draft complete Chapter 5 — LLMs for Business Valuation; | — |

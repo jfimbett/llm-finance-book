@@ -41,3 +41,4 @@
 | 2026-05-22 | 6 files | fix(ch05): replace all PLACEHOLDER citations with proper keys; add argmax/argmin operators to preamble;chore: session log 2026-05-22;chore: merge ch07 bibliography additions; restore preamble.tex; update STATUS.md; | — |
 | 2026-05-22 | 6 files | chore: session log 2026-05-22;fix(ch05): replace all PLACEHOLDER citations with proper keys; add argmax/argmin operators to preamble;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 6 files | feat(skills): add /split-dual-mode skill for context/deepdive boxing of chapters;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
+| 2026-05-22 | 6 files | chore: session log 2026-05-22;feat(skills): add /split-dual-mode skill for context/deepdive boxing of chapters;chore: session log 2026-05-22; | — |

@@ -1,0 +1,380 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usepackage{amsmath,amssymb,booktabs,xcolor}
+\usepackage{listings}
+
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+}
+
+\title{Practical Session 6: LLMs for Credit Risk}
+\subtitle{Large Language Models in Finance}
+\author{Juan F.\ Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{}
+
+\begin{document}
+
+% ============================================================
+% FRAME 1: Title
+% ============================================================
+\begin{frame}
+\frametitle{}
+\titlepage
+\end{frame}
+
+% ============================================================
+% FRAME 2: Session outline
+% ============================================================
+\begin{frame}
+\frametitle{Practical Session Outline}
+
+\textbf{Duration}: 60 minutes
+
+\begin{enumerate}
+  \item \textbf{Recap} (5 min) — key formulas and concepts from the lecture
+  \item \textbf{Problem 1} (10 min) — class imbalance and balanced class weights
+  \item \textbf{Problem 2} (10 min) — constrained generation and calibration
+  \item \textbf{Problem 3} (10 min) — AUROC, KS, and Gini
+  \item \textbf{Case Study} (15 min) — designing an LLM-based credit scoring pipeline
+  \item \textbf{Discussion} (5 min) — human-in-the-loop and regulatory trade-offs
+  \item \textbf{Solutions} (5 min) — worked answers
+\end{enumerate}
+
+\medskip
+\begin{block}{Materials needed}
+  Pen and paper for calculations; Python (NumPy, scikit-learn) for the case study.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 3: Recap — key formulas
+% ============================================================
+\begin{frame}
+\frametitle{Recap: Key Formulas}
+
+\textbf{Balanced class weight:}
+\[
+  w_+ = \frac{n}{2 n_+}, \qquad w_- = \frac{n}{2 n_-}
+\]
+
+\textbf{Constrained decoding probability:}
+\[
+  P_{\text{constrained}}(v \mid x_{1:t}) = \frac{\exp(\ell_v) \cdot \mathbf{1}[v \in \mathcal{V}_{\text{valid}}]}{\sum_{u \in \mathcal{V}_{\text{valid}}} \exp(\ell_u)}
+\]
+
+\textbf{Platt scaling:}
+\[
+  \hat{p}_{\text{Platt}}(x) = \sigma(a \cdot f(x) + b) = \frac{1}{1 + \exp(-(a f(x) + b))}
+\]
+
+\textbf{Credit performance metrics:}
+\[
+  \text{AUROC} = P(S_+ > S_-), \qquad
+  \text{Gini} = 2 \cdot \text{AUROC} - 1, \qquad
+  \text{KS} = \sup_s |F_+(s) - F_-(s)|
+\]
+
+\textbf{SHAP efficiency axiom:}
+\[
+  \sum_{j \in \mathcal{F}} \phi_j(x) = f(x) - \mathbb{E}[f(x)]
+\]
+
+\textbf{Population Stability Index:}
+\[
+  \text{PSI} = \sum_{b=1}^{B} (p_b - q_b) \ln\!\left(\frac{p_b}{q_b}\right)
+\]
+\end{frame}
+
+% ============================================================
+% FRAME 4: Problem 1 — class imbalance
+% ============================================================
+\begin{frame}
+\frametitle{Problem 1: Class Imbalance and Balanced Weights}
+
+A retail lender trains an LLM on a portfolio of 800,000 loan applications. Of these, 24,000 resulted in default (positive class) and 776,000 did not (negative class).
+
+\medskip
+\textbf{Part A} --- Compute the balanced class weights $w_+$ and $w_-$.
+
+\medskip
+\textbf{Part B} --- A baseline model that always predicts ``non-default'' achieves 97\% accuracy. Explain in one sentence why this is a misleading performance metric for credit risk.
+
+\medskip
+\textbf{Part C} --- A colleague proposes SMOTE oversampling instead of cost-sensitive loss weighting. Explain why SMOTE is less practical for LLM fine-tuning than for gradient boosting.
+
+\medskip
+\textbf{Part D} --- After applying balanced weights, the model still underperforms on the minority class at threshold $t = 0.5$. Suggest one post-hoc adjustment that can improve minority-class recall \emph{without retraining}.
+
+\medskip
+\begin{center}
+\small\textit{Work individually for 8 minutes, then discuss with your neighbour.}
+\end{center}
+\end{frame}
+
+% ============================================================
+% FRAME 5: Problem 2 — constrained generation and calibration
+% ============================================================
+\begin{frame}
+\frametitle{Problem 2: Constrained Generation and Calibration}
+
+An LLM credit model uses constrained decoding to output a JSON object \texttt{\{"pd": <float>\}}.
+After processing a batch of 1,000 borrowers, the raw model outputs $\hat{p}$ and realised
+default labels $y \in \{0, 1\}$ are available.
+
+\medskip
+\textbf{Part A} --- The reliability diagram shows the following bin-level statistics:
+
+\begin{center}
+\small
+\begin{tabular}{ccc}
+\toprule
+Score bin & Mean $\hat{p}$ & Observed default rate \\
+\midrule
+$[0.0, 0.1)$ & 0.05 & 0.02 \\
+$[0.1, 0.2)$ & 0.15 & 0.09 \\
+$[0.2, 0.4)$ & 0.30 & 0.22 \\
+$[0.4, 1.0]$ & 0.55 & 0.48 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Is the model over-confident or under-confident? How can you tell?
+
+\medskip
+\textbf{Part B} --- You fit Platt scaling on a calibration set and obtain $\hat{a} = 0.72$, $\hat{b} = -0.08$.
+What does $\hat{a} < 1$ imply about the model's raw scores?
+
+\medskip
+\textbf{Part C} --- When would you prefer isotonic regression over Platt scaling? State one advantage and one disadvantage.
+\end{frame}
+
+% ============================================================
+% FRAME 6: Problem 3 — AUROC, KS, Gini
+% ============================================================
+\begin{frame}
+\frametitle{Problem 3: AUROC, KS, and Gini}
+
+A small credit portfolio has 5 borrowers. Sorted by score (descending), with realised defaults:
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+Rank & Score $s$ & Default $Y$ \\
+\midrule
+1 & 0.82 & 1 \\
+2 & 0.61 & 0 \\
+3 & 0.45 & 1 \\
+4 & 0.30 & 0 \\
+5 & 0.12 & 0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+$n_+ = 2$ defaulters, $n_- = 3$ non-defaulters.
+
+\medskip
+\textbf{Part A} --- Using the AUROC formula $P(S_+ > S_-)$, enumerate all $2 \times 3 = 6$ pairs (defaulter, non-defaulter) and compute AUROC directly.
+
+\medskip
+\textbf{Part B} --- Compute the KS statistic. Show the cumulative defaulter and non-defaulter fractions at each unique score and identify the maximum difference.
+
+\medskip
+\textbf{Part C} --- Compute the Gini coefficient from your AUROC result. Do not re-derive --- use the identity $\text{Gini} = 2 \cdot \text{AUROC} - 1$.
+
+\medskip
+\textbf{Part D} --- Does this model meet the ``good'' threshold for retail credit (KS $>$ 0.40, Gini $>$ 0.40)?
+\end{frame}
+
+% ============================================================
+% FRAME 7: Case study — pipeline design
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Designing an LLM Credit Scoring Pipeline}
+
+\textbf{Context}: A European consumer lender wants to deploy an LLM-based credit scoring system.
+The system must comply with GDPR Article 22 and ECOA. The model will score personal loan
+applications using both bureau data and free-text loan purpose statements.
+
+\medskip
+\textbf{Step 1} (5 min): Sketch the system architecture. Identify the five core subsystems
+and describe the role of each.
+
+\medskip
+\textbf{Step 2} (5 min): The model's validation team has flagged two issues:
+\begin{enumerate}
+  \item Adverse action rate for applicants whose loan purpose contains geographic references (``moving to a new city'') is 12\% higher than the overall population.
+  \item Model outputs change significantly when the order of input fields is shuffled.
+\end{enumerate}
+Propose one concrete remediation for each issue.
+
+\medskip
+\textbf{Step 3} (5 min): Design the human-in-the-loop review workflow.
+Describe the three tiers and the decision criteria for routing to each tier.
+\end{frame}
+
+% ============================================================
+% FRAME 8: Case study — code sketch
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: Constrained Decoding in Python}
+
+Complete the following code to extract a default probability using constrained decoding:
+
+\begin{lstlisting}
+import outlines
+import outlines.models as models
+
+model = models.transformers("bert-base-uncased")
+# TODO: define a generator that constrains output to a JSON object
+# with key "pd" and a float value in [0.0, 1.0]
+
+generator = outlines.generate.json(
+    model,
+    # TODO: fill in the schema
+    ???
+)
+
+profile = """Age 34. Employment: full-time, 6 years. Income: $58,000.
+Loan purpose: debt consolidation. Bureau score: 672. Delinquencies 24m: 1.
+Assess default risk:"""
+
+result = generator(profile)
+print(f"Implied PD: {result['pd']:.3f}")
+\end{lstlisting}
+
+\medskip
+\textbf{Questions}: (1) What JSON schema definition would constrain \texttt{"pd"} to a float in [0, 1]?
+(2) After obtaining $\hat{p}$, what is the next step before using it in a regulatory credit decision?
+\end{frame}
+
+% ============================================================
+% FRAME 9: Discussion
+% ============================================================
+\begin{frame}
+\frametitle{Discussion: Human-in-the-Loop Trade-offs}
+
+\textbf{Scenario}: Your institution's SR~11-7 validation report gives the LLM credit model a
+``Moderate'' risk rating. It passes all performance thresholds but exhibits non-trivial prompt sensitivity.
+The model is approved for production with a mandatory Tier 2 review for all borderline cases
+(predicted PD within 5 percentage points of the decision threshold).
+
+\medskip
+\textbf{Discussion questions} (5 minutes, small groups):
+
+\begin{enumerate}
+  \item \textbf{Automation bias}: the reviewer interface currently shows the model's recommended decision before the reviewer's independent assessment. What change would you prioritise, and why?
+
+  \item \textbf{Prompt governance}: the risk team wants to improve the model's performance on
+  commercial credit applications by adding two new few-shot examples to the system prompt.
+  Does this require a new SR~11-7 validation? Justify your answer.
+
+  \item \textbf{GDPR vs.\ accuracy trade-off}: the interpretability team discovers that removing
+  the borrower's loan purpose field (to reduce geographic proxy risk) decreases AUROC by 0.04.
+  How would you frame this trade-off to a senior risk committee?
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 10: Solutions — Problem 1
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problem 1}
+
+\textbf{Part A}:
+\[
+  n = 800{,}000, \quad n_+ = 24{,}000, \quad n_- = 776{,}000
+\]
+\[
+  w_+ = \frac{800{,}000}{2 \times 24{,}000} = \frac{800{,}000}{48{,}000} \approx 16.67
+  \qquad
+  w_- = \frac{800{,}000}{2 \times 776{,}000} \approx 0.516
+\]
+
+\textbf{Part B}: Accuracy is dominated by the majority class. A trivial classifier achieves 97\% accuracy but provides zero discrimination between defaulters and non-defaulters — the metric does not measure the model's ability to identify the class of interest.
+
+\textbf{Part C}: SMOTE operates in the feature space of the input representation, generating synthetic observations by interpolating between minority-class neighbours. For LLMs, the ``features'' are high-dimensional token embeddings; SMOTE cannot generate meaningful synthetic borrower profiles by interpolating in this space. Cost-sensitive loss acts on the training objective directly and is architecture-agnostic.
+
+\textbf{Part D}: Lower the decision threshold $t$ below 0.5 to increase sensitivity (recall) for the minority class at the cost of reduced precision. The optimal threshold should be chosen based on the business cost of false negatives vs.\ false positives.
+\end{frame}
+
+% ============================================================
+% FRAME 11: Solutions — Problems 2 and 3
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problems 2 and 3}
+
+\textbf{Problem 2A}: The model is \emph{over-confident}: predicted probabilities are consistently higher than observed default rates in every bin (e.g., predicted 0.55 but observed 0.48). A perfectly calibrated model would show predicted = observed.
+
+\textbf{Problem 2B}: $\hat{a} = 0.72 < 1$ implies the model is over-confident: its raw scores are too extreme relative to the true underlying probabilities. Platt scaling shrinks them toward the mean.
+
+\textbf{Problem 2C}: Isotonic regression is more flexible (no parametric form assumed) but requires more calibration data and does not extrapolate outside the observed score range. Prefer Platt scaling for small calibration sets; isotonic regression for large ones.
+
+\medskip
+\textbf{Problem 3A}: The 6 pairs (defaulter, non-defaulter) and whether defaulter $>$ non-defaulter:
+$(0.82, 0.61)$: $\checkmark$; $(0.82, 0.30)$: $\checkmark$; $(0.82, 0.12)$: $\checkmark$; $(0.45, 0.61)$: $\times$; $(0.45, 0.30)$: $\checkmark$; $(0.45, 0.12)$: $\checkmark$.
+AUROC $= 5/6 \approx 0.833$.
+
+\textbf{Problem 3B}: Cumulative fractions at each score threshold (desc):
+At $s=0.82$: $F_+(0.82)=0$, $F_-(0.82)=0$; at $s=0.61$: $F_+=0.5$, $F_-=0.33$, diff = 0.17; at $s=0.45$: $F_+=0.5$, $F_-=0.67$, diff = \textbf{0.17}; at $s=0.30$: $F_+=1.0$, $F_-=0.67$, diff = \textbf{0.33}.
+KS $\approx$ \textbf{0.50}.
+
+\textbf{Problem 3C}: Gini $= 2 \times 0.833 - 1 = \mathbf{0.667}$.
+
+\textbf{Problem 3D}: KS = 0.50 $>$ 0.40 and Gini = 0.67 $>$ 0.40. Both thresholds are met --- the model is ``good'' by conventional retail credit standards.
+\end{frame}
+
+% ============================================================
+% FRAME 12: Solutions — Case study key points
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Case Study Key Points}
+
+\textbf{Step 1 — Architecture}: Feature Store (point-in-time inputs), Inference API (versioned JSON endpoint), LLM Serving (self-hosted for GDPR compliance), Decision Record DB (append-only), Monitoring (PSI + embedding drift + AUROC by vintage).
+
+\medskip
+\textbf{Step 2 — Remediations}:
+\begin{itemize}
+  \item \textit{Geographic proxy risk}: add a fairness post-processor that checks for disparate impact by geographic reference class; flag or manually review applications where loan purpose text contains location references. Longer term: retrain with adversarial debiasing on the loan purpose field.
+  \item \textit{Prompt sensitivity}: standardise a fixed input template with deterministic field ordering; test all deployed prompts against a sensitivity test suite as part of the CI/CD pipeline; add field-order permutation to the validation battery.
+\end{itemize}
+
+\medskip
+\textbf{Step 3 — HITL Tiers}:
+\begin{itemize}
+  \item \textbf{Tier 1}: PD $<$ decision threshold $- 10\%$; no adverse data flags. Random quality-control sampling only.
+  \item \textbf{Tier 2}: PD within 10\% of decision threshold; or a SHAP value $>$ 0.05 for a disputed field. Full human review before decision communicated.
+  \item \textbf{Tier 3}: Borrower exercises GDPR Art.~22 or FCRA appeal right. Reviewer accesses full decision record with SHAP waterfall and documents independent written assessment.
+\end{itemize}
+\end{frame}
+
+% ============================================================
+% FRAME 13: Key takeaways
+% ============================================================
+\begin{frame}
+\frametitle{Practical Session Takeaways}
+
+\begin{enumerate}
+  \item \textbf{Class imbalance is the first modelling problem} in credit AI. Balanced class weights are simple, effective, and directly applicable to LLM fine-tuning loss functions.
+
+  \item \textbf{Constrained generation extracts a number, not a guarantee}. The constrained-decoded PD reflects the model's internal representation; calibration with Platt scaling or isotonic regression is always required before regulatory use.
+
+  \item \textbf{AUROC, KS, and Gini are a minimal discrimination toolkit}. Know how to compute them from first principles. Gini $= 2 \cdot \text{AUROC} - 1$ is exact.
+
+  \item \textbf{Architecture is compliance}. The feature store, versioned API, append-only decision database, and monitoring system are not engineering niceties — they are SR~11-7 and GDPR requirements.
+
+  \item \textbf{Prompt changes are model changes}. Any modification to the system prompt or few-shot examples requires going through the model change management process, including revalidation.
+
+  \item \textbf{SHAP waterfall $\to$ plain language $\to$ consumer explanation}. The pipeline has three distinct stages; collapsing any two creates compliance risk.
+\end{enumerate}
+\end{frame}
+
+\end{document}

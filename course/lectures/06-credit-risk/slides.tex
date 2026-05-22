@@ -1,63 +1,823 @@
 \documentclass{beamer}
 \usetheme{Madrid}
-\usecolortheme{whale}
+\usepackage{amsmath,amssymb,booktabs,xcolor}
+\usepackage{listings}
 
-\title{LLMs for Credit Risk Analysis}
-\subtitle{Lecture 6 --- Large Language Models in Finance}
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+}
+
+\title{Lecture 6: LLMs for Credit Risk Analysis}
+\subtitle{Large Language Models in Finance}
 \author{Juan F.\ Imbet}
 \institute{Paris Dauphine -- PSL University}
 \date{}
 
 \begin{document}
 
+% ============================================================
+% FRAME 1: Title
+% ============================================================
 \begin{frame}
-  \titlepage
+\frametitle{}
+\titlepage
 \end{frame}
 
-\begin{frame}{Outline}
-  \tableofcontents
+% ============================================================
+% FRAME 2: Outline
+% ============================================================
+\begin{frame}
+\frametitle{Outline}
+\tableofcontents
 \end{frame}
 
-% ---------------------------------------------------------------
-\section{Credit Data: Sources, Privacy, and Regulatory Constraints}
+% ============================================================
+\section{Credit Data: Sources, Privacy, and Regulation}
+% ============================================================
 
-\begin{frame}{Credit Data: Sources, Privacy, and Regulatory Constraints}
-  [Placeholder]
+% ============================================================
+% FRAME 3: Motivation
+% ============================================================
+\begin{frame}
+\frametitle{Why Credit AI Is Different}
+
+\begin{alertblock}{The Apple Card Incident (2019)}
+  David Heinemeier Hansson's Apple Card credit limit was 20$\times$ lower than his
+  wife's — despite joint tax returns and comparable credit profiles.
+  Senator Warren wrote to Goldman Sachs. The NY DFS opened a formal investigation.
+\end{alertblock}
+
+\medskip
+\textbf{Credit data is simultaneously:}
+\begin{itemize}
+  \item The richest behavioural dataset available to financial institutions
+  \item One of the most legally regulated datasets in existence
+\end{itemize}
+
+\medskip
+\textbf{Getting it wrong in either direction carries consequences:}
+\begin{itemize}
+  \item Denying credit unfairly $\to$ Fair Lending violations
+  \item Extending it recklessly $\to$ capital losses and systemic risk
+  \item Both $\to$ regulatory action, litigation, reputational damage
+\end{itemize}
+
+\medskip
+\begin{block}{The core tension}
+  Predictive accuracy and regulatory defensibility must be achieved simultaneously.
+\end{block}
 \end{frame}
 
-% ---------------------------------------------------------------
+% ============================================================
+% FRAME 4: Credit bureau data
+% ============================================================
+\begin{frame}
+\frametitle{Credit Bureau Data}
+
+\textbf{The three major US credit bureaus} (Equifax, Experian, TransUnion) each maintain
+files on $\approx$220 million adults. A standard credit file contains:
+
+\begin{itemize}
+  \item \textbf{Account data}: 24--84 months of payment history per account, balance, limit
+  \item \textbf{Inquiry data}: hard inquiries (applications), soft inquiries (pre-qualification)
+  \item \textbf{Public records}: bankruptcies (7--10 years), civil judgments
+  \item \textbf{Collections}: charged-off accounts
+\end{itemize}
+
+\medskip
+\textbf{FICO score factor weights:}
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Factor & Weight \\
+\midrule
+Payment history & 35\% \\
+Amounts owed & 30\% \\
+Length of credit history & 15\% \\
+New credit & 10\% \\
+Credit mix & 10\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{alertblock}{Structural limitation}
+  Bureau data is circular: it records credit behaviour.
+  $\approx$45M US adults have thin or no credit files (recent immigrants, young adults, lower-income households).
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 5: Alternative data and regulatory constraints
+% ============================================================
+\begin{frame}
+\frametitle{Alternative Data and Regulatory Constraints}
+
+\textbf{Alternative data} extends credit to thin-file consumers:
+\begin{itemize}
+  \item \textbf{Bank transaction data}: cash flow signals; consent governed by Dodd-Frank \S1033
+  \item \textbf{Rent and utility payments}: largest recurring obligation yet historically invisible
+  \item \textbf{Unstructured text}: loan purpose statements; ``medical emergency'' $\neq$ ``consolidating payday loans''
+  \item \textbf{Social media/behavioural data}: largely prohibited by regulators (protected-class proxy risk)
+\end{itemize}
+
+\medskip
+\textbf{Three key regulatory frameworks:}
+\begin{center}
+\begin{tabular}{lp{6.5cm}}
+\toprule
+Law & Key constraint for LLM credit models \\
+\midrule
+\textbf{FCRA} & Adverse action must cite specific reasons (reason codes). A transformer producing a single scalar output is not inherently compliant. \\
+\textbf{ECOA / Reg B} & Prohibits disparate impact on protected classes, not just disparate treatment. \\
+\textbf{GDPR Art.~22} & Right to human review of automated credit decisions. Human-in-the-loop is legally mandated. \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% ============================================================
+% FRAME 6: Preprocessing
+% ============================================================
+\begin{frame}
+\frametitle{Preprocessing: Three Universal Challenges}
+
+\textbf{1. Anonymisation and De-identification}
+
+Quasi-identifiers create re-identification risk. Sweeney (2002): 87\% of the US population
+is uniquely identifiable by ZIP code + date of birth + sex.
+
+Standard techniques: tokenisation, generalisation (age $\to$ age bracket), suppression, differential privacy.
+
+\medskip
+\textbf{2. Class Imbalance}
+
+Default rates: 1--10\% over 12-month horizon. A 3\% default dataset with 1M rows has 30K
+positives and 970K negatives. A na\"{\i}ve ``always predict non-default'' model achieves 97\% accuracy.
+
+\textbf{Balanced class weight}:
+\[
+  w_+ = \frac{n}{2\, n_+}, \qquad w_- = \frac{n}{2\, n_-}
+\]
+Each class gets equal aggregate influence on the gradient regardless of the class ratio.
+
+\medskip
+\textbf{3. Missing Data}
+
+Three mechanisms: MCAR (mean imputation unbiased), MAR (multiple imputation consistent),
+MNAR (requires explicit missingness models). The fact that a bureau score is absent may
+\emph{itself} be informative. LLM approach: serialise missingness explicitly:
+\texttt{"[INCOME: MISSING] [BUREAU\_SCORE: 687]"}
+\end{frame}
+
+% ============================================================
 \section{Credit Risk Modelling with LLMs}
+% ============================================================
 
-\begin{frame}{Credit Risk Modelling with LLMs}
-  [Placeholder]
+% ============================================================
+% FRAME 7: The credit risk arc
+% ============================================================
+\begin{frame}
+\frametitle{The Credit Risk Modelling Arc}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Era} & \textbf{Method} & \textbf{Key insight} \\
+\midrule
+1968 & Altman Z-score & Linear discriminant of 5 financial ratios \\
+1974 & Merton model & Equity as call option on firm assets \\
+1990s & Reduced-form & Default as Poisson intensity process \\
+2015--22 & Gradient boosting & Non-linear tabular features; missing values \\
+Now & Language models & Text-native signals; thin-file borrowers \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Altman Z-score:}
+\[
+  Z = 1.2 X_1 + 1.4 X_2 + 3.3 X_3 + 0.6 X_4 + 1.0 X_5
+\]
+$Z < 1.81$: distressed; $Z > 2.99$: healthy. Estimated on \emph{sixty-six} firms in 1968.
+Still used as a benchmark today.
+
+\medskip
+\textbf{LLMs add value in three specific scenarios:}
+\begin{enumerate}
+  \item Text-native features (loan purpose, credit officer notes)
+  \item Thin-file borrowers (alternative text data resists tabularisation)
+  \item Complex commercial credit (covenant reasoning, sector outlook)
+\end{enumerate}
 \end{frame}
 
-% ---------------------------------------------------------------
+% ============================================================
+% FRAME 8: Fine-tuning for default prediction
+% ============================================================
+\begin{frame}
+\frametitle{Fine-Tuning for Default Prediction}
+
+\textbf{Task formulation options:}
+\begin{itemize}
+  \item \textbf{Sequence classification}: serialise profile as text; BERT encoder with \texttt{[CLS]} head and sigmoid. Most widely used in published LLM credit scoring papers.
+  \item \textbf{Causal LM with label generation}: prompt decoder-only model; extract label token probability. Scales to few-shot settings.
+  \item \textbf{Regression on probability}: output a scalar probability directly.
+\end{itemize}
+
+\medskip
+\textbf{Input serialisation} (consistency is critical):
+\begin{center}
+\small
+\texttt{Age 34. Employment: full-time, 6 years. Income: \$58K.}\\
+\texttt{Bureau score: 672. Delinquencies 24m: 1. Loan purpose: debt consolidation. Assess default risk:}
+\end{center}
+
+\medskip
+\textbf{Parameter-efficient fine-tuning (LoRA):}
+
+Constrain weight update to low-rank factorisation:
+\[
+  \Delta W = B A, \quad B \in \mathbb{R}^{d \times r}, \; A \in \mathbb{R}^{r \times d}, \quad r \ll d
+\]
+With $r = 8$, $d = 768$: $\approx$48$\times$ fewer trainable parameters than full fine-tuning.
+$W_0$ frozen; only $A$ and $B$ trained.
+\end{frame}
+
+% ============================================================
+% FRAME 9: Structured generation
+% ============================================================
+\begin{frame}
+\frametitle{Structured Generation: Implied Default Probabilities}
+
+\begin{block}{Problem}
+  A decoder-only LLM produces a distribution over its entire vocabulary at each position ---
+  not a single scalar probability of default. How do we extract a well-defined PD?
+\end{block}
+
+\medskip
+\textbf{Constrained decoding} (\texttt{outlines} library, Willard et al.\ 2023):
+\begin{enumerate}
+  \item Define an output grammar: JSON object with one key \texttt{"pd"} mapped to a float in $[0, 1]$
+  \item At each decoding step, intersect the model's next-token distribution with the grammar's automaton
+  \item Renormalise over valid tokens only:
+\end{enumerate}
+\[
+  P_{\text{constrained}}(x_{t+1} = v \mid x_{1:t}) = \frac{\exp(\ell_v) \cdot \mathbf{1}[v \in \mathcal{V}_{\text{valid}}]}{\sum_{u \in \mathcal{V}_{\text{valid}}} \exp(\ell_u)}
+\]
+
+The model generates \texttt{\{"pd": } then produces the float \emph{digit by digit}. If it generates \texttt{0.23}, the implied default probability is $\hat{p} = 0.23$.
+
+\medskip
+\begin{alertblock}{Key point}
+  $\hat{p}$ is not the model's ``confidence'' --- it is the specific number the model was guided
+  to express. It reflects the model's internal representation of risk but \textbf{is not guaranteed
+  to be calibrated}.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 10: Probability calibration
+% ============================================================
+\begin{frame}
+\frametitle{Probability Calibration}
+
+\begin{block}{Definition}
+  A model is \emph{perfectly calibrated} if:
+  \[
+    \mathbb{E}[Y \mid \hat{P} = p] = p \quad \text{for all } p \in [0, 1]
+  \]
+  Among all applications scored $\hat{p}$, the fraction that actually default is $\hat{p}$.
+\end{block}
+
+Calibration is assessed via \textbf{reliability diagrams}: bin the interval $[0,1]$; plot mean
+predicted probability vs.\ observed default rate in each bin. Perfect calibration = 45-degree line.
+
+\medskip
+\textbf{Platt scaling:} fit a logistic regression on raw model scores on a held-out calibration set:
+\[
+  \hat{p}_{\text{Platt}}(x) = \sigma(a \cdot f(x) + b)
+\]
+$a < 1$: overconfident scores; $a > 1$: underconfident.
+
+\medskip
+\textbf{Isotonic regression:} non-parametric; finds non-decreasing step function minimising:
+\[
+  \hat{q} = \underset{q_1 \leq \cdots \leq q_n}{\arg\min} \sum_{i=1}^{n} (q_i - y_i)^2
+\]
+Solved by the pool adjacent violators (PAV) algorithm in $O(n)$ time. More flexible than Platt
+but needs more data.
+\end{frame}
+
+% ============================================================
 \section{Household Decisions Under Uncertainty}
+% ============================================================
 
-\begin{frame}{Household Decisions Under Uncertainty}
-  [Placeholder]
+% ============================================================
+% FRAME 11: Bounded rationality
+% ============================================================
+\begin{frame}
+\frametitle{Bounded Rationality and Household Finance}
+
+\begin{block}{CFPB (2018)}
+  One-third of US mortgage borrowers did not shop before accepting the first offer.
+  The average non-shopper paid $\approx$\$300/year more in interest.
+  Over 30 years: \textbf{tens of thousands of dollars}.
+\end{block}
+
+\medskip
+\textbf{Four sources of departure from the neoclassical benchmark:}
+\begin{enumerate}
+  \item \textbf{Computational complexity}: the full household optimisation is a high-dimensional stochastic control problem. Households use approximations.
+  \item \textbf{Information asymmetry}: specialised knowledge of credit terms, tax implications, and insurance structures is required — and mostly absent.
+  \item \textbf{Dual-process cognition}: high-stakes financial decisions are often made in ``System 1'' mode (fast, affective, heuristic-driven).
+  \item \textbf{Preference inconsistency}: hyperbolic discounting, loss aversion, and framing effects.
+\end{enumerate}
+
+\medskip
+\textbf{Simon's bounded rationality}: agents satisfice rather than optimise.
+They search through alternatives until a solution meets a threshold of acceptability, then stop.
+The threshold itself is adaptive to recent outcomes.
 \end{frame}
 
-% ---------------------------------------------------------------
+% ============================================================
+% FRAME 12: LLM as decision-support agent
+% ============================================================
+\begin{frame}
+\frametitle{LLMs as Decision-Support Agents}
+
+\textbf{Three required functions:}
+\begin{enumerate}
+  \item \textbf{Information extraction}: parse complex financial documents (term sheets, insurance exclusions) into structured, comparable summaries
+  \item \textbf{Consequence tracing}: compute multi-period financial implications of each choice given the household's stated circumstances
+  \item \textbf{Trade-off articulation}: present options in a format that makes relevant trade-offs legible \emph{without nudging} toward a particular choice
+\end{enumerate}
+
+\medskip
+\textbf{Practical architecture:}
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Component & Role \\
+\midrule
+Document ingestion layer & RAG pipeline on term sheets \\
+Household profile module & Income, wealth, risk preferences \\
+Consequence engine & Scenario computations \\
+Dialogue manager & Conversational trade-off presentation \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{alertblock}{Design principle}
+  An LLM that consistently recommends the neoclassically optimal choice may undermine
+  household autonomy when stated and revealed preferences diverge. The goal is \emph{extension},
+  not replacement, of the household's cognitive frontier.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 13: Utility theory and preference elicitation
+% ============================================================
+\begin{frame}
+\frametitle{Utility-Theoretic Framing}
+
+\textbf{Expected utility}: household with wealth $W_0$ selects:
+\[
+  a^* = \underset{k}{\arg\max} \; \mathbb{E}[U(W_0 + \Delta W_k)]
+\]
+
+\textbf{CRRA utility} (most common parameterisation):
+\[
+  U(W) = \frac{W^{1-\gamma}}{1-\gamma}, \quad \gamma > 0
+\]
+
+$\gamma = 1$: log utility; $\gamma = 2$: moderate risk aversion; $\gamma > 5$: high risk aversion.
+
+\medskip
+\textbf{LLM-based preference elicitation:}
+\begin{enumerate}
+  \item Present a sequence of binary lottery choices to identify indifference points
+  \item Extract the stated indifference points from the conversation
+  \item Fit CRRA utility to the elicited data by minimising:
+    \[
+      \hat{\gamma} = \underset{\gamma}{\arg\min} \sum_{j=1}^{J} \left( U_\gamma(c_j) - \lambda_j U_\gamma(g_j) - (1-\lambda_j) U_\gamma(\varepsilon) \right)^2
+    \]
+  \item Use $\hat{\gamma}$ to evaluate alternatives
+\end{enumerate}
+
+\medskip
+The quality of elicitation depends critically on the LLM's ability to conduct a coherent
+multi-turn dialogue without anchoring the household's responses.
+\end{frame}
+
+% ============================================================
 \section{Persona Agents and Behavioural Simulation}
+% ============================================================
 
-\begin{frame}{Persona Agents and Behavioural Simulation}
-  [Placeholder]
+% ============================================================
+% FRAME 14: Persona design
+% ============================================================
+\begin{frame}
+\frametitle{Persona Agents: Silicon Sampling}
+
+\begin{block}{Argyle et al.\ (2023)}
+  An LLM conditioned on a detailed demographic backstory reproduces the survey response
+  distributions of the corresponding demographic group with striking fidelity.
+  This is an empirical observation about distributional encoding, not a claim about sentience.
+\end{block}
+
+\medskip
+\textbf{Persona specification} $\Pi = (D, S, \Psi, L)$:
+\begin{itemize}
+  \item $D$: demographics (age, sex, household composition, education, region)
+  \item $S$: socioeconomics (employment, income, wealth, existing debt)
+  \item $\Psi$: psychology ($\gamma$ risk aversion, $\delta$ time preference, financial anxiety)
+  \item $L$: financial literacy (Lusardi--Mitchell 3-question battery)
+\end{itemize}
+
+\medskip
+\textbf{Two contrasting personas:}
+\begin{itemize}
+  \item \textbf{Maria}: age 28, rideshare driver, \$2.4K/month variable income, \$800 savings, bureau score 584, no post-secondary education, high security preference
+  \item \textbf{Thomas}: age 52, French teacher, \texteuro48K salary, \texteuro120K savings, 3/3 financial literacy, moderate risk aversion ($\gamma \approx 2$)
+\end{itemize}
 \end{frame}
 
-% ---------------------------------------------------------------
+% ============================================================
+% FRAME 15: Persona simulation example
+% ============================================================
+\begin{frame}
+\frametitle{Persona Simulation in Action}
+
+\textbf{Scenario}: \$20,000 personal loan, 5 years.
+\begin{itemize}
+  \item Option A: fixed 12\% APR, \$444/month
+  \item Option B: variable starting 8\% APR, \$406/month, capped at 18\% APR
+\end{itemize}
+
+\medskip
+\textbf{Maria's reasoning:}
+\begin{quote}
+\small
+``Option B starts lower but says \emph{adjustable}. If it goes to 18\%... My rent is \$1,200
+and some months I barely clear \$1,800. I can't risk my payment jumping when work is slow.
+I'd take Option A. At least I know exactly what I owe every month.''
+\end{quote}
+
+\textbf{Thomas's reasoning:}
+\begin{quote}
+\small
+``At 8\%, five-year total interest $\approx$ \texteuro4,300; at 12\% $\approx$ \texteuro6,600.
+If rates stay below $\approx$10\% on average, Option B is cheaper. My wife's income covers
+fixed obligations. I'd choose Option B and set aside the monthly difference into the Livret A.''
+\end{quote}
+
+\medskip
+\begin{block}{Observation}
+  Both responses are coherent and defensible given the persona. Neither is ``wrong.''
+  The contrast reflects genuine heterogeneity in risk aversion, income volatility, and financial literacy.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 16: Population simulation and calibration
+% ============================================================
+\begin{frame}
+\frametitle{Multi-Persona Simulation and Calibration}
+
+\textbf{Synthetic population}: run $N$ personas drawn from target population distribution $\mathcal{P}$:
+\[
+  \hat{P}(d = k) = \frac{1}{N} \sum_{i=1}^{N} \mathbf{1}[d_i = k]
+\]
+
+Identifies which subgroups are sensitive to which product features.
+
+\medskip
+\textbf{Applications:}
+\begin{itemize}
+  \item \textbf{Loan uptake}: estimate take-up rates as function of APR before live A/B test
+  \item \textbf{Mortgage suitability}: identify which products create distress risk for which persona types
+  \item \textbf{Retirement planning}: test auto-enrolment schemes for low-literacy households
+\end{itemize}
+
+\medskip
+\textbf{Calibration against survey data} (ECB HFCS, US SCF):
+\begin{enumerate}
+  \item \textbf{Population alignment}: post-stratification weights so joint attribute distribution matches target survey
+  \item \textbf{Behavioural alignment}: compare simulation vs.\ survey decision distributions using calibration loss $\mathcal{L} = \sum_k (\hat{P}_{\text{sim}} - \hat{P}_{\text{survey}})^2$
+  \item \textbf{Prompt refinement}: iterate when calibration loss is high
+\end{enumerate}
+
+\medskip
+A validated simulation explaining 60--70\% of cross-sectional variation is useful.
+An uncalibrated simulation that claims to predict population behaviour is not.
+\end{frame}
+
+% ============================================================
 \section{Evaluation and Model Risk Management}
+% ============================================================
 
-\begin{frame}{Evaluation and Model Risk Management}
-  [Placeholder]
+% ============================================================
+% FRAME 17: Credit performance metrics
+% ============================================================
+\begin{frame}
+\frametitle{Credit-Specific Performance Metrics}
+
+\textbf{AUROC}: probability that a randomly drawn defaulter scores higher than a randomly drawn non-defaulter:
+\[
+  \text{AUROC} = P(S_+ > S_-)
+\]
+
+\textbf{KS Statistic}: maximum separation between CDFs of defaulter and non-defaulter scores:
+\[
+  \text{KS} = \sup_{s} |F_+(s) - F_-(s)|
+\]
+In practice: sort all scores, compute cumulative defaulter and non-defaulter fractions,
+read off maximum vertical gap. \textbf{KS $>$ 0.40} is good; \textbf{KS $>$ 0.60} is excellent.
+
+\medskip
+\textbf{Gini Coefficient} (accuracy ratio):
+\[
+  \text{Gini} = 2 \cdot \text{AUROC} - 1
+\]
+
+This identity is \emph{exact}, not an approximation. Derivable from the relationship between
+the CAP curve and the ROC curve. Range: 0 (random model) to 1 (perfect model).
+Retail credit models typically achieve Gini 0.40--0.70.
+
+\medskip
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Metric & Good & Excellent \\
+\midrule
+AUROC & $>$ 0.70 & $>$ 0.80 \\
+KS & $>$ 0.40 & $>$ 0.60 \\
+Gini & $>$ 0.40 & $>$ 0.60 \\
+\bottomrule
+\end{tabular}
+\end{center}
 \end{frame}
 
-% ---------------------------------------------------------------
-\section{Deployment of a Credit Risk Application}
+% ============================================================
+% FRAME 18: SR 11-7 framework
+% ============================================================
+\begin{frame}
+\frametitle{SR 11-7: Model Risk Management for LLM Credit Models}
 
-\begin{frame}{Deployment of a Credit Risk Application}
-  [Placeholder]
+SR~11-7 (Fed / OCC, 2011): every model must be conceptually sound, monitored, independently
+validated, and documented. LLMs are unambiguously models under this definition.
+
+\medskip
+\textbf{Three pillars adapted for LLMs:}
+
+\begin{enumerate}
+  \item \textbf{Model Development}
+    \begin{itemize}
+      \item Document base model provenance: training data, licence, cutoff date
+      \item Fine-tuning data quality: labels independently verified? Vintage relative to current credit cycle?
+      \item Emergent behaviour: unexpected reasoning patterns not present during testing?
+    \end{itemize}
+
+  \item \textbf{Independent Validation}
+    \begin{itemize}
+      \item Conceptual soundness; outcome analysis vs.\ logistic regression baseline
+      \item \textbf{Sensitivity analysis}: response to word-order changes, synonym substitution, missing fields
+      \item \textbf{Disparate impact testing}: adverse action rates by protected class
+      \item \textbf{Adversarial probing}: can a sophisticated borrower manipulate the model?
+    \end{itemize}
+
+  \item \textbf{Governance}
+    \begin{itemize}
+      \item Model versioning: base model updates may trigger revalidation
+      \item Prompt governance: system prompt changes are model changes
+      \item Vendor risk: API-accessed LLMs create residual model risk
+    \end{itemize}
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 19: SHAP for credit decisions
+% ============================================================
+\begin{frame}
+\frametitle{SHAP Interpretability and Adverse Action Notices}
+
+\textbf{SHAP value} for feature $j$ in input $x$ (cooperative game theory):
+\[
+  \phi_j(x) = \sum_{S \subseteq \mathcal{F} \setminus \{j\}} \frac{|S|!\,(|\mathcal{F}|-|S|-1)!}{|\mathcal{F}|!}
+  \left[ f(S \cup \{j\}) - f(S) \right]
+\]
+
+Three axioms: \textbf{efficiency} ($\sum_j \phi_j = f(x) - \mathbb{E}[f(x)]$), \textbf{symmetry}, \textbf{dummy}.
+
+\medskip
+\textbf{Illustrative SHAP waterfall} (34-year-old, income \$58K, bureau 672, 1 delinquency):
+
+\begin{center}
+\small
+\begin{tabular}{lrr}
+\toprule
+Feature & SHAP $\phi_j$ & Running PD \\
+\midrule
+Base value & --- & $+0.050$ \\
+Bureau score = 672 & $+0.041$ & $+0.091$ \\
+Delinquencies = 1 & $+0.027$ & $+0.118$ \\
+Loan purpose: debt consol. & $+0.019$ & $+0.137$ \\
+Income = \$58K & $-0.012$ & $+0.125$ \\
+Employment: full-time 6yr & $-0.015$ & $+0.110$ \\
+Age = 34 & $-0.008$ & $+0.102$ \\
+\midrule
+Final PD & & \textbf{0.102} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+Top positive SHAP contributors $\to$ \textbf{FCRA adverse action reasons}.
+Compliant reason codes generated automatically from SHAP output.
+\end{frame}
+
+% ============================================================
+\section{Deployment and Governance}
+% ============================================================
+
+% ============================================================
+% FRAME 20: System architecture
+% ============================================================
+\begin{frame}
+\frametitle{Production Credit Risk System Architecture}
+
+\begin{center}
+\begin{tabular}{lp{7.5cm}}
+\toprule
+Component & Role \\
+\midrule
+\textbf{Feature Store} & Single source of truth; records retrieval timestamp and source per feature; enables point-in-time reconstruction for any historical decision \\
+\textbf{Inference API} & Versioned JSON API: returns raw PD, calibrated PD, reason codes, SHAP values, decision ID \\
+\textbf{LLM Serving} & Self-hosted preferred for credit (full data and model control); API-based creates vendor dependency \\
+\textbf{Decision DB} & Append-only immutable log of every decision; records may be supplemented (outcome) but not overwritten \\
+\textbf{Monitoring} & Data drift (PSI), embedding drift (MMD), score distribution; lagged AUROC by vintage cohort \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Data drift monitoring via PSI:}
+\[
+  \text{PSI} = \sum_{b=1}^{B} (p_b - q_b) \ln\!\left(\frac{p_b}{q_b}\right)
+\]
+PSI $<$ 0.1: stable; 0.1--0.25: investigate; $>$ 0.25: model review required.
+\end{frame}
+
+% ============================================================
+% FRAME 21: Human-in-the-loop and regulatory documentation
+% ============================================================
+\begin{frame}
+\frametitle{Human-in-the-Loop and Regulatory Compliance}
+
+\textbf{Three review tiers} (required by GDPR Art.~22, ECOA, and SR~11-7):
+\begin{description}
+  \item[Tier 1] Clear approvals. Random quality-control sample only.
+  \item[Tier 2] Borderline cases. Active human review before decision communicated.
+  \item[Tier 3] Appeals. Full decision record (including SHAP) reviewed; reviewer documents independent assessment.
+\end{description}
+
+\medskip
+\begin{alertblock}{Automation bias}
+  Research shows reviewers anchor strongly to model recommendations when displayed prominently.
+  Mitigations: show recommendation \emph{after} independent assessment; present SHAP prominently;
+  require documented reasoning before seeing the model's output.
+\end{alertblock}
+
+\medskip
+\textbf{Regulatory documentation package:}
+\begin{itemize}
+  \item \textbf{MDR}: business need, conceptual framework, data, performance metrics, limitations
+  \item \textbf{MVR}: independent validation findings and model risk rating
+  \item \textbf{GDPR Art.~22}: plain-language explanation for consumers (translated from SHAP using a constrained LLM)
+  \item \textbf{Model Inventory}: versioned tracking of base model, fine-tune, calibration, system prompt
+\end{itemize}
+\end{frame}
+
+% ============================================================
+% FRAME 22: Plain-language GDPR explanation
+% ============================================================
+\begin{frame}
+\frametitle{Generating GDPR-Compliant Explanations}
+
+\begin{block}{GDPR Recital 71 requirement}
+  The controller should implement suitable measures including ``the right to obtain human
+  intervention, to express his or her point of view, and to contest the decision.''
+  Explanation must be comprehensible to a consumer without financial or technical background.
+\end{block}
+
+\medskip
+\textbf{Plain-language explanation} (generated from SHAP waterfall via constrained LLM):
+
+\begin{quote}
+\small
+``Your application for a \texteuro{}12,000 personal loan was assessed using an automated system.
+Our system estimated a higher probability of repayment difficulty than our lending criteria allow.
+
+\textbf{Factors that increased your estimated risk}: your credit bureau score of 672, which is below
+the level typically associated with this loan product; a record of one late payment in the past
+twenty-four months; and a loan purpose of debt consolidation.
+
+\textbf{Factors that partially reduced your estimated risk}: six years of continuous full-time
+employment and an annual income of \$58,000.
+
+You have the right to request human review of this decision. To request a human review,
+please contact [details].''
+\end{quote}
+
+\textbf{Key principle}: SHAP values are inputs to the plain-language generator, not outputs.
+Using raw SHAP values in consumer-facing communications creates confusion, not transparency.
+\end{frame}
+
+% ============================================================
+% FRAME 23: Through-the-cycle validation
+% ============================================================
+\begin{frame}
+\frametitle{Through-the-Cycle Validation and Backtesting}
+
+\textbf{Two types of temporal model degradation:}
+\begin{itemize}
+  \item \textbf{Concept drift}: the feature $\to$ default relationship changes as the economy evolves. A model trained on 2015--2019 data may underestimate recession-period default risk.
+  \item \textbf{Population drift}: the applicant distribution shifts (new marketing strategy, regulatory change).
+\end{itemize}
+
+\medskip
+\textbf{Vintage analysis}: group loans by origination quarter; track AUROC and KS as
+outcomes mature; check for time trends in discrimination power.
+
+\medskip
+\textbf{Point-in-time (PIT) vs.\ through-the-cycle (TTC):}
+\begin{itemize}
+  \item Basel III Pillar 1 requires TTC PD estimates (long-run average default rates)
+  \item LLMs trained on recent data tend to produce PIT estimates
+  \item Conversion: apply Platt scaling calibrated on a dataset spanning $\geq$1 full credit cycle (7--10 years)
+  \item The parameters $a$ and $b$ in $\hat{p}_{\text{TTC}} = \sigma(a \cdot f(x) + b)$ absorb both overconfidence correction and cycle-position adjustment simultaneously
+\end{itemize}
+\end{frame}
+
+% ============================================================
+% FRAME 24: LLM failure modes in credit
+% ============================================================
+\begin{frame}
+\frametitle{LLM Failure Modes Specific to Credit Applications}
+
+\begin{enumerate}
+  \item \textbf{Prompt sensitivity}: high sensitivity to word order, synonym substitution, or missing fields is a red flag for instability. Sensitivity analysis is a mandatory SR~11-7 validation step.
+
+  \item \textbf{Calibration gap}: constrained-decoded probabilities reflect the model's internal representation, not empirical default rates. Calibration is non-optional, not optional.
+
+  \item \textbf{Protected-class proxies}: LLMs trained on historical financial text may encode correlations between loan purpose language, geographic references, or occupation descriptions and protected classes. Disparate impact testing must include intersectional analyses.
+
+  \item \textbf{Adversarial manipulation}: a sophisticated borrower may craft application text to trigger favourable model responses. Adversarial probing --- testing whether such manipulation is possible --- is part of the independent validation.
+
+  \item \textbf{Vendor lock-in and versioning}: if the provider silently updates the base model, model outputs change without any action by the institution. Versioning contracts and revalidation triggers are required governance controls.
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 25: Summary
+% ============================================================
+\begin{frame}
+\frametitle{Summary: The LLM Credit Risk Stack}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Layer} & \textbf{Key design choice} \\
+\midrule
+Data & Bureau + alternative; FCRA/ECOA/GDPR compliance \\
+Preprocessing & LoRA; cost-sensitive loss; text serialisation of missingness \\
+Modelling & Sequence classification or constrained generation \\
+Calibration & Platt scaling (small data) or isotonic regression \\
+Household decisions & Persona agents; CRRA utility elicitation \\
+Evaluation & AUROC / KS / Gini; SR~11-7 three pillars \\
+Interpretability & SHAP waterfall $\to$ FCRA reason codes \\
+Monitoring & PSI for features; embedding drift for text \\
+Human oversight & Tier 1/2/3 review; automation bias mitigations \\
+Documentation & MDR + MVR + GDPR Art.~22 plain-language \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{block}{The through-line}
+  Credit AI is not merely a prediction problem --- it is a regulated sociotechnical system.
+  Every design choice, from the loss function to the API schema, has implications for
+  fairness, explainability, and regulatory compliance.
+\end{block}
 \end{frame}
 
 \end{document}

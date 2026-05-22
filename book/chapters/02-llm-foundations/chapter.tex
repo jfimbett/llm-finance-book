@@ -2017,6 +2017,8 @@ and FActScore pipelines described in Section~\ref{sec:hallucinations-detection}.
 \section{Knowledge Distillation and Model Compression}
 \label{sec:distillation}
 
+\begin{deepdive}
+
 Deploying a 70-billion-parameter model in a latency-sensitive trading system is
 impractical.  A single forward pass for a 70B model requires roughly 140~GB of GPU
 memory for 16-bit weights alone, and inference latency measured in seconds is
@@ -2143,6 +2145,8 @@ practice lottery-ticket-based methods require costly iterative magnitude pruning
 schedules and have not yet scaled reliably to models of the size relevant for financial
 NLP.  For most practitioners, quantisation and LoRA offer a better trade-off between
 compression and implementation complexity.
+
+\end{deepdive}
 
 % ---------------------------------------------------------------
 \section{Hallucinations: Detection and Mitigation}

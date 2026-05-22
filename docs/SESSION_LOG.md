@@ -79,3 +79,4 @@
 | 2026-05-22 | 4 files | chore: session log 2026-05-22;chore: session log 2026-05-22;feat(lec01): draft Introduction lecture notes and slides; | — |
 | 2026-05-22 | 5 files | feat(lec01): draft 2-hour lecture and practical session for introduction;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 9 files | feat(lec02): draft LLM foundations lecture, practical session, and quality report;feat(lec02): draft LLM foundations lecture notes, slides, and practical session;chore: session log 2026-05-22; | — |
+| 2026-05-22 | 9 files | feat(lec03): draft Training and Fine-Tuning lecture, practical session, and quality report;feat(lec03): complete Lecture 3 notes, slides, and practical session;chore: session log 2026-05-22; | — |

@@ -24,6 +24,8 @@ After completing this chapter, the reader should be able to:
 \section{Document-Level Representations}
 \label{sec:doc-repr}
 
+\begin{deepdive}
+
 Word embeddings assign vectors to individual tokens.  In most
 financial NLP applications the natural unit of analysis is longer: an
 earnings call transcript (several thousand words), a 10-K filing
@@ -314,9 +316,13 @@ computational cost that has no universal solution; practitioners should
 benchmark all three on their specific downstream task.
 \end{remark}
 
+\end{deepdive}
+
 % ---------------------------------------------------------------
 \section{Sequential Models: From RNNs to Attention}
 \label{sec:sequential}
+
+\begin{deepdive}
 
 The representations developed in Sections~\ref{sec:embeddings} and~\ref{sec:doc-repr}
 treat documents as \emph{bags} of tokens: order is either ignored or captured only
@@ -578,9 +584,13 @@ The dot-product attention of \citet{vaswani2017attention} % [CITE: Vaswani et al
 replaces the additive score~\eqref{eq:alignment-score} with a scaled inner product,
 reducing cost from $O(Td_a)$ to $O(Td_k)$.
 
+\end{deepdive}
+
 % ---------------------------------------------------------------
 \section{The Transformer Architecture}
 \label{sec:transformer}
+
+\begin{deepdive}
 
 The Transformer, introduced by \citet{vaswani2017attention}, % [CITE: Vaswani et al. 2017, Attention Is All You Need]
 dispenses with recurrence and relies exclusively on attention to model dependencies.
@@ -929,6 +939,7 @@ financial datasets, is currently the most cost-effective domain-adaptation strat
 for practitioners.
 \end{remark}
 
+\end{deepdive}
 
 \section{The Modern LLM Landscape}
 \label{sec:landscape}

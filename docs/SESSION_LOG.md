@@ -21,3 +21,4 @@
 | 2026-05-22 | 5 files | chore: session log 2026-05-21;feat(ch02): complete LLM foundations chapter — temperature, structured gen, RAG, distillation, hallucinations;feat(ch02): expand hallucinations to full section with SOTA mitigation; | — |
 | 2026-05-22 | 5 files | chore: session log 2026-05-22;chore: session log 2026-05-21;feat(ch02): complete LLM foundations chapter — temperature, structured gen, RAG, distillation, hallucinations; | — |
 | 2026-05-22 | 5 files | chore: session log 2026-05-22;chore: session log 2026-05-22;chore: session log 2026-05-21; | — |
+| 2026-05-22 | 2 files | docs: add design spec for dual-mode section environments (deepdive/context);chore: session log 2026-05-22;chore: session log 2026-05-22; | — |

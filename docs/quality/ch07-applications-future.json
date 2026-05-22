@@ -1,0 +1,76 @@
+{
+  "chapter": "07-applications-future",
+  "file": "book/chapters/07-applications-future/chapter.tex",
+  "scored_at": "2026-05-22",
+  "scorer": "score-content agent (claude-sonnet-4-6)",
+  "quality_threshold": 8,
+  "scores": {
+    "clarity": 9,
+    "rigor": 8,
+    "completeness": 9,
+    "pedagogy": 9,
+    "style": 8
+  },
+  "overall": 8.6,
+  "verdict": "PASS",
+  "dimension_notes": {
+    "clarity": "Prose is consistently clear throughout all six sections. Context boxes open each major section with concrete practitioner scenarios (the CIO briefing, the analyst inbox, the grant committee). The chapter-map table (tab:chapter-map) gives readers a bird's-eye view of the book's arc. Both decision tables (deployment patterns tab:deployment-heuristics; architecture families tab:arch-decision) translate abstract guidance into scannable heuristics. The OpenClaw worked interaction — query → tool calls → grounded answer — makes the ReAct pattern immediately understandable. The §6.4 closing section has a strong authorial voice with imperative calls to action.",
+    "rigor": "All fairness metric definitions are mathematically correct and complete after two fixes applied during review: (1) Definition 7.5 (Calibration Within Group) now explicitly defines $\\hat{P}$ before its use in the conditional probability; (2) Proposition 7.1 (Impossibility of Simultaneous Fairness) was corrected from an incorrect claim that 'demographic parity and equalized odds cannot both be satisfied' to the accurate statement that all three criteria cannot simultaneously hold, with separate attribution to Chouldechova (2017) for the parity/calibration incompatibility. The DAG workflow definition is formally correct. The RRF equation is standard. The RAG pipeline definition (Definition 7.2) has clean notation. Minor: the conformal prediction sentence in §6.3 open problem 1 is technically correct but imprecise about the boundary between classification and autoregressive generation settings.",
+    "completeness": "All 6 sections and 22+ subsections fully populated; all placeholder text replaced; all four required distinctive content items present: (1) chapter-map table mapping all 7 chapters to LLM technique and finance application; (2) architecture decision table for encoder-only/decoder-only/enc-dec/agentic families; (3) OpenClaw with design principles, tool definitions, system-prompt template (lst:openclaw-prompt), and worked FCF-yield comparison interaction; (4) formal fairness metric definitions with mathematical equations. The five open research problems in §6.3 address calibrated uncertainty, comparables in thin markets, cross-lingual finance LLMs, feedback loop detection, and chain-of-thought verification — substantive and appropriate. Bibliography additions file covers all required topic areas (AI governance, multimodal LLMs, agent alignment, fairness, surveys, workflow/RAG) with 12 new BibTeX entries; four PLACEHOLDER citations resolved.",
+    "pedagogy": "Eight learning objectives map precisely to chapter sections. All six major sections open with context boxes. Definition, proposition, example, remark, and deepdive environments used appropriately. The OpenClaw section is pedagogically distinctive: four design principles, five tools listed, a system-prompt template, and a full worked example interaction. The two decision tables give students immediately applicable frameworks. The EDGAR monitor code listing (lst:edgar-monitor) and OpenClaw skill listing (lst:openclaw-skill) are clearly annotated and pedagogically motivated. §6.4 functions as a call to action for both researchers (five open problems named as invitations) and practitioners (three disciplines identified: measure, document, escalate).",
+    "style": "No \\paragraph{} commands used anywhere. Eight \\textbf{} paragraph-heading violations corrected: four in §1.2 (Portfolio Management, Regulatory Compliance, Insurance, Algorithmic Trading) and four in §2.2 (Earnings Call Processing Pipeline, Regulatory Filing Monitor, Trade Surveillance Narrative) and §3.2 (Chunking strategy, Embedding model selection, Hybrid retrieval, Source attribution) converted to \\subsubsection*{} or integrated lead-sentence prose. Active voice predominates. Transitions between sections are smooth. The §6.4 conclusion escalates from evidence (capability demonstrated) through ethical obligation (responsibility required) to imperative (specific actions for researcher and practitioner). Final remark on model-version reproducibility is a practical addition."
+  },
+  "math_verdict": "PASS (2 issues found and fixed)",
+  "math_findings": [
+    {
+      "ref": "def:calibration — Definition 7.5",
+      "status": "FIXED",
+      "description": "Variable $\\hat{P}$ appeared in the conditional probability expression without prior definition in the definition body.",
+      "correction": "Added 'Let $\\hat{P} \\in [0,1]$ denote the model's predicted probability of a positive outcome.' before the equation. Definition renamed to 'Calibration Within Group' for precision."
+    },
+    {
+      "ref": "prop:fairness-impossibility — Proposition 7.1",
+      "status": "FIXED",
+      "description": "Original statement claimed 'demographic parity and equalized odds cannot both be satisfied by any non-trivial classifier when base rates differ.' This is incorrect: the Chouldechova (2017) impossibility is between demographic parity and calibration (not equalized odds). The equalized odds/calibration incompatibility is a separate result.",
+      "correction": "Proposition restated to correctly assert that all three criteria (demographic parity, equalized odds, calibration within group) cannot simultaneously hold, with separate attribution to Chouldechova (2017) for the parity/calibration incompatibility and a note that satisfying equalized odds and calibration requires equal base rates."
+    },
+    {
+      "ref": "eq:rrf — Reciprocal Rank Fusion",
+      "status": "OK",
+      "description": "Standard RRF formula with k=60 smoothing constant. Correctly stated."
+    },
+    {
+      "ref": "def:demographic-parity — Definition 7.3",
+      "status": "OK",
+      "description": "$\\Pr(\\hat{Y}=1 \\mid A=a) = \\Pr(\\hat{Y}=1 \\mid A=b)$ for all $a,b$. Standard definition of statistical parity. Variables defined before use."
+    },
+    {
+      "ref": "def:equalized-odds — Definition 7.4",
+      "status": "OK",
+      "description": "$\\Pr(\\hat{Y}=1 \\mid Y=y, A=a) = \\Pr(\\hat{Y}=1 \\mid Y=y, A=b)$ for $y \\in \\{0,1\\}$ and all $a,b$. Correctly requires equal TPR and FPR across groups (full equalized odds, not just equal opportunity)."
+    },
+    {
+      "ref": "def:workflow-dag — Definition 7.1",
+      "status": "OK",
+      "description": "DAG definition $W=(T,E)$ with acyclicity condition and topological ordering execution is mathematically correct."
+    }
+  ],
+  "content_flags_for_human_review": [
+    {
+      "flag": "§6.3 open research problems differ from specification",
+      "note": "The task brief specified five specific problems: (1) grounding/hallucination in financial reasoning, (2) long-context financial document understanding, (3) causal inference with LLMs, (4) privacy-preserving LLM training, (5) alignment of autonomous agents. The chapter instead covers: (1) calibrated uncertainty quantification, (2) robust comparables in thin markets, (3) cross-lingual finance LLMs, (4) feedback loop detection, (5) chain-of-thought verification. The chapter's problems are substantive and appropriate, but do not match the specified problems 1, 3, 4, and 5. Author should decide whether to align with the brief or retain the current formulation."
+    },
+    {
+      "flag": "bibliography-ch07-additions.bib requires preamble.tex modification",
+      "note": "To load the new bibliography additions file, \\addbibresource{bibliography-ch07-additions.bib} was added to preamble.tex. The instructions said not to modify main.tex; preamble.tex was modified as the minimal required change. Verify this is acceptable or alternatively merge the four new unique entries (lopezdeprado2018advances, kolbel2020esg, tversky1974judgment, chouldechova2017fair) directly into bibliography.bib."
+    },
+    {
+      "flag": "OpenClaw worked example uses illustrative figures",
+      "note": "The FCF yield worked example uses specific financial figures (Microsoft FCF $62.8B, market cap $3.2T; Alphabet FCF $72.8B, market cap $2.1T) described as 'FY2024 10-K' data. These are illustrative approximations. Author should verify or update with actual FY2024 filing figures before camera-ready submission, or add an explicit 'values are illustrative' disclaimer."
+    },
+    {
+      "flag": "Conformal prediction claim in §6.3",
+      "note": "The statement that conformal prediction 'requires careful handling of the sequential nature of token generation' is correct in spirit but imprecise. Conformal prediction for exchangeable data applies cleanly to classification outputs; its extension to the structured outputs of LLMs (where the prediction is a sequence, not a scalar) is genuinely non-trivial. A brief footnote clarifying the specific challenge would strengthen the rigour of this claim."
+    }
+  ]
+}

@@ -43,21 +43,64 @@ The book has developed its argument across six interconnected themes. Chapter~\r
 
 Each chapter has also been a case study in a recurring design challenge: bridging the gap between what a language model can do in a research prototype and what a production finance system must do. That design challenge---reliable, auditable, compliant, and economically rational deployment of LLMs---is the organising thread of this final chapter.
 
+Table~\ref{tab:chapter-map} provides a bird's-eye view of the book's journey, mapping each chapter to its primary LLM technique and the canonical finance application that chapter develops.
+
+\begin{table}[htbp]
+\caption{Chapter map: primary LLM technique and finance application by chapter.}
+\label{tab:chapter-map}
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{clp{4.2cm}p{4.2cm}}
+\toprule
+\textbf{Ch.} & \textbf{Topic} & \textbf{Primary LLM Technique} & \textbf{Finance Application} \\
+\midrule
+1 & Introduction \& Text Fundamentals
+  & Bag-of-words, TF-IDF, word embeddings
+  & Sentiment analysis, document classification \\[3pt]
+2 & Modern LLM Landscape
+  & Transformer attention, pre-training, RLHF
+  & General-purpose financial NLP, emergent reasoning \\[3pt]
+3 & LLM Training \& Fine-Tuning
+  & Supervised fine-tuning, LoRA, PEFT
+  & Domain adaptation for financial text \\[3pt]
+4 & LLM Agents
+  & ReAct, tool use, multi-agent orchestration
+  & Research automation, multi-step financial workflows \\[3pt]
+5 & Business Valuation
+  & Retrieval-augmented generation, summarisation
+  & DCF analysis, comparable-company selection \\[3pt]
+6 & Credit Risk
+  & Constrained decoding, SHAP explanations
+  & Credit scoring, regulatory reporting, fairness \\[3pt]
+7 & Other Applications \& Future Trends
+  & Workflow automation, multimodal LLMs, agents
+  & Full-stack deployment, governance, open research \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Reading across columns, the table reveals a clear progression: early chapters used lightweight representations applicable to large corpora with modest compute; later chapters required generative or agent-based models capable of nuanced multi-step reasoning; this final chapter addresses the cross-cutting concerns of deployment, governance, and frontier capability that arise once LLMs are embedded in production financial systems.
+
 \subsection{Remaining Application Areas}
 \label{subsec:af-survey-areas}
 
 Several high-value finance domains appear in the book without full treatment. This section surveys each with enough depth to identify the key technical challenges and point toward the relevant literature.
 
-\textbf{Portfolio management.} The most direct application of LLMs to portfolio construction is natural-language portfolio specification: an investor expresses a mandate (``construct a 30-stock portfolio that is long quality momentum in US large-caps while hedging out market beta and maintaining sector neutrality'') and the system interprets, operationalises, and executes it. This requires the LLM to translate qualitative constraints into quantitative optimisation inputs, which demands both linguistic precision and financial domain knowledge \cite{PLACEHOLDER}. % [CITE: research on NLP-driven portfolio construction, e.g. Lopez de Prado 2018 or similar]
+\subsubsection*{Portfolio Management}
+The most direct application of LLMs to portfolio construction is natural-language portfolio specification: an investor expresses a mandate (``construct a 30-stock portfolio that is long quality momentum in US large-caps while hedging out market beta and maintaining sector neutrality'') and the system interprets, operationalises, and executes it. This requires the LLM to translate qualitative constraints into quantitative optimisation inputs, which demands both linguistic precision and financial domain knowledge \cite{lopezdeprado2018advances}.
 
-ESG screening is a closely related task where LLMs have demonstrated measurable value. Corporate sustainability disclosures are heterogeneous, often strategically worded, and not directly comparable across firms. An LLM can extract structured ESG signals from unstructured sustainability reports, proxy statements, and news, producing features that can be integrated into portfolio optimisation \cite{PLACEHOLDER}. % [CITE: ESG NLP papers, e.g. Kölbel et al. 2022]
+ESG screening is a closely related task where LLMs have demonstrated measurable value. Corporate sustainability disclosures are heterogeneous, often strategically worded, and not directly comparable across firms. An LLM can extract structured ESG signals from unstructured sustainability reports, proxy statements, and news, producing features that can be integrated into portfolio optimisation \cite{kolbel2020esg}.
 Earnings surprise prediction from conference call transcripts is perhaps the most studied application. The direction of management tone, the topics executives choose to emphasise, and the evasiveness or directness of responses to analyst questions all contain predictive information about near-term earnings revisions \cite{lopezlira2023chatgpt}. LLMs trained or prompted on earnings call transcripts consistently outperform bag-of-words sentiment dictionaries in this task.
 
-\textbf{Regulatory compliance.} Financial institutions spend billions annually on regulatory reporting. LLMs offer genuine leverage here. Automated generation of MiFID II suitability reports requires synthesising a client's risk profile, the characteristics of a recommended instrument, and a regulatory template into a personalised, defensible narrative. EMIR trade reporting demands consistent, accurate population of structured data fields from internal trading systems; LLMs can assist in mapping and validating field values against reference data. Anti-money-laundering systems produce Suspicious Activity Reports (SARs) that must narrate complex transaction patterns in plain language for human reviewers and regulators; LLM-assisted SAR drafting has been shown to improve consistency and reduce analyst time per report.
+\subsubsection*{Regulatory Compliance}
+Financial institutions spend billions annually on regulatory reporting. LLMs offer genuine leverage here. Automated generation of MiFID II suitability reports requires synthesising a client's risk profile, the characteristics of a recommended instrument, and a regulatory template into a personalised, defensible narrative. EMIR trade reporting demands consistent, accurate population of structured data fields from internal trading systems; LLMs can assist in mapping and validating field values against reference data. Anti-money-laundering systems produce Suspicious Activity Reports (SARs) that must narrate complex transaction patterns in plain language for human reviewers and regulators; LLM-assisted SAR drafting has been shown to improve consistency and reduce analyst time per report.
 
-\textbf{Insurance.} Underwriting is fundamentally a risk assessment task grounded in narrative: application forms, property inspection reports, medical records, and claims histories are all text-rich. LLMs can extract structured risk factors from unstructured underwriting files, compare applicant characteristics against historical loss data, and flag anomalies for underwriter review. Claims triage---determining the priority, complexity, and likely settlement cost of an incoming claim---benefits from LLMs that can read the claim narrative, cross-reference policy terms, and produce a structured assessment. Policy question-answering, where an LLM serves as an accessible interface to the complex conditional logic of insurance contracts, has seen rapid commercial adoption.
+\subsubsection*{Insurance}
+Underwriting is fundamentally a risk assessment task grounded in narrative: application forms, property inspection reports, medical records, and claims histories are all text-rich. LLMs can extract structured risk factors from unstructured underwriting files, compare applicant characteristics against historical loss data, and flag anomalies for underwriter review. Claims triage---determining the priority, complexity, and likely settlement cost of an incoming claim---benefits from LLMs that can read the claim narrative, cross-reference policy terms, and produce a structured assessment. Policy question-answering, where an LLM serves as an accessible interface to the complex conditional logic of insurance contracts, has seen rapid commercial adoption.
 
-\textbf{Algorithmic trading.} LLMs contribute to trading at several timescales. At the signal-generation level, they process news articles, social media, regulatory announcements, and corporate filings to produce sentiment and event indicators that complement price-based signals \cite{lopezlira2023chatgpt}. At the strategy-development level, LLMs serve as co-pilots for quantitative researchers: translating conceptual strategy hypotheses into testable code, explaining the behaviour of backtests, and suggesting risk controls. At the execution level, conversational interfaces to order management systems allow traders to monitor positions and adjust parameters without leaving a chat interface.
+\subsubsection*{Algorithmic Trading}
+LLMs contribute to trading at several timescales. At the signal-generation level, they process news articles, social media, regulatory announcements, and corporate filings to produce sentiment and event indicators that complement price-based signals \cite{lopezlira2023chatgpt}. At the strategy-development level, LLMs serve as co-pilots for quantitative researchers: translating conceptual strategy hypotheses into testable code, explaining the behaviour of backtests, and suggesting risk controls. At the execution level, conversational interfaces to order management systems allow traders to monitor positions and adjust parameters without leaving a chat interface.
 
 \subsection{Choosing the Right LLM Architecture for a Finance Task}
 \label{subsec:af-survey-architecture}
@@ -93,6 +136,45 @@ Fine-tuning & Domain jargon, consistent format & Labelled pairs & Low (inference
 
 Three additional heuristics structure the decision in practice. First, prefer RAG over fine-tuning when the task requires grounding in specific, updatable documents (current regulatory texts, recent filings, live prices), because fine-tuning embeds knowledge statically while RAG can retrieve the latest version. Second, fine-tuning is justified when the output format is highly structured (e.g., populating a fixed schema of financial ratios from a filing) and consistency across thousands of calls matters more than generality. Third, zero-shot prompting with a frontier model is a reasonable baseline for any task before investing in more expensive approaches; the FinanceBench benchmark \cite{zhang2024financebench} shows that frontier models answer approximately 80\% of financial QA questions correctly on the first attempt, setting a high bar for more elaborate systems to clear.
 
+A complementary decision concerns the \emph{model architecture family} rather than the deployment pattern. Four families are relevant: encoder-only models (BERT-class, e.g.\ FinBERT), decoder-only models (GPT-class), encoder-decoder models (T5-class), and agentic systems that wrap a generative model with a tool-calling loop. Table~\ref{tab:arch-decision} frames the selection across six task properties that characterise the large majority of finance NLP problems.
+
+\begin{definition}[LLM Architecture Families]
+\label{def:arch-families}
+The four families relevant to finance NLP tasks are:
+\begin{enumerate}
+  \item \emph{Encoder-only} (BERT, RoBERTa, FinBERT): bidirectional Transformer producing contextual representations without generation. Trained by masked language modelling; fine-tuned with a classification or regression head.
+  \item \emph{Decoder-only} (GPT-4, LLaMA, Mistral): autoregressive Transformer generating text token by token. Aligned with instruction tuning and RLHF; the dominant family for general-purpose financial NLP today.
+  \item \emph{Encoder-decoder} (T5, FLAN-T5, BART): sequence-to-sequence Transformer with separate encoder and decoder. Natural for summarisation, structured extraction, and translation tasks.
+  \item \emph{Agentic system}: a generative model augmented with a planning loop (e.g.\ ReAct) that interleaves reasoning steps with calls to external tools — databases, APIs, code executors. Appropriate when task completion requires retrieving or manipulating external state.
+\end{enumerate}
+\end{definition}
+
+\begin{table}[htbp]
+\caption{Architecture family selection guide for finance NLP tasks. \emph{Strong}: the family handles this property well. \emph{Weak}: it does not. \emph{N/A}: the property does not apply.}
+\label{tab:arch-decision}
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Task Property}
+  & \textbf{Encoder-only}
+  & \textbf{Decoder-only}
+  & \textbf{Enc-Dec}
+  & \textbf{Agentic} \\
+\midrule
+Labelled fine-tuning data available    & Strong & Weak   & Strong & Weak   \\
+Output is classification or embedding  & Strong & Weak   & Weak   & Weak   \\
+Output requires fluent text generation & Weak   & Strong & Strong & Strong \\
+Task needs up-to-date external data    & Weak   & Weak   & Weak   & Strong \\
+Real-time / low-latency constraint     & Strong & Weak   & Weak   & Weak   \\
+Audit trail / interpretability needed  & Strong & Weak   & Weak   & Weak   \\
+Task spans multiple steps or documents & Weak   & Weak   & Weak   & Strong \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The two decisions — deployment pattern (Table~\ref{tab:deployment-heuristics}) and architecture family (Table~\ref{tab:arch-decision}) — combine naturally. A trade surveillance classifier will use an encoder-only architecture with fine-tuning; a regulatory filing summariser will use a decoder-only or encoder-decoder model with RAG; an autonomous due-diligence agent will use an agentic system with zero-shot or few-shot prompting. When the two tables give conflicting signals, the latency and interpretability requirements of the task are usually the tiebreakers: real-time, high-stakes applications should default to the simplest, most auditable approach.
+
 % --- Section: Automating Financial Workflows ---
 
 \section{Automating Financial Workflows}
@@ -127,11 +209,14 @@ The \emph{orchestrator-worker} pattern, developed in Chapter~\ref{ch:llm-agents}
 
 To make these patterns concrete, consider three representative finance workflows in which LLMs play a central role.
 
-\textbf{Earnings call processing pipeline.} The goal is to transform a raw earnings call transcript into a structured briefing for analysts. The DAG has five tasks: (1) retrieve the transcript from an audio-to-text service or a transcript provider; (2) extract structured forward guidance (revenue, margin, capex guidance with numeric values and qualitative language); (3) compare extracted guidance against the analyst consensus distribution and compute surprises; (4) classify the overall management tone (constructive, cautious, evasive) using an LLM prompted with the full transcript and a carefully engineered rubric; (5) draft a one-page analyst briefing in a standardised house style. Each step's output is a structured JSON object that feeds the next, except the final step which produces a Markdown or PDF document. The entire pipeline can execute within minutes of a call ending, compressing what traditionally required several hours of analyst time.
+\subsubsection*{Earnings Call Processing Pipeline}
+The goal is to transform a raw earnings call transcript into a structured briefing for analysts. The DAG has five tasks: (1) retrieve the transcript from an audio-to-text service or a transcript provider; (2) extract structured forward guidance (revenue, margin, capex guidance with numeric values and qualitative language); (3) compare extracted guidance against the analyst consensus distribution and compute surprises; (4) classify the overall management tone (constructive, cautious, evasive) using an LLM prompted with the full transcript and a carefully engineered rubric; (5) draft a one-page analyst briefing in a standardised house style. Each step's output is a structured JSON object that feeds the next, except the final step which produces a Markdown or PDF document. The entire pipeline can execute within minutes of a call ending, compressing what traditionally required several hours of analyst time.
 
-\textbf{Regulatory filing monitor.} SEC EDGAR publishes an RSS feed of new filings within minutes of acceptance. An event-triggered system polls this feed, classifies each new filing by type and issuer, and routes it to the appropriate team with a LLM-generated summary. The classifier must distinguish between routine periodic filings (10-K, 10-Q), material event disclosures (8-K and its many items), registration statements, and proxy materials. For 8-K filings, a second-stage LLM determines whether the event is material for any company on the firm's watchlist---a non-trivial semantic task, since materiality depends on the recipient company's exposure. A draft acknowledgement, routed to the relevant analyst and the compliance officer, is generated automatically.
+\subsubsection*{Regulatory Filing Monitor}
+SEC EDGAR publishes an RSS feed of new filings within minutes of acceptance. An event-triggered system polls this feed, classifies each new filing by type and issuer, and routes it to the appropriate team with a LLM-generated summary. The classifier must distinguish between routine periodic filings (10-K, 10-Q), material event disclosures (8-K and its many items), registration statements, and proxy materials. For 8-K filings, a second-stage LLM determines whether the event is material for any company on the firm's watchlist---a non-trivial semantic task, since materiality depends on the recipient company's exposure. A draft acknowledgement, routed to the relevant analyst and the compliance officer, is generated automatically.
 
-\textbf{Trade surveillance narrative.} When a rule-based surveillance system flags an unusual order pattern---potential front-running, spoofing, or wash trading---a compliance analyst must produce a written narrative justifying either escalation or clearance. An LLM-assisted surveillance tool retrieves news articles, regulatory announcements, and social media from the hour preceding the flagged trades; searches internal communications for relevant context; and drafts a structured narrative that situates the trading pattern in its market context. The draft is reviewed by the analyst, who approves, edits, or rejects it. This human-in-the-loop design is deliberate: the LLM handles the time-consuming information aggregation while the analyst provides the regulatory judgment.
+\subsubsection*{Trade Surveillance Narrative}
+When a rule-based surveillance system flags an unusual order pattern---potential front-running, spoofing, or wash trading---a compliance analyst must produce a written narrative justifying either escalation or clearance. An LLM-assisted surveillance tool retrieves news articles, regulatory announcements, and social media from the hour preceding the flagged trades; searches internal communications for relevant context; and drafts a structured narrative that situates the trading pattern in its market context. The draft is reviewed by the analyst, who approves, edits, or rejects it. This human-in-the-loop design is deliberate: the LLM handles the time-consuming information aggregation while the analyst provides the regulatory judgment.
 
 Below is a representative Python implementation of an event-triggered pipeline that monitors EDGAR and classifies incoming 8-K filings.
 
@@ -273,18 +358,18 @@ The memory layer determines whether the assistant feels like a stateless API or 
 
 Retrieval-augmented generation \cite{lewis2020rag} grounds LLM responses in retrieved documents, dramatically reducing hallucination on factual queries. The implementation details matter significantly for financial documents, which have structural characteristics that differ from generic web text.
 
-\textbf{Chunking strategy.} A 10-K annual report may run to 200 pages. Embedding the entire document as a single chunk is impossible (exceeds context limits) and uninformative (the embedding averages over too much diverse content). Naive fixed-size chunking (e.g., 512 tokens with 50-token overlap) fragments tables, disrupts cross-references, and splits financial statements across chunks in ways that destroy their meaning. The appropriate strategy for 10-K documents is \emph{semantic chunking} that respects section boundaries: each SEC Item (Item~1 Business Description, Item~1A Risk Factors, Item~7 MD\&A, Item~8 Financial Statements, and so on) is chunked independently. Tables are extracted as structured objects and indexed separately; a separate retriever handles tabular queries. This section-aware chunking reduces retrieval noise substantially on document QA benchmarks \cite{zhang2024financebench}.
+The first implementation decision is \emph{chunking strategy}. A 10-K annual report may run to 200 pages. Embedding the entire document as a single chunk is impossible (exceeds context limits) and uninformative (the embedding averages over too much diverse content). Naive fixed-size chunking (e.g., 512 tokens with 50-token overlap) fragments tables, disrupts cross-references, and splits financial statements across chunks in ways that destroy their meaning. The appropriate strategy for 10-K documents is \emph{semantic chunking} that respects section boundaries: each SEC Item (Item~1 Business Description, Item~1A Risk Factors, Item~7 MD\&A, Item~8 Financial Statements, and so on) is chunked independently. Tables are extracted as structured objects and indexed separately; a separate retriever handles tabular queries. This section-aware chunking reduces retrieval noise substantially on document QA benchmarks \cite{zhang2024financebench}.
 
-\textbf{Embedding model selection.} General-purpose embedding models (e.g., OpenAI's \texttt{text-embedding-3-large} or open-source alternatives such as \texttt{e5-mistral-7b}) perform well on financial document retrieval without task-specific fine-tuning. Finance-specific embedding models fine-tuned on SEC filings and earnings calls show modest improvements on in-domain queries but sometimes underperform on queries that require reasoning across financial and non-financial context. The practical recommendation is to use a strong general-purpose model as baseline and evaluate whether domain fine-tuning yields sufficient improvement to justify the cost.
+The second decision is \emph{embedding model selection}. General-purpose embedding models (e.g., OpenAI's \texttt{text-embedding-3-large} or open-source alternatives such as \texttt{e5-mistral-7b}) perform well on financial document retrieval without task-specific fine-tuning. Finance-specific embedding models fine-tuned on SEC filings and earnings calls show modest improvements on in-domain queries but sometimes underperform on queries that require reasoning across financial and non-financial context. The practical recommendation is to use a strong general-purpose model as baseline and evaluate whether domain fine-tuning yields sufficient improvement to justify the cost.
 
-\textbf{Hybrid retrieval.} Given a query $q$, the retrieval engine computes two scores for each candidate passage $d_i$: a dense similarity $s_{\text{dense}}(q, d_i) = \cos(\mathbf{e}_q, \mathbf{e}_{d_i})$ where $\mathbf{e}$ denotes a dense embedding, and a sparse relevance $s_{\text{sparse}}(q, d_i)$ from BM25. Reciprocal rank fusion combines them:
+The third decision is \emph{hybrid retrieval}. Given a query $q$, the retrieval engine computes two scores for each candidate passage $d_i$: a dense similarity $s_{\text{dense}}(q, d_i) = \cos(\mathbf{e}_q, \mathbf{e}_{d_i})$ where $\mathbf{e}$ denotes a dense embedding, and a sparse relevance $s_{\text{sparse}}(q, d_i)$ from BM25. Reciprocal rank fusion combines them:
 \begin{equation}
 \label{eq:rrf}
 s_{\text{RRF}}(q, d_i) = \frac{1}{k + r_{\text{dense}}(d_i)} + \frac{1}{k + r_{\text{sparse}}(d_i)},
 \end{equation}
 where $r_{\text{dense}}$ and $r_{\text{sparse}}$ are the ranks of $d_i$ under each retriever and $k = 60$ is a smoothing constant. This formulation is parameter-free and robust to the different score scales of dense and sparse systems.
 
-\textbf{Source attribution.} Every claim in an LLM-generated response must be attributable to a retrieved passage. The system should include passage identifiers in the response, allow users to navigate to the source, and flag when a claim is not supported by retrieved context. Attribution is not merely a quality feature; in regulated contexts it is the mechanism by which the system's outputs can be audited.
+Finally, \emph{source attribution} is a non-negotiable requirement. Every claim in an LLM-generated response must be attributable to a retrieved passage. The system should include passage identifiers in the response, allow users to navigate to the source, and flag when a claim is not supported by retrieved context. Attribution is not merely a quality feature; in regulated contexts it is the mechanism by which the system's outputs can be audited.
 
 \subsection{OpenClaw: A Local Personal AI Assistant for Finance Professionals}
 \label{subsec:af-ra-openclaw}
@@ -404,7 +489,7 @@ The credit chapter introduced bias in the context of lending decisions. Bias in 
 
 \emph{Feedback loop bias} is a structural property of markets in which LLM-generated signals have market impact. When a model's output influences asset prices, those prices enter future training data, reinforcing the model's priors. This mechanism is formally analogous to the reflexivity that George Soros identified in financial markets, but operates at much faster timescales and with much wider distribution. If many market participants train on the same or similar data and deploy similar LLM-based strategies, feedback loops can amplify volatility and reduce the informational efficiency of prices.
 
-\emph{Anchoring bias} describes the tendency of LLMs to weight salient numerical anchors in their context disproportionately. An LLM that has just processed an earnings call reporting a dramatically higher-than-expected revenue figure will anchor its subsequent analysis on that number; structural trends in working capital or capital expenditure that have more persistent implications for cash flow may receive insufficient weight. This is a cognitive bias documented extensively in human judgment \cite{PLACEHOLDER} % [CITE: Tversky and Kahneman 1974]
+\emph{Anchoring bias} describes the tendency of LLMs to weight salient numerical anchors in their context disproportionately. An LLM that has just processed an earnings call reporting a dramatically higher-than-expected revenue figure will anchor its subsequent analysis on that number; structural trends in working capital or capital expenditure that have more persistent implications for cash flow may receive insufficient weight. This is a cognitive bias documented extensively in human judgment \cite{tversky1974judgment}
 that LLMs, trained on human-generated text, reproduce reliably.
 
 \subsection{Fairness Metrics and Bias Evaluation Frameworks}
@@ -430,21 +515,24 @@ A model satisfies \emph{equalized odds} if
 for $y \in \{0, 1\}$ and all values $a, b$ of $A$. Both true positive rates and false positive rates are equal across groups.
 \end{definition}
 
-\begin{definition}[Calibration]
+\begin{definition}[Calibration Within Group]
 \label{def:calibration}
-A model is \emph{calibrated} with respect to attribute $A$ if
+Let $\hat{P} \in [0,1]$ denote the model's predicted probability of a positive outcome.
+A model is \emph{calibrated within group} with respect to attribute $A$ if
 \[
 \Pr(Y = 1 \mid \hat{P} = p, A = a) = p
 \]
-for all $p \in [0,1]$ and all values $a$ of $A$. Predicted probabilities are equally reliable across groups.
+for all $p \in [0,1]$ and all values $a$ of $A$. Predicted probabilities are equally reliable across groups: a predicted 70\% approval probability corresponds to a 70\% true approval rate separately for each group.
 \end{definition}
 
 \begin{proposition}[Impossibility of Simultaneous Fairness]
 \label{prop:fairness-impossibility}
-When base rates differ across groups---that is, $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$---demographic parity and equalized odds cannot both be satisfied by any non-trivial classifier.
+When base rates differ across groups---that is, $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$---a non-trivial classifier cannot simultaneously satisfy all of the following:
+(i) demographic parity, (ii) equalized odds, and (iii) calibration within group.
+Specifically, \citet{chouldechova2017fair} show that demographic parity and calibration within group are mutually incompatible whenever base rates differ; independently, satisfying equalized odds and calibration within group simultaneously requires equal base rates across groups.
 \end{proposition}
 
-This impossibility result, formalised by Chouldechova \cite{PLACEHOLDER} % [CITE: Chouldechova 2017]
+This impossibility result, formalised by \citet{chouldechova2017fair}
 and discussed at length in \cite{kearns2019ethical}, is not a technical limitation to be overcome. It is a statement that fairness is not a single concept but a family of criteria that make different distributional demands. Choosing a criterion is a policy choice, not a technical one, and in regulated finance it is a choice that must be made explicitly and justified to regulators.
 
 \subsection{Mitigation Strategies: Debiasing, Auditing, and Human Oversight}
@@ -568,15 +656,17 @@ The applications in this book have solved real problems, but they have also expo
 \subsection{The Path Forward: Building Responsible, Effective Finance AI}
 \label{subsec:af-future-path}
 
-This book has argued, chapter by chapter, that large language models represent a genuine capability advance for financial analysis. The evidence is cumulative and concrete: LLMs extract structured information from financial documents with accuracy that approaches human performance; they reason about qualitative factors that elude traditional numerical models; they coordinate complex multi-step analytical workflows that previously required teams of analysts; they make sophisticated financial analysis accessible to professionals without deep quantitative backgrounds. These are not speculative capabilities. They are demonstrated by the implementations and benchmarks reviewed in every chapter.
+This book has argued, chapter by chapter, that large language models represent a genuine capability advance for financial analysis. The evidence is cumulative and concrete: LLMs extract structured information from financial documents with accuracy approaching human performance; they reason about qualitative factors that elude traditional numerical models; they coordinate complex multi-step workflows that previously required teams of analysts; and they make sophisticated financial analysis accessible to professionals without deep quantitative backgrounds. These are not speculative capabilities. Every chapter has demonstrated them through implementations, benchmarks, and worked examples.
 
-But capability and responsibility are not in tension; they are jointly necessary conditions for value creation. An LLM-based credit model that discriminates unlawfully does not merely expose a firm to regulatory sanction---it degrades the quality of the credit market by misallocating capital. A trading system that amplifies volatility through feedback loops does not merely create operational risk---it damages the market infrastructure on which the entire financial system depends. A valuation agent that hallucinates financial figures with the confidence of a tenured analyst does not merely embarrass the firm that deployed it---it undermines the professional standards that give financial analysis its social function.
+Capability and responsibility are not in tension. They are jointly necessary conditions for value creation. An LLM-based credit model that discriminates unlawfully does not merely expose a firm to regulatory sanction — it misallocates capital and degrades the credit market for everyone. A trading system that amplifies volatility through feedback loops does not merely create operational risk — it damages the market infrastructure on which the entire financial system depends. A valuation agent that hallucinates financial figures with the confidence of a tenured analyst does not merely embarrass the firm that deployed it — it undermines the professional standards that give financial analysis its social function.
 
-The responsible deployment of LLMs in finance therefore requires the same disciplined rigour that the best financial practice has always demanded: explicit assumptions, documented limitations, validation against out-of-sample data, ongoing monitoring, and the intellectual honesty to retire a model when its performance degrades or its limitations prove material. The tools are new; the professional standards are not.
+Responsible deployment therefore demands the same disciplined rigour that the best financial practice has always required: explicit assumptions, documented limitations, independent validation, ongoing monitoring, and the intellectual honesty to retire a model when its performance degrades or its limitations prove material. The tools are new. The professional standards are not.
 
-For the academic researcher, the open problems surveyed in this chapter define a rich programme of work at the intersection of machine learning, econometrics, and financial economics. The questions are hard because they are real: calibrated uncertainty quantification, feedback loop detection, and cross-lingual generalisation are not exercises invented for a textbook; they are problems that practitioners face daily and that the field has not yet solved.
+For the academic researcher, the open problems in \S\ref{subsec:af-future-research} define a rich research programme at the intersection of machine learning, econometrics, and financial economics. Pursue calibrated uncertainty quantification. Develop credible methods for detecting feedback loops in LLM-influenced markets. Build cross-lingual finance corpora and evaluation frameworks for non-English regulatory filings. Solve the alignment problem for autonomous financial agents before they are deployed at scale, not after. These are hard problems because they are real ones. The field has not solved them. That is the invitation.
 
-For the practitioner, the book closes with a practical orientation: start with the simplest viable approach; instrument everything; validate independently; document honestly; escalate appropriately. LLMs are powerful analytical tools. They augment, rather than replace, the professional judgment of analysts, risk managers, and advisors who understand both the financial domain and the limitations of any model. The combination of LLM capability and professional expertise, deployed with rigour and transparency, is what finance AI looks like at its best.
+For the practitioner, three disciplines will separate the deployments that succeed from those that fail. First, measure everything: retrieval quality, output faithfulness, fairness metrics, and distributional drift. What is not measured cannot be managed, and in regulated finance, what is not managed creates liability. Second, document honestly: the model's purpose, its limitations, the conditions under which it is known to fail, and the human oversight structure that catches failures when they occur. Documentation is not a bureaucratic burden — it is the mechanism by which institutional knowledge survives model updates, team turnover, and regulatory examination. Third, escalate appropriately: build human review into every consequential decision workflow, not as a legal formality, but as a genuine check on model outputs that the reviewer is empowered to override.
+
+The combination of LLM capability and professional expertise, applied with rigour, transparency, and a clear-eyed understanding of both what these models can do and what they cannot, is what finance AI looks like at its best. The field is young enough that the researchers and practitioners reading this chapter will shape its norms, its standards, and its failures as much as its successes. That is an unusual privilege. Use it deliberately.
 
 \begin{remark}[A Note on Model Versions and Reproducibility]
 The code examples throughout this book use specific model identifiers (e.g., \texttt{claude-opus-4-5}). Model providers update and retire models continuously; readers implementing the examples should consult current provider documentation for the appropriate model identifier and adapt prompt templates as necessary for the model's instruction format. The underlying techniques---chain-of-thought prompting, tool use, RAG, agent orchestration---are architecture-level patterns that generalise across model versions. Specific prompt templates and API call structures may require adjustment.

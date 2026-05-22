@@ -18,7 +18,8 @@ By the end of this lecture, students should be able to:
 4. Contrast CLM, MLM, and span-corruption objectives and select the appropriate one for a downstream finance task.
 5. Apply LoRA parameter counting to a concrete model (e.g., 7B LLaMA) and explain why LoRA is preferred over full fine-tuning for resource-constrained settings.
 6. Trace the three-stage RLHF pipeline and identify where DPO simplifies it.
-7. Evaluate finance-specific LLMs (FinBERT, BloombergGPT) on standard benchmarks and situate results within MiFID II and SR 11-7 governance requirements.
+7. Compare FinBERT and BloombergGPT on standard financial NLP benchmarks, explain the domain-adaptation mechanisms behind their performance gains, and identify key limitations of each.
+8. Describe what MiFID II Article 37, SR 11-7, and the EU AI Act require of LLM-assisted financial workflows, and apply the three-tier risk classification to a concrete deployment scenario.
 
 ---
 
@@ -156,6 +157,8 @@ that is, each parameter should be trained on approximately 20 tokens. At a compu
 
 For a 7B-parameter model, the compute-optimal training run requires approximately $7\text{B} \times 20 = 140\text{B}$ tokens. LLaMA-2 (7B) trained on 2T tokens deliberately exceeded the Chinchilla budget to produce a smaller model with strong inference-time performance — a pragmatic choice reflecting the reality that inference costs often dominate total-cost-of-ownership in production deployments.
 
+*Practical 3b applies the Chinchilla rule: given $C = 10^{22}$ FLOPs, students derive $N^*$ and $D^*$ and determine whether a 50B-token financial corpus is a binding constraint.*
+
 ---
 
 ## 8. Distributed Training at Scale
@@ -172,11 +175,9 @@ ZeRO (Zero Redundancy Optimizer), developed by Microsoft, addresses the memory r
 
 <!-- BOOK-ONLY: Full memory accounting for ZeRO stages 1/2/3 with mixed-precision training (bfloat16 weights, fp32 master weights, Adam optimiser moments), FlashAttention tiled SRAM computation and IO complexity analysis, and gradient checkpointing O(√L) memory reduction derivation are given in the companion chapter. -->
 
-Mixed-precision training stores model weights in bfloat16 (16-bit brain floating point), which preserves the dynamic range of float32 while halving memory and bandwidth. A float32 master copy is maintained for the optimiser update. Loss scaling compensates for the reduced dynamic range by multiplying the loss by a large constant before the backward pass and dividing the gradients back afterward, preventing underflow in gradient magnitudes.
+Mixed-precision training (bfloat16 weights with float32 master copies) and gradient checkpointing further reduce memory requirements and are universally applied in practice. FlashAttention tiles the $QK^\top$ computation into SRAM-resident blocks, avoiding materialising the full $T \times T$ attention matrix in HBM and enabling sequence lengths of 32K–100K tokens that would otherwise be memory-prohibitive.
 
-Gradient checkpointing trades memory for compute by discarding intermediate activations during the forward pass and recomputing them during the backward pass. For a transformer with $L$ layers, storing only the activations at $\sqrt{L}$ evenly spaced checkpoint boundaries reduces activation memory from $O(L)$ to $O(\sqrt{L})$ at the cost of one additional forward pass.
-
-FlashAttention restructures the attention computation to keep intermediate values in the on-chip SRAM of the accelerator rather than streaming them through HBM (high-bandwidth memory). By tiling the $QK^\top$ computation into blocks that fit in SRAM, FlashAttention achieves exact attention in $O(N^2 d)$ FLOPs but reduces HBM I/O from $O(N^2)$ to $O(N^2 / M) \cdot M = O(N^2)$... actually to subquadratic in memory reads, which is the practical bottleneck on modern accelerators.
+<!-- BOOK-ONLY: Full memory accounting for bfloat16 mixed-precision (fp32 master weights, Adam optimiser moments), gradient checkpointing O(√L) memory derivation, and FlashAttention IO complexity analysis (HBM reads scale as O(N²d/M) vs O(N²d) naive) are treated in the companion chapter. -->
 
 ---
 
@@ -225,6 +226,8 @@ Adapter modules insert small bottleneck networks after each sub-layer of the tra
 ### Practical Preference for LoRA
 
 LoRA is preferred in most production settings because: (1) it introduces zero inference overhead when the $BA$ product is merged; (2) multiple LoRA adapters for different tasks can be swapped in and out without changing the base model; (3) QLoRA extends it to settings where the base model is too large for standard fine-tuning; (4) it is well-supported by libraries such as HuggingFace PEFT, making implementation straightforward.
+
+*Practical 3a asks you to reproduce the 7B LoRA parameter count for different values of $r$ and different module selections, and to fine-tune FinBERT with LoRA for financial sentiment.*
 
 ---
 
@@ -313,6 +316,8 @@ MiFID II Article 37 establishes that research produced or distributed by investm
 SR 11-7, the US Federal Reserve's supervisory guidance on model risk management, requires a tiered validation framework proportional to model risk. High-risk models (those influencing credit, capital, or trading decisions) require independent validation, documentation of assumptions, and periodic performance monitoring. LLMs used in any of these capacities fall under this guidance.
 
 The EU AI Act, with high-risk system provisions becoming enforceable in August 2026, classifies certain financial AI applications as high-risk and mandates conformity assessments, technical documentation, human oversight mechanisms, and registration in an EU database. A four-component governance framework appropriate for financial LLM deployment comprises: (1) risk classification (Low/Medium/High) based on the decision being supported and the autonomy given to the model; (2) audit trails capturing input prompts, retrieved context, model outputs, and user actions; (3) ongoing monitoring of output distributions for drift and degradation; and (4) an incident response process for rapid mitigation when model failures are detected.
+
+*The discussion exercise in Practical 3 asks you to assign tier-risk classifications to three concrete financial LLM deployments and justify each classification using these four components.*
 
 ---
 

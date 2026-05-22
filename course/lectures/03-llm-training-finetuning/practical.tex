@@ -1,0 +1,479 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usepackage{amsmath,amssymb,booktabs,xcolor}
+\usepackage{listings}
+
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+}
+
+\title{Practical Session 3: LoRA, Scaling, and Fine-Tuning}
+\subtitle{Hands-On: Parameter Counting, Chinchilla Budgeting, and FinBERT Sentiment}
+\author{Juan F.\ Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{Large Language Models in Finance}
+
+\begin{document}
+
+% ============================================================
+% FRAME 1: Title
+% ============================================================
+\begin{frame}
+\frametitle{}
+\titlepage
+\end{frame}
+
+% ============================================================
+% FRAME 2: Session overview
+% ============================================================
+\begin{frame}
+\frametitle{Session Overview}
+
+\textbf{Duration:} 1 hour
+
+\medskip
+\begin{enumerate}
+  \item \textbf{Recap} (5 min) --- LoRA formula, Chinchilla rule, CLM/MLM objectives
+  \item \textbf{Problem 1} (15 min) --- LoRA parameter counting on 7B LLaMA
+  \item \textbf{Problem 2} (10 min) --- Chinchilla compute budgeting
+  \item \textbf{Case Study} (20 min) --- Fine-tune FinBERT sentiment with PEFT/LoRA;
+        answer three diagnostic questions
+  \item \textbf{Discussion} (5 min) --- When to choose each adaptation strategy?
+  \item \textbf{Solutions} (5 min) --- Walkthrough of Problems 1 and 2
+\end{enumerate}
+
+\medskip
+\begin{block}{What you will practise}
+  Translating scaling-law arithmetic into practical hardware decisions; applying
+  LoRA configuration choices; running a real fine-tuning loop on a finance task.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 3: Recap -- LoRA
+% ============================================================
+\begin{frame}
+\frametitle{Recap: LoRA Formula}
+
+For a frozen pre-trained weight matrix $W_0 \in \mathbb{R}^{d \times k}$:
+\[
+  W = W_0 + BA, \quad B \in \mathbb{R}^{d \times r},\; A \in \mathbb{R}^{r \times k},\;
+  r \ll \min(d,k)
+\]
+
+\medskip
+\textbf{Trainable parameter count per adapted layer:}
+\[
+  \Delta\theta = r(d + k)
+\]
+
+\medskip
+\textbf{Key properties:}
+\begin{itemize}
+  \item $W_0$ is frozen; only $B$ and $A$ receive gradients
+  \item Initialise: $A \sim \mathcal{N}(0, \sigma^2)$, $B = 0$ so $BA = 0$ at step 0
+  \item At inference: merge $W \leftarrow W_0 + BA$ --- zero overhead vs.\ base model
+  \item Rank $r$ is the key hyperparameter; typical values: 4, 8, 16, 32
+\end{itemize}
+
+\medskip
+\begin{alertblock}{You will need this for Problem 1}
+  Summing $r(d+k)$ over all adapted layers gives total trainable parameter count.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 4: Recap -- Chinchilla + CLM/MLM
+% ============================================================
+\begin{frame}
+\frametitle{Recap: Chinchilla Rule and Pre-training Objectives}
+
+\textbf{Chinchilla compute-optimal allocation:}
+\[
+  C \approx 6ND, \qquad \frac{D^*}{N^*} \approx 20
+\]
+Given budget $C$: solve $6N(20N) = 120N^2 = C$, so
+\[
+  N^* = \sqrt{\frac{C}{120}}, \qquad D^* = 20 N^*
+\]
+
+\medskip
+\textbf{Pre-training objectives (summary):}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Objective} & \textbf{Architecture} & \textbf{Finance use} \\
+\midrule
+CLM (causal) & Decoder-only & Generation, chat \\
+MLM (masked) & Encoder-only & Classification, NER \\
+Span corruption & Encoder-decoder & QA, summarisation \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{alertblock}{You will need these for Problem 2}
+  The formula $N^* = \sqrt{C/120}$ is your main tool for Chinchilla budgeting.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 5: Problem 1 -- Setup
+% ============================================================
+\begin{frame}
+\frametitle{Problem 1: LoRA Parameter Counting --- Setup}
+
+\textbf{Model:} LLaMA-7B with 32 transformer layers, hidden dimension $d = 4096$.
+
+Each layer contains four linear projection matrices:
+\begin{itemize}
+  \item Query projection: $W_Q \in \mathbb{R}^{4096 \times 4096}$
+  \item Key projection: $W_K \in \mathbb{R}^{4096 \times 4096}$
+  \item Value projection: $W_V \in \mathbb{R}^{4096 \times 4096}$
+  \item Output projection: $W_O \in \mathbb{R}^{4096 \times 4096}$
+\end{itemize}
+
+\textbf{Task:} Apply LoRA with rank $r = 4$ to the \emph{Q and V projections only}.
+
+\medskip
+\textbf{Fill in the table below for one layer:}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Layer} & \textbf{Matrix} & \textbf{$d$} & \textbf{$k$} & \textbf{$r$} \\
+\midrule
+Transformer $\ell$ & $W_Q$ & \phantom{4096} & \phantom{4096} & \phantom{4} \\
+Transformer $\ell$ & $W_V$ & \phantom{4096} & \phantom{4096} & \phantom{4} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\small \textit{Hint:} For each adapted matrix the trainable param count is $r(d + k)$.
+Sum over both matrices and all 32 layers.
+\end{frame}
+
+% ============================================================
+% FRAME 6: Problem 1 -- Tasks
+% ============================================================
+\begin{frame}
+\frametitle{Problem 1: Tasks}
+
+Using the setup from the previous frame ($r=4$, Q and V only, 32 layers, $d=k=4096$):
+
+\medskip
+\textbf{Task A.} Compute the total number of trainable LoRA parameters.
+Show the step-by-step arithmetic.
+
+\medskip
+\textbf{Task B.} Express this as a fraction of the 7B total parameter count.
+Is the fraction above or below 0.1\%?
+
+\medskip
+\textbf{Task C.} Suppose you double the rank from $r = 4$ to $r = 8$.
+By what factor does the trainable parameter count change?
+Is the relationship linear, quadratic, or something else? Justify.
+
+\medskip
+\textbf{Task D.} A colleague suggests using adapter modules instead of LoRA
+because adapters have been around longer. Give one concrete reason why LoRA
+is preferred for \emph{inference-time deployment} in a high-throughput
+trading-floor application where latency is measured in milliseconds.
+
+\medskip
+\begin{block}{Time: 15 minutes. Work individually or in pairs.}
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 7: Problem 2 -- Chinchilla budgeting
+% ============================================================
+\begin{frame}
+\frametitle{Problem 2: Chinchilla Compute Budgeting}
+
+\textbf{Scenario:} An investment bank's AI team has a compute budget of
+$C = 10^{22}$ FLOPs for training a financial language model.
+
+\medskip
+Using $C \approx 6ND$, $D^* \approx 20 N^*$, and therefore $N^* = \sqrt{C/120}$:
+
+\medskip
+\textbf{Task A.}
+\begin{enumerate}
+  \item Compute $N^*$ and $D^*$.
+  \item The team has assembled a financial text corpus containing 50B tokens.
+        Is the team data-constrained or compute-constrained?
+        (Hint: compare your $D^*$ to 50B tokens.)
+  \item What should they do given this diagnosis?
+\end{enumerate}
+
+\medskip
+\textbf{Task B.} The team instead decides to train a 1B-parameter model.
+Using the Chinchilla rule, how many tokens should they train on for a compute-optimal run?
+What is the implied FLOP cost?
+
+\medskip
+\textbf{Task C.} A senior researcher argues ``we should train the biggest model
+possible to maximise accuracy''. Under what conditions is this argument valid?
+Under what conditions is it wrong?
+
+\medskip
+\begin{block}{Time: 10 minutes.}
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 8: Case Study -- Introduction
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Fine-Tuning FinBERT with LoRA on Financial Sentiment}
+
+\textbf{Goal:} Load a pre-trained FinBERT model and apply LoRA fine-tuning
+on a small set of labelled financial sentences using HuggingFace PEFT.
+
+\medskip
+\textbf{Stack:}
+\begin{itemize}
+  \item \texttt{transformers} --- load \texttt{ProsusAI/finbert}
+  \item \texttt{peft} --- apply \texttt{LoraConfig}, wrap model with \texttt{get\_peft\_model}
+  \item \texttt{torch} --- training loop (no Trainer class for transparency)
+\end{itemize}
+
+\medskip
+\textbf{Dataset:} 5 labelled financial sentences (positive/negative/neutral).
+This is intentionally tiny --- the goal is to observe the mechanics, not maximise accuracy.
+
+\medskip
+\begin{block}{What you will do}
+  \begin{enumerate}
+    \item Run the code on the next frame
+    \item Observe how many parameters are trainable vs.\ frozen
+    \item Answer the diagnostic questions on the following frame
+  \end{enumerate}
+\end{block}
+
+\medskip
+\begin{alertblock}{Prerequisites}
+  \texttt{pip install transformers peft torch}\\
+  No API key required for this case study.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 9: Case Study -- Code
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: LoRA on FinBERT --- Code}
+
+\begin{lstlisting}
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from peft import LoraConfig, get_peft_model, TaskType
+
+MODEL = "ProsusAI/finbert"
+SENTENCES = [
+    ("Revenue increased 15% year-over-year.", 0),        # positive
+    ("The firm reported a net loss of $200M.", 1),        # negative
+    ("Operating margins remained broadly stable.", 2),    # neutral
+    ("Strong demand drove record quarterly earnings.", 0),# positive
+    ("Guidance was withdrawn amid macro uncertainty.", 1),# negative
+]
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL, num_labels=3)
+
+lora_cfg = LoraConfig(
+    task_type=TaskType.SEQ_CLS,
+    r=8,
+    lora_alpha=16,
+    target_modules=["query", "value"],
+    lora_dropout=0.05,
+    bias="none",
+)
+model = get_peft_model(model, lora_cfg)
+model.print_trainable_parameters()  # observe trainable % here
+
+texts, labels = zip(*SENTENCES)
+enc = tokenizer(list(texts), padding=True, truncation=True, return_tensors="pt")
+label_tensor = torch.tensor(labels)
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
+model.train()
+for epoch in range(3):
+    out = model(**enc, labels=label_tensor)
+    out.loss.backward(); optimizer.step(); optimizer.zero_grad()
+    print(f"Epoch {epoch+1}: loss={out.loss.item():.4f}")
+
+model.eval()
+with torch.no_grad():
+    logits = model(**enc).logits
+    preds = logits.argmax(-1)
+    id2label = {0: "positive", 1: "negative", 2: "neutral"}
+    for sent, pred in zip(texts, preds):
+        print(f"[{id2label[pred.item()]}] {sent}")
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+% FRAME 10: Case Study -- Diagnostic questions
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Diagnostic Questions}
+
+Run the code and observe the output, then answer:
+
+\medskip
+\textbf{Q1.} \texttt{model.print\_trainable\_parameters()} reports the number of
+trainable parameters.  Compare this to the total FinBERT parameter count
+($\approx 110$M for BERT-large variants).  How does the trainable fraction
+compare to the theoretical value for LoRA $r=8$ applied to query and value
+matrices across all 12 BERT layers?
+
+\medskip
+\textbf{Q2.} Change \texttt{r=8} to \texttt{r=4} and then to \texttt{r=16}.
+Run the three-epoch training loop for each.  Do the final predictions change?
+Does loss decrease faster at higher rank?  What does this suggest about the
+relationship between rank and expressiveness for this small dataset?
+
+\medskip
+\textbf{Q3.} Modify \texttt{target\_modules} to include all four projections:
+\texttt{["query", "key", "value", "dense"]}.
+How does the trainable parameter count change?
+Do the predictions improve or change?  Is the additional compute justified?
+
+\medskip
+\begin{block}{Optional extension}
+  Replace the 5 sentences with 50 examples from the Financial PhraseBank dataset
+  (available on HuggingFace as \texttt{takala/financial\_phrasebank}).
+  Evaluate accuracy on a held-out 20\% split at $r = 4$, $8$, $16$.
+  Plot accuracy vs.\ trainable parameter count.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 11: Discussion
+% ============================================================
+\begin{frame}
+\frametitle{Discussion: Choosing the Right Adaptation Strategy}
+
+For each scenario below, identify which strategy you would use
+(zero-shot / few-shot ICL / LoRA fine-tune / full fine-tune) and why.
+
+\medskip
+\begin{enumerate}
+  \item A hedge fund needs to classify 10-K risk-factor sections as
+        ``material'' or ``immaterial'' for a specific covenant type.
+        They have 50 labelled examples and a 2-hour deadline.
+        They use GPT-4o via API.
+
+  \item A tier-1 bank wants to build an internal model for earnings-call
+        sentiment that runs on-premise (no external API), processes
+        200,000 documents per month, and must meet GDPR data-residency requirements.
+        They have 20,000 labelled examples.
+
+  \item A fintech startup is building a general-purpose financial chatbot.
+        They have no task-specific labelled data but have access to a
+        pre-trained instruction-tuned LLM.
+
+  \item A quantitative research team wants to test whether a 70B model
+        can replicate the reasoning of a domain expert on novel bond
+        structuring questions.  No labelled data exists.
+  \end{enumerate}
+
+\medskip
+\begin{block}{Frame your answer around:}
+  Labelled data volume, compute budget, latency requirements,
+  data-privacy constraints, inference cost, and desired explainability.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 12: Solution -- Problem 1
+% ============================================================
+\begin{frame}
+\frametitle{Solution: Problem 1 --- LoRA Parameter Counting}
+
+\textbf{Filled table (one layer, $r=4$, Q and V, $d=k=4096$):}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Layer} & \textbf{Matrix} & \textbf{$d$} & \textbf{$k$} & \textbf{$r$} \\
+\midrule
+Transformer $\ell$ & $W_Q$ & 4096 & 4096 & 4 \\
+Transformer $\ell$ & $W_V$ & 4096 & 4096 & 4 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Task A:}
+\[
+  32 \times 2 \times r \times (d + k)
+  = 32 \times 2 \times 4 \times 8192
+  = 2{,}097{,}152 \approx 2.1\text{M params}
+\]
+
+\textbf{Task B:} $2.1\text{M} / 7000\text{M} \approx 0.030\%$ --- well below 0.1\%.
+
+\textbf{Task C:} Doubling $r$ from 4 to 8:
+\[
+  32 \times 2 \times 8 \times 8192 = 4{,}194{,}304 \approx 4.2\text{M}
+\]
+The count \emph{doubles} (linear in $r$, since $r(d+k)$ is linear in $r$).
+
+\textbf{Task D:} LoRA merges $W_0 + BA$ into a single weight before deployment,
+so the merged model is identical in structure to the base model.
+Adapters add a sequential bottleneck module that cannot be trivially removed,
+increasing inference latency per token --- unacceptable in latency-sensitive
+trading applications.
+\end{frame}
+
+% ============================================================
+% FRAME 13: Solution -- Problem 2 + wrap-up
+% ============================================================
+\begin{frame}
+\frametitle{Solution: Problem 2 --- Chinchilla Budgeting + Wrap-Up}
+
+\textbf{Task A} ($C = 10^{22}$):
+\[
+  N^* = \sqrt{\frac{C}{120}} = \sqrt{\frac{10^{22}}{120}}
+       = \sqrt{8.33 \times 10^{19}} \approx 2.89 \times 10^8 \approx 288\text{M params}
+\]
+\[
+  D^* = 20 \times N^* \approx 20 \times 288\text{M} = 5.76\text{B tokens}
+\]
+The team has 50B tokens but $D^* \approx 5.76$B.
+$50\text{B} \gg 5.76\text{B}$: they are \emph{compute-constrained, not data-constrained}.
+They should train a $\approx 288$M-parameter model on 5.76B tokens; the remaining
+44B tokens support a larger model if compute permits.
+
+\medskip
+\textbf{Task B} (1B-parameter model):
+$D^* = 20 \times 1\text{B} = 20\text{B tokens}$; $C = 6 \times 1\text{B} \times 20\text{B} = 1.2 \times 10^{23}$ FLOPs.
+
+\medskip
+\textbf{Task C:} Maximise-parameter argument is valid only when inference cost is
+negligible and compute is unlimited.  In practice, the 50B-parameter model costs
+more to serve at inference time than a Chinchilla-optimal 288M model, and may
+\emph{score worse} on held-out loss if under-trained.
+
+\medskip
+\begin{block}{Session Summary}
+  LoRA param count is linear in $r$; merge eliminates inference overhead.
+  Chinchilla: $D^*/N^* \approx 20$; most realistic settings are compute-constrained.
+  Next practical: fine-tuning a generative model for financial QA with LoRA.
+\end{block}
+\end{frame}
+
+\end{document}

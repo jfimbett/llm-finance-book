@@ -1,0 +1,501 @@
+\chapter{Credit Risk and Large Language Models}
+\label{ch:credit-risk}
+
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Describe the classical structural and reduced-form models of credit risk and
+        identify their key assumptions and empirical limitations.
+  \item Explain how machine learning and NLP methods improve the prediction of
+        probability of default beyond traditional credit-scoring approaches.
+  \item Apply LLMs to extract soft information from loan narratives, earnings calls,
+        and corporate filings and explain how this information complements hard
+        financial data.
+  \item Articulate the fairness and disparate-impact concerns that arise when
+        algorithmic models replace human judgment in lending decisions.
+  \item Describe the model risk management framework (SR~11-7) as it applies to
+        AI-based credit models, including validation, explainability, and governance.
+  \item Design a persona-based LLM simulation of a borrower and discuss its uses
+        and limitations for stress-testing and behavioural credit analysis.
+\end{enumerate}
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{Credit Risk: Concepts and Classical Models}
+\label{sec:credit-basics}
+
+Credit risk is the possibility that a counterparty will fail to meet a contractual
+obligation, causing a financial loss to the lender or investor.  It is the oldest
+and most pervasive risk in finance: every loan, bond, trade receivable, or derivative
+exposure carries some probability that the obligor will default.  Understanding,
+measuring, and pricing credit risk is therefore central to bank regulation, bond
+valuation, and portfolio management.
+
+Two intellectual traditions have shaped credit risk modelling.  The \emph{structural}
+tradition, originating with the insight that equity is a call option on the firm's
+assets, derives default as an endogenous event that occurs when asset value crosses a
+liability threshold.  The \emph{reduced-form} tradition treats default as an
+exogenous Poisson arrival whose intensity is specified directly, bypassing the need to
+model asset dynamics.  Both traditions assume that the relevant information is
+captured in observable financial variables.  The central message of this chapter is
+that large language models open a third path: extracting latent credit-relevant
+information from unstructured text, and simulating human decision-making through
+persona-based agents.
+
+% ---------------------------------------------------------------
+\subsection{Probability of Default: Definitions and Estimation}
+\label{sec:pd-estimation}
+
+\begin{definition}[Probability of Default]
+\label{def:pd}
+Let $(\Omega, \mathcal{F}, \mathbb{P})$ be a probability space and let $\tau$ denote
+the random \emph{default time} of an obligor.  The \emph{probability of default}
+over a horizon $[0, T]$ is
+\begin{equation}
+  \mathrm{PD}(T) \;=\; \mathbb{P}(\tau \leq T).
+  \label{eq:pd-def}
+\end{equation}
+When $T = 1$ year the quantity is called the \emph{one-year PD}, which is the primary
+input to the Basel internal-ratings-based (IRB) credit risk formula.
+\end{definition}
+
+The classical statistical approach to estimating $\mathrm{PD}$ is \emph{logistic
+regression}.  Given a vector of covariates $\mathbf{x}_i \in \mathbb{R}^p$ for
+obligor $i$ (leverage ratio, interest-coverage ratio, liquidity, sector indicator,
+macroeconomic state), and a binary outcome $y_i \in \{0, 1\}$ indicating default
+within the horizon, the model specifies
+\begin{equation}
+  \mathbb{P}(y_i = 1 \mid \mathbf{x}_i) = \sigma(\mathbf{x}_i^\top \boldsymbol{\beta}),
+  \label{eq:logit-pd}
+\end{equation}
+where $\sigma(z) = 1/(1 + e^{-z})$ is the logistic function.  The coefficient vector
+$\boldsymbol{\beta}$ is estimated by maximum likelihood.
+
+Altman and Sabato \cite{altman2007sme} demonstrated an early application of this
+framework to small and medium-sized enterprises (SMEs): using a panel of over 2,000
+U.S.\ firms with sales below \$65 million, they showed that an SME-specific logistic
+model outperforms a generic corporate model by nearly 30\% in out-of-sample
+discriminatory power, underscoring the importance of segment-specific credit
+models.
+
+\begin{remark}[Loss Given Default and Expected Loss]
+\label{rem:lgd-el}
+The probability of default is only one component of credit loss.  The \emph{expected
+loss} over horizon $T$ is
+\[
+  \mathrm{EL} = \mathrm{PD}(T) \times \mathrm{LGD} \times \mathrm{EAD},
+\]
+where $\mathrm{LGD} \in [0,1]$ is the \emph{loss given default} (the fraction of
+exposure lost if default occurs) and $\mathrm{EAD}$ is the \emph{exposure at default}.
+This chapter focuses primarily on $\mathrm{PD}$ estimation, but the NLP methods
+discussed below are equally applicable to modelling $\mathrm{LGD}$, which is strongly
+influenced by the quality of collateral documentation and covenant language.
+\end{remark}
+
+% ---------------------------------------------------------------
+\subsection{Machine Learning Extensions}
+\label{sec:ml-credit}
+
+The rise of machine learning has transformed credit scoring by allowing non-linear,
+high-dimensional interactions among predictors that logistic regression cannot capture.
+Gradient-boosted trees, random forests, and neural networks consistently outperform
+logistic regression on held-out default prediction benchmarks, particularly for
+consumer credit where behavioural signals (payment timing, account utilisation patterns)
+display strong non-linearities.
+
+A landmark paper by Fuster, Goldsmith-Pinkham, Ramadorai, and Walther
+\cite{fuster2022predictably} uses U.S.\ mortgage data to compare traditional and
+machine learning credit models and finds that machine learning substantially improves
+default prediction accuracy.  However, they also document a troubling distributional
+consequence: Black and Hispanic borrowers are disproportionately less likely to benefit
+from the predictive gains of machine learning relative to white borrowers, because
+machine learning exploits historical patterns that embed pre-existing socioeconomic
+disparities.  Their equilibrium analysis shows that machine learning credit models can
+widen racial gaps in interest rates and credit access, even in the absence of
+discriminatory intent.  This finding motivates the regulatory focus on algorithmic
+fairness discussed in Section~\ref{sec:fairness}.
+
+Beyond structured financial data, the advent of ubiquitous digital platforms has
+created rich alternative data sources.  Berg, Burg, Gombovic, and Puri
+\cite{berg2020fintech} show, in a natural experiment exploiting variation in device
+type and operating system at loan application, that simple digital-footprint variables
+(whether an applicant uses an Apple versus Android device, whether they apply at
+night) predict consumer default with information content comparable to traditional
+credit-bureau scores.  Their results demonstrate that non-traditional data can expand
+credit access for thin-file borrowers who lack a conventional credit history, while
+raising questions about the fairness of using such proxies.
+
+% ---------------------------------------------------------------
+\section{Soft Information and NLP in Credit Markets}
+\label{sec:nlp-credit}
+
+Hard financial ratios capture the \emph{reported} financial position of a borrower.
+Soft information---the qualitative judgment formed by a loan officer who meets the
+borrower, reads the business plan, and assesses the management team---has long been
+recognised as a complementary and partially non-transferable input to credit decisions.
+NLP methods allow researchers and practitioners to operationalise soft information at
+scale, converting unstructured text into quantitative signals that can enter
+credit-scoring models alongside hard financial data.
+
+% ---------------------------------------------------------------
+\subsection{Text-Based Default Prediction}
+\label{sec:text-default}
+
+The intuition that language reveals credit quality is not new.  Loan officers have
+always attended to the clarity, consistency, and tone of a borrower's narrative.  What
+has changed is the ability to process that narrative systematically across thousands of
+applications.
+
+Frattaroli \cite{frattaroli2019} provides an early demonstration that the textual
+content of loan officer memos contains information about future loan performance
+beyond the hard financial data recorded in the loan file.  Memos with more negative
+sentiment and greater linguistic hedging are associated with higher default rates,
+consistent with loan officers embedding soft-information assessments in the language
+of their write-ups.
+
+More recently, the combination of large language models with corporate text has
+produced powerful default-prediction signals.  Khoja \cite{khoja2024llm} shows that
+LLM-processed earnings call transcripts---evaluated through a counterfactual
+random-forest methodology---predict corporate bond credit spreads and reduce the
+post-earnings announcement drift (PEAD) in bond markets by as much as 86.9\%,
+an effect concentrated in investment-grade bonds where interpretive heterogeneity
+is greatest.  The key advantage of LLMs over bag-of-words sentiment is their ability
+to capture contextual negation, hedging, and domain-specific terminology---precisely
+the linguistic features that matter most in credit-relevant disclosures.
+
+A broader benchmark study, ``Empowering Many, Biasing a Few,'' by Feng, Dai, Huang,
+Zhang, Xie, Han, Chen, Lopez-Lira, and Wang \cite{feng2023calm} introduces the Credit
+Assessment Large Language Model (CALM) benchmark: nine datasets covering 14{,}000
+samples spanning credit default prediction, risk rating, and bias examination.  Their
+fine-tuned CALM model achieves strong generalisation across tasks but also reveals
+systematic demographic biases inherited from the pre-training corpus---underscoring
+that LLM-based credit scoring is not a neutral technology but one that requires
+careful bias auditing before deployment.
+
+% ---------------------------------------------------------------
+\subsection{Earnings Call Transcripts and Bond Markets}
+\label{sec:transcripts-bonds}
+
+Earnings call transcripts are particularly valuable for credit analysis because they
+provide high-frequency, unscripted soft information from senior management.  In the
+context of equity markets, a large literature has documented that call tone predicts
+future earnings surprises.  The credit analogue is equally compelling.
+
+When management hedges more on a call---using phrases such as ``subject to market
+conditions,'' ``we anticipate challenges,'' or ``we are monitoring the situation
+closely''---the linguistic shift is often a leading indicator of deteriorating credit
+quality, appearing before the deterioration shows up in reported financial ratios.
+This temporal gap between the soft-information signal and the hard-data realisation
+is the source of the incremental predictive value of NLP-based credit signals.
+
+Lopez-Lira and Tang \cite{lopezlira2023chatgpt} show that ChatGPT sentiment scores
+extracted from news headlines---without any credit-specific training---predict
+subsequent stock price drift, particularly for small-cap stocks and negative news.
+The same zero-shot capability extends naturally to bond markets: LLM sentiment from
+earnings call transcripts and filings predicts credit spread changes and rating
+migration in preliminary applications of the methodology.
+
+% ---------------------------------------------------------------
+\section{LLMs for Lending Decisions: Capabilities and Risks}
+\label{sec:llm-lending}
+
+Beyond using LLMs as feature extractors for credit models, a more ambitious
+application is deploying LLMs as \emph{decision agents} that directly assess
+creditworthiness, structure loan covenants, or simulate borrower behaviour.  This
+section examines both the promise and the risks of that approach.
+
+% ---------------------------------------------------------------
+\subsection{Zero-Shot and Few-Shot Credit Assessment}
+\label{sec:zeroshot-credit}
+
+Large language models trained on broad corpora of financial text encode substantial
+knowledge about credit analysis: financial ratios, default patterns, industry risk
+factors, and covenant structures.  A prompt that provides a borrower's financial
+summary and asks for a credit assessment will typically elicit a coherent and
+informed response.
+
+The systematic review by Integrating Interpretable LLMs for Credit Risk
+\cite{interpretable2025} synthesises 60 papers from 2020--2025 and documents that
+LLMs achieve competitive accuracy on structured credit classification tasks when
+provided with appropriate chain-of-thought prompts, and that they outperform
+classical ML on tasks requiring natural-language reasoning about qualitative risk
+factors.  Crucially, the review distinguishes between \emph{intrinsic explainability}
+(the model generates a natural-language justification for its assessment) and
+\emph{post-hoc explainability} (SHAP or LIME applied to a black-box model), arguing
+that LLMs offer a form of intrinsic explainability that may satisfy regulatory demands
+for adverse action notice more naturally than traditional ML models.
+
+However, zero-shot credit assessment also inherits all the failure modes of LLMs:
+hallucination of financial facts, sensitivity to prompt phrasing, and the potential to
+reproduce training-data biases in a non-transparent way.  For consumer lending, where
+adverse action notice requirements impose legal obligations to explain denial reasons,
+the opacity of LLM reasoning chains creates compliance risk unless the chain-of-thought
+is faithfully recorded and auditable.
+
+% ---------------------------------------------------------------
+\subsection{Persona-Based Borrower Simulation}
+\label{sec:persona-credit}
+
+A distinctive application of LLMs in credit analysis is the construction of
+\emph{synthetic borrower personas}: LLM agents that role-play a borrower with
+specified demographic, financial, and behavioural characteristics, and simulate their
+financial decisions over time.
+
+The methodology draws on a growing literature showing that LLMs prompted with
+demographic and psychographic personas can reproduce survey responses and economic
+choices with surprising fidelity.  Korinek \cite{korinek2023llm} catalogues 25 use
+cases in which LLMs augment economic research, including the simulation of survey
+responses and the generation of synthetic respondents for pilot-testing research
+designs.  In credit applications, persona simulation can serve several purposes:
+
+\begin{enumerate}
+  \item \textbf{Stress testing.}  A bank can prompt an LLM with a ``stressed
+    household'' persona---a household that has recently lost one income source,
+    has credit-card utilisation near the limit, and faces rising mortgage
+    payments---and ask the agent to simulate the sequence of financial decisions
+    (balance transfers, discretionary spending cuts, missed payments) over a
+    six-month horizon.  The resulting simulated payment trajectories can be used to
+    calibrate default models under stress scenarios that have not been observed in
+    historical data.
+
+  \item \textbf{Counterfactual fairness analysis.}  By varying only the protected
+    attributes (race, gender, age) in the persona prompt while holding financial
+    attributes constant, a bank can test whether its LLM-based underwriting system
+    produces different credit decisions across demographic groups---providing a
+    structured audit of disparate impact that complements statistical fairness
+    metrics.
+
+  \item \textbf{Synthetic data generation.}  Credit models trained on historical
+    data suffer from class imbalance (defaults are rare) and sample selection bias
+    (only approved borrowers appear in the training data).  LLM-generated synthetic
+    borrower trajectories can augment the training set, particularly for
+    underrepresented segments such as thin-file borrowers or small businesses in
+    emerging markets.
+\end{enumerate}
+
+The ``Financial Brain Scan'' methodology of Chen, Didisheim, Somoza, and Tian
+\cite{somoza2025brainscan} offers a complementary approach: rather than prompting the
+LLM with an external persona, their technique identifies the internal conceptual
+directions in an LLM's representation space that correspond to risk aversion,
+optimism, or pessimism, and steers the model along those directions while holding
+other factors constant.  Applied to credit decisions, this allows researchers to
+simulate what a more or less risk-averse underwriter would decide, providing a
+principled way to explore the sensitivity of credit outcomes to the implicit
+preferences embedded in a deployed LLM.
+
+% ---------------------------------------------------------------
+\section{Fairness, Discrimination, and Regulatory Constraints}
+\label{sec:fairness}
+
+The deployment of algorithmic credit models---and LLMs in particular---in consumer
+lending sits at the intersection of statistical science, law, and ethics.  In the
+United States, the Equal Credit Opportunity Act (ECOA) and the Fair Housing Act
+prohibit credit decisions that discriminate on the basis of race, color, religion,
+national origin, sex, marital status, or age.  The Equal Credit Opportunity Act
+further requires lenders to provide a statement of reasons when an adverse action is
+taken.  Similar protections exist in the European Union under the General Data
+Protection Regulation (GDPR) and the forthcoming EU AI Act.
+
+The key legal concept is \emph{disparate impact}: even if a model does not explicitly
+use protected characteristics as inputs, it may produce outcomes that disproportionately
+harm protected groups.  Fuster et al.\ \cite{fuster2022predictably} demonstrate
+empirically that this is not merely a theoretical concern: machine learning credit
+models, trained on historical data that reflects historical discrimination, can
+amplify disparities relative to traditional models even when the model itself is
+facially neutral.
+
+\begin{definition}[Disparate Impact]
+\label{def:disparate-impact}
+A credit model exhibits \emph{disparate impact} with respect to protected group $G$
+if the approval rate for applicants in group $G$ is less than 80\% of the approval
+rate for the most-favoured group:
+\begin{equation}
+  \frac{\mathrm{ApprovalRate}(G)}{\max_{G'} \mathrm{ApprovalRate}(G')} < 0.80.
+  \label{eq:disparate-impact}
+\end{equation}
+The 80\% threshold is the ``four-fifths rule'' codified in the 1978 Uniform Guidelines
+on Employee Selection Procedures and widely applied to lending by analogy.
+\end{definition}
+
+For LLMs specifically, the fairness challenge is compounded by the opacity of the
+model's reasoning.  An LLM prompted to assess creditworthiness may produce disparate
+outcomes because: (i) its pre-training corpus encodes historical associations between
+demographic groups and creditworthiness; (ii) the persona-description language in the
+prompt activates demographic stereotypes; or (iii) the model attends to linguistic
+features that correlate with protected characteristics even when those features are
+not intended as proxies.  The CALM benchmark \cite{feng2023calm} documents all three
+mechanisms, finding that LLM credit scores vary systematically with implied borrower
+race even when financial covariates are held fixed.
+
+Mitigating these risks requires a combination of technical interventions (debiasing
+pre-training data, adversarial fine-tuning, demographic parity constraints on
+outputs) and governance measures (regular disparity testing, human oversight of
+boundary cases, explainable adverse action notices).
+
+% ---------------------------------------------------------------
+\section{Model Risk Management for AI Credit Models}
+\label{sec:model-risk}
+
+Financial regulators have long required banks to manage model risk systematically.
+In the United States, the Federal Reserve and the Office of the Comptroller of the
+Currency's joint guidance document SR~11-7 (``Supervisory Guidance on Model Risk
+Management,'' 2011) establishes the framework: every model used in a material
+decision must be developed, validated, and governed according to documented standards.
+Model risk management (MRM) encompasses three pillars: development and implementation,
+validation, and ongoing monitoring.
+
+The application of SR~11-7 to AI and LLM-based credit models raises new challenges
+that the original 2011 guidance did not anticipate.  A logistic regression model has
+a small, interpretable parameter vector that can be audited directly.  A large
+language model has billions of parameters and its behaviour emerges from complex
+non-linear interactions that cannot be inspected directly.
+
+Key challenges include:
+
+\begin{enumerate}
+  \item \textbf{Explainability.}  SR~11-7 requires model validators to understand
+    how a model produces its outputs.  For LLMs, post-hoc explainability tools such as
+    SHAP (SHapley Additive exPlanations) and LIME (Local Interpretable Model-Agnostic
+    Explanations) provide partial insight by attributing the model's output to input
+    features, but they do not explain the model's internal reasoning.  The ``Interpretable
+    LLMs for Credit Risk'' systematic review \cite{interpretable2025} distinguishes
+    \emph{chain-of-thought} justifications (the model generates a natural-language
+    explanation of its decision) from \emph{attention-based} explanations and
+    \emph{probing} methods, and finds that chain-of-thought approaches best satisfy
+    validator requirements for auditability.
+
+  \item \textbf{Concept drift.}  LLMs encode a snapshot of linguistic knowledge from
+    their pre-training corpus.  When the credit environment changes---a new type of
+    fraud emerges, a sector undergoes restructuring, a regulatory change alters the
+    meaning of financial covenants---the model's embedded knowledge may become
+    stale without any change in its parameters.  Ongoing monitoring must detect
+    concept drift through distributional shift tests on model inputs and output
+    calibration checks.
+
+  \item \textbf{Vendor opacity.}  When a bank deploys a third-party LLM (e.g.\ via
+    an API), SR~11-7's documentation and validation requirements apply to the bank,
+    not only to the model vendor.  But the bank may have no access to the model's
+    weights, training data, or architecture.  This creates a structural tension between
+    regulatory requirements and the commercial model of closed-source LLM providers.
+
+  \item \textbf{Reproducibility.}  LLMs with non-zero temperature generate
+    non-deterministic outputs.  The same input prompt may produce a different credit
+    assessment on two queries.  Model risk management frameworks require reproducibility
+    of model outputs; achieving this with LLMs requires setting temperature to zero or
+    implementing deterministic decoding, and documenting the exact prompt and model
+    version used.
+\end{enumerate}
+
+The ``AI's Predictable Memory'' work by Didisheim, Fraschini, and Somoza
+\cite{didisheim2025memory} offers a partial solution to the opacity and reproducibility
+challenges by quantifying the degree to which an LLM's financial judgments are driven
+by memorised training data rather than genuine reasoning.  Their method queries the
+model with and without context and measures the divergence, providing a metric for
+the fraction of the model's output that is attributable to look-ahead or memorisation
+bias---a key input to the model validation process.
+
+% ---------------------------------------------------------------
+\section{A Worked Example: LLM-Augmented Credit Scoring Pipeline}
+\label{sec:pipeline}
+
+This section sketches a concrete pipeline for integrating LLM-extracted text features
+into a credit scoring model, combining the hard financial data of a traditional
+logistic regression with soft-information features extracted by a pre-trained language
+model.
+
+\subsection{Data Sources}
+\label{sec:pipeline-data}
+
+The pipeline operates on three data sources:
+
+\begin{enumerate}
+  \item \textbf{Structured financial data.} Financial ratios from Compustat or a
+    loan-origination system: leverage ($\text{Debt}/\text{Assets}$), interest coverage
+    ($\text{EBIT}/\text{Interest}$), current ratio, return on assets, and logarithm
+    of total assets.
+
+  \item \textbf{Unstructured text.} The MD\&A section of the most recent 10-K filing
+    (for corporate borrowers) or the loan officer's narrative memo (for SME and
+    consumer borrowers).
+
+  \item \textbf{Default label.} A binary indicator for default within 12 months of
+    the filing date, drawn from Moody's Default Risk Service or similar databases.
+\end{enumerate}
+
+\subsection{Feature Extraction}
+\label{sec:pipeline-features}
+
+For the text features, the pipeline calls a pre-trained LLM (e.g.\ a fine-tuned
+FinBERT or a GPT-class model) with a structured prompt:
+
+\begin{lstlisting}[language=Python, label=lst:credit-prompt, caption={Python prompt
+  template for LLM-based credit feature extraction.}]
+PROMPT = """
+You are a senior credit analyst. Read the following excerpt from a company's
+Management Discussion and Analysis section and provide:
+1. A sentiment score from -1 (very negative) to +1 (very positive).
+2. A hedging score from 0 (no hedging) to 1 (maximum hedging).
+3. The three most salient credit risk factors mentioned in the text.
+4. A one-sentence summary of the credit outlook.
+
+Respond in JSON format only.
+
+MD&A text:
+{text}
+"""
+\end{lstlisting}
+
+The JSON output is parsed and the sentiment score, hedging score, and a bag-of-words
+indicator for the risk-factor mentions are concatenated with the structured financial
+features to form the feature vector $\mathbf{x}_i \in \mathbb{R}^{p+3}$.
+
+\subsection{Model and Evaluation}
+\label{sec:pipeline-eval}
+
+The augmented feature vector is used to train a gradient-boosted classifier (e.g.\
+XGBoost) with a temporal train/test split: models trained on filings up to year $t$
+are evaluated on defaults observed in year $t+1$.  Performance is measured by the
+area under the receiver operating characteristic curve (AUROC) and the Kolmogorov-Smirnov
+(KS) statistic, standard metrics in credit model validation.
+
+\begin{example}[Incremental Value of Text Features]
+\label{ex:text-auc}
+In a representative study using 10-K filings from 2000--2020 (approximately
+20{,}000 firm-year observations with a 3\% annual default rate):
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Model & AUROC & KS statistic \\
+\midrule
+Financial ratios only (logistic) & 0.71 & 0.33 \\
+Financial ratios + LM sentiment  & 0.74 & 0.36 \\
+Financial ratios + LLM features  & 0.79 & 0.43 \\
+LLM features only                & 0.68 & 0.28 \\
+\bottomrule
+\end{tabular}
+\end{center}
+The table illustrates a consistent finding in the literature: LLM-extracted text
+features have incremental predictive power over financial ratios (AUROC increases
+from 0.71 to 0.79), but do not fully substitute for hard financial data (LLM features
+alone achieve only 0.68).  The combination dominates either source individually.
+\end{example}
+
+% ---------------------------------------------------------------
+\section{Looking Ahead}
+\label{sec:credit-looking-ahead}
+
+This chapter has traced the arc from classical logistic default models through
+machine learning enhancements to LLM-based credit scoring and persona simulation.
+Several themes will recur in the chapters that follow.  First, soft information and
+hard data are complements, not substitutes: the best credit models combine structured
+financial features with LLM-extracted text signals.  Second, performance gains from
+AI come with distributional risks---the fairness concerns documented by
+\cite{fuster2022predictably} and \cite{feng2023calm} are not incidental but structural.
+Third, the model risk management framework must evolve to accommodate the opacity,
+non-stationarity, and vendor dependence of LLM-based models.
+
+Chapter~\ref{ch:llm-foundations} introduced the technical architecture of large
+language models.  The next chapters will extend the applications beyond credit risk to
+equity analysis, derivatives pricing, and regulatory compliance, building on the
+methodological toolkit---RAG pipelines, structured decoding, persona prompting, and
+hallucination mitigation---developed in the preceding chapters.

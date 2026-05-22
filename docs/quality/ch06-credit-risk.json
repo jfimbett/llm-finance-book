@@ -1,0 +1,87 @@
+{
+  "chapter": "06-credit-risk",
+  "file": "book/chapters/06-credit-risk/chapter.tex",
+  "scored_at": "2026-05-22",
+  "scorer": "score-content agent (claude-sonnet-4-6)",
+  "quality_threshold": 8,
+  "scores": {
+    "clarity": 9,
+    "rigor": 9,
+    "completeness": 9,
+    "pedagogy": 9,
+    "style": 8
+  },
+  "overall": 8.8,
+  "verdict": "PASS",
+  "dimension_notes": {
+    "clarity": "Prose is consistently clear. Context boxes ground each section in real-world scenarios. Technical terms are defined before use. Regulatory language is precise without being impenetrable. The Maria/Thomas persona contrast and SHAP waterfall table are particularly accessible.",
+    "rigor": "All key derivations are complete and correct: constrained decoding softmax, KS statistic from empirical CDFs, Gini=2*AUROC-1 (exact, not approximate), Platt scaling logistic formula, isotonic regression optimisation problem, SHAP axioms, CRRA utility. Two errors were caught and corrected during math-checker review: (1) incorrect softmax probabilities in numerical example; (2) incorrect LoRA reduction factor (96 -> 48); (3) spurious approximation in Gini proof removed.",
+    "completeness": "All 6 sections and 23 subsections fully populated. All placeholder text replaced. All required distinctive content present: constrained decoding worked example with numerical table, Maria/Thomas persona dialogue, expected utility maximisation formula, KS/Gini derivations, SHAP waterfall for a loan application, API request/response example, GDPR plain-language explanation. Bibliography has 14 references covering all required source types.",
+    "pedagogy": "Learning objectives match chapter content exactly. All 6 major sections open with context boxes. Definition, theorem, example, remark, and deepdive environments used appropriately throughout. The Maria/Thomas contrast (§4.1) is vivid and pedagogically distinctive. SHAP-to-reason-code mapping (§5.4) shows regulatory-compliance implications concretely. Numerical examples verify all key formulas.",
+    "style": "No paragraph{} or textbf{} used as inline headings. Consistent LaTeX environment usage throughout. Active voice predominates. Transitions between sections are smooth. Both US and EU regulatory contexts covered with appropriate depth. Minor: one \textbf{} usage in a list item (description environment) — appropriate in that context."
+  },
+  "math_verdict": "PASS",
+  "math_findings": [
+    {
+      "ref": "eq: softmax probabilities in numerical table",
+      "status": "FIXED",
+      "description": "Original probabilities were incorrect (did not sum to 1 over 10 tokens). Corrected by computing exact softmax values via Node.js verification.",
+      "correction": "e.g. token 0: 0.081 -> 0.017; token 1: 0.326 -> 0.340; token 2: 0.438 -> 0.458"
+    },
+    {
+      "ref": "eq:lora — LoRA reduction factor",
+      "status": "FIXED",
+      "description": "Claimed factor of 96; correct value is 48. With d=768, r=8: full params = 768*768 = 589824; LoRA params = 2*768*8 = 12288; ratio = 48.",
+      "correction": "96 -> 48"
+    },
+    {
+      "ref": "eq:gini-proof — Gini derivation",
+      "status": "FIXED",
+      "description": "Proof claimed 'last equality uses pi_- ≈ 1'. The identity is exact: using pi_+ + pi_- = 1 gives Gini = 2*AUROC - 1 without approximation.",
+      "correction": "Removed approximation claim; added exact algebraic step using pi_+ + pi_- = 1."
+    },
+    {
+      "ref": "eq:utility-fit — CRRA at zero",
+      "status": "FIXED",
+      "description": "CRRA utility U(0) is undefined for gamma > 1 (singularity). Introduced small positive wealth floor epsilon > 0 to avoid singularity.",
+      "correction": "U_gamma(0) -> U_gamma(epsilon), with explanation."
+    },
+    {
+      "ref": "eq:platt — Platt scaling overconfidence direction",
+      "status": "OK",
+      "description": "Statement 'a < 1 -> overconfident' is correct: a < 1 compresses scores toward center, correcting overly extreme raw scores."
+    },
+    {
+      "ref": "eq:ks — KS statistic formal definition",
+      "status": "OK",
+      "description": "Definition and empirical estimation via PAV step function are mathematically correct."
+    },
+    {
+      "ref": "eq:shap — SHAP efficiency axiom",
+      "status": "OK",
+      "description": "Three SHAP axioms (efficiency, symmetry, dummy) are correctly stated."
+    }
+  ],
+  "content_flags_for_human_review": [
+    {
+      "flag": "Maria persona — geographic/demographic authenticity",
+      "note": "The Maria persona references Mexico, Chicago, and specific income figures. Author should verify these are not inadvertently stereotyping or creating legally sensitive content under ECOA. The illustration is pedagogically motivated and avoids protected-class financial signals, but peer review is recommended."
+    },
+    {
+      "flag": "Thomas persona — ECB rate normalisation reference",
+      "note": "Thomas's dialogue mentions 'the ECB has signalled a rate normalisation path' — this is a dated market observation. Author should update or generalise before final release."
+    },
+    {
+      "flag": "SR 11-7 applicability to open-source LLMs",
+      "note": "Section 5.2 discusses SR 11-7 but does not distinguish between open-weight and proprietary API models in depth. A brief note on how vendor-provided vs self-hosted models differ under SR 11-7 vendor risk assessment would strengthen this section."
+    },
+    {
+      "flag": "Bibliography verification",
+      "note": "Willard & Louf (2023) arXiv paper title and number should be verified against the published/final version before camera-ready submission. BloombergGPT (Wu et al., 2023) similarly should reference the final version if published."
+    },
+    {
+      "flag": "GDPR example uses EUR symbol",
+      "note": "Changed from \\EUR{} (non-standard) to \\texteuro{} which is provided by textcomp/T1 encoding. Compile to verify rendering."
+    }
+  ]
+}

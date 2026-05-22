@@ -30,144 +30,1014 @@ After completing this chapter, the reader should be able to:
 \section{Credit Data: Sources, Privacy, and Regulatory Constraints}
 \label{sec:credit-data}
 
-[Placeholder]
+\begin{context}
+In 2019 a viral tweet ignited a Congressional investigation. The subject was not a data breach, a ransomware attack, or a rogue trading algorithm. It was a credit card credit limit. David Heinemeier Hansson, creator of the Ruby on Rails framework, reported that his Apple Card credit limit was twenty times lower than his wife's despite the couple filing joint tax returns, sharing assets, and having comparable (in his assessment, inferior) credit profiles. Steve Wozniak, Apple's co-founder, posted a similar complaint within hours. Within days Senator Elizabeth Warren had written to Goldman Sachs demanding an explanation, and the New York Department of Financial Services had opened a formal investigation.
+
+The episode crystallised something practitioners had long known but regulators had only recently begun to quantify: automated credit decisions, even those built on carefully anonymised financial data, can embed and amplify discrimination in ways invisible to both the lender and the borrower. The challenge is structural. Credit data is simultaneously the richest behavioural dataset available to financial institutions and one of the most legally regulated. Getting it wrong --- in either direction, whether by denying credit unfairly or by extending it recklessly --- carries consequences measured in billions of dollars and decades of individual financial harm.
+
+This section examines what credit data actually is, where it comes from, which laws govern its use, and how to prepare it for machine learning pipelines that must meet the dual standard of predictive accuracy and regulatory defensibility.
+\end{context}
 
 \subsection{Credit Bureau Data and Alternative Data Sources}
 \label{subsec:credit-bureau}
 
-[Placeholder]
+Credit data exists along a spectrum from highly standardised bureau reports to loosely structured behavioural traces. Understanding the provenance, format, and legal status of each type is a precondition for any modelling effort.
 
+\subsubsection*{Traditional Bureau Data}
+
+The three major US credit bureaus --- Equifax, Experian, and TransUnion --- each maintain files on roughly 220 million adults. A standard credit file contains:
+
+\begin{itemize}
+  \item \textbf{Identification data}: name, address history, Social Security Number (encrypted in transit), date of birth.
+  \item \textbf{Account data}: for each open or recently closed credit account, the creditor name, account type (revolving, instalment, mortgage), credit limit or original loan amount, current balance, payment history (typically 24--84 months of monthly on-time or delinquent status), and date of last activity.
+  \item \textbf{Inquiry data}: a record of hard inquiries (resulting from credit applications) and soft inquiries (resulting from pre-qualification checks or account monitoring), usually retained for two years.
+  \item \textbf{Public records}: bankruptcies (retained 7--10 years depending on chapter), tax liens (if reported by the IRS), and civil judgments.
+  \item \textbf{Collections}: charged-off accounts transferred to collection agencies.
+\end{itemize}
+
+From this raw file, bureaus and third-party vendors compute \emph{credit scores}: scalar summaries of default risk, the most widely used being the FICO score (introduced in 1989 by Fair Isaac Corporation) and the VantageScore (introduced in 2006 as a joint venture of the three bureaus). Both range from 300 to 850. FICO's publicly disclosed factor weights are approximately: payment history 35\%, amounts owed 30\%, length of credit history 15\%, new credit 10\%, credit mix 10\%.
+
+Bureau data is standardised, timely (most accounts report monthly), and highly predictive of near-term default. Its limitation is that it is circular: it records credit behaviour, so it is uninformative for the roughly 45 million US adults with thin or no credit files, a group disproportionately composed of recent immigrants, young adults, and lower-income households.
+
+\subsubsection*{Alternative Data Sources}
+
+To extend credit to thin-file consumers, lenders have increasingly incorporated alternative data \cite{campbell2006household}. The most important categories are:
+
+\begin{description}
+  \item[Bank transaction data.] Aggregated inflows, outflows, income volatility, and recurring expense patterns extracted from deposit account histories. Rich in signal about actual cash flow but legally complex: in the US the Electronic Fund Transfer Act governs consent for data sharing, and open banking regulation (Dodd-Frank Section 1033) is still evolving.
+
+  \item[Rent and utility payment data.] Reported through services such as Experian RentBureau or directly furnished to bureaus. Predictive because rent is often the largest recurring obligation a thin-file consumer services, yet historically invisible to credit models.
+
+  \item[Mobile and telecom payment data.] Widely used in emerging-market credit scoring where bureau coverage is low. In sub-Saharan Africa and South and South-East Asia, fintech lenders use airtime top-up frequency, call-graph centrality, and app-usage patterns as credit proxies.
+
+  \item[Social media and behavioural data.] The most contested category. Some lenders have attempted to use social graph characteristics (e.g.\ whether a borrower's contacts have good repayment records) or self-reported lifestyle data as proxies. US and EU regulators have largely prohibited or strongly discouraged this class of data due to protected-class proxy risk.
+
+  \item[Unstructured text.] Application free-text fields, loan purpose statements, and lender notes. LLMs are particularly relevant here: a borrower who writes ``the loan is for my daughter's medical emergency'' carries a qualitatively different risk profile from one who writes ``consolidating payday loans.'' Extracting this signal while avoiding discriminatory proxies is an active research problem.
+\end{description}
+
+\subsubsection*{Combining Bureau and Alternative Data}
+
+Modern credit models typically operate on a feature matrix that concatenates bureau-derived features, engineered transaction features, and optionally text embeddings. The data integration challenge is non-trivial: bureau data arrives as a structured XML feed (Metro 2 format), bank transaction data arrives as raw CSV or JSON, and text arrives as free-form strings with variable length and quality. A production credit data pipeline must harmonise these streams, resolve entity linkage (confirming that the bank account and the credit bureau file refer to the same individual), and produce a consistent snapshot at the application date.
+
+% ---------------------------------------------------------------
 \subsection{Regulatory Constraints on Credit AI: GDPR, FCRA, and ECOA}
 \label{subsec:credit-regulation}
 
-[Placeholder]
+Three regulatory frameworks define the legal envelope within which any credit AI model must operate. They were written decades apart, in different jurisdictions, with different primary objectives, but they converge on a common theme: automated decisions about individuals must be explainable, auditable, and free from unlawful discrimination.
 
+\subsubsection*{The Fair Credit Reporting Act (FCRA)}
+
+Enacted in the United States in 1970 and substantially amended in 2003 (FACTA) and 2010 (Dodd-Frank), the FCRA governs the collection, dissemination, and use of consumer credit information. The key provisions for credit AI are:
+
+\begin{itemize}
+  \item \textbf{Adverse action notices.} When a creditor takes an ``adverse action'' --- denying credit, offering less favourable terms, or revoking an existing account --- based wholly or partly on information from a consumer reporting agency, it must provide the consumer with a written notice that includes the specific reasons for the adverse action. This requirement is the origin of the \emph{reason code} system: every credit model deployed in the US must be able to produce a short list of the factors that contributed most to an adverse decision.
+
+  \item \textbf{Permissible purpose.} Only entities with a permissible purpose defined in the statute may access a consumer's full credit report: credit, insurance, employment, and rental housing decisions are the primary categories.
+
+  \item \textbf{Accuracy and dispute.} Consumers have the right to dispute inaccurate information, and furnishers (lenders who report account data to bureaus) and bureaus have statutory obligations to investigate and correct errors.
+\end{itemize}
+
+The adverse action notice requirement is the most consequential constraint for LLM-based credit models. A transformer that produces a single scalar output from a high-dimensional embedding is not inherently reason-code compatible. Producing defensible explanations requires either post-hoc attribution methods (discussed in Section~\ref{subsec:shap-credit}) or architectural choices that make attribution tractable.
+
+\subsubsection*{The Equal Credit Opportunity Act (ECOA) and Regulation B}
+
+ECOA (1974, implemented by Regulation B) prohibits discrimination in credit transactions on the basis of race, colour, religion, national origin, sex, marital status, age, receipt of public assistance income, and the exercise of rights under the Consumer Credit Protection Act. ECOA applies to all credit decisions, including those made by algorithmic models.
+
+Critically, ECOA prohibits not only intentional discrimination (\emph{disparate treatment}) but also practices that are facially neutral yet produce discriminatory effects (\emph{disparate impact}) unless the practice is justified by business necessity and there is no less discriminatory alternative. This distinction matters enormously for machine learning: a model trained on historically collected data inherits the discrimination embedded in that history, potentially in features that appear race-neutral (zip code, loan purpose, occupation category).
+
+The CFPB's 2022 ``Special Purpose Credit Programs'' guidance clarified that lenders may proactively use alternative data to extend credit to underserved populations, provided the approach is not used to further exclude protected classes.
+
+\subsubsection*{The General Data Protection Regulation (GDPR)}
+
+In the European Union, GDPR Article~22 grants individuals the right not to be subject to a decision based solely on automated processing that produces legal or similarly significant effects. Credit denials fall squarely within this definition. Article~22 permits automated decisions only if they are necessary for a contract, authorised by law, or based on explicit consent --- and even then the data subject retains the right to obtain human review, express their point of view, and contest the decision.
+
+GDPR's Recital 71 specifies that the controller should implement ``suitable measures to safeguard the data subject's rights and freedoms and legitimate interests, at least the right to obtain human intervention on the part of the controller, to express his or her point of view and to contest the decision.'' This is the legal foundation for human-in-the-loop review workflows (Section~\ref{subsec:hitl-credit}).
+
+GDPR also imposes data minimisation and purpose limitation obligations that constrain which features an LLM credit model may consume. Collecting rich behavioural data for one stated purpose and using it for credit scoring without separate consent constitutes a purpose limitation violation. This regulatory requirement motivates careful feature governance --- tracking, for each input feature, its source, the consent basis on which it was collected, and the specific purposes for which it may be used.
+
+% ---------------------------------------------------------------
 \subsection{Preprocessing: Anonymisation, Class Imbalance, and Missing Data}
 \label{subsec:credit-preprocessing}
 
-[Placeholder]
+Raw credit data requires substantial preprocessing before it is suitable for model training. Three challenges are sufficiently universal and technically nuanced to warrant detailed treatment.
+
+\subsubsection*{Anonymisation and De-identification}
+
+Direct identifiers (name, SSN, account number, date of birth) must be removed or hashed before training data is ingested by a model. Beyond direct identifiers, credit data contains \emph{quasi-identifiers} --- combinations of attributes that, taken together, uniquely identify individuals even without an explicit name field. The canonical result is Sweeney's (2002) finding that 87\% of the US population can be uniquely identified by the combination of ZIP code, date of birth, and sex.
+
+Practical anonymisation for credit data typically involves:
+\begin{enumerate}
+  \item \textbf{Tokenisation}: replacing direct identifiers with opaque tokens that can be linked within the institution's systems but carry no meaning externally.
+  \item \textbf{Generalisation}: replacing precise values with ranges (exact age $\to$ age bracket 25--34; five-digit ZIP $\to$ three-digit ZIP prefix).
+  \item \textbf{Suppression}: omitting records where the combination of retained attributes is sufficiently rare that re-identification risk exceeds a threshold.
+  \item \textbf{Differential privacy}: adding calibrated statistical noise to aggregate queries or model gradients during training, providing a formal bound on the information any individual record contributes to the model.
+\end{enumerate}
+
+For LLMs trained on free-text credit data, named entity recognition (NER) followed by entity substitution is the standard anonymisation step: names are replaced with synthetic first names drawn from a demographically matched distribution, addresses are replaced with synthetic addresses in the same census block, and dollar amounts are optionally binned.
+
+\subsubsection*{Class Imbalance}
+
+Default rates vary by product and economic cycle, but across most retail credit portfolios they lie in the range of 1--10\% over a twelve-month horizon. A dataset of one million loan applications with a 3\% default rate contains 30,000 positives and 970,000 negatives. Trained na\"{i}vely on this dataset, a model that predicts ``non-default'' for every observation achieves 97\% accuracy while providing no useful discrimination whatsoever.
+
+Standard approaches to class imbalance include:
+
+\begin{itemize}
+  \item \textbf{Oversampling}: replicating minority-class observations, possibly with perturbation. The Synthetic Minority Over-sampling Technique (SMOTE) generates synthetic minority observations by interpolating between existing minority-class neighbours in feature space.
+  \item \textbf{Undersampling}: randomly removing majority-class observations to reach a target ratio. Simple but discards potentially useful data.
+  \item \textbf{Cost-sensitive learning}: weighting the loss function so that misclassifying a default (false negative) incurs a higher penalty than misclassifying a non-default (false positive). In PyTorch this is implemented via the \texttt{pos\_weight} parameter to \texttt{BCEWithLogitsLoss}.
+  \item \textbf{Threshold calibration}: training on the imbalanced dataset and adjusting the decision threshold post-hoc based on the operating point (precision-recall tradeoff) appropriate for the business context.
+\end{itemize}
+
+For LLM fine-tuning on credit text, cost-sensitive loss weighting is the most practically tractable approach, since SMOTE does not operate on embedding representations directly.
+
+\begin{definition}[Class Weight]
+\label{def:class-weight}
+Let $n_+$ and $n_-$ denote the number of positive (default) and negative (non-default) observations in the training set, with $n = n_+ + n_-$. The \emph{balanced class weight} for the positive class is
+\begin{equation}
+  w_+ = \frac{n}{2 \, n_+},
+  \label{eq:class-weight}
+\end{equation}
+and correspondingly $w_- = n / (2 n_-)$. Using these weights in the binary cross-entropy loss gives each class equal aggregate influence on the gradient, regardless of the class ratio.
+\end{definition}
+
+\subsubsection*{Missing Data}
+
+Credit applications routinely contain missing values: self-employed applicants may lack employer field data, thin-file applicants lack bureau features, and older records predate the collection of certain fields. The pattern of missingness is often informative --- the fact that a bureau score is absent may itself signal thin-file status, which correlates with risk.
+
+Three missingness mechanisms must be distinguished:
+\begin{description}
+  \item[Missing completely at random (MCAR).] The probability of a value being missing is independent of all observed and unobserved data. Simple mean imputation is unbiased under MCAR.
+  \item[Missing at random (MAR).] The probability of missingness depends on observed data but not on the missing value itself. Multiple imputation and model-based imputation are consistent under MAR.
+  \item[Missing not at random (MNAR).] The probability of missingness depends on the unobserved value. A borrower who omits income because it is very low (or very high) creates MNAR. Standard imputation methods are biased under MNAR; explicit missingness models or sensitivity analysis are required.
+\end{description}
+
+For tabular credit data, gradient-boosted trees (XGBoost, LightGBM) handle missing values natively by learning optimal branching directions for missing inputs. For LLM-based models, a common approach is to serialise the feature vector as natural language, explicitly encoding missingness: \texttt{"[INCOME: MISSING] [EMPLOYMENT: SELF-EMPLOYED] [BUREAU\_SCORE: 687]"}, allowing the model to learn the informational content of the missingness indicator from context.
 
 % ---------------------------------------------------------------
 \section{Credit Risk Modelling with LLMs}
 \label{sec:credit-modelling}
 
-[Placeholder]
+\begin{context}
+Every credit decision is, at its core, a probability estimate: given everything we know about this applicant at this moment, what is the probability that they will not repay? For fifty years, that estimate has been produced by a linear model applied to a handful of engineered features. In 1968, Edward Altman showed that a linear combination of five financial ratios could predict corporate bankruptcy with striking accuracy \cite{altman1968financial}. The Z-score model he derived --- on a dataset of sixty-six manufacturing firms --- remained the state of the art for two decades and is still used as a benchmark today.
+
+The arrival of LLMs does not make the Z-score obsolete. It adds a new instrument to the modeller's toolkit, one particularly powerful when the signal is latent in text, when the feature space is high-dimensional and sparse, or when the decision requires reasoning about heterogeneous information that resists tabularisation. Understanding when to use which instrument, and how to combine them, is the practical skill this section develops.
+\end{context}
 
 \subsection{From Logistic Regression to Language Models: The Credit Risk Arc}
 \label{subsec:credit-arc}
 
-[Placeholder]
+The history of credit scoring is a succession of modelling paradigms, each improving on the previous by relaxing an assumption or exploiting a richer representation of the borrower.
 
+\subsubsection*{Discriminant Analysis and the Z-Score (1968)}
+
+Altman's Z-score \cite{altman1968financial} is a linear discriminant function of five ratios: working capital / total assets ($X_1$), retained earnings / total assets ($X_2$), EBIT / total assets ($X_3$), market value of equity / book value of total debt ($X_4$), and sales / total assets ($X_5$). The discriminant function is:
+\begin{equation}
+  Z = 1.2 X_1 + 1.4 X_2 + 3.3 X_3 + 0.6 X_4 + 1.0 X_5.
+  \label{eq:zscore}
+\end{equation}
+Firms with $Z < 1.81$ are classified as distressed, those with $Z > 2.99$ as healthy, and those in between as occupying a ``zone of ignorance.'' The coefficients were estimated by maximising the distance between the centroids of the default and non-default distributions in five-dimensional feature space.
+
+\subsubsection*{Structural Models: Merton (1974)}
+
+Merton's insight \cite{merton1974pricing} is that equity can be viewed as a European call option on the firm's assets. Let $V_t$ denote the asset value, $D$ the face value of a single zero-coupon debt obligation maturing at $T$, and $r$ the risk-free rate. Equity value is:
+\begin{equation}
+  E_t = V_t \Phi(d_1) - D e^{-r(T-t)} \Phi(d_2),
+  \label{eq:merton-equity}
+\end{equation}
+where $\Phi$ is the standard normal CDF and
+\begin{align}
+  d_1 &= \frac{\ln(V_t / D) + (r + \tfrac{1}{2}\sigma_V^2)(T-t)}{\sigma_V \sqrt{T-t}}, \label{eq:merton-d1} \\
+  d_2 &= d_1 - \sigma_V \sqrt{T-t}. \label{eq:merton-d2}
+\end{align}
+Default occurs if $V_T < D$, and the risk-neutral default probability over the horizon $[t, T]$ is:
+\begin{equation}
+  \text{PD}^{\text{Merton}} = \Phi(-d_2).
+  \label{eq:merton-pd}
+\end{equation}
+The model's main limitation is that it requires an estimate of the unobserved asset volatility $\sigma_V$ and asset value $V_t$, typically extracted from observed equity prices via an implicit equation system.
+
+\subsubsection*{Reduced-Form Models}
+
+Reduced-form (intensity-based) models, surveyed in \cite{duffie2003credit}, abandon the structural interpretation and instead model the default time $\tau$ as the first jump of an inhomogeneous Poisson process with stochastic intensity $\lambda_t$. The survival probability over $[t, T]$ is:
+\begin{equation}
+  S(t, T) = \mathbb{E}\!\left[\exp\!\left(-\int_t^T \lambda_s \, ds\right) \bigg| \mathcal{F}_t\right].
+  \label{eq:survival-prob}
+\end{equation}
+The intensity $\lambda_t$ is a latent process typically modelled as a function of macroeconomic covariates and firm characteristics. Reduced-form models fit observed credit spread term structures more tractably than structural models, at the cost of economic interpretability.
+
+\subsubsection*{Machine Learning: Gradient Boosting}
+
+Gradient-boosted decision trees (XGBoost, LightGBM) became the dominant approach for retail credit scoring between approximately 2015 and 2022. Their advantages are: (1) native handling of missing values; (2) ability to capture non-linear interactions without explicit feature engineering; (3) robustness to outliers via tree partitioning; and (4) built-in feature importance via split gain. Their primary limitations are that they operate exclusively on tabular features and cannot exploit unstructured information.
+
+\subsubsection*{Language Models for Credit}
+
+FinBERT \cite{yang2020finbert} and BloombergGPT \cite{wu2023bloomberggpt} demonstrated that domain-adapted language models achieve superior performance on financial NLP tasks relative to general-purpose models. For credit specifically, LLMs add value in at least three scenarios:
+
+\begin{enumerate}
+  \item \textbf{Text-native features}: free-text loan purpose statements, credit officer notes, customer service transcripts, or news about a commercial borrower's sector are poorly represented by tabular features but richly encoded in language model embeddings.
+  \item \textbf{Thin-file borrowers}: when bureau and transaction history is sparse, an LLM can synthesise heterogeneous alternative data (rental payment descriptions, employment letters) that resists tabularisation.
+  \item \textbf{Reasoning about complex terms}: in commercial credit, the default risk of a leveraged buyout depends on the covenant structure, the waterfall, and the sector outlook --- reasoning tasks that require language understanding, not just pattern matching on numeric features.
+\end{enumerate}
+
+% ---------------------------------------------------------------
 \subsection{Fine-Tuning for Default Prediction: Task Formulation and Training}
 \label{subsec:credit-finetuning}
 
-[Placeholder]
+Formulating default prediction as a language modelling task requires choices that have downstream consequences for calibration, interpretability, and regulatory compliance.
 
+\subsubsection*{Task Formulation}
+
+The most natural formulations are:
+
+\begin{description}
+  \item[Sequence classification.] Serialise the borrower profile as a text string and fine-tune a BERT-family model (encoder only) to predict a binary label: ``DEFAULT'' or ``NO DEFAULT.'' The pooled \texttt{[CLS]} representation is passed through a linear head with sigmoid activation. This is the architecture used in most published LLM credit scoring papers \cite{yang2020finbert}.
+
+  \item[Causal language modelling with label generation.] Prompt a decoder-only model (GPT-family) with a structured description of the borrower and ask it to generate a classification token. This leverages the model's in-context learning ability and scales naturally to few-shot settings, but requires careful probability extraction (Section~\ref{subsec:structured-gen}).
+
+  \item[Regression on probability.] Fine-tune the model to output a scalar probability directly, treating the task as a regression problem. This requires observed default indicators as labels, which are binary; smooth target probabilities must be obtained from an ensemble or from Platt-scaled outputs of a teacher model.
+\end{description}
+
+For most regulatory environments, sequence classification or structured generation (Section~\ref{subsec:structured-gen}) are preferred because they produce well-defined probability estimates that can be calibrated and explained.
+
+\subsubsection*{Input Serialisation}
+
+A borrower profile is naturally tabular. Converting it to text requires a serialisation scheme. A simple and effective approach is template-based serialisation:
+
+\begin{example}[Borrower Profile Serialisation]
+\label{ex:serialisation}
+A borrower's tabular record:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Field & Value \\
+\midrule
+Age & 34 \\
+Employment & Full-time, 6 years \\
+Annual income & \$58,000 \\
+Loan amount & \$12,000 \\
+Loan purpose & Debt consolidation \\
+Bureau score & 672 \\
+Delinquencies (24 months) & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+is serialised as:
+
+\smallskip
+\texttt{Applicant: Age 34. Employment: full-time, 6 years tenure. Annual income: \$58,000. Loan purpose: debt consolidation. Requested amount: \$12,000. Bureau score: 672. Delinquencies (past 24 months): 1. Assess default risk:}
+\end{example}
+
+The serialisation template should be consistent across training and inference. Variation in field ordering, formatting, or phrasing introduces spurious variance in the model's output.
+
+\subsubsection*{Parameter-Efficient Fine-Tuning}
+
+Fine-tuning a full LLM on credit data is computationally expensive and risks overfitting on the typically small labelled training sets available to individual lenders. Low-Rank Adaptation (LoRA) addresses both problems. In LoRA, the weight update $\Delta W$ for each attention weight matrix is constrained to a low-rank factorisation:
+\begin{equation}
+  \Delta W = B A, \quad B \in \mathbb{R}^{d \times r}, \; A \in \mathbb{R}^{r \times d}, \quad r \ll d.
+  \label{eq:lora}
+\end{equation}
+Only $A$ and $B$ are updated during fine-tuning; the original weights $W_0$ are frozen. With $r = 8$ and a base model with $d = 768$, LoRA reduces the number of trainable parameters by a factor of approximately 48 relative to full fine-tuning, with minimal performance degradation on tasks with limited training data.
+
+% ---------------------------------------------------------------
 \subsection{Structured Generation and Implied Default Probabilities}
 \label{subsec:structured-gen}
 
-[Placeholder]
+\begin{deepdive}
 
+A decoder-only language model assigns probabilities to sequences of tokens. When we prompt such a model with a borrower description and ask for a default probability, the model's output is a distribution over its entire vocabulary at each position --- not a single scalar. Extracting a meaningful, well-calibrated probability estimate from this distribution requires care. Structured generation provides a principled mechanism.
+
+\subsubsection*{Constrained Decoding via Context-Free Grammars}
+
+The \texttt{outlines} library \cite{willard2023efficient} implements efficient constrained decoding by intersecting the language model's next-token distribution with a finite automaton derived from a formal grammar. At each decoding step, only tokens that are valid continuations of the current prefix under the grammar receive non-zero probability mass; the remaining mass is redistributed (via renormalisation) over the valid tokens.
+
+For credit scoring, we define the output grammar to constrain the model to produce a JSON object with a single key \texttt{"pd"} mapped to a float in $[0, 1]$:
+
+\begin{verbatim}
+{
+  "pd": <float in [0.0000, 1.0000]>
+}
+\end{verbatim}
+
+The grammar rejects any token that would produce malformed JSON, a non-numeric value, a value outside $[0, 1]$, or additional unexpected keys. At each decoding step, the library pre-computes the set of vocabulary tokens consistent with the current grammar state and masks the logits of all other tokens.
+
+\subsubsection*{Probability Derivation}
+
+Let $\mathcal{V}$ denote the model's vocabulary, $x_{1:t}$ the token sequence generated so far (including the prompt), and $\ell_v \in \mathbb{R}$ the raw logit assigned by the model to token $v \in \mathcal{V}$ at position $t+1$. The unconditional next-token distribution is:
+\begin{equation}
+  P(x_{t+1} = v \mid x_{1:t}) = \frac{\exp(\ell_v)}{\sum_{u \in \mathcal{V}} \exp(\ell_u)}.
+  \label{eq:softmax}
+\end{equation}
+
+Let $\mathcal{V}_{\text{valid}}(x_{1:t}) \subseteq \mathcal{V}$ be the set of tokens valid at position $t+1$ under the grammar given prefix $x_{1:t}$. Constrained decoding samples from the \emph{masked} distribution:
+\begin{equation}
+  P_{\text{constrained}}(x_{t+1} = v \mid x_{1:t}) = \frac{\exp(\ell_v) \cdot \mathbf{1}[v \in \mathcal{V}_{\text{valid}}(x_{1:t})]}{\sum_{u \in \mathcal{V}_{\text{valid}}(x_{1:t})} \exp(\ell_u)}.
+  \label{eq:constrained-softmax}
+\end{equation}
+
+The model generates the JSON prefix \texttt{\{"pd": } and then generates the decimal representation of the probability digit by digit. At each digit position, the valid tokens are the digit characters \texttt{0}--\texttt{9}, the decimal point, and the closing characters \texttt{\}}. The implied probability $\hat{p}$ is simply the floating-point number produced by this constrained generation process.
+
+\subsubsection*{Numerical Example}
+
+Suppose the grammar state at the position of the first digit after the decimal point admits tokens \texttt{0}--\texttt{9}. The model produces the following (hypothetical) logits for these ten tokens:
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Token & Logit $\ell_v$ & Constrained Probability \\
+\midrule
+\texttt{0} & $-1.2$ & $0.017$ \\
+\texttt{1} & $\phantom{-}1.8$ & $0.340$ \\
+\texttt{2} & $\phantom{-}2.1$ & $0.458$ \\
+\texttt{3} & $\phantom{-}0.9$ & $0.138$ \\
+\texttt{4} & $-0.5$ & $0.034$ \\
+\texttt{5} & $-2.1$ & $0.007$ \\
+\texttt{6} & $-3.0$ & $0.003$ \\
+\texttt{7} & $-3.5$ & $0.002$ \\
+\texttt{8} & $-4.0$ & $0.001$ \\
+\texttt{9} & $-4.5$ & $0.001$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Softmax renormalisation over the ten valid tokens assigns highest probability to \texttt{2}, so the model generates \texttt{2} as the first post-decimal digit. The procedure continues for subsequent digits. If the model eventually generates \texttt{0.23}, the implied default probability is $\hat{p} = 0.23$, a 23\% probability of default.
+
+The key insight is that $\hat{p}$ is not the model's \emph{confidence} about a binary label. It is the specific floating-point number the model was guided to express, selected token by token from a constrained vocabulary. This number reflects the model's internal representation of risk but is not guaranteed to be calibrated against the empirical default rate. Calibration is the task of Section~\ref{subsec:calibration}.
+
+\subsubsection*{Connection to Verbatim Probability Extraction}
+
+An alternative to constrained decoding is to prompt the model to generate a discrete label (\texttt{HIGH}, \texttt{MEDIUM}, \texttt{LOW}) and extract the probability of each label token from the model's logit distribution at the label position. For a vocabulary restricted to three tokens:
+\begin{equation}
+  P(\text{HIGH} \mid \text{prompt}) = \frac{\exp(\ell_{\text{HIGH}})}{\exp(\ell_{\text{HIGH}}) + \exp(\ell_{\text{MEDIUM}}) + \exp(\ell_{\text{LOW}})}.
+  \label{eq:label-prob}
+\end{equation}
+This approach is simpler but coarser: it collapses the continuous default probability into a three-point scale. Constrained decoding to a float is preferred when the downstream application requires a continuous score (e.g.\ portfolio risk aggregation or expected loss calculation).
+
+\end{deepdive}
+
+% ---------------------------------------------------------------
 \subsection{Probability Calibration: Isotonic Regression and Platt Scaling}
 \label{subsec:calibration}
 
-[Placeholder]
+A model is said to be \emph{well-calibrated} if, among all applications scored with predicted probability $\hat{p}$, the fraction that actually defaults is approximately $\hat{p}$. Calibration is distinct from discrimination: a model can rank borrowers correctly (high AUROC) while systematically over- or under-predicting default probabilities (poor calibration). For credit applications, calibration matters because expected loss calculations and regulatory capital requirements depend on the absolute value of the probability of default, not merely the ranking.
+
+\begin{definition}[Calibration]
+\label{def:calibration}
+Let $\hat{P}$ be a random variable representing the model's predicted default probability for a randomly drawn borrower, and let $Y \in \{0, 1\}$ be the realised default indicator. The model is \emph{perfectly calibrated} if:
+\begin{equation}
+  \mathbb{E}[Y \mid \hat{P} = p] = p \quad \text{for all } p \in [0, 1].
+  \label{eq:calibration}
+\end{equation}
+\end{definition}
+
+Calibration is assessed empirically via reliability diagrams: the unit interval $[0,1]$ is divided into $B$ bins, and within each bin the mean predicted probability is plotted against the observed default rate. A perfectly calibrated model produces points on the 45-degree diagonal.
+
+\subsubsection*{Platt Scaling}
+
+Platt scaling \cite{platt1999probabilistic} fits a logistic regression on the model's raw outputs to recover calibrated probabilities. Let $f(x) \in \mathbb{R}$ be the uncalibrated score (e.g.\ the log-odds from the model's linear head, or the constrained-decoded float before post-processing) for application $x$. Platt scaling estimates parameters $a, b \in \mathbb{R}$ by maximum likelihood on a held-out calibration set $\{(f(x_i), y_i)\}_{i=1}^n$:
+\begin{equation}
+  \hat{p}_{\text{Platt}}(x) = \sigma(a \cdot f(x) + b) = \frac{1}{1 + \exp(-(a \cdot f(x) + b))},
+  \label{eq:platt}
+\end{equation}
+where $\sigma(\cdot)$ is the sigmoid function. The parameters $a$ and $b$ absorb systematic over- or under-confidence in the raw score. When $a < 1$ the model is overconfident (its scores are too extreme); when $a > 1$ the model is underconfident.
+
+\subsubsection*{Isotonic Regression}
+
+Isotonic regression \cite{zadrozny2002transforming} is a non-parametric calibration method that finds a non-decreasing step function mapping raw scores to probabilities. Let $f_1 \leq f_2 \leq \cdots \leq f_n$ be the sorted raw scores on the calibration set, with default indicators $y_1, \ldots, y_n$. Isotonic regression solves:
+\begin{equation}
+  \hat{q} = \underset{q \in \mathbb{R}^n,\; q_1 \leq q_2 \leq \cdots \leq q_n}{\arg\min} \sum_{i=1}^{n} (q_i - y_i)^2.
+  \label{eq:isotonic}
+\end{equation}
+The solution is computed by the pool adjacent violators (PAV) algorithm in $O(n)$ time. Isotonic regression is more flexible than Platt scaling because it does not assume a parametric functional form, but it requires more calibration data to avoid overfitting and does not extrapolate outside the range of observed scores.
+
+\begin{remark}[Choosing Between Calibration Methods]
+Platt scaling is preferred when the training set for calibration is small (hundreds of observations) or when the raw score is known to be approximately monotone and log-odds-linear. Isotonic regression is preferred when the raw score distribution is non-linear or when sufficient calibration data is available (thousands of observations). In practice both methods should be evaluated on a hold-out validation set using the Expected Calibration Error (ECE) and the Brier score.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Household Decisions Under Uncertainty}
 \label{sec:household-decisions}
 
-[Placeholder]
+\begin{context}
+In 2018, the Consumer Financial Protection Bureau published a study documenting that roughly one-third of mortgage borrowers in the United States did not shop for their mortgage before accepting the first offer they received. Among low-income borrowers the fraction was closer to one-half. The CFPB estimated that the average borrower who did not shop paid approximately \$300 per year more in interest than a comparable borrower who compared at least three offers --- a cost that compounds into tens of thousands of dollars over the life of a thirty-year loan.
+
+The finding is puzzling from the perspective of standard economic theory. The expected benefit of comparison shopping is substantial, the information is publicly available, and the decision is large enough that even a small percentage improvement is financially meaningful. Yet many households do not shop. The explanation lies not in irrationality but in the cognitive and informational limits that Herbert Simon called \emph{bounded rationality} \cite{simon1955behavioral}: households satisfice rather than optimise, relying on heuristics, social norms, and trusted intermediaries rather than exhaustive search.
+
+LLMs, properly designed, can extend the cognitive frontier of the household. This section develops the theoretical and practical basis for LLMs as decision-support agents in household finance.
+\end{context}
 
 \subsection{Bounded Rationality and the Household Decision Problem}
 \label{subsec:bounded-rationality}
 
-[Placeholder]
+The neoclassical household solves an intertemporal optimisation problem: choose consumption and portfolio paths $\{c_t, \pi_t\}_{t=0}^T$ to maximise expected discounted utility subject to a budget constraint and market clearing conditions. This framework has been enormously productive as a benchmark but is descriptively inadequate for several reasons \cite{campbell2006household}:
 
+\begin{enumerate}
+  \item \textbf{Computational complexity}. The full household problem is a high-dimensional stochastic control problem. Even professional economists with computational tools struggle to solve it precisely; households solve approximations through rules of thumb.
+  \item \textbf{Information asymmetry}. Credit terms, tax implications, and insurance structures involve specialised knowledge that most households lack. Acquiring this knowledge takes time and generates cognitive load.
+  \item \textbf{Dual-process cognition}. Kahneman's System 1 / System 2 framework \cite{kahneman2011thinking} identifies that high-stakes financial decisions are often made in System 1 mode --- fast, affective, and heuristic-driven --- even when they warrant careful System 2 deliberation.
+  \item \textbf{Preference inconsistency}. Hyperbolic discounting, loss aversion, and framing effects cause households to make choices inconsistent with their stated long-run preferences.
+\end{enumerate}
+
+Simon's bounded rationality reconceptualises optimisation as \emph{satisficing}: searching through alternatives until a solution is found that meets a threshold of acceptability, then stopping. The threshold is itself adaptive: aspirations rise when outcomes are good and fall when outcomes are poor.
+
+\begin{definition}[Bounded Rationality]
+\label{def:bounded-rationality}
+An agent exhibits \emph{bounded rationality} if their decision procedure satisfies the following properties:
+\begin{enumerate}
+  \item[(i)] The agent has a finite cognitive capacity and cannot consider all alternatives simultaneously.
+  \item[(ii)] The agent uses heuristic search procedures that terminate before exhausting the solution space.
+  \item[(iii)] The agent accepts a solution that meets a satisficing threshold $\alpha$, where $\alpha$ may itself depend on recent experience.
+\end{enumerate}
+\end{definition}
+
+% ---------------------------------------------------------------
 \subsection{LLMs as Decision-Support Agents for Complex Financial Choices}
 \label{subsec:decision-support}
 
-[Placeholder]
+The decision-support role of an LLM is to extend the effective cognitive frontier of the household without replacing the household's own judgment. This requires the LLM to perform three functions:
 
+\begin{enumerate}
+  \item \textbf{Information extraction}: parsing complex financial documents (mortgage term sheets, prospectuses, insurance policy exclusions) into structured, comparable summaries.
+  \item \textbf{Consequence tracing}: computing the multi-period financial implications of a specific choice given the household's stated circumstances (income, wealth, risk preferences, time horizon).
+  \item \textbf{Trade-off articulation}: presenting options in a format that makes the relevant trade-offs legible without nudging the household toward a particular choice.
+\end{enumerate}
+
+The third function requires particular care. A decision-support agent that consistently recommends the financially optimal choice in neoclassical terms may systematically undermine household autonomy, particularly when stated preferences diverge from revealed preferences --- for example, a household that expresses a preference for security over returns but whose portfolio choices suggest the opposite.
+
+A practical architecture for LLM-based household decision support consists of:
+\begin{itemize}
+  \item A \emph{document ingestion layer} that parses mortgage term sheets, amortisation schedules, and insurance policies into structured JSON using a RAG pipeline.
+  \item A \emph{household profile module} that maintains a representation of the household's income, assets, liabilities, stated risk preferences, and life-stage goals.
+  \item A \emph{consequence engine} that computes expected financial outcomes for each alternative under a range of scenarios (base case, stress case, tail event).
+  \item A \emph{dialogue manager} that presents trade-offs conversationally, responds to follow-up questions, and records the household's stated rationale for their chosen option.
+\end{itemize}
+
+% ---------------------------------------------------------------
 \subsection{Utility-Theoretic Framing and Preference Elicitation}
 \label{subsec:utility-elicitation}
 
-[Placeholder]
+Expected utility theory provides the normative benchmark against which household decisions are evaluated. A household with wealth $W_0$ choosing among $K$ financial alternatives $\{a_k\}_{k=1}^K$ selects the alternative that maximises expected utility:
+\begin{equation}
+  a^* = \underset{k \in \{1, \ldots, K\}}{\arg\max} \; \mathbb{E}\!\left[U(W_{0} + \Delta W_k)\right],
+  \label{eq:expected-utility}
+\end{equation}
+where $\Delta W_k$ is the random wealth increment under alternative $a_k$ and $U : \mathbb{R}_{+} \to \mathbb{R}$ is the household's utility function, typically assumed to be increasing, concave, and twice differentiable.
+
+The coefficient of absolute risk aversion is $A(W) = -U''(W) / U'(W)$ and the coefficient of relative risk aversion is $R(W) = -W U''(W) / U'(W)$. For constant relative risk aversion (CRRA) utility:
+\begin{equation}
+  U(W) = \frac{W^{1 - \gamma}}{1 - \gamma}, \quad \gamma > 0, \; \gamma \neq 1,
+  \label{eq:crra}
+\end{equation}
+and $R(W) = \gamma$ for all $W$. The parameter $\gamma$ is the risk aversion coefficient: $\gamma = 1$ corresponds to log utility ($U(W) = \ln W$ in the limit), $\gamma = 2$ corresponds to moderate risk aversion, and $\gamma > 5$ is considered high risk aversion.
+
+LLMs contribute to the decision-support framework by eliciting utility function parameters from natural language conversations. The procedure is:
+
+\begin{enumerate}
+  \item Present the household with a sequence of binary lottery choices calibrated to identify the point of indifference between a certain payoff and a risky gamble.
+  \item Extract the household's stated indifference points from the conversation.
+  \item Fit a CRRA utility function to the elicited indifference points by minimising:
+    \begin{equation}
+      \hat{\gamma} = \underset{\gamma}{\arg\min} \sum_{j=1}^{J} \left( U_\gamma(c_j) - \lambda_j \cdot U_\gamma(g_j) - (1 - \lambda_j) \cdot U_\gamma(\varepsilon) \right)^2,
+      \label{eq:utility-fit}
+    \end{equation}
+    where $(c_j, \lambda_j, g_j)$ is the $j$-th elicited indifference point: a certain payoff $c_j$ is indifferent to a lottery paying $g_j$ with probability $\lambda_j$ and $\varepsilon > 0$ (a small positive wealth floor) otherwise. The floor $\varepsilon$ avoids the singularity of CRRA utility at zero for $\gamma > 1$.
+  \item Use $\hat{\gamma}$ in equation~\eqref{eq:expected-utility} to evaluate the household's preferred alternative.
+\end{enumerate}
+
+The quality of the preference elicitation depends critically on the LLM's ability to conduct a coherent multi-turn dialogue, present the lotteries in natural language without mathematical intimidation, and resist anchoring the household's responses through the order or framing of options.
 
 % ---------------------------------------------------------------
 \section{Persona Agents and Behavioural Simulation}
 \label{sec:persona-agents}
 
-[Placeholder]
+\begin{context}
+A mortgage lender launching a new product in a new market faces a question that is expensive to answer empirically: who will take up the product, at what price point, and through which channel? Traditional market research relies on focus groups and surveys, which are slow, costly, and subject to social desirability bias. Agent-based simulation can generate synthetic take-up curves quickly, but it requires specifying agent preferences and decision rules that are difficult to calibrate without observed data.
+
+Argyle and colleagues \cite{argyle2023out} showed that a large language model conditioned on a detailed demographic backstory reproduces the survey response distributions of the corresponding demographic group with striking fidelity. Their ``silicon sampling'' method treats the LLM as a statistical model of human opinion conditioned on demographic attributes. The method is not a claim that LLMs are sentient or that they have genuine preferences; it is an empirical observation that LLMs trained on vast human-generated text encode distributional information about how different types of people tend to reason and respond.
+
+This section develops the operational framework for persona agents in credit and household finance applications.
+\end{context}
 
 \subsection{Defining Agent Personas: Income, Education, Risk Aversion, and Financial Literacy}
 \label{subsec:persona-design}
 
-[Placeholder]
+A persona agent is a language model instance conditioned on a \emph{persona specification}: a structured description of demographic, socioeconomic, and psychological characteristics that determine how the agent reasons about financial decisions. The specification is instantiated as a system prompt and maintained across the agent's conversation turns.
 
+\begin{definition}[Persona Specification]
+\label{def:persona}
+A \emph{persona specification} is a tuple $\Pi = (D, S, \Psi, L)$ where:
+\begin{itemize}
+  \item $D$: demographic attributes (age, sex, household composition, geographic region, education level).
+  \item $S$: socioeconomic attributes (employment type, income, wealth, housing tenure, existing debt).
+  \item $\Psi$: psychological attributes (risk aversion parameter $\gamma$, time preference $\delta$, financial anxiety level).
+  \item $L$: financial literacy level, operationalised via Lusardi and Mitchell's (2011) three-question battery (interest compounding, inflation effects, diversification).
+\end{itemize}
+\end{definition}
+
+The persona specification is translated into natural language for the system prompt. A complete specification yields a system prompt of approximately 200--400 words, covering background, stated financial goals, knowledge limitations, and behavioural tendencies.
+
+\subsubsection*{The Maria and Thomas Personas}
+
+To make the persona mechanism concrete, consider two personas representing opposite extremes of financial literacy and socioeconomic stability:
+
+\begin{example}[Contrasting Personas: Maria and Thomas]
+\label{ex:personas}
+
+\textbf{Maria's persona specification}: Maria is 28 years old, lives in a two-bedroom apartment in outer Chicago with her six-year-old daughter, and works as a rideshare driver and occasional house cleaner. Her monthly income averages \$2,400 but varies substantially --- in her best months she earns \$3,200; in slow months as little as \$1,800. She has no employer-sponsored benefits. Her savings total approximately \$800 in a current account. She has one credit card with a \$1,200 limit, currently at \$950 balance, and one medical collection item from 2021. Her bureau score is 584. She missed school in Mexico at age 14 to help support her family, completed her GED at age 23, and has no post-secondary education. Financial terms like ``APR,'' ``amortisation,'' and ``principal'' are unfamiliar to her. She is highly averse to the prospect of losing her apartment and prioritises security over growth.
+
+\textbf{Thomas's persona specification}: Thomas is 52 years old, lives with his wife and two adult children (both in college) in a semi-detached house in Lyon, France, where he has worked as a secondary school history teacher for twenty-four years. His gross annual salary is \texteuro 48,000 and his wife earns \texteuro 36,000 as a hospital administrator. Together they have \texteuro 120,000 in a Livret A account and \texteuro 85,000 in a plan d'épargne retraite. Their primary mortgage has twelve years remaining with \texteuro 145,000 outstanding. Thomas has read personal finance books, manages their household spreadsheet meticulously, and understands compounding, diversification, and tax-advantaged savings vehicles. His financial literacy score on Lusardi and Mitchell's battery is 3/3. His risk aversion is moderate ($\gamma \approx 2$).
+
+\medskip
+\textbf{Mortgage decision prompt}: Both Maria and Thomas are presented with the following scenario: ``A lender is offering you a \$20,000 / \texteuro 20,000 personal loan for five years. Option~A has a fixed rate of 12\% APR with a \$444/\texteuro 444 monthly payment. Option~B has a variable rate starting at 8\% APR with a \$406 / \texteuro 406 monthly payment, adjustable annually to a market rate capped at 18\% APR. Which do you choose and why?''
+
+\medskip
+\textbf{Maria's reasoning chain (illustrative dialogue excerpt):}
+
+\begin{quote}
+\textit{User}: ``Maria, which loan option would you choose?''
+
+\textit{Maria}: ``Okay, so Option A costs me \$444 a month no matter what. Option B starts lower at \$406, that's \$38 less. But it says \emph{adjustable} --- I'm not totally sure what that means. Like, can the payment go up? If it can go up to 18\%... I don't even know what that would be per month but that sounds like a lot. My rent is \$1,200 and some months I barely clear \$1,800 total. I can't risk my payment jumping on me when work is slow. I'd take Option A. At least I know exactly what I owe every month and I can plan around it.''
+\end{quote}
+
+\textbf{Thomas's reasoning chain (illustrative dialogue excerpt):}
+
+\begin{quote}
+\textit{User}: ``Thomas, which loan option would you choose?''
+
+\textit{Thomas}: ``This depends on how long current rates are likely to remain elevated. Option A locks in 12\% --- expensive but predictable. Option B starts at 8\% with an annual reset capped at 18\%. The break-even analysis: at 8\%, the five-year total interest is approximately \texteuro 4,300; at 12\% it is \texteuro 6,600. If rates remain below about 10\% on average over five years, Option B is cheaper. Given that the ECB has signalled a rate normalisation path and my wife's income covers our fixed obligations without this loan, I can absorb a payment increase. I would choose Option B, but I would immediately set aside the monthly difference (\texteuro 38) into the Livret A as a buffer against rate resets.''
+\end{quote}
+\end{example}
+
+The contrast is instructive. Maria's reasoning is dominated by loss aversion and income uncertainty --- she anchors on the worst-case outcome and the security of a fixed payment. Thomas's reasoning is analytic and forward-looking --- he frames the choice as a break-even problem and quantifies his capacity to absorb risk. Both responses are coherent and defensible given the persona specification. Neither is ``wrong.''
+
+% ---------------------------------------------------------------
 \subsection{Multi-Persona Dialogue and Population-Level Disagreement}
 \label{subsec:persona-dialogue}
 
-[Placeholder]
+Running a single persona produces one trajectory through the decision space. Running an ensemble of $N$ personas --- a \emph{synthetic population} --- produces a distribution over decisions that approximates the population-level response to a financial product or policy intervention.
 
+Let $\Pi_1, \ldots, \Pi_N$ be a sample of persona specifications drawn from a target population distribution $\mathcal{P}$. For each persona $\Pi_i$, let $d_i \in \{1, \ldots, K\}$ denote the decision recorded after presenting the scenario. The empirical distribution of decisions is:
+\begin{equation}
+  \hat{P}(d = k) = \frac{1}{N} \sum_{i=1}^{N} \mathbf{1}[d_i = k], \quad k = 1, \ldots, K.
+  \label{eq:empirical-decision-dist}
+\end{equation}
+
+Population-level disagreement arises because different personas weight the same information differently. This disagreement is informative: it identifies which subgroups are sensitive to which product features, enabling more targeted product design and communication.
+
+\subsubsection*{Multi-Persona Dialogue}
+
+Beyond aggregating individual decisions, multi-persona dialogue places multiple personas in a simulated conversation --- for example, a financial adviser persona and a client persona --- and observes how the dialogue evolves. This structure is useful for:
+
+\begin{enumerate}
+  \item Identifying persuasion gaps: which counterarguments shift which personas?
+  \item Stress-testing disclosure language: does a particular disclosure format reduce Maria-type confusion?
+  \item Training human advisers: synthetic dialogues with diverse client personas can be used as practice scenarios.
+\end{enumerate}
+
+A multi-persona dialogue is implemented by alternating the system prompt between participants at each turn, maintaining a shared conversation history. The shared history ensures that each persona responds to what has actually been said rather than to a static scenario description.
+
+% ---------------------------------------------------------------
 \subsection{Applications: Loan Uptake, Mortgage Choice, and Retirement Planning}
 \label{subsec:persona-apps}
 
-[Placeholder]
+Three high-value applications illustrate the scope of persona simulation in household finance.
 
+\subsubsection*{Loan Uptake Modelling}
+
+A consumer lender launching a new product wants to estimate the take-up rate as a function of price (APR), term, and marketing channel. The traditional approach requires an A/B test, which takes months and exposes actual customers to suboptimal offers. A persona simulation approach:
+
+\begin{enumerate}
+  \item Constructs a synthetic population $\{\Pi_i\}_{i=1}^{N}$ calibrated to match the lender's target demographic by age, income, and credit score distribution.
+  \item Presents each persona with the product offer and a simulated application flow.
+  \item Records whether the persona accepts, rejects, or requests modification.
+  \item Aggregates take-up rates and computes elasticity with respect to APR: $\varepsilon = \Delta \log(\text{take-up}) / \Delta \log(\text{APR})$.
+\end{enumerate}
+
+The simulation cannot replace empirical testing but can substantially narrow the hypothesis space before a live test is conducted.
+
+\subsubsection*{Mortgage Choice Simulation}
+
+As illustrated in Example~\ref{ex:personas}, mortgage choice is sensitive to income volatility, risk aversion, and financial literacy. Regulators and consumer advocates can use persona simulation to evaluate whether a particular mortgage product is suitable for its target market. A product with a teaser rate that resets steeply after two years may be welfare-enhancing for Thomas-type borrowers with stable income and financial sophistication, while creating serious distress risk for Maria-type borrowers.
+
+\subsubsection*{Retirement Planning}
+
+The retirement planning decision involves a long time horizon, uncertain longevity, investment returns, and healthcare costs. Persona agents can simulate how different households respond to different default enrolment and auto-escalation schemes in defined-contribution plans. Research using survey data has documented the importance of default rules: Campbell \cite{campbell2006household} notes that participation rates in savings plans are dramatically higher when enrolment is the default than when opt-in is required. Persona simulation can assess whether LLM-based retirement planning assistants successfully explain the benefits of auto-escalation to low-financial-literacy households.
+
+% ---------------------------------------------------------------
 \subsection{Calibrating Simulated Behaviour Against Survey Data}
 \label{subsec:persona-calibration}
 
-[Placeholder]
+For persona simulation to be scientifically credible it must be validated: simulated decision distributions must align with observed decision distributions in representative surveys. The ECB Household Finance and Consumption Survey \cite{ecb2020hfcs} and the Survey of Consumer Finances (SCF) in the US provide detailed micro-data on household financial decisions that serve as calibration targets.
+
+The calibration procedure involves three steps:
+
+\subsubsection*{Step 1: Population Alignment}
+
+The persona sampling distribution $\mathcal{P}$ is calibrated so that the joint distribution of demographic and socioeconomic attributes in the synthetic population matches the marginal distributions in the target survey. Post-stratification weighting is a standard approach:
+\begin{equation}
+  w_i = \frac{P_{\text{target}}(\Pi_i)}{P_{\text{simulation}}(\Pi_i)},
+  \label{eq:poststrat-weight}
+\end{equation}
+where $P_{\text{target}}$ is the empirical distribution in the survey and $P_{\text{simulation}}$ is the simulation sampling distribution.
+
+\subsubsection*{Step 2: Behavioural Alignment}
+
+For each decision domain (mortgage uptake, pension participation, insurance purchase), the weighted decision distribution from the simulation is compared to the observed decision distribution in the survey using a calibration loss:
+\begin{equation}
+  \mathcal{L}_{\text{cal}} = \sum_{k=1}^{K} \left( \hat{P}_{\text{sim}}(d = k) - \hat{P}_{\text{survey}}(d = k) \right)^2.
+  \label{eq:calibration-loss}
+\end{equation}
+
+\subsubsection*{Step 3: Prompt Refinement}
+
+When calibration loss is high, the persona specification is refined. Common causes of misalignment include: persona prompts that are too generic (insufficient differentiation across income strata), prompts that fail to instantiate the specific regulatory and product context of the survey (European vs.\ US mortgage markets), and prompts that elicit aspirational rather than realistic behaviour.
+
+Calibration is never perfect and should be reported honestly. A validated simulation that explains 60--70\% of observed cross-sectional variation in decisions is useful; an uncalibrated simulation that claims to predict population behaviour without validation is not.
 
 % ---------------------------------------------------------------
 \section{Evaluation and Model Risk Management}
 \label{sec:model-risk}
 
-[Placeholder]
+\begin{context}
+In 2012, the Federal Reserve and the Office of the Comptroller of the Currency jointly issued Supervisory Letter SR 11-7, ``Supervisory Guidance on Model Risk Management'' \cite{sr117}. The letter defines a model as ``a quantitative method, system, or approach that applies statistical, economic, financial, or mathematical theories, techniques, and assumptions to process input data into quantitative estimates.'' By that definition, an LLM-based credit scoring system is unambiguously a model, and it is subject to the full SR 11-7 governance framework.
+
+SR 11-7 requires that every model be: (1) conceptually sound and fit for purpose; (2) subject to ongoing monitoring; (3) subject to independent validation by a party separate from the model development team; and (4) documented in sufficient detail for a knowledgeable third party to reproduce the results. For LLMs, each of these requirements raises novel questions that the original guidance did not anticipate.
+
+This section develops the metrics and governance framework for LLM credit risk models.
+\end{context}
 
 \subsection{Credit-Specific Metrics: AUROC, KS Statistic, and Gini Coefficient}
 \label{subsec:credit-metrics}
 
-[Placeholder]
+\subsubsection*{The ROC Curve and AUROC}
 
+Let $S$ denote the model score (predicted default probability) and $Y \in \{0, 1\}$ the default indicator. For a threshold $t \in [0, 1]$, define the true positive rate (TPR, or recall) and false positive rate (FPR) as:
+\begin{align}
+  \text{TPR}(t) &= P(\hat{Y} = 1 \mid Y = 1) = P(S \geq t \mid Y = 1), \label{eq:tpr} \\
+  \text{FPR}(t) &= P(\hat{Y} = 1 \mid Y = 0) = P(S \geq t \mid Y = 0). \label{eq:fpr}
+\end{align}
+The ROC curve traces $(\text{FPR}(t), \text{TPR}(t))$ as $t$ varies from 1 to 0. A model with no discrimination produces a 45-degree diagonal; a perfect model produces the upper-left corner.
+
+The Area Under the ROC Curve (AUROC) equals the probability that a randomly drawn defaulter receives a higher score than a randomly drawn non-defaulter:
+\begin{equation}
+  \text{AUROC} = P(S_+ > S_-),
+  \label{eq:auroc}
+\end{equation}
+where $S_+ \sim (S \mid Y = 1)$ and $S_- \sim (S \mid Y = 0)$.
+
+\subsubsection*{The KS Statistic}
+
+The Kolmogorov--Smirnov (KS) statistic measures the maximum separation between the empirical cumulative distribution functions of the defaulter score distribution and the non-defaulter score distribution.
+
+\begin{definition}[KS Statistic]
+\label{def:ks}
+Let $F_+(s) = P(S \leq s \mid Y = 1)$ and $F_-(s) = P(S \leq s \mid Y = 0)$ denote the CDFs of the score conditional on default and non-default, respectively. The \emph{KS statistic} is:
+\begin{equation}
+  \text{KS} = \sup_{s \in [0,1]} |F_+(s) - F_-(s)| = \sup_{s \in [0,1]} |\text{TPR}^{-1}(s) - \text{FPR}^{-1}(s)|.
+  \label{eq:ks}
+\end{equation}
+\end{definition}
+
+\begin{deepdive}
+
+To derive the KS statistic from the empirical CDF, let $\{s_i^+\}_{i=1}^{n_+}$ and $\{s_j^-\}_{j=1}^{n_-}$ be the observed scores for defaulters and non-defaulters, respectively. The empirical CDFs are:
+\begin{align}
+  \hat{F}_+(s) &= \frac{1}{n_+} \sum_{i=1}^{n_+} \mathbf{1}[s_i^+ \leq s], \label{eq:ecdf-pos} \\
+  \hat{F}_-(s) &= \frac{1}{n_-} \sum_{j=1}^{n_-} \mathbf{1}[s_j^- \leq s]. \label{eq:ecdf-neg}
+\end{align}
+
+The KS statistic is estimated as:
+\begin{equation}
+  \widehat{\text{KS}} = \max_{s \in \{s_1, \ldots, s_{n_+ + n_-}\}} |\hat{F}_+(s) - \hat{F}_-(s)|,
+  \label{eq:ks-empirical}
+\end{equation}
+where the maximum is taken over the set of all observed scores (the unique support points of the two empirical CDFs). The maximum is always achieved at one of these support points because the difference $|\hat{F}_+(s) - \hat{F}_-(s)|$ is a step function with jumps only at observed scores.
+
+In credit scoring practice, the KS statistic is typically computed by sorting all observations by score, computing the cumulative fraction of defaulters and non-defaulters at each score level, and reading off the maximum vertical distance between the two cumulative fractions. A KS statistic above 0.40 is conventionally considered good for a retail credit model; above 0.60 is excellent.
+
+\end{deepdive}
+
+\subsubsection*{The Gini Coefficient}
+
+The Gini coefficient (also called the accuracy ratio in credit scoring) is defined as:
+\begin{equation}
+  \text{Gini} = 2 \cdot \text{AUROC} - 1.
+  \label{eq:gini}
+\end{equation}
+
+\begin{proof}
+The Gini coefficient in this context is defined as the ratio of the area between the Lorenz curve (CAP curve) and the diagonal to the area of the perfect model's CAP curve above the diagonal. The CAP (Cumulative Accuracy Profile) curve plots the fraction of the population captured (sorted by score, highest first) against the fraction of all defaulters captured.
+
+Let $F_-$ be the CDF of the non-default score distribution and $F_+$ the CDF of the default score distribution. For a threshold $t$, the fraction of the total population at or above $t$ is $1 - [\pi_+ F_+(t) + \pi_- F_-(t)]$ where $\pi_+ = P(Y=1)$ and $\pi_- = P(Y=0)$ are the class prevalences. The fraction of defaulters captured at this threshold is $1 - F_+(t)$.
+
+The Lorenz curve for the CAP traces $(1 - [\pi_+ F_+(t) + \pi_- F_-(t)], 1 - F_+(t))$ as $t$ decreases from 1 to 0. It can be shown by change of variables that the area under the CAP Lorenz curve equals $\pi_- \cdot \text{AUROC} + \tfrac{1}{2}\pi_+$. The area under the diagonal (random model) is $\tfrac{1}{2}$. The area under the perfect model's CAP (capturing all $\pi_+$ defaulters first) is $1 - \tfrac{1}{2}\pi_+$. Therefore:
+\begin{equation}
+  \text{Gini} = \frac{(\pi_- \cdot \text{AUROC} + \tfrac{1}{2}\pi_+) - \tfrac{1}{2}}{(1 - \tfrac{1}{2}\pi_+) - \tfrac{1}{2}} = \frac{\pi_- \cdot \text{AUROC} - \tfrac{1}{2}(1-\pi_+)}{\tfrac{1}{2}(1 - \pi_+)} = \frac{\pi_- \cdot \text{AUROC} - \tfrac{1}{2}\pi_-}{\tfrac{1}{2}\pi_-} = 2 \cdot \text{AUROC} - 1.
+  \label{eq:gini-proof}
+\end{equation}
+The last equality uses $\pi_+ + \pi_- = 1$, so $1 - \pi_+ = \pi_-$. The identity $\text{Gini} = 2 \cdot \text{AUROC} - 1$ is exact, not an approximation.
+\end{proof}
+
+For a random model, AUROC = 0.5 and Gini = 0; for a perfect model, AUROC = 1 and Gini = 1. In practice, retail credit models typically achieve Gini coefficients in the range of 0.40--0.70.
+
+% ---------------------------------------------------------------
 \subsection{SR~11-7 Model Risk Framework Applied to LLM Governance}
 \label{subsec:sr117}
 
-[Placeholder]
+SR 11-7 \cite{sr117} organises model risk management around three pillars: model development and implementation, model validation, and governance. Each pillar raises novel challenges for LLM-based credit models.
 
+\subsubsection*{Model Development and Implementation}
+
+SR 11-7 requires that model development be ``based on theory and evidence'' and that developers document ``the quality and extent of the data used, limitations, and uncertainties.'' For LLMs, this documentation must address:
+
+\begin{itemize}
+  \item \textbf{Pre-training data provenance}: what corpus was the base model trained on, and does it contain data that would be prohibited in a credit context (e.g.\ data collected without FCRA-compliant permissible purpose)?
+  \item \textbf{Fine-tuning data quality}: were fine-tuning labels independently verified? What is the vintage of the training data relative to the current credit cycle?
+  \item \textbf{Emergent behaviour}: does the LLM exhibit unexpected reasoning patterns at inference time that were not present during testing?
+\end{itemize}
+
+\subsubsection*{Model Validation}
+
+SR 11-7 requires independent validation: the validation team must be separate from the development team and must have the authority to require changes. For LLMs, validation must include:
+
+\begin{enumerate}
+  \item \textbf{Conceptual soundness review}: does the model's architecture and fine-tuning approach make theoretical sense for the intended task?
+  \item \textbf{Outcome analysis}: does the model perform at least as well as the benchmark (logistic regression or gradient boosting) on the performance metrics defined in Section~\ref{subsec:credit-metrics}?
+  \item \textbf{Sensitivity analysis}: how sensitive are model outputs to small perturbations in input --- changes in word order, synonym substitution, missing fields? High sensitivity is a red flag for instability.
+  \item \textbf{Disparate impact testing}: does the model produce materially different adverse action rates for protected-class groups after controlling for legitimate credit factors?
+  \item \textbf{Adversarial probing}: can the model be manipulated by a sophisticated borrower who crafts their application text to trigger favourable model responses?
+\end{enumerate}
+
+\subsubsection*{Governance}
+
+SR 11-7 requires that model risk be governed by a ``formal model risk management policy'' with defined roles and responsibilities. For LLMs, governance must additionally address:
+
+\begin{itemize}
+  \item \textbf{Model versioning}: LLM providers update base models frequently; a credit institution must have a policy governing when base model updates trigger revalidation.
+  \item \textbf{Prompt governance}: changes to the system prompt or few-shot examples constitute a model change and must follow the change management process.
+  \item \textbf{Vendor risk}: if the LLM is accessed via an API (e.g.\ OpenAI, Anthropic, Cohere), the institution bears residual model risk for a model it does not control. The vendor's terms of service, uptime guarantees, and data retention policies must be assessed.
+\end{itemize}
+
+% ---------------------------------------------------------------
 \subsection{Backtesting and Through-the-Cycle Validation}
 \label{subsec:backtesting}
 
-[Placeholder]
+Credit models are inherently temporal: they are trained on historical data and deployed to score future applications. The performance of a credit model is subject to two types of temporal degradation:
 
+\begin{description}
+  \item[Concept drift.] The relationship between features and default changes over time as the economy, lending practices, and borrower behaviour evolve. A model trained on 2015--2019 data may significantly underestimate default risk in a recessionary environment.
+  \item[Population drift.] The distribution of applicant characteristics changes over time --- for example, because the lender's marketing strategy has shifted, or because a new regulatory requirement has changed the applicant pool. The model may be accurate on its original population but mis-specified for the new applicant distribution.
+\end{description}
+
+\subsubsection*{Vintage Analysis}
+
+The standard backtesting framework for retail credit is vintage analysis. Loans are grouped by origination quarter (``vintage''); within each vintage, the cumulative default rate is tracked over time. Performance is then compared across vintages to identify whether the model's discrimination power (AUROC or KS) is stable over time.
+
+\subsubsection*{Through-the-Cycle Calibration}
+
+Basel II / III Pillar 1 credit risk capital requirements use \emph{through-the-cycle} (TTC) probability of default estimates: PDs should reflect long-run average default rates rather than current cycle conditions. This stands in contrast to \emph{point-in-time} (PIT) PDs, which are calibrated to current conditions. LLMs trained on recent data tend to produce PIT estimates. Converting PIT to TTC requires a long-horizon calibration dataset spanning at least one full credit cycle (typically 7--10 years).
+
+The Platt scaling calibration described in Section~\ref{subsec:calibration} can be applied to convert PIT LLM outputs to TTC by fitting the calibration model on a through-the-cycle calibration set. The scaling parameters $a$ and $b$ in equation~\eqref{eq:platt} then absorb both overconfidence correction and cycle-position adjustment.
+
+% ---------------------------------------------------------------
 \subsection{Interpretability: SHAP for LLM-Based Credit Decisions}
 \label{subsec:shap-credit}
 
-[Placeholder]
+SHAP (SHapley Additive exPlanations) \cite{lundberg2017unified} provides a theoretically grounded attribution method rooted in cooperative game theory. The SHAP value for feature $j$ in an input $x$ is the expected marginal contribution of feature $j$ to the model output across all possible subsets of features:
+\begin{equation}
+  \phi_j(x) = \sum_{S \subseteq \mathcal{F} \setminus \{j\}} \frac{|S|! \, (|\mathcal{F}| - |S| - 1)!}{|\mathcal{F}|!} \left[ f(S \cup \{j\}) - f(S) \right],
+  \label{eq:shap}
+\end{equation}
+where $\mathcal{F}$ is the full feature set, $S$ ranges over all subsets not containing $j$, and $f(S)$ denotes the model output when only features in $S$ are observed (remaining features are marginalised out according to their empirical distribution).
+
+SHAP values satisfy three axioms that make them particularly suitable for regulatory explanations:
+
+\begin{enumerate}
+  \item \textbf{Efficiency}: $\sum_{j \in \mathcal{F}} \phi_j(x) = f(x) - \mathbb{E}[f(x)]$. The SHAP values sum to the model's deviation from baseline.
+  \item \textbf{Symmetry}: if two features contribute identically to every coalition, they receive equal SHAP values.
+  \item \textbf{Dummy}: a feature that contributes nothing to any coalition receives a SHAP value of zero.
+\end{enumerate}
+
+\subsubsection*{SHAP for an LLM-Based Credit Decision}
+
+For an LLM credit model with serialised tabular inputs, SHAP can be computed by treating each field as a ``feature'' and computing the expected output change when each field is masked or replaced with a baseline (mean or most common) value. Table~\ref{tab:shap-waterfall} illustrates a SHAP waterfall for a loan application.
+
+\begin{example}[SHAP Waterfall for a Loan Application]
+\label{ex:shap-waterfall}
+Applicant: 34 years old, annual income \$58,000, bureau score 672, one delinquency in 24 months, loan purpose ``debt consolidation.''
+
+Base model output (population mean): $\bar{f} = 0.05$ (5\% baseline PD).
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Feature & SHAP Value $\phi_j$ & Running Score \\
+\midrule
+Base value & --- & $+0.050$ \\
+Bureau score = 672 (below median) & $+0.041$ & $+0.091$ \\
+Delinquencies = 1 & $+0.027$ & $+0.118$ \\
+Loan purpose = ``debt consolidation'' & $+0.019$ & $+0.137$ \\
+Annual income = \$58,000 (moderate) & $-0.012$ & $+0.125$ \\
+Age = 34 (prime working age) & $-0.008$ & $+0.117$ \\
+Employment = full-time 6 years & $-0.015$ & $+0.102$ \\
+\midrule
+Final predicted PD & & $0.102$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\captionof{table}{Illustrative SHAP waterfall for a credit application. Each feature's contribution is added (or subtracted) from the base value to reach the final predicted probability of default.}
+\label{tab:shap-waterfall}
+\end{example}
+
+The SHAP waterfall directly maps to the adverse action reason codes required by FCRA. The top positive contributors (bureau score, delinquencies, loan purpose) become the adverse action reasons; the top negative contributors (stable employment, income) are the factors that partially offset the risk. This correspondence allows a compliant adverse action notice to be generated automatically from the SHAP output.
 
 % ---------------------------------------------------------------
 \section{Deployment of a Credit Risk Application}
 \label{sec:credit-deployment}
 
-[Placeholder]
+\begin{context}
+Building a model that scores accurately on a holdout set is necessary but not sufficient for production deployment. Credit risk applications operate in a regulated environment where downtime is not merely an operational inconvenience but a potential Fair Lending violation, where every output must be auditable years after the fact, and where a silent model failure --- a model that continues to produce outputs but whose outputs no longer reflect reality --- can silently erode the institution's capital adequacy. The discipline of MLOps, adapted for the regulatory constraints of financial services, provides the engineering foundation for reliable credit AI deployment.
+\end{context}
 
 \subsection{System Architecture: API Design, Database Integration, and Inference Serving}
 \label{subsec:system-arch}
 
-[Placeholder]
+A production credit risk application built on an LLM consists of five interacting subsystems:
 
+\subsubsection*{Data Ingestion and Feature Store}
+
+The feature store is the single source of truth for model inputs. At application time, the feature store retrieves and assembles the complete feature vector (bureau data, transaction features, application text) for a specific applicant-date pair. The feature store records, for each feature value, the retrieval timestamp and the source system, enabling point-in-time reconstruction of the feature vector used for any historical decision --- a requirement for audit and dispute resolution.
+
+\subsubsection*{Inference API}
+
+The inference API receives a structured application payload (JSON), assembles the serialised text input, calls the LLM inference engine, and returns a structured response including the predicted PD, the calibrated PD, the reason codes (derived from SHAP), and a unique decision identifier. The API contract is versioned: each version specifies the input schema, the model version, the calibration model version, and the SHAP computation method.
+
+\begin{example}[Inference API Request / Response]
+\label{ex:api}
+Request:
+\begin{verbatim}
+POST /v2/credit-score
+{
+  "application_id": "APP-20240315-78423",
+  "applicant": {
+    "age": 34,
+    "income_annual": 58000,
+    "bureau_score": 672,
+    "delinquencies_24m": 1,
+    "employment": "full-time",
+    "tenure_years": 6,
+    "loan_purpose": "debt consolidation",
+    "loan_amount": 12000
+  }
+}
+\end{verbatim}
+
+Response:
+\begin{verbatim}
+{
+  "application_id": "APP-20240315-78423",
+  "decision_id": "DEC-20240315-78423-v2",
+  "pd_raw": 0.107,
+  "pd_calibrated": 0.102,
+  "model_version": "credit-llm-v2.3.1",
+  "calibration_version": "platt-2024-01",
+  "adverse_action_reasons": [
+    "Bureau score below threshold",
+    "Recent delinquency on record",
+    "Loan purpose associated with higher risk"
+  ],
+  "shap_values": {
+    "bureau_score": 0.041,
+    "delinquencies_24m": 0.027,
+    "loan_purpose": 0.019,
+    "income_annual": -0.012,
+    "age": -0.008,
+    "employment_tenure": -0.015
+  },
+  "timestamp_utc": "2024-03-15T14:23:07Z"
+}
+\end{verbatim}
+\end{example}
+
+\subsubsection*{LLM Inference Serving}
+
+Two deployment patterns are common: API-based serving (calls to a commercial provider) and self-hosted serving (running an open-weight model on dedicated infrastructure). The trade-offs are:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Dimension & API-Based & Self-Hosted \\
+\midrule
+Latency & 200--2000ms & 50--300ms \\
+Cost per query & \$0.001--\$0.05 & \$0.0001--\$0.005 \\
+Data control & Partial & Full \\
+Model control & None & Full \\
+Regulatory compliance & Vendor dependency & Institution controls \\
+Infrastructure burden & Low & High \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For credit decisions, the regulatory preference is for self-hosted models because the institution bears full responsibility for the model's outputs regardless of the provider's data handling practices.
+
+\subsubsection*{Decision Record Database}
+
+Every credit decision must be persisted in an immutable decision record database. The record must capture: the application payload as received, the feature vector assembled by the feature store, the raw and calibrated model outputs, the SHAP values, the adverse action reasons, and the decision outcome (approved, declined, referred). The database must be append-only for regulatory purposes; records may be supplemented (e.g.\ with the eventual default outcome) but not overwritten.
+
+% ---------------------------------------------------------------
 \subsection{Monitoring: Data Drift, Model Degradation, and Alerting}
 \label{subsec:monitoring}
 
-[Placeholder]
+A deployed credit model faces two types of degradation: gradual degradation as the applicant population and economic environment evolve, and sudden degradation caused by upstream data changes (e.g.\ a bureau changing its score definition, or a new field being added to the application form).
 
+\subsubsection*{Data Drift Detection}
+
+Data drift is detected by comparing the distribution of each input feature between the training period and the current deployment window. The Population Stability Index (PSI) is the standard measure in credit risk:
+\begin{equation}
+  \text{PSI} = \sum_{b=1}^{B} (p_b - q_b) \ln\!\left(\frac{p_b}{q_b}\right),
+  \label{eq:psi}
+\end{equation}
+where $p_b$ is the fraction of training observations in bin $b$ and $q_b$ is the fraction of current observations in bin $b$. PSI below 0.1 indicates stable distribution; 0.1--0.25 indicates moderate shift requiring investigation; above 0.25 indicates significant shift requiring model review.
+
+For LLM-based models that consume text inputs, drift in the input distribution is harder to detect. Embedding drift metrics --- comparing the distribution of sentence embeddings between training and current batches using maximum mean discrepancy (MMD) or the Fr\'{e}chet distance --- are more appropriate.
+
+\subsubsection*{Model Performance Monitoring}
+
+Model performance cannot be monitored in real time because outcomes (defaults) are only observed with a lag of 30--90 days for retail credit. The monitoring framework must therefore:
+
+\begin{enumerate}
+  \item Monitor \emph{proxy metrics} available immediately: score distribution, adverse action rate, model output entropy.
+  \item Monitor \emph{lagged outcome metrics}: default rates by vintage, AUROC on each monthly cohort as outcomes mature.
+  \item Set alert thresholds that trigger automated investigation when proxy or lagged metrics cross predefined bounds.
+\end{enumerate}
+
+\subsubsection*{Alerting}
+
+Alerts should be tiered by severity:
+\begin{description}
+  \item[Yellow (investigate).] PSI $> 0.1$ for any key input feature; score distribution mean shift $> 0.5$ standard deviations.
+  \item[Orange (escalate).] PSI $> 0.25$; AUROC on maturing cohort drops below acceptance threshold; adverse action rate deviates by $> 10\%$ from baseline.
+  \item[Red (halt and review).] Model output distribution becomes degenerate (e.g.\ all scores collapse to 0 or 1); API error rate $> 1\%$; fair lending test fails.
+\end{description}
+
+% ---------------------------------------------------------------
 \subsection{Human-in-the-Loop Review Workflows}
 \label{subsec:hitl-credit}
 
-[Placeholder]
+GDPR Article~22, ECOA, and SR~11-7 each independently require that automated credit decisions be subject to human review upon request, and that a human review process be genuinely available (not merely nominally present). Designing this process requires distinguishing three tiers of application:
 
+\begin{description}
+  \item[Tier 1: Clear approvals.] Applications with predicted PD well below the institution's risk appetite threshold and no adverse data flags. These can be approved with minimal human review, with a human reviewer examining only a random sample for quality control.
+  \item[Tier 2: Borderline cases.] Applications with predicted PD near the decision threshold, or applications where the SHAP waterfall reveals a high-impact feature that the reviewer should verify (e.g.\ a recent delinquency that the applicant has disputed). These require active human review before a decision is communicated.
+  \item[Tier 3: Appeals.] Applications where the borrower has exercised their right (under GDPR or FCRA) to request human review of a model-generated adverse decision. The reviewer must have access to the complete decision record, including the SHAP explanation, and must document their independent assessment.
+\end{description}
+
+The human reviewer's decision overrides the model's recommendation in all cases. Reviewer decisions and their rationale must be logged to the decision record database, enabling analysis of systematic differences between model recommendations and human overrides --- a potentially valuable signal for model refinement.
+
+\subsubsection*{Reviewer Interface Design}
+
+The design of the reviewer interface significantly influences review quality. Research in human--computer interaction has shown that when an automated system's recommendation is displayed prominently, human reviewers are strongly anchored to it (automation bias). Mitigations include:
+
+\begin{itemize}
+  \item Displaying the model's recommendation only after the reviewer has formed an independent assessment based on the raw application data.
+  \item Presenting the SHAP waterfall prominently so that reviewers engage with the model's reasoning rather than merely its output.
+  \item Requiring reviewers to document their reasoning before seeing the model's decision, and recording cases where reviewer and model disagree.
+\end{itemize}
+
+% ---------------------------------------------------------------
 \subsection{Regulatory Submission and Model Documentation}
 \label{subsec:model-doc}
 
-[Placeholder]
+Regulatory model documentation for an LLM-based credit model must satisfy the requirements of SR~11-7 (for US institutions), the EBA's Guidelines on Internal Governance (for EU institutions), and GDPR Article~22's transparency requirements. The documentation package typically consists of:
+
+\subsubsection*{Model Development Report (MDR)}
+
+The MDR documents: (1) the business need and intended use; (2) the conceptual framework (architecture, fine-tuning procedure, calibration method); (3) the training data, including sources, vintage, sampling approach, and label construction; (4) model selection and hyperparameter choices; (5) in-sample performance metrics; (6) out-of-sample performance metrics on holdout data; (7) known limitations and assumptions; (8) proposed monitoring plan.
+
+For LLMs, the MDR must additionally document: the base model provenance and licence; the fine-tuning procedure including parameter efficiency method and training hyperparameters; any few-shot examples or system prompts used at inference; and the structured generation grammar if applicable.
+
+\subsubsection*{Model Validation Report (MVR)}
+
+The MVR is produced by the independent validation team and documents: (1) the scope and approach of the validation; (2) conceptual soundness findings; (3) outcomes analysis including performance metrics on a validation dataset independent from the development team's holdout; (4) sensitivity analysis results; (5) fair lending analysis; (6) findings, recommendations, and model risk rating (typically a three-point scale: Low, Moderate, High).
+
+\subsubsection*{GDPR Article 22 Transparency Documentation}
+
+For EU credit applications, the institution must be able to provide, upon request, a written explanation of the logic involved in the automated decision, the significance of the decision for the individual, and the envisaged consequences. The SHAP-based adverse action reasons in the API response (Example~\ref{ex:api}) form the basis of this explanation, but they must be translated into plain language understandable by a consumer without financial or technical background.
+
+\begin{example}[Plain-Language GDPR Explanation]
+\label{ex:gdpr-explanation}
+``Your application for a personal loan of \texteuro{}12,000 was assessed using an automated system. Based on the information you provided and your credit file, our system estimated a higher probability of repayment difficulty than our lending criteria allow.
+
+The main factors that increased your estimated risk were: your credit bureau score of 672, which is below the level typically associated with this loan product; a record of one late payment in the past twenty-four months; and a loan purpose of debt consolidation, which our system associates with existing financial pressure.
+
+The main factors that partially reduced your estimated risk were: your six years of continuous full-time employment and your annual income of \$58,000.
+
+You have the right to request that a human member of our credit team reviews this decision. To request a human review, please contact [contact details]. You also have the right to provide additional information or context that you believe is relevant to your application.''
+\end{example}
+
+The plain-language explanation must be generated separately from the technical SHAP output; using SHAP values directly in consumer-facing communications is likely to create confusion rather than transparency. The generation of compliant plain-language explanations is itself a task well-suited to a constrained LLM operating on the structured SHAP output.
+
+\subsubsection*{Model Inventory and Ongoing Documentation}
+
+SR~11-7 requires that all models be included in a model inventory that records: model name and identifier, intended use, business owner, development team, validation team, current status (under development, in production, retired), last validation date, and model risk rating. For LLMs, the inventory must additionally track the base model version and fine-tune version, since a provider update to the base model --- even without any change to the institution's fine-tuning --- may constitute a material model change.
+
+The model documentation package must be maintained and updated at least annually, and more frequently when material changes occur. A material change for an LLM credit model includes: updating the base model, modifying the fine-tuning dataset or procedure, changing the calibration model, altering the system prompt or few-shot examples, or changing the structured generation grammar.

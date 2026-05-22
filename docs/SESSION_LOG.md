@@ -34,3 +34,4 @@
 | 2026-05-22 | 12 files | feat(ch05): draft LLMs for Business Valuation chapter;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 12 files | chore: scaffold topic 07-applications-future;chore: session log 2026-05-22;feat(ch05): draft LLMs for Business Valuation chapter; | — |
 | 2026-05-22 | 12 files | chore(ch07): update OpenClaw description with correct framework details;chore: session log 2026-05-22;chore: scaffold topic 07-applications-future; | — |
+| 2026-05-22 | 8 files | chore: merge ch06 bibliography additions; update STATUS.md;feat(ch06): draft LLMs for credit risk analysis chapter;chore: session log 2026-05-22; | — |

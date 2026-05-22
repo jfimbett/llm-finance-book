@@ -29,9 +29,6 @@ After completing this chapter, the reader should be able to:
 \section{Introduction to Business Valuation}
 \label{sec:bv-intro}
 
-\subsection{What Is Business Valuation?}
-\label{subsec:bv-intro-definition}
-
 \begin{context}
 Imagine a private equity firm that has identified a mid-cap software company as an
 acquisition target. Before the partners can table a bid, they must answer a deceptively
@@ -41,7 +38,9 @@ derived from noisy market data, and on comparisons with peer companies that are 
 quite identical to the target. Every assumption is defensible; every assumption is
 contestable. Business valuation is, at its core, the discipline of making these
 assumptions explicit, consistent, and auditable.
-\end{context}
+
+\subsection{What Is Business Valuation?}
+\label{subsec:bv-intro-definition}
 
 \begin{definition}[Business Valuation]
 \label{def:business-valuation}
@@ -157,11 +156,18 @@ combining embedding-based semantic search with LLM filtering.
 Section~\ref{sec:bv-pipeline} assembles these components into a complete end-to-end
 pipeline, illustrated with a case study. Finally, Section~\ref{sec:bv-efficiency}
 evaluates accuracy and efficiency benchmarks and discusses deployment best practices.
+\end{context}
 
 % --- Section: Extracting Financial Data with LLMs and Agents ---
 
 \section{Extracting Financial Data with LLMs and Agents}
 \label{sec:bv-extraction}
+
+\begin{context}
+Every valuation begins with raw financial data — and for public US companies, that
+data lives in the SEC EDGAR system. This section shows how to build an automated
+pipeline that retrieves filings, parses complex HTML tables, and assembles a
+clean, structured financial data model ready for downstream computation.
 
 \subsection{The SEC EDGAR Ecosystem and Structured Filings}
 \label{subsec:bv-extraction-edgar}
@@ -391,11 +397,18 @@ December 31), and restatements (a refiled 10-K supersedes the original and may c
 previously reported figures). The extracted data object should carry a
 \texttt{restatement\_flag} field and the provenance of each figure (XBRL tag or LLM
 extraction with model and date) to support auditing.
+\end{context}
 
 % --- Section: Computing Cash Flows ---
 
 \section{Computing Cash Flows}
 \label{sec:bv-cashflows}
+
+\begin{deepdive}
+This section derives the two canonical free-cash-flow measures from first principles,
+proves their algebraic relationship, and shows how to implement each computation from
+structured extracted data — giving you a formula-level foundation you can audit and
+extend.
 
 \subsection{Free Cash Flow: Definitions and Formulas}
 \label{subsec:bv-cashflows-definitions}
@@ -601,11 +614,17 @@ adjustment autonomously. The normalised EBIT is:
 \end{equation}
 where $\mathcal{K}$ is the set of identified non-recurring expense items and $a_k > 0$
 is the pre-tax amount of item $k$ (positive because we are adding back an expense).
+\end{deepdive}
 
 % --- Section: Forecasting Cash Flows with LLMs ---
 
 \section{Forecasting Cash Flows with LLMs}
 \label{sec:bv-forecasting}
+
+\begin{deepdive}
+By the end of this section you will be able to implement chain-of-thought forecasting
+prompts, select between fine-tuning and few-shot strategies, and evaluate the resulting
+forecasts with MAPE, RMSE, and directional accuracy against a classical baseline.
 
 \subsection{Time-Series Perspectives on Financial Forecasting}
 \label{subsec:bv-forecasting-timeseries}
@@ -797,11 +816,18 @@ will grow or shrink next year captures trading alpha even if the magnitude estim
 imprecise. A well-specified evaluation framework reports all three metrics and compares
 them against a random-walk baseline and, where available, sell-side analyst consensus
 estimates \citep{zhang2024financebench}.
+\end{deepdive}
 
 % --- Section: Tool-Augmented Agents for Financial Math ---
 
 \section{Tool-Augmented Agents for Financial Math}
 \label{sec:bv-tools}
+
+\begin{deepdive}
+This section explains the architectural reason why LLMs cannot be trusted for
+multi-step arithmetic, then shows how to implement the code-interpreter and ReAct
+patterns that route all financial calculations to a deterministic executor —
+giving you a blueprint you can extend to any valuation workflow.
 
 \subsection{Why LLMs Alone Struggle with Arithmetic}
 \label{subsec:bv-tools-limitations}
@@ -981,11 +1007,18 @@ formula-level testing against known benchmark cases, is necessary in production.
 and accounting standards change. Any retrieval-augmented system must ensure that
 information retrieved from EDGAR is used in preference to the model's parametric
 knowledge for all factual claims about specific companies \citep{zhang2024financebench}.
+\end{deepdive}
 
 % --- Section: Scenario Analysis with LLMs ---
 
 \section{Scenario Analysis with LLMs}
 \label{sec:bv-scenarios}
+
+\begin{deepdive}
+This section formalises valuation scenarios as distributional objects, derives the
+Monte Carlo DCF estimator, and implements a simulation you can parameterise and
+re-run in under a second — turning qualitative bull/base/bear narratives into a
+quantified enterprise-value distribution.
 
 \subsection{Bull, Base, and Bear Case Construction}
 \label{subsec:bv-scenarios-cases}
@@ -1156,11 +1189,18 @@ simulation results in plain language, identifies the key risk factors driving
 the downside scenario, and frames the upside drivers. This narrative synthesis
 is where LLMs genuinely augment analyst productivity---producing a first-draft
 investment write-up that would otherwise take an analyst several hours.
+\end{deepdive}
 
 % --- Section: Comparable Selection Using LLMs ---
 
 \section{Comparable Selection Using LLMs}
 \label{sec:bv-comparables}
+
+\begin{deepdive}
+This section develops two complementary algorithms for peer-company identification ---
+prompt-based retrieval from the model's parametric memory and cosine-similarity search
+over MD\&A embeddings --- then combines them in a hybrid pipeline that you can implement
+and validate against a securities master file.
 
 \subsection{Traditional Comparable Selection: Criteria and Pitfalls}
 \label{subsec:bv-comparables-traditional}
@@ -1343,11 +1383,18 @@ then used for multiple analysis.
 The two-stage design confines the LLM's role to a task where it excels (qualitative
 business-model reasoning) and avoids the task where it is unreliable (recalling
 whether a specific ticker exists and what it refers to).
+\end{deepdive}
 
 % --- Section: End-to-End Valuation Pipeline ---
 
 \section{End-to-End Valuation Pipeline}
 \label{sec:bv-pipeline}
+
+\begin{context}
+The preceding sections each solved one piece of the valuation puzzle in isolation.
+Here we show how a practitioner wires them together into a production pipeline,
+orchestrates the components with a multi-agent architecture, and walks through
+the full workflow on a concrete case study.
 
 \subsection{Integrating Extraction, Forecasting, and Comparables}
 \label{subsec:bv-pipeline-integration}
@@ -1458,11 +1505,18 @@ growth multiples at the time of the analysis. The Monte Carlo simulation (10{,}0
 draws with $\sigma_\mathrm{WACC} = 1.5\%$ and $\sigma_g = 1\%$) produces an EV
 distribution with a mean of \$17.2B and a 10th--90th percentile range of
 \$12.5B--\$24.1B, providing quantified uncertainty alongside the point estimate.
+\end{context}
 
 % --- Section: Efficiency and Accuracy in LLM-Assisted Valuation ---
 
 \section{Efficiency and Accuracy in LLM-Assisted Valuation}
 \label{sec:bv-efficiency}
+
+\begin{deepdive}
+This section derives the evaluation metrics for benchmarking LLM-assisted valuations,
+quantifies token cost and latency, and provides a first-order error-propagation
+analysis showing how extraction errors compound through the DCF formula — then closes
+with deployment best practices grounded in those quantitative findings.
 
 \subsection{Benchmarking LLM Valuations Against Analyst Estimates}
 \label{subsec:bv-efficiency-benchmarking}
@@ -1607,6 +1661,7 @@ finance \cite{fsb2023ai},
 which emphasises human accountability, model transparency, and robust back-testing
 as prerequisites for responsible deployment of machine-learning systems in investment
 processes.
+\end{deepdive}
 
 \begin{remark}[Summary of Chapter Contributions]
 \label{rem:ch5-summary}

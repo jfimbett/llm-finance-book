@@ -12,6 +12,8 @@ Using an LLM API of your choice, build a simple three-step automated workflow th
 
 Test your pipeline on a publicly available earnings call transcript (e.g., from Seeking Alpha or the SEC EDGAR 8-K search). Report the total token usage and wall-clock time.
 
+*Optional extension:* Implement this pipeline as an OpenClaw skill so it can be triggered by sending a ticker symbol to your personal assistant via WhatsApp or Telegram. See `https://openclaw.ai` for the plugin API.
+
 ---
 
 ## Exercise 2 [I] — RAG Research Assistant with Bias Audit

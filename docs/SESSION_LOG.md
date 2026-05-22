@@ -32,3 +32,4 @@
 | 2026-05-22 | 15 files | chore: scaffold topic 06-credit-risk;feat(ch05): draft complete Chapter 5 — LLMs for Business Valuation;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 14 files | chore: session log 2026-05-22;chore: scaffold topic 06-credit-risk;feat(ch05): draft complete Chapter 5 — LLMs for Business Valuation; | — |
 | 2026-05-22 | 12 files | feat(ch05): draft LLMs for Business Valuation chapter;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
+| 2026-05-22 | 12 files | chore: scaffold topic 07-applications-future;chore: session log 2026-05-22;feat(ch05): draft LLMs for Business Valuation chapter; | — |

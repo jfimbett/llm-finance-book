@@ -51,6 +51,8 @@ response. This chapter develops the theoretical and practical foundations of suc
 agent architectures and applies them systematically to finance.
 \end{context}
 
+\begin{deepdive}
+
 The shift from language models to agents represents one of the most consequential
 architectural transitions in applied artificial intelligence. A language model, at its
 core, is a conditional probability distribution over token sequences: given a prompt
@@ -179,7 +181,6 @@ prompting does not involve tool use; it relies entirely on the model's internal
 representations. ReAct extends CoT by connecting reasoning steps to external actions,
 making the reasoning \emph{grounded} rather than purely generative.
 
-\begin{deepdive}
 The formal relationship between CoT and ReAct can be understood through the lens
 of \emph{program synthesis}. A CoT trace is analogous to an unexecuted program: it
 describes a sequence of logical operations without running them. A ReAct trace is an
@@ -196,7 +197,6 @@ against training data. In a ReAct approach, the model generates an action
 $A = \textsc{Call}(\texttt{market\_data\_api}, t)$ and receives $O = f(t)$ as the
 observation. The downstream reasoning then operates on the exact value rather than the
 approximation, eliminating a systematic source of factual error.
-\end{deepdive}
 
 Beyond single-loop ReAct, more sophisticated planning architectures have emerged.
 \emph{Tree-of-Thought} (ToT) prompting \cite{wang2023survey} structures the reasoning
@@ -289,7 +289,6 @@ a corpus of 10,000 SEC filings, for example. Long-term persistent memory enables
 that accumulate knowledge across many sessions, maintain user preferences, or track
 time-series data such as analyst forecast revisions.
 
-\begin{deepdive}
 The information-theoretic tension in memory design concerns the \emph{precision--recall
 trade-off} inherent in approximate retrieval. Suppose the agent's memory store contains
 $N$ documents $\{d_1, \ldots, d_N\}$, each embedded as a vector $\mathbf{v}_i \in
@@ -306,7 +305,6 @@ significantly from the query. This retrieval error propagates into the agent's
 reasoning: a missed document becomes a hallucinated gap, and a spuriously retrieved
 document introduces noise. Section~\ref{sec:rag-finance} develops robust retrieval
 strategies that mitigate both failure modes.
-\end{deepdive}
 
 In practice, financial agents typically combine all three memory types in a layered
 architecture. The current conversation and the results of recent tool calls occupy
@@ -314,6 +312,8 @@ in-context memory. A vector index over regulatory filings, earnings transcripts,
 research notes provides retrieval-augmented memory. A structured relational database
 stores entity metadata (company identifiers, filing dates, fiscal calendar mappings)
 that the agent accesses via precise key-value lookup. The orchestration layer routes each information need to the appropriate memory tier.
+
+\end{deepdive}
 
 % ---------------------------------------------------------------
 
@@ -330,6 +330,8 @@ prohibitively expensive---but to give the model the ability to call a live data 
 and incorporate the result. Tool use is the mechanism that connects the static world of
 a trained language model to the dynamic world of real-time financial data.
 \end{context}
+
+\begin{deepdive}
 
 Tool use transforms a language model from a closed system---one that can only draw on
 knowledge encoded in its parameters---into an open system that can query external
@@ -388,7 +390,6 @@ name and argument object. The execution environment detects the tool-call messag
 dispatches the function, and appends the result as a new message in the conversation.
 The model then continues reasoning with the tool result visible in its context.
 
-\begin{deepdive}
 The structured output produced by a function-calling LLM is not grammatically guaranteed
 to be valid JSON. In practice, LLMs occasionally produce malformed JSON, truncated
 argument values, or argument types that do not match the declared schema. Production
@@ -404,7 +405,6 @@ checks $j \in \mathcal{D}$. If $j \notin \mathcal{D}$, the validation error mess
 $e(j)$ is returned: ``Argument `start\_date' must be a string in ISO 8601 format; got
 integer 20240101.'' This error message is itself a tool observation, and the agent
 incorporates it in its next reasoning step.
-\end{deepdive}
 
 % --- Subsection: Custom Tools ---
 
@@ -543,6 +543,8 @@ tools for inclusion in the active context. This mirrors the structure of the hum
 expert who knows which Bloomberg function to reach for without mentally enumerating
 all 30,000 available Bloomberg functions.
 
+\end{deepdive}
+
 % ---------------------------------------------------------------
 
 \section{Skills, Hooks, and Workflow Orchestration}
@@ -559,7 +561,6 @@ state across steps, handling failures at any point, and ensuring auditability of
 entire pipeline---requires a higher-level abstraction than a single agent loop.
 Orchestration frameworks such as LangChain, LlamaIndex, and AutoGen provide these
 abstractions.
-\end{context}
 
 % --- Subsection: Skills ---
 
@@ -671,7 +672,6 @@ computes metrics, a critic agent evaluates the output, and a coordinator agent
 synthesises the final product. This architecture mirrors the structure of a
 financial research team.
 
-\begin{deepdive}
 The three frameworks differ in their approach to state management, which has
 implications for financial applications requiring auditability. LangChain's state is
 held in a mutable \texttt{AgentState} dictionary that flows through the graph; the
@@ -688,7 +688,6 @@ MiFID II's best execution obligation, for example, requires that trading-related
 decisions be documented with sufficient granularity to reconstruct the reasoning
 chain. A framework that serialises the full agent conversation---including tool calls
 and their results---provides a natural audit log that satisfies this requirement.
-\end{deepdive}
 
 % --- Subsection: Multi-Agent Systems ---
 
@@ -753,6 +752,8 @@ two days for a human analyst team. Human reviewers focus on the compliance agent
 flagged items and the quant agent's scenario assumptions.
 \end{example}
 
+\end{context}
+
 % ---------------------------------------------------------------
 
 \section{Retrieval-Augmented Generation in Finance}
@@ -769,6 +770,8 @@ documents in an external store and retrieving only the most relevant passages at
 time, grounding the model's response in the retrieved evidence rather than in
 parametric memory.
 \end{context}
+
+\begin{deepdive}
 
 Retrieval-augmented generation was formalised by \citet{lewis2020retrieval} as a
 framework that conditions language model generation on documents retrieved from a
@@ -912,7 +915,6 @@ Empirically, $\alpha \approx 0.7$ (favouring dense retrieval) works well for
 question-answering tasks over long financial documents, while $\alpha \approx 0.3$
 is preferable for keyword-heavy regulatory lookup tasks.
 
-\begin{deepdive}
 Recent work on \emph{learned sparse retrieval}---methods such as SPLADE that produce
 sparse high-dimensional vectors by applying a ReLU-log activation to MLM logits---
 offers a middle ground between dense and sparse retrieval. SPLADE-style methods learn
@@ -925,7 +927,6 @@ domain-specific meanings that general-purpose embedding models may encode poorly
 A SPLADE model fine-tuned on financial text can learn to expand ``haircut'' to its
 financial sense (a reduction in the value of an asset posted as collateral) rather than
 its general-English sense.
-\end{deepdive}
 
 % --- Subsection: Chunking ---
 
@@ -1026,6 +1027,8 @@ publication. Context recall is important for completeness: a RAG system with hig
 faithfulness but low recall answers questions accurately but incompletely, potentially
 omitting material disclosures.
 
+\end{deepdive}
+
 % ---------------------------------------------------------------
 
 \section{Finance-Specific Agent Applications}
@@ -1039,7 +1042,6 @@ for tasks ranging from document analysis to automated report generation. This se
 develops five representative applications in sufficient depth for practitioners to
 adapt and implement them, drawing on the agent architectures, tool-use patterns,
 and RAG pipelines described above.
-\end{context}
 
 % --- Subsection: Earnings Analysis ---
 
@@ -1221,7 +1223,6 @@ agent's response to verify that every factual claim is accompanied by a chunk ci
 and that the cited chunk contains the claimed information. Claims that fail this check
 are flagged for human review rather than passed to the user.
 
-\begin{deepdive}
 The citation verification step can itself be implemented using an LLM as a judge:
 the verifier model receives the generated claim and the cited chunk and returns a
 binary verdict (supported / not supported). This two-model pipeline---generator and
@@ -1240,7 +1241,6 @@ citation-verified answer is:
 \end{equation}
 with unsupported claims $\{s_j : v(s_j, C_j) = \textsc{NotSupported}\}$ replaced by
 a flag: ``[Claim not verified in retrieved context; human review required.]''
-\end{deepdive}
 
 For EDGAR-based Q\&A systems, the retrieval pipeline should be pre-structured around
 the standardised form sections: Item 1 (Business), Item 1A (Risk Factors), Item 7
@@ -1290,6 +1290,8 @@ after HFT activity. Practitioners should carefully measure the half-life of thei
 text signals and calibrate holding periods accordingly.
 \end{remark}
 
+\end{context}
+
 % ---------------------------------------------------------------
 
 \section{Deployment, Safety, and Governance for Agentic Systems}
@@ -1309,7 +1311,6 @@ Deploying LLM agents in financial workflows requires a governance framework that
 anticipates failure modes, maintains human oversight at appropriate checkpoints, and
 produces auditable records of every consequential decision. This section develops that
 framework systematically.
-\end{context}
 
 % --- Subsection: Production ---
 
@@ -1483,7 +1484,6 @@ Defences against prompt injection include:
         consequence.
 \end{enumerate}
 
-\begin{deepdive}
 The formal security model for LLM agents draws on the \emph{confused deputy problem}
 from computer security: a powerful program (the agent) is manipulated by a less
 privileged input (a retrieved document) into exercising its elevated privileges on
@@ -1496,7 +1496,6 @@ execution key is stored in a secure enclave that requires an additional authenti
 factor before it is released to the agent. This architecture ensures that even a
 fully compromised agent cannot execute trades without the secondary authentication
 factor.
-\end{deepdive}
 
 \begin{remark}[Regulatory Perspective on Agentic AI]
 \label{rem:regulatory}
@@ -1522,3 +1521,5 @@ invariant monitoring, dual-key authorisation, and human audit---together provide
 adequate protection for most financial deployment contexts. As agent capabilities and
 attack sophistication evolve together, practitioners should treat adversarial robustness
 as an ongoing operational concern rather than a one-time design decision.
+
+\end{context}

@@ -1,0 +1,540 @@
+\chapter{Business Valuation with Large Language Models}
+\label{ch:business-valuation}
+
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Explain the core mechanics of Discounted Cash Flow (DCF) valuation and
+        identify the inputs where LLMs can augment human analysis.
+  \item Describe how machine learning models improve earnings and cash-flow
+        forecasts relative to analyst consensus.
+  \item Apply NLP-based and LLM-based peer-selection methods for comparable-company
+        valuation and articulate their advantages over industry-code approaches.
+  \item Use an LLM to generate and structure scenario narratives for stress-testing
+        a DCF model.
+  \item Critically evaluate the limitations of LLM-generated valuations, including
+        hallucination risk and the difficulty of auditing chain-of-thought reasoning
+        in financial contexts.
+\end{enumerate}
+\end{remark}
+
+% ============================================================
+\section{Introduction: Why Valuation Is Hard and Where LLMs Help}
+\label{sec:valuation-intro}
+% ============================================================
+
+Business valuation sits at the intersection of quantitative modelling and
+qualitative judgement.  A practitioner performing a DCF analysis must (i) forecast
+future cash flows, (ii) select an appropriate discount rate, (iii) choose peer
+firms for multiple-based cross-validation, and (iv) articulate scenario narratives
+for bull and bear cases.  Steps (i) and (iii) involve pattern recognition across
+large volumes of financial text --- annual reports, earnings-call transcripts,
+analyst research notes, and macroeconomic commentary --- that is precisely the kind
+of task at which large language models excel.
+
+The past few years have seen a rapid expansion of academic work quantifying the
+extent to which LLMs and their statistical predecessors add value in each of these
+subtasks.  \citet{kim2024financial} demonstrate that GPT-4, presented with
+standardised, anonymised financial statements, outperforms the median sell-side
+analyst in predicting the \emph{direction} of next-year earnings changes --- a
+finding that has immediate implications for the DCF forecasting step.  At the same
+time, \citet{lopezlira2023chatgpt} show that ChatGPT's sentiment scores for news
+headlines contain information about subsequent daily stock returns that is
+orthogonal to classical dictionary-based sentiment measures, suggesting that LLMs
+surface relevant value-relevant signals beyond what traditional financial NLP
+captures.
+
+This chapter is structured as follows.  Section~\ref{sec:dcf-foundations}
+reviews DCF mechanics and situates LLM assistance within the modelling
+workflow.  Section~\ref{sec:cf-forecasting} covers machine-learning and
+LLM-based cash-flow forecasting.  Section~\ref{sec:peer-selection} examines
+NLP-based comparable-company selection.  Section~\ref{sec:scenario-analysis}
+introduces LLM-generated scenario analysis.  Section~\ref{sec:equity-research}
+surveys the automation of equity research workflows.
+Section~\ref{sec:valuation-limitations} discusses limitations and best practices.
+
+% ============================================================
+\section{DCF Valuation: Mechanics and LLM Touch-Points}
+\label{sec:dcf-foundations}
+% ============================================================
+
+\subsection{The Core DCF Identity}
+\label{sec:dcf-identity}
+
+The enterprise value of a firm under the standard DCF framework is the present
+value of its expected free cash flows (FCF) plus a continuing (terminal) value:
+
+\begin{equation}
+  V_0^{\mathrm{EV}}
+  = \sum_{t=1}^{T} \frac{\mathrm{FCF}_t}{(1 + r_{\mathrm{WACC}})^t}
+  + \frac{\mathrm{TV}}{(1 + r_{\mathrm{WACC}})^T},
+  \label{eq:dcf-ev}
+\end{equation}
+
+where $r_{\mathrm{WACC}}$ is the weighted average cost of capital and
+$\mathrm{TV}$ is the terminal value, typically computed via the Gordon Growth
+Model:
+
+\begin{equation}
+  \mathrm{TV} = \frac{\mathrm{FCF}_{T+1}}{r_{\mathrm{WACC}} - g},
+  \label{eq:gordon-tv}
+\end{equation}
+
+with $g$ the long-run nominal growth rate.  Free cash flow is obtained from
+accounting statements as
+
+\begin{equation}
+  \mathrm{FCF}_t = \mathrm{EBIT}_t (1 - \tau)
+    + \mathrm{D\&A}_t
+    - \Delta\mathrm{NWC}_t
+    - \mathrm{CapEx}_t,
+  \label{eq:fcf}
+\end{equation}
+
+where $\tau$ is the marginal corporate tax rate, $\mathrm{D\&A}$ denotes
+depreciation and amortisation, $\Delta\mathrm{NWC}$ is the change in net working
+capital, and $\mathrm{CapEx}$ is capital expenditure.
+
+\begin{remark}
+  The Gordon Growth Model in \eqref{eq:gordon-tv} is valid only when
+  $r_{\mathrm{WACC}} > g$.  In low-interest-rate environments this constraint
+  can bind for high-growth technology firms, requiring alternative terminal-value
+  approaches (exit multiples, H-model) that are discussed in
+  Section~\ref{sec:scenario-analysis}.
+\end{remark}
+
+\subsection{LLM Touch-Points in the DCF Workflow}
+\label{sec:dcf-touchpoints}
+
+Table~\ref{tab:dcf-touchpoints} maps the four main DCF inputs to the specific
+NLP or LLM capabilities that can augment each one.
+
+\begin{table}[htbp]
+\centering
+\caption{LLM assistance in the DCF workflow.  Each row identifies a DCF input,
+the information source, and the LLM capability that assists.}
+\label{tab:dcf-touchpoints}
+\small
+\begin{tabular}{p{3.2cm} p{3.2cm} p{5cm}}
+\toprule
+\textbf{DCF Input} & \textbf{Primary Source} & \textbf{LLM Capability} \\
+\midrule
+FCF forecasts
+  & 10-K/Q filings, earnings calls
+  & Financial statement analysis~\cite{kim2024financial};
+    earnings change prediction~\cite{chen2022predicting} \\[4pt]
+Discount rate ($r_{\mathrm{WACC}}$)
+  & Capital structure, market data
+  & Risk-factor extraction from MD\&A; credit-quality scoring \\[4pt]
+Peer firm selection
+  & Industry codes, analyst reports
+  & NER-based peer identification~\cite{covas2023ner};
+    ML relative valuation~\cite{geertsema2023relative} \\[4pt]
+Scenario narratives
+  & Management guidance, macro data
+  & LLM scenario generation~\cite{aldridge2024llm};
+    Monte Carlo augmentation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The table makes clear that LLMs are most naturally applied to the \emph{qualitative}
+information synthesis steps (narrative generation, peer identification from business
+descriptions) while statistical machine learning models address the \emph{quantitative}
+forecasting steps (earnings changes, cash-flow paths).  In practice, the most
+effective pipelines combine both: an LLM extracts structured signals from unstructured
+text, and a gradient-boosted model or neural network converts those signals into
+numerical forecasts.
+
+% ============================================================
+\section{Machine-Learning Cash-Flow and Earnings Forecasting}
+\label{sec:cf-forecasting}
+% ============================================================
+
+\subsection{Why Analyst Forecasts Are Systematically Biased}
+\label{sec:analyst-bias}
+
+A long-standing empirical regularity in accounting research is that sell-side
+analysts exhibit systematic optimism: consensus EPS forecasts are, on average,
+too high, particularly at longer horizons.  The source of this bias is
+multi-faceted --- incentive conflicts with investment banking, loss aversion in
+career concerns, and the well-documented tendency to anchor on prior-period
+guidance.  Machine-learning models trained on historical financial statement
+data are immune to these behavioural distortions by construction, which
+partially explains their out-of-sample advantage.
+
+\begin{example}[Machine Learning Earnings Forecasting]
+\label{ex:ml-earnings}
+\citet{chen2022predicting} train gradient-boosted and random forest models on
+a panel of U.S.~public firms spanning 1995--2019, using over 190 financial
+statement line items as features.  Their best model reduces mean absolute
+forecast error by roughly 15\% relative to the random-walk benchmark and by
+12\% relative to consensus analyst forecasts in the one-year-ahead horizon.
+Critically, the improvement concentrates in smaller firms, firms with high
+earnings volatility, and firms with large accruals --- precisely the cases
+where human analysts tend to struggle and where the DCF valuation is most
+sensitive to forecast accuracy.
+\end{example}
+
+\subsection{LLMs for Financial Statement Analysis}
+\label{sec:llm-fs-analysis}
+
+The most influential recent result in the intersection of LLMs and valuation
+is the finding by \citet{kim2024financial} that GPT-4 can perform financial
+statement analysis at a level competitive with, and in some dimensions
+exceeding, trained human analysts.  In their experiment, standardised and
+anonymised balance sheets, income statements, and cash-flow statements are
+provided to GPT-4 without any industry or firm identifiers.  The model is
+asked to predict whether earnings will increase or decrease in the following
+year.  GPT-4 achieves an accuracy of approximately 60\% on this task,
+compared with 56\% for the median analyst in the same prediction window,
+and 53\% for a simple random-walk baseline.  The LLM's relative advantage
+is largest in periods with high analyst disagreement --- a signal that the
+model extracts information that analysts collectively miss or discount.
+
+\begin{remark}
+  The \citet{kim2024financial} result does not imply that LLMs should replace
+  analysts in full-cycle valuation.  The experiment strips away narrative
+  context, industry knowledge, and management relationships that experienced
+  analysts bring to a DCF.  Rather, the finding motivates using LLMs as a
+  \emph{first-pass screening} tool to flag discrepancies between model
+  predictions and analyst consensus before committing to a full valuation.
+\end{remark}
+
+\subsection{LLMs as Financial Analysts}
+\label{sec:llm-as-analysts}
+
+Beyond financial-statement analysis, a growing body of work examines whether
+LLMs can replicate the full workflow of a sell-side analyst.
+\citet{alonso2024llm} evaluate GPT-4o, Claude 3.5 Sonnet, and Gemini Advanced
+on a structured financial analysis task covering revenue trends, profitability,
+cash-flow management, and forward guidance for five major technology companies.
+Their comparative study finds that the models differ systematically in their
+analysis depth: GPT-4o produces the most granular quantitative breakdown, while
+Claude 3.5 Sonnet provides broader strategic framing.  These differences mirror
+the documented variation in human analyst styles across brokerage houses and
+point to a promising research agenda: understanding which model
+``personality'' is best suited to which valuation task.
+
+\subsection{Machine Learning for Earnings Forecasting at Scale}
+\label{sec:ml-earnings-scale}
+
+Complementing single-model studies, \citet{chattopadhyay2025ml} conduct a
+large-scale horse race of machine-learning methods for earnings-per-share
+forecasting using data from the U.S.\ and seventeen international markets.
+Their headline finding is that XGBoost --- a gradient-boosted tree ensemble ---
+dominates linear benchmarks and neural network alternatives in out-of-sample
+accuracy.  Crucially, the XGBoost forecasts exhibit the highest ``value
+relevance,'' meaning their residuals are correlated with subsequent abnormal
+returns in a direction consistent with fundamental mispricing.  This bridges
+the gap between accounting-based earnings forecasting and asset pricing: accurate
+machine-learning earnings forecasts contain information that the market has not
+yet fully incorporated, providing a theoretically grounded rationale for using
+such forecasts as DCF inputs rather than consensus analyst estimates.
+
+% ============================================================
+\section{Peer Firm Selection and Comparable Company Analysis}
+\label{sec:peer-selection}
+% ============================================================
+
+\subsection{Limitations of Standard Industry Classification}
+\label{sec:sic-limitations}
+
+The traditional approach to comparable company selection relies on Standard
+Industrial Classification (SIC) codes or their GICS/NAICS successors.
+These hierarchical codes assign each firm a primary industry category based on
+its main revenue stream.  The approach has well-documented deficiencies for
+valuation purposes: firms within the same four-digit SIC code can differ
+enormously in their product mix, capital intensity, and growth profile; and
+diversified conglomerates are assigned a single code that may describe only a
+fraction of their operations.  As a result, multiples-based cross-validation of
+a DCF often introduces large pricing errors attributable to poor peer matching.
+
+\subsection{Machine Learning Relative Valuation}
+\label{sec:ml-relative-valuation}
+
+\citet{geertsema2023relative} propose a machine-learning framework for relative
+valuation that replaces hard industry boundaries with \emph{data-driven} peer
+weights.  Their key insight is that the valuation multiple predicted by a
+gradient-boosted model can be algebraically decomposed into a weighted average
+of comparable firm multiples, where the weights are functions of the model's
+feature-importance scores.  In out-of-sample tests across 1985--2019, their
+ML-predicted multiples for enterprise value, price-to-earnings, and price-to-book
+substantially outperform industry-median multiples, with mean absolute percentage
+errors roughly 20--30\% lower.  Moreover, long-short portfolios that buy
+undervalued firms (actual multiple below ML prediction) and short overvalued
+firms generate statistically significant abnormal returns, providing a joint
+test of valuation accuracy and market efficiency.
+
+\begin{example}[Decomposing ML Multiples into Peer Weights]
+\label{ex:ml-peer-weights}
+Let $q_i$ be the observed EV/EBITDA multiple for firm $i$ and let
+$\hat{q}_i = f(\mathbf{x}_i)$ be the model prediction, where $\mathbf{x}_i$
+contains profitability ratios, growth rates, capital efficiency, and leverage.
+\citet{geertsema2023relative} show that for tree-based models, the prediction
+can be written as
+\[
+  \hat{q}_i = \sum_{j \neq i} w_{ij} q_j + \text{intercept},
+\]
+where $w_{ij} \geq 0$ and $\sum_j w_{ij} = 1$.  Firms with large $w_{ij}$
+are the model-implied comparables for firm $i$, regardless of whether they
+share an industry code.
+\end{example}
+
+\subsection{NLP-Based Peer Identification}
+\label{sec:nlp-peers}
+
+An orthogonal but complementary approach uses the \emph{text} of business
+descriptions, corporate filings, and website content to identify peers.
+\citet{covas2023ner} demonstrate that GPT-3.5-turbo, prompted to extract
+products and services from company descriptions scraped from Wikipedia, achieves
+an F-score of approximately 85\% in correctly identifying comparable companies
+for equity valuation.  This substantially outperforms a standard SpaCy NER
+baseline, which achieves only 61\%, confirming that the richer contextual
+understanding of LLMs translates into meaningfully better peer identification.
+The practical implication for valuation practice is that LLM-based peer
+identification can be automated as a preprocessing step, with a human analyst
+reviewing the top-$k$ suggestions rather than constructing the peer group from
+scratch.
+
+\begin{remark}
+  NLP-based peer selection is particularly valuable for private-company valuation,
+  where SIC codes may be unreliable or unavailable, and where the analyst must
+  rely on fragmentary information (pitch decks, LinkedIn profiles, press releases)
+  to construct a peer group.  LLMs excel at synthesising heterogeneous unstructured
+  sources into a structured comparables list.
+\end{remark}
+
+% ============================================================
+\section{Scenario Analysis and Stress-Testing with LLMs}
+\label{sec:scenario-analysis}
+% ============================================================
+
+\subsection{The Role of Scenarios in DCF Valuation}
+\label{sec:scenario-role}
+
+A point estimate of $V_0^{\mathrm{EV}}$ from \eqref{eq:dcf-ev} is almost always
+misleading.  DCF valuation is acutely sensitive to the assumed long-run growth
+rate $g$ and the discount rate $r_{\mathrm{WACC}}$: a 50-basis-point change in
+either can shift enterprise value by 15--25\% for a typical mid-cap firm.
+Practitioners therefore complement the base case with scenario analysis ---
+assigning probabilities to alternative states of the world (bull, base, bear)
+and computing the probability-weighted valuation.  The difficulty lies in
+constructing internally consistent scenario narratives: a ``bear'' scenario
+for a retail firm must simultaneously articulate plausible assumptions about
+consumer spending, interest rates, supply-chain costs, and competitive entry.
+
+\subsection{LLM-Generated Scenario Narratives}
+\label{sec:llm-scenarios}
+
+\citet{aldridge2024llm} propose embedding LLM-generated scenario descriptions
+within a Temporal Fusion Transformer (TFT) framework as an alternative to
+classical Monte Carlo simulation.  In their approach, an LLM is prompted to
+generate $K$ qualitatively distinct macroeconomic scenarios (e.g., ``sustained
+rate hike cycle'', ``stagflation with supply shock'', ``soft landing with AI
+productivity boom'').  Each scenario is converted into a structured covariate
+vector that conditions the TFT's attention mechanism, producing a scenario-specific
+forward path for free cash flows.  The resulting distribution over valuation
+outcomes is richer than a standard Monte Carlo simulation because the scenarios
+are grounded in coherent narrative logic rather than drawn independently from
+marginal distributions.
+
+\begin{definition}[Scenario-Conditioned Valuation Distribution]
+\label{def:scenario-val}
+Let $\mathcal{S} = \{s_1, \ldots, s_K\}$ be a set of $K$ LLM-generated scenarios
+with prior probabilities $\{p_k\}_{k=1}^K$, $\sum_k p_k = 1$.  For each scenario
+$s_k$, let $V_k$ be the enterprise value computed from the scenario-specific FCF
+path.  The scenario-weighted valuation is
+\begin{equation}
+  \bar{V} = \sum_{k=1}^{K} p_k V_k,
+  \label{eq:scenario-val}
+\end{equation}
+and the scenario uncertainty is measured by
+\begin{equation}
+  \sigma_V^2 = \sum_{k=1}^{K} p_k (V_k - \bar{V})^2.
+  \label{eq:scenario-var}
+\end{equation}
+The distribution $\{(p_k, V_k)\}$ provides a richer uncertainty quantification
+than the point estimate $V_0^{\mathrm{EV}}$ in \eqref{eq:dcf-ev}.
+\end{definition}
+
+The approach of \citet{aldridge2024llm} is notable for its hybrid design: it
+leverages the narrative coherence of LLMs for scenario generation while delegating
+numerical time-series forecasting to a purpose-built deep learning architecture.
+This division of labour addresses the well-known weakness of LLMs in precise
+arithmetic while capitalising on their strength in qualitative reasoning.
+
+\subsection{Sensitivity Analysis and the WACC}
+\label{sec:sensitivity-wacc}
+
+Even without LLM-generated narratives, scenario analysis can be formalised as
+a sensitivity table over $(g, r_{\mathrm{WACC}})$.  Let $V(g, r)$ denote the
+enterprise value as a function of the two key parameters.  A first-order
+Taylor expansion around the base-case values $(g_0, r_0)$ gives
+
+\begin{equation}
+  V(g, r) \approx V_0
+    + \frac{\partial V}{\partial g}\bigg|_{g_0, r_0} (g - g_0)
+    + \frac{\partial V}{\partial r}\bigg|_{g_0, r_0} (r - r_0),
+  \label{eq:sensitivity}
+\end{equation}
+
+where, from \eqref{eq:dcf-ev} and \eqref{eq:gordon-tv}, the partial derivatives
+can be computed in closed form for the terminal-value component.  LLMs can assist
+in choosing the range over which to perturb $g$ and $r$ by extracting management
+guidance from earnings-call transcripts and identifying the scenarios that analysts
+consider most salient.
+
+% ============================================================
+\section{Equity Research Automation}
+\label{sec:equity-research}
+% ============================================================
+
+\subsection{The Anatomy of an Equity Research Report}
+\label{sec:er-anatomy}
+
+A standard sell-side equity research report contains: (i) a company overview,
+(ii) a thesis statement and key investment considerations, (iii) a financial
+model with forecasts, (iv) a valuation section (DCF, EV/EBITDA, P/E comparables),
+and (v) risk factors.  Each of these components draws on different information
+sources --- public filings, earnings calls, industry reports, macro data ---
+and requires different analytical skills.  LLMs are best positioned to assist
+with (i), (ii), and (v), where synthesising large amounts of text into concise,
+readable prose is the primary task.
+
+\subsection{LLM Stock Price Forecasting}
+\label{sec:llm-stock-forecast}
+
+\citet{lopezlira2023chatgpt} conduct a large-scale experiment in which ChatGPT
+is asked to classify news headlines as \emph{good}, \emph{bad}, or \emph{irrelevant}
+for a given stock, without any financial training data or explicit stock-price
+information.  The resulting ``ChatGPT score'' is significantly positively correlated
+with next-day abnormal returns: stocks in the top quintile of ChatGPT sentiment
+outperform those in the bottom quintile by approximately 0.5\% per day in the
+2021--2022 sample period.  Importantly, this predictive power is orthogonal to the
+Loughran--McDonald dictionary sentiment score \citep{loughran2011liability},
+suggesting that LLMs capture semantic content that is not reducible to pre-trained
+financial word lists.
+
+The Lopez-Lira and Tang finding has important implications for equity research
+automation.  It suggests that an LLM-powered news-monitoring system could
+provide a real-time sentiment signal that supplements the analyst's fundamental
+view.  The practical challenge is that the signal's predictive horizon is daily,
+making it relevant for short-horizon trading rather than the multi-year DCF
+horizon that underpins most equity research.
+
+\subsection{EDGAR and Textual Disclosure Analysis}
+\label{sec:edgar-text}
+
+A large share of the information relevant to equity valuation is embedded in
+regulatory filings submitted to EDGAR (Electronic Data Gathering, Analysis, and
+Retrieval).  The text of MD\&A sections, risk factors, and footnotes to financial
+statements contains forward-looking statements, qualitative risk assessments, and
+management commentary that is not captured in the reported numbers.
+
+LLMs are particularly well suited to mining EDGAR text at scale.  For instance,
+\citet{kim2024financial} use the structured financial tables from SEC 10-K
+filings as their primary input, relying on GPT-4's ability to perform
+chain-of-thought reasoning over multi-table numerical data.  A complementary
+approach, implicit in the machine-learning literature \citep{chen2022predicting},
+is to construct features from the textual portions of filings --- MD\&A
+readability, forward-looking statement density, and tone measures --- and combine
+them with accounting variables in a predictive model.
+
+% ============================================================
+\section{Limitations and Best Practices}
+\label{sec:valuation-limitations}
+% ============================================================
+
+\subsection{Hallucination in Financial Contexts}
+\label{sec:hallucination-val}
+
+The most acute limitation of LLM-assisted valuation is hallucination: the model
+confidently generating financial figures, citations, or ratios that have no basis
+in the source documents.  In a DCF context, hallucinated revenue forecasts or
+invented comparable-company multiples can propagate through the model and produce
+a plausible-looking but fundamentally incorrect valuation.  Best practices to
+mitigate this risk include:
+
+\begin{enumerate}
+  \item \textbf{Retrieval-augmented generation (RAG).}  Ground the LLM's
+        responses in retrieved passages from verified source documents (e.g.,
+        the most recent 10-K filing).  The model is constrained to synthesise
+        rather than invent.
+  \item \textbf{Structured output with source attribution.}  Require the LLM
+        to output a JSON object containing each numerical claim alongside the
+        page and line number from which it was extracted.  Claims without
+        verifiable provenance are flagged for human review.
+  \item \textbf{Cross-model consistency checking.}  Run the same prompt through
+        two models and flag discrepancies in numerical outputs exceeding a
+        threshold (e.g., $\pm 5\%$).
+  \item \textbf{Statistical benchmarking.}  Compare LLM-derived earnings
+        forecasts against a simple time-series baseline (e.g., AR(1) on EBITDA).
+        LLM outputs that deviate materially from the statistical baseline should
+        trigger additional scrutiny.
+\end{enumerate}
+
+\subsection{Auditability and Regulatory Considerations}
+\label{sec:auditability}
+
+Regulatory frameworks governing investment research (MiFID II in Europe, SEC
+Regulation AC in the United States) impose certification requirements on
+analyst forecasts.  A valuation report co-generated by an LLM raises the
+question of \emph{who} is certifying the forecast: the human analyst who
+issued the prompt, or the AI model that generated the content?  At the time of
+writing, no jurisdiction has provided definitive guidance on this question.
+Practitioners should maintain a complete audit trail of LLM interactions ---
+prompts, model version, temperature settings, and retrieved context --- to
+support any subsequent regulatory review.
+
+\subsection{Data-Snooping and Evaluation Pitfalls}
+\label{sec:data-snooping}
+
+Machine-learning valuation models are susceptible to look-ahead bias and
+overfitting to historical correlations that do not persist out of sample.
+\citet{geertsema2023relative} address this by conducting a careful walk-forward
+cross-validation study in which the model is retrained monthly using only data
+available at each point in time.  Practitioners replicating such methods should
+be equally rigorous: models trained on data through 2019 and evaluated on 2020
+data (the COVID-19 shock) will exhibit large forecast errors irrespective of
+model quality, because the distributional shift is unprecedented.
+
+% ============================================================
+\section{Summary}
+\label{sec:valuation-summary}
+% ============================================================
+
+This chapter has surveyed the growing evidence that LLMs and machine-learning
+methods can add measurable value at multiple stages of the business valuation
+workflow.  Key takeaways are:
+
+\begin{itemize}
+  \item \textbf{Financial statement analysis:} GPT-4 outperforms the median
+        analyst in predicting earnings direction from anonymised financial
+        statements \citep{kim2024financial}, suggesting a role for LLMs in
+        the FCF forecasting step.
+  \item \textbf{Earnings forecasting:} Gradient-boosted models trained on
+        detailed accounting variables reduce forecast error by 10--15\%
+        relative to consensus \citep{chen2022predicting}, with XGBoost
+        forecasts exhibiting significant value relevance internationally
+        \citep{chattopadhyay2025ml}.
+  \item \textbf{Peer selection:} ML-based relative valuation substantially
+        outperforms SIC-code peer matching \citep{geertsema2023relative}, and
+        GPT-based NER achieves 85\% F-score in identifying comparable
+        companies from business descriptions \citep{covas2023ner}.
+  \item \textbf{Scenario generation:} LLM-conditioned Temporal Fusion
+        Transformers provide richer scenario distributions than independent
+        Monte Carlo draws \citep{aldridge2024llm}.
+  \item \textbf{Equity research:} LLM sentiment scores contain return-predictive
+        information orthogonal to dictionary-based measures
+        \citep{lopezlira2023chatgpt}, while multi-model comparisons reveal
+        systematic differences in analysis depth \citep{alonso2024llm}.
+\end{itemize}
+
+These findings collectively support a ``human-in-the-loop'' view of LLM-assisted
+valuation: models excel at information synthesis, first-pass screening, and
+scenario structuring, while the final judgements about discount rates, terminal
+growth assumptions, and the weighting of competing scenarios remain the
+responsibility of the human analyst.  Chapter~6 extends these ideas to the
+construction of full LLM-based agent pipelines that can execute a multi-step
+valuation workflow autonomously, with human review at designated checkpoints.

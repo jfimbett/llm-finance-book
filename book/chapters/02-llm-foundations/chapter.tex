@@ -1211,6 +1211,8 @@ models are applied to MiFID~II or IFRS filings.
 \section{Temperature, Sampling, and Controlled Generation}
 \label{sec:sampling}
 
+\begin{deepdive}
+
 Autoregressive generation produces text one token at a time.  At each step $t$,
 the model computes a vector of \emph{logits}
 $\mathbf{z}^{(t)} \in \mathbb{R}^{|\mathcal{V}|}$ and converts them to a
@@ -1335,16 +1337,26 @@ human preference.  However, for open-ended generation it tends to produce repeti
 generic text---a phenomenon known as \emph{beam search degeneration}---and has been
 largely replaced by nucleus sampling for conversational and creative tasks.
 
+\end{deepdive}
+
 \subsection{Sampling Strategy Selection for Financial Tasks}
 \label{sec:sampling-finance}
 
-The choice of decoding strategy should be driven by the nature of the downstream task
-and the consequences of error.  Table~\ref{tab:sampling-strategies} summarises
-recommendations for five common categories of financial NLP application.
+\begin{context}
 
-\begin{table}[htbp]
-\centering
-\caption{Recommended sampling strategies for financial NLP tasks.}
+A risk analyst asks an LLM to summarise a credit agreement.  She runs the same
+prompt twice and gets two different answers.  Not wrong answers---two reasonable
+answers, each emphasising different clauses.  This is not a bug; it is a feature
+she did not ask for.  Temperature is the dial that governs how much the model
+wanders from its most probable completion.  Set it too high and the model
+fabricates; set it too low and it becomes a repetition engine, parroting training
+data verbatim.  The right setting is not a universal constant: it depends on what
+you need the model to do, and on the consequences if it gets it wrong.
+Table~\ref{tab:sampling-strategies} translates this principle into concrete
+recommendations for five common financial NLP tasks.
+
+\begin{center}
+\captionof{table}{Recommended sampling strategies for financial NLP tasks.}
 \label{tab:sampling-strategies}
 \begin{tabular}{lllp{5cm}}
 \toprule
@@ -1373,7 +1385,7 @@ Scenario / stress-test narrative
   & Creative diversity is the point; plausibility checked post-hoc. \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{center}
 
 A pragmatic rule of thumb: if the output will be compared to ground-truth values
 or fed into a downstream system that expects a specific schema, use $\tau = 0$ and
@@ -1382,6 +1394,8 @@ by a human analyst who values novelty and breadth, use $\tau \in [0.5, 1.0]$ wit
 nucleus sampling.  In either case, running multiple samples and aggregating via
 self-consistency (Section~\ref{sec:hallucinations-mitigation}) improves reliability
 at modest additional cost.
+
+\end{context}
 
 % ---------------------------------------------------------------
 \section{Structured Generation}

@@ -45,3 +45,4 @@
 | 2026-05-22 | 4 files | feat(ch03): wrap sections in context/deepdive boxes (dual-mode split);chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 4 files | chore: session log 2026-05-22;feat(ch03): wrap sections in context/deepdive boxes (dual-mode split);chore: session log 2026-05-22; | — |
 | 2026-05-22 | 2 files | chore: session log 2026-05-22;chore: session log 2026-05-22;feat(ch03): wrap sections in context/deepdive boxes (dual-mode split); | — |
+| 2026-05-22 | 2 files | chore: session log 2026-05-22;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |

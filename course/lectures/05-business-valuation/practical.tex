@@ -1,0 +1,433 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usepackage{amsmath,amssymb,booktabs,xcolor}
+\usepackage{listings}
+
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+}
+
+\title{Practical Session 5: LLM-Assisted Business Valuation}
+\subtitle{Hands-On: FCFF Computation, CoT Forecasting, and Monte Carlo}
+\author{Juan F.\ Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{Large Language Models in Finance}
+
+\begin{document}
+
+% ============================================================
+% FRAME 1: Title
+% ============================================================
+\begin{frame}
+\frametitle{}
+\titlepage
+\end{frame}
+
+% ============================================================
+% FRAME 2: Session overview
+% ============================================================
+\begin{frame}
+\frametitle{Session Overview}
+
+\textbf{Duration:} 1 hour
+
+\medskip
+\begin{enumerate}
+  \item \textbf{Recap} (5 min) --- FCFF formula, DCF equation, error propagation, RAGAS metrics
+  \item \textbf{Problem 1} (15 min) --- Compute FCFF and DCF enterprise value from raw financials
+  \item \textbf{Problem 2} (10 min) --- Design a CoT forecasting prompt for a given company
+  \item \textbf{Case Study} (20 min) --- Run a Monte Carlo DCF; evaluate sensitivity to WACC and $g$;
+        answer three diagnostic questions
+  \item \textbf{Discussion} (5 min) --- When is the DCF estimate unreliable? How would you report uncertainty?
+  \item \textbf{Solutions} (5 min) --- Walkthrough of Problems 1 and 2
+\end{enumerate}
+
+\medskip
+\begin{block}{What you will practise}
+  Translating raw financial statement data into FCFF; structuring CoT forecasting prompts;
+  parameterising and interpreting a Monte Carlo DCF; reasoning about error propagation.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 3: Recap --- FCFF and DCF
+% ============================================================
+\begin{frame}
+\frametitle{Recap: FCFF and DCF}
+
+\textbf{Free Cash Flow to Firm:}
+\[
+  \text{FCFF}_t = \text{EBIT}_t(1-\tau) + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t
+\]
+
+\textbf{DCF enterprise value:}
+\[
+  V = \sum_{t=1}^{n} \frac{\text{FCF}_t}{(1+\text{WACC})^t}
+      + \frac{\text{FCF}_{n+1}}{(\text{WACC}-g)(1+\text{WACC})^n}
+\]
+
+\textbf{Relationship FCFF $\to$ FCFE:}
+\[
+  \text{FCFE}_t = \text{FCFF}_t - \text{InterestExp}_t(1-\tau) + \text{NB}_t
+\]
+
+\medskip
+\textbf{Error propagation (key result):}
+\[
+  \frac{\partial V}{\partial g} = \frac{\text{FCF}_n(1+\text{WACC})}{(\text{WACC}-g)^2}
+\]
+At WACC = 9\%, $g$ = 3\%: a 100-bps error in $g$ $\to$ \textbf{15--18\% error in EV.}
+\end{frame}
+
+% ============================================================
+% FRAME 4: Recap --- CoT prompting and evaluation
+% ============================================================
+\begin{frame}
+\frametitle{Recap: CoT Forecasting and Evaluation Metrics}
+
+\textbf{CoT four-stage structure:}
+\begin{enumerate}
+  \item Macro context (interest rates, GDP, inflation)
+  \item Industry dynamics (drivers, headwinds, competitive dynamics)
+  \item Firm-specific (competitive position, CapEx plans, margin trajectory from MD\&A)
+  \item Synthesis: point estimate + P10 downside + P90 upside per year
+\end{enumerate}
+
+\medskip
+\textbf{Three evaluation metrics:}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Metric & Formula & Finance use case \\
+\midrule
+MAPE & $\frac{1}{n}\sum|y_t-\hat{y}_t|/|y_t|$ & Magnitude accuracy \\
+RMSE & $\sqrt{\frac{1}{n}\sum(y_t-\hat{y}_t)^2}$ & Sensitivity to outliers \\
+DA & $\frac{1}{n}\sum\mathbf{1}[\text{sign match}]$ & Investment decisions \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Always compare against random-walk baseline and analyst consensus.
+\end{frame}
+
+% ============================================================
+% FRAME 5: Problem 1 --- FCFF computation
+% ============================================================
+\begin{frame}
+\frametitle{Problem 1: Compute FCFF and Enterprise Value (15 min)}
+
+A mid-cap industrial company reports the following for fiscal year 2023 (USD millions):
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Revenue & 2{,}850 \\
+EBIT & 428 \\
+Depreciation \& Amortisation & 195 \\
+Capital Expenditure & 240 \\
+NWC (FY2023) & 380 \\
+NWC (FY2022) & 315 \\
+Income Tax Expense & 85 \\
+EBT (Earnings Before Tax) & 368 \\
+Interest Expense & 60 \\
+Net New Borrowing & +40 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Your tasks:}
+\begin{enumerate}
+  \item Compute FCFF using the effective tax rate (infer from income tax / EBT).
+  \item Compute FCFE.
+  \item Verify the FCFF-FCFE relationship.
+  \item Using WACC = 10\%, 5-year explicit FCF growth = 6\%, terminal growth = 2.5\%,
+        compute the DCF enterprise value. Assume the computed FCFF is the Year 0 base.
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 6: Problem 2 --- CoT prompt design
+% ============================================================
+\begin{frame}
+\frametitle{Problem 2: Design a CoT Forecasting Prompt (10 min)}
+
+You are building a valuation agent for the same industrial company.
+The MD\&A states:
+
+\begin{quote}
+\footnotesize
+\textit{``We expect continued demand in our infrastructure segment driven by public
+investment in grid modernisation. However, supply chain bottlenecks in copper and steel
+may compress margins in the near term. We are targeting a 200-basis-point EBIT margin
+improvement over three years through operational efficiency programs. CapEx will remain
+elevated at 8--9\% of revenue as we expand two manufacturing facilities.''}
+\end{quote}
+
+\textbf{Your tasks:}
+\begin{enumerate}
+  \item Write the four-stage CoT reasoning (macro $\to$ industry $\to$ firm $\to$ synthesis)
+        that a well-designed prompt should elicit.
+  \item Identify at least one potential internal inconsistency in the MD\&A guidance
+        that a consistency-checking step should flag.
+  \item Specify the JSON output format for Year 1--3 FCF forecasts
+        (base, upside, downside, justification).
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 7: Case study overview
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Monte Carlo DCF (20 min)}
+
+\textbf{Setup:} You will parameterise and run a Monte Carlo DCF simulation
+using the FCFF computed in Problem 1 as the base ($\text{FCFF}_0$).
+
+\medskip
+\textbf{Parameters:}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Parameter & Mean & Std Dev \\
+\midrule
+WACC & 10\% & 1.5\% \\
+Explicit growth (per year) & 6\% & 3\% \\
+Terminal growth & 2.5\% & 1\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Simulation spec:}
+\begin{itemize}
+  \item $M = 5{,}000$ draws; 5-year explicit horizon; \texttt{seed = 42}
+  \item Clip terminal growth so $g_{\text{terminal}} < \text{WACC} - 0.5\%$
+  \item Report: mean, median, std, P10, P25, P75, P90 of EV distribution
+\end{itemize}
+
+\medskip
+\textbf{Three diagnostic questions on next slides.}
+\end{frame}
+
+% ============================================================
+% FRAME 8: Case study --- step 1, code
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study Step 1: Run the Simulation}
+
+\begin{lstlisting}
+import numpy as np
+
+def monte_carlo_dcf(fcff0, g_exp_mean, g_exp_std, wacc_mean, wacc_std,
+                    g_term_mean, g_term_std, n=5, M=5000, seed=42):
+    rng = np.random.default_rng(seed)
+    wacc = rng.normal(wacc_mean, wacc_std, M)
+    g_term = rng.normal(g_term_mean, g_term_std, M)
+    g_exp = rng.normal(g_exp_mean, g_exp_std, (M, n))
+
+    # Clip terminal growth
+    g_term = np.minimum(g_term, wacc - 0.005)
+
+    ev = np.zeros(M)
+    for m in range(M):
+        fcfs = [fcff0]
+        for t in range(n):
+            fcfs.append(fcfs[-1] * (1 + g_exp[m, t]))
+        pv_fcf = sum(fcfs[t]/(1+wacc[m])**t for t in range(1, n+1))
+        tv = fcfs[n]*(1+g_term[m])/(wacc[m]-g_term[m])
+        ev[m] = pv_fcf + tv/(1+wacc[m])**n
+    return ev
+
+# Use FCFF0 from Problem 1
+ev_sim = monte_carlo_dcf(fcff0=???, ...)
+\end{lstlisting}
+
+\textbf{Fill in \texttt{fcff0} using your answer from Problem 1.}
+\end{frame}
+
+% ============================================================
+% FRAME 9: Case study --- three diagnostic questions
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Three Diagnostic Questions}
+
+After running the simulation, answer:
+
+\medskip
+\textbf{Question A:} Compare the P10 and P90 enterprise values.
+What fraction of the total uncertainty in EV is attributable to terminal value uncertainty
+vs.\ explicit-period FCF uncertainty?
+(Hint: re-run with $\sigma_g = 0$ to isolate explicit-period uncertainty.)
+
+\medskip
+\textbf{Question B:} At what terminal growth rate $g$ does the median EV
+approximately double relative to the base-case DCF computed in Problem 1?
+(Hint: solve $TV \propto 1/(\text{WACC}-g)$ for the target $g$.)
+
+\medskip
+\textbf{Question C:} Suppose a competitor is acquired at 12$\times$ EV/EBITDA.
+The company's EBITDA is EBIT + DA = $623M.
+Does the comparables-based EV fall within the Monte Carlo P10--P90 range?
+What does the gap (or lack of gap) tell you about market pricing?
+\end{frame}
+
+% ============================================================
+% FRAME 10: Case study --- fill-in table
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Fill In This Table}
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+\textbf{Statistic} & \textbf{Value (USD M)} \\
+\midrule
+Mean EV & ? \\
+Median EV & ? \\
+Std Dev & ? \\
+P10 (bear) & ? \\
+P25 & ? \\
+P75 & ? \\
+P90 (bull) & ? \\
+\midrule
+P90 -- P10 range & ? \\
+P90 / P10 ratio & ? \\
+\midrule
+Comparables EV (12× EBITDA) & ? \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Interpret:} Is the DCF estimate consistent with the comparables estimate?
+What does a P90/P10 ratio $> 2$ suggest about this valuation?
+\end{frame}
+
+% ============================================================
+% FRAME 11: Discussion
+% ============================================================
+\begin{frame}
+\frametitle{Discussion: Communicating Valuation Uncertainty (5 min)}
+
+Discuss in pairs:
+
+\medskip
+\textbf{When is the DCF estimate unreliable?}
+\begin{itemize}
+  \item When $g \approx \text{WACC}$ (terminal value denominator approaches zero)?
+  \item When the company has negative or volatile FCF (e.g., early-stage biotech)?
+  \item When the forecast horizon is very short (terminal value dominates)?
+\end{itemize}
+
+\medskip
+\textbf{How would you report uncertainty to a client?}
+\begin{itemize}
+  \item Point estimate only? (Never --- why not?)
+  \item Point estimate + range (P10--P90)?
+  \item Full distribution histogram?
+  \item Bull/base/bear narrative + Monte Carlo range?
+\end{itemize}
+
+\medskip
+\textbf{Governance question:} You run this pipeline on 200 companies daily.
+What HITL checkpoint(s) would you add, and at what threshold?
+(Hint: consider P90/P10 ratio, FCFF extraction confidence, and number of non-recurring items flagged.)
+\end{frame}
+
+% ============================================================
+% FRAME 12: Solution --- Problem 1
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problem 1 --- FCFF and DCF}
+
+\textbf{Effective tax rate:} $\tau = 85 / 368 = 23.1\%$
+
+\medskip
+\textbf{FCFF:}
+\begin{align*}
+  \Delta\text{NWC} &= 380 - 315 = 65\text{ M} \\
+  \text{FCFF} &= 428(1-0.231) + 195 - 240 - 65 \\
+              &= 329.3 + 195 - 240 - 65 = \mathbf{219.3\text{ M}}
+\end{align*}
+
+\textbf{FCFE:}
+\begin{align*}
+  \text{NI} &= (428 - 60)(1-0.231) = 368 \times 0.769 = 283.0\text{ M} \\
+  \text{FCFE} &= 283.0 + 195 - 240 - 65 + 40 = \mathbf{213.0\text{ M}}
+\end{align*}
+
+\textbf{Verify:} $\text{FCFF} - \text{InterestExp}(1-\tau) + \text{NB}
+= 219.3 - 60(0.769) + 40 = 219.3 - 46.1 + 40 = 213.2$ M $\approx$ 213.0 M \checkmark
+
+\medskip
+\textbf{DCF:} Using python\_executor with \texttt{fcff0 = 219.3}, WACC = 10\%, $g_{\text{exp}}$ = 6\%,
+$g_{\text{term}}$ = 2.5\%, $n = 5$: \textbf{EV $\approx$ 3{,}672 M}.
+\end{frame}
+
+% ============================================================
+% FRAME 13: Solution --- Problem 2 highlights
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problem 2 --- CoT Prompt Key Points}
+
+\textbf{Stage 3 (firm-specific) --- key reasoning points:}
+\begin{itemize}
+  \item Positive: grid modernisation tailwind supports infrastructure segment revenue
+  \item Negative: copper/steel supply chain bottlenecks compress near-term margins
+  \item Positive: 200-bps margin improvement target over 3 years
+  \item Negative: CapEx at 8--9\% of revenue is elevated, limiting FCF conversion
+\end{itemize}
+
+\medskip
+\textbf{Potential internal inconsistency to flag:}
+\begin{quote}
+\textit{``200-bps EBIT margin improvement''} while simultaneously \textit{``CapEx at 8--9\% of revenue
+as we expand manufacturing facilities''}.
+\end{quote}
+Margin improvement is more plausible once the expansion CapEx phase ends.
+If the improvements are targeted during the high-CapEx period, a consistency-checking
+agent should flag this as a tension requiring clarification.
+
+\medskip
+\textbf{JSON schema:} \texttt{\{"year": 1, "base": <float>, "upside": <float>,
+"downside": <float>, "justification": "<2 sentences>"\}}
+\end{frame}
+
+% ============================================================
+% FRAME 14: Key takeaways
+% ============================================================
+\begin{frame}
+\frametitle{Key Takeaways}
+
+\begin{enumerate}
+  \item \textbf{FCFF is not a data field in any filing.}
+        It must be derived from EBIT, DA, CapEx, $\Delta$NWC, and the effective tax rate.
+        Each input can carry LLM extraction error; errors propagate multiplicatively.
+
+  \item \textbf{CoT separates narrative from number.}
+        A good forecasting prompt forces the model to commit to a macro/industry/firm
+        narrative \emph{before} generating numbers. Inconsistencies become detectable.
+
+  \item \textbf{Terminal growth rate is the dominant uncertainty source.}
+        A 100-bps error in $g$ produces a 15--18\% error in enterprise value.
+        Always report Monte Carlo percentile ranges, not just point estimates.
+
+  \item \textbf{Comparables and DCF are complements, not substitutes.}
+        A large gap between the two signals either market mispricing or a flawed assumption
+        in one of the models. Investigate rather than average.
+
+  \item \textbf{Production pipelines need hallucination guards.}
+        Validate every ticker; trace every financial figure to a specific accession number.
+        A single hallucinated comparable can distort the entire multiple analysis.
+\end{enumerate}
+\end{frame}
+
+\end{document}

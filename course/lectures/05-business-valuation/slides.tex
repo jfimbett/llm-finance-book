@@ -1,83 +1,789 @@
 \documentclass{beamer}
 \usetheme{Madrid}
+\usepackage{amsmath,amssymb,booktabs,xcolor}
+\usepackage{listings}
 
-\title{LLMs for Business Valuation}
-\subtitle{Lecture 5 — Large Language Models in Finance}
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+}
+
+\title{Lecture 5: LLMs for Business Valuation}
+\subtitle{Large Language Models in Finance}
 \author{Juan F.\ Imbet}
 \institute{Paris Dauphine -- PSL University}
 \date{}
 
 \begin{document}
 
+% ============================================================
+% FRAME 1: Title
+% ============================================================
 \begin{frame}
-  \titlepage
+\frametitle{}
+\titlepage
 \end{frame}
 
-\begin{frame}{Outline}
-  \tableofcontents
+% ============================================================
+% FRAME 2: Outline
+% ============================================================
+\begin{frame}
+\frametitle{Outline}
+\tableofcontents
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Introduction to Business Valuation}
+% ============================================================
+\section{Business Valuation: Frameworks and LLM Opportunity}
+% ============================================================
 
-\begin{frame}{Introduction to Business Valuation}
-  [Placeholder]
+% ============================================================
+% FRAME 3: What is business valuation?
+% ============================================================
+\begin{frame}
+\frametitle{What Is Business Valuation?}
+
+\begin{block}{Definition}
+  Business valuation maps observable and projected financial variables --- cash flows,
+  discount rates, growth rates --- into a scalar enterprise value $V \in \mathbb{R}_+$
+  that a rational, fully informed market participant would assign to the claim.
+\end{block}
+
+\medskip
+\textbf{Professional contexts:}
+\begin{itemize}
+  \item \textbf{M\&A}: spread between buyer and seller estimates defines zone of possible agreement
+  \item \textbf{IPOs}: investment banks produce valuation ranges to price new shares
+  \item \textbf{Portfolio management}: model value vs.\ market price generates trade signals
+  \item \textbf{Financial reporting}: IFRS 13 / ASC 820 Level 3 assets require documented models
+\end{itemize}
+
+\medskip
+\begin{alertblock}{The core challenge}
+  Valuation is forward-looking. A balance sheet records historical cost;
+  the market prices a claim on \emph{future} earnings.
+  Translating current information into a credible forward estimate is where LLMs add the most value.
+\end{alertblock}
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Extracting Financial Data with LLMs and Agents}
+% ============================================================
+% FRAME 4: Three valuation frameworks
+% ============================================================
+\begin{frame}
+\frametitle{Three Valuation Frameworks}
 
-\begin{frame}{Extracting Financial Data with LLMs and Agents}
-  [Placeholder]
+\textbf{Income approach} — DCF:
+\[
+  V = \sum_{t=1}^{n} \frac{\text{FCF}_t}{(1+\text{WACC})^t}
+      + \underbrace{\frac{\text{FCF}_{n+1}/(\text{WACC}-g)}{(1+\text{WACC})^n}}_{\text{Terminal Value}}
+\]
+A 100-bps change in WACC or $g$ alters terminal value by \textbf{20--40\%}. Scenario analysis is indispensable.
+
+\medskip
+\textbf{Market approach} — trading multiples (EV/EBITDA, P/E, P/Book) from comparable firms.
+Challenge: finding genuinely comparable peers. \textit{LLMs and embeddings help here.}
+
+\medskip
+\textbf{Asset approach} — net asset value:
+\[
+  V_{\text{NAV}} = \sum_i FV(\text{Asset}_i) - \sum_j FV(\text{Liability}_j)
+\]
+Best for asset-intensive firms or as a floor valuation cross-check.
+
+\medskip
+\begin{block}{In practice}
+Triangulate across all three; present a valuation \emph{range}, not a point estimate.
+\end{block}
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Computing Cash Flows}
+% ============================================================
+% FRAME 5: Where LLMs add value
+% ============================================================
+\begin{frame}
+\frametitle{How LLMs Transform Each Valuation Step}
 
-\begin{frame}{Computing Cash Flows}
-  [Placeholder]
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Step} & \textbf{Traditional approach} & \textbf{LLM contribution} \\
+\midrule
+Data collection & Manual EDGAR parsing & Automated extraction pipeline \\
+FCF computation & Spreadsheet formulas & Code interpreter (error-free) \\
+Forecasting & Analyst judgment & CoT prompting + evaluation \\
+Scenario analysis & Manual scenarios & Narrative coherence checking \\
+Comparable selection & SIC codes + manual & Embedding + LLM hybrid \\
+Report generation & Analyst writing & LLM first-draft synthesis \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Key principle}: LLMs are most valuable where the task is
+\emph{qualitative reasoning over text} and least reliable where the task
+is \emph{numerical computation}. Route arithmetic to a code interpreter.
 \end{frame}
 
-%% ---------------------------------------------------------------
+% ============================================================
+\section{Extracting Financial Data from SEC EDGAR}
+% ============================================================
+
+% ============================================================
+% FRAME 6: EDGAR ecosystem
+% ============================================================
+\begin{frame}
+\frametitle{The SEC EDGAR Ecosystem}
+
+\textbf{Key filing types for valuation:}
+\begin{itemize}
+  \item \textbf{10-K}: annual audited financials + MD\&A. Primary source.
+  \item \textbf{10-Q}: quarterly unaudited interim statements.
+  \item \textbf{8-K}: material events within 4 business days (earnings, M\&A, CEO changes).
+  \item \textbf{DEF 14A}: proxy statement --- executive comp, board composition.
+\end{itemize}
+
+\medskip
+\textbf{Programmatic access:}
+\begin{itemize}
+  \item Submissions API: \texttt{data.sec.gov/submissions/CIK\{cik\}.json}
+  \item Full-text search: \texttt{efts.sec.gov/LATEST/search-index?q=...}
+  \item XBRL companyfacts: \texttt{data.sec.gov/api/xbrl/companyfacts/CIK\{cik\}.json}
+\end{itemize}
+
+\medskip
+\begin{block}{XBRL: the first-pass extractor}
+Since 2009, the SEC requires XBRL tagging. XBRL covers the majority of standard line items reliably.
+LLM parsing fills the gap for non-standard layouts, merged cells, and extension elements.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 7: LLM table extraction
+% ============================================================
+\begin{frame}
+\frametitle{Parsing Financial Tables with LLMs}
+
+\textbf{Why rule-based approaches fail:} merged cells, multi-level headers, footnote references
+inside cells, non-standard layouts. Classical parsers break on the long tail.
+
+\medskip
+\textbf{LLM extraction pattern:}
+\begin{enumerate}
+  \item Extract raw HTML of candidate table with BeautifulSoup
+  \item Convert to compact plain-text (preserve headers, strip HTML tags)
+  \item Send to LLM with structured extraction prompt requesting JSON schema
+  \item Validate output against schema; retry on parse failure
+\end{enumerate}
+
+\medskip
+\textbf{Design principles:}
+\begin{itemize}
+  \item Request JSON directly --- reduces post-processing; enables automatic validation
+  \item Add ``Respond only with valid JSON. No markdown code fences.'' if model lacks JSON mode
+  \item Use XBRL as ground truth; flag conflicts between XBRL tags and LLM extractions
+\end{itemize}
+
+\medskip
+\begin{alertblock}{Avoid look-ahead bias}
+Always record the \emph{filing date}, not the fiscal year end date.
+Using fiscal year end in a backtest can include information not yet available.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+\section{Computing Free Cash Flows}
+% ============================================================
+
+% ============================================================
+% FRAME 8: FCFF and FCFE definitions
+% ============================================================
+\begin{frame}
+\frametitle{Free Cash Flow: Two Canonical Definitions}
+
+\textbf{Free Cash Flow to Firm (FCFF):}
+\[
+  \text{FCFF}_t = \text{EBIT}_t(1-\tau) + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t
+\]
+
+\textbf{Free Cash Flow to Equity (FCFE):}
+\[
+  \text{FCFE}_t = \text{NI}_t + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t + \text{NB}_t
+\]
+
+\textbf{Relationship} (Modigliani--Miller with taxes):
+\[
+  \text{FCFE}_t = \text{FCFF}_t - \text{InterestExp}_t(1-\tau) + \text{NB}_t
+\]
+
+\medskip
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Metric & Discounted at & Yields \\
+\midrule
+FCFF & WACC & Enterprise value \\
+FCFE & Cost of equity & Equity value directly \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Which to use?} When leverage is changing materially, FCFF is more robust ---
+WACC can be held constant while cost of equity must be adjusted for each leverage scenario.
+\end{frame}
+
+% ============================================================
+% FRAME 9: Worked FCFF example
+% ============================================================
+\begin{frame}
+\frametitle{Worked Example: FCFF Computation}
+
+\textbf{Hypothetical software company (USD millions):}
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Revenue & 4{,}200 \\
+EBIT & 840 \\
+Depreciation \& Amortisation & 310 \\
+Capital Expenditure & 180 \\
+NWC (current year) & 620 \\
+NWC (prior year) & 540 \\
+Tax rate $\tau$ & 21\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{align*}
+  \Delta\text{NWC} &= 620 - 540 = 80 \\
+  \text{FCFF} &= 840(1-0.21) + 310 - 180 - 80 \\
+              &= 663.6 + 310 - 180 - 80 = \mathbf{713.6\text{ M}}
+\end{align*}
+
+With WACC = 9\%, 5-year explicit growth = 8\%, terminal growth = 3\%:
+Enterprise value $\approx$ \textbf{\$15.2B} $\approx$ 3.6$\times$ trailing revenue.
+\end{frame}
+
+% ============================================================
+% FRAME 10: Handling non-recurring items
+% ============================================================
+\begin{frame}
+\frametitle{Normalising EBIT: LLM-Assisted Non-Recurring Items}
+
+Three categories that distort FCFF if treated naively:
+\begin{enumerate}
+  \item \textbf{One-time items}: restructuring charges, litigation settlements, impairments.
+        Remove from base EBIT used for forecasting.
+  \item \textbf{Capitalised operating leases} (IFRS 16, ASC 842): mismatch between reported
+        EBIT, depreciation, and cash flows; must be reconciled.
+  \item \textbf{Acquired intangible amortisation}: from purchase accounting step-up;
+        often excluded in ``cash EBIT'' calculations.
+\end{enumerate}
+
+\medskip
+\textbf{LLM-assisted normalisation:} prompt the model on the MD\&A to identify non-recurring items;
+return JSON with description, amount, and confidence (High / Medium / Low).
+
+\[
+  \text{EBIT}^* = \text{EBIT} + \sum_{k \in \mathcal{K}} a_k
+\]
+
+\medskip
+\begin{block}{Human-in-the-loop design}
+High confidence $\to$ auto-strip. Medium $\to$ flag for analyst review. Low $\to$ pass through.
+The LLM accelerates identification; the analyst makes the final adjustment.
+\end{block}
+\end{frame}
+
+% ============================================================
 \section{Forecasting Cash Flows with LLMs}
+% ============================================================
 
-\begin{frame}{Forecasting Cash Flows with LLMs}
-  [Placeholder]
+% ============================================================
+% FRAME 11: Classical baselines
+% ============================================================
+\begin{frame}
+\frametitle{Classical Forecasting Baselines}
+
+\textbf{Random walk with drift:}
+\[
+  \text{FCF}_{t+1} = \mu + \text{FCF}_t + \varepsilon_{t+1}, \quad \varepsilon \sim \mathcal{N}(0,\sigma^2)
+\]
+
+\textbf{Mean-reverting model:}
+\[
+  \text{FCF}_{t+1} - \bar{\text{FCF}} = \phi(\text{FCF}_t - \bar{\text{FCF}}) + \varepsilon_{t+1}
+\]
+
+Empirical estimates: $\phi \approx 0.5$--$0.7$ for earnings --- substantial persistence, non-trivial mean reversion.
+
+\medskip
+\textbf{Key limitation of pure time-series models:}
+They rely exclusively on historical values.
+They ignore qualitative information in management guidance, industry trends, and macroeconomic conditions.
+
+\medskip
+\begin{block}{LLM opportunity}
+LLMs are trained on financial disclosures, analyst reports, and economic news.
+They can incorporate qualitative dimensions that time-series models miss.
+The empirical question is whether this yields a measurable improvement in forecast accuracy.
+\end{block}
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Tool-Augmented Agents for Financial Math}
+% ============================================================
+% FRAME 12: Chain-of-thought forecasting
+% ============================================================
+\begin{frame}
+\frametitle{Chain-of-Thought Cash Flow Forecasting}
 
-\begin{frame}{Tool-Augmented Agents for Financial Math}
-  [Placeholder]
+Wei et al.\ (2022): CoT prompting elicits intermediate reasoning steps before the final answer.
+For forecasting, CoT forces the model to articulate causal mechanisms --- making output auditable.
+
+\medskip
+\textbf{Four-stage CoT forecasting prompt:}
+\begin{enumerate}
+  \item \textbf{Macro context}: how do interest rates, GDP, and inflation affect revenue and margins?
+  \item \textbf{Industry dynamics}: drivers and headwinds; competitive dynamics; regulatory changes.
+  \item \textbf{Firm-specific}: competitive position; margin trajectory; CapEx plans from MD\&A.
+  \item \textbf{Synthesis}: point estimate + upside (P90) + downside (P10) per year; 2-sentence justification.
+\end{enumerate}
+
+\medskip
+\begin{alertblock}{Why separating reasoning from numbers matters}
+If the reasoning says ``highly competitive market with stable pricing'' but the number says 20\% revenue growth,
+an automated consistency-checker catches it before the number enters the DCF model.
+\end{alertblock}
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Scenario Analysis with LLMs}
+% ============================================================
+% FRAME 13: Forecast evaluation metrics
+% ============================================================
+\begin{frame}
+\frametitle{Evaluating Forecast Quality}
 
-\begin{frame}{Scenario Analysis with LLMs}
-  [Placeholder]
+\textbf{Mean Absolute Percentage Error (MAPE):}
+\[
+  \text{MAPE} = \frac{1}{n}\sum_{t=1}^{n} \frac{|y_t - \hat{y}_t|}{|y_t|} \times 100
+\]
+
+\textbf{Root Mean Squared Error (RMSE):}
+\[
+  \text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}(y_t - \hat{y}_t)^2}
+\]
+
+\textbf{Directional Accuracy (DA):}
+\[
+  \text{DA} = \frac{1}{n}\sum_{t=1}^{n}
+  \mathbf{1}\!\left[\mathrm{sign}(y_t - y_{t-1}) = \mathrm{sign}(\hat{y}_t - y_{t-1})\right]
+\]
+
+\medskip
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Metric & Problem & When to use \\
+\midrule
+MAPE & Undefined when $y_t \approx 0$ & Stable, positive cash flows \\
+RMSE & Scale-dependent & Within-company comparison \\
+DA & Scale-invariant & Investment decision relevance \\
+\bottomrule
+\end{tabular}
+\end{center}
+Always compare against random-walk baseline and analyst consensus.
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Comparable Selection Using LLMs}
+% ============================================================
+\section{Tool-Augmented Agents for Financial Arithmetic}
+% ============================================================
 
-\begin{frame}{Comparable Selection Using LLMs}
-  [Placeholder]
+% ============================================================
+% FRAME 14: Why LLMs can't do arithmetic
+% ============================================================
+\begin{frame}
+\frametitle{Why LLMs Cannot Be Trusted for Arithmetic}
+
+\begin{block}{Architectural mismatch}
+  LLMs are next-token predictors. Arithmetic is a deterministic algorithm.
+  Statistical pattern-matching approximates arithmetic for simple cases;
+  reliability degrades rapidly with complexity.
+\end{block}
+
+\medskip
+\textbf{For business valuation this is serious:}
+\begin{itemize}
+  \item A 5-year DCF involves $\approx 15$--20 chained arithmetic operations
+  \item An incorrectly applied tax rate propagates through every calculation
+  \item Compounding errors: a 5\% FCFF extraction error + 1\% terminal growth bias
+        can together cause a $>10\%$ error in enterprise value
+\end{itemize}
+
+\medskip
+\textbf{Solution: architectural, not prompting.}
+Remove arithmetic from the LLM entirely. Route all computation to a deterministic executor.
+
+\medskip
+\begin{alertblock}{Rule}
+No financial calculation --- however simple --- should be performed by in-context LLM reasoning.
+\end{alertblock}
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{End-to-End Valuation Pipeline}
+% ============================================================
+% FRAME 15: Code interpreter and ReAct for DCF
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Code Interpreter Pattern for DCF}
 
-\begin{frame}{End-to-End Valuation Pipeline}
-  [Placeholder]
+\begin{lstlisting}
+# ReAct agent trace --- DCF computation
+
+Thought 1: I need to compute FCFF. EBIT=840, DA=310, CapEx=180,
+           delta_NWC=80, tau=0.21. Use python_executor.
+
+Action 1:  python_executor(code="""
+               ebit=840; da=310; capex=180; delta_nwc=80; tau=0.21
+               fcff = ebit*(1-tau) + da - capex - delta_nwc
+               print(f"FCFF = {fcff:.1f} M")
+           """)
+
+Observation 1: FCFF = 713.6 M
+
+Thought 2: Now compute the 5-year DCF with g=8%, g_term=3%, WACC=9%.
+
+Action 2:  python_executor(code="""
+               import numpy as np
+               fcff0=713.6; g=0.08; g_t=0.03; wacc=0.09; n=5
+               fcfs=[fcff0*(1+g)**t for t in range(1,n+1)]
+               tv=fcfs[-1]*(1+g_t)/(wacc-g_t)
+               ev=sum(f/(1+wacc)**t for t,f in enumerate(fcfs,1))+tv/(1+wacc)**n
+               print(f"EV = {ev:.1f} M")
+           """)
+
+Observation 2: EV = 15224.0 M
+\end{lstlisting}
+
+Generated code is an auditable artefact: human reviewers inspect it to verify formula, inputs, units.
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Efficiency and Accuracy in LLM-Assisted Valuation}
+% ============================================================
+% FRAME 16: LLM failure modes in valuation
+% ============================================================
+\begin{frame}
+\frametitle{Four LLM Failure Modes in Valuation}
 
-\begin{frame}{Efficiency and Accuracy in LLM-Assisted Valuation}
-  [Placeholder]
+\begin{enumerate}
+  \item \textbf{Phantom tickers}: the LLM generates realistic-sounding but non-existent tickers.
+        \textit{Mitigation}: validate every ticker against a securities master before use.
+
+  \item \textbf{Invented ratios}: confabulated plausible-looking numbers not in any filing.
+        \textit{Mitigation}: trace every figure to a specific EDGAR accession number.
+        Replace ``trust but verify'' with \textbf{``do not trust until verified.''}
+
+  \item \textbf{Misapplied formulas}: syntactically correct code implementing the wrong formula
+        (FCFE when FCFF was requested; missing tax shield on interest).
+        \textit{Mitigation}: automated formula-level testing against known benchmark cases.
+
+  \item \textbf{Stale knowledge}: LLMs have a knowledge cutoff. Financial data, tax rates,
+        and accounting standards change.
+        \textit{Mitigation}: always use EDGAR-retrieved information in preference to parametric
+        knowledge for specific company facts.
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+\section{Scenario Analysis and Monte Carlo}
+% ============================================================
+
+% ============================================================
+% FRAME 17: Bull/base/bear cases
+% ============================================================
+\begin{frame}
+\frametitle{Scenario Construction: Bull, Base, and Bear}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Scenario} & \textbf{Percentile} & \textbf{Description} \\
+\midrule
+Bull & P90 & Favourable macro, strong execution, above-consensus growth \\
+Base & P50 & Median expectation; most likely trajectory \\
+Bear & P10 & Adverse macro, margin compression, or competitive deterioration \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Internal consistency requirement:} every scenario must specify a complete,
+internally consistent set: revenue growth, EBIT margins, CapEx intensity, NWC ratios,
+and terminal growth rate. A scenario combining 25\% revenue CAGR and 1\% terminal growth
+is internally contradictory.
+
+\medskip
+\begin{block}{LLM role in scenarios}
+LLMs excel at \emph{narrative coherence checking}: given a proposed set of scenario inputs,
+does the narrative justify the numbers? Do the numbers contradict the stated macro environment?
+\textbf{Not} at computing the resulting valuations --- that goes to the code interpreter.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 18: Monte Carlo DCF
+% ============================================================
+\begin{frame}
+\frametitle{Monte Carlo DCF: Full Distribution of Enterprise Value}
+
+Let $\text{WACC} \sim \mathcal{N}(\mu_W, \sigma_W^2)$ and $g \sim \mathcal{N}(\mu_g, \sigma_g^2)$
+(truncated so $g < \text{WACC}$). For $M$ simulation paths:
+
+\[
+  V^{(m)} = \sum_{t=1}^{n}
+  \frac{\text{FCF}_t^{(m)}}{(1+\text{WACC}^{(m)})^t}
+  + \frac{\text{FCF}_{n+1}^{(m)}}{(\text{WACC}^{(m)}-g^{(m)})(1+\text{WACC}^{(m)})^n}
+\]
+
+\medskip
+\textbf{Typical parameterisation:}
+$\mu_W = 0.09$, $\sigma_W = 0.015$, $\mu_g = 0.03$, $\sigma_g = 0.01$.
+With $M = 10{,}000$: runtime $< 1$ second.
+
+\medskip
+\textbf{Output}: mean, median, standard deviation, P10, P25, P75, P90 of EV distribution.
+
+\medskip
+\begin{block}{Why Monte Carlo is not optional}
+A 100-bps error in terminal growth $\to$ \textbf{15--18\% error in enterprise value}
+(see error propagation analysis). Point estimates are not just imprecise --- they are misleading.
+\end{block}
+\end{frame}
+
+% ============================================================
+\section{Comparable Selection}
+% ============================================================
+
+% ============================================================
+% FRAME 19: Traditional pitfalls and LLM approaches
+% ============================================================
+\begin{frame}
+\frametitle{Comparable Selection: Pitfalls and LLM Solutions}
+
+\textbf{Traditional pitfalls:}
+\begin{enumerate}
+  \item \textbf{Code obsolescence}: SIC codes last revised in 1987.
+        A cloud computing company and a 1990s software distributor share the same SIC.
+  \item \textbf{Diversified conglomerates}: manufacturing SIC company deriving revenue from financial services.
+  \item \textbf{Cyclical timing}: temporarily distressed firms depress the median multiple.
+\end{enumerate}
+
+\medskip
+\textbf{Two LLM-based approaches:}
+
+\medskip
+\textbf{Prompt-based}: describe the target in natural language; request 8--12 comparable firms as JSON.
+\textit{Problem}: hallucinated tickers occur frequently.
+\textit{Mandatory}: validate every ticker against a securities master.
+
+\medskip
+\textbf{Embedding-based}: embed the MD\&A of all companies in the universe; retrieve top-$k$ by cosine similarity.
+\[
+  \text{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|}
+\]
+Empirical result: embedding-based peers have lower IQR of EV/EBITDA and lower deviation from transaction prices vs.\ SIC-based peers.
+\end{frame}
+
+% ============================================================
+% FRAME 20: Hybrid pipeline
+% ============================================================
+\begin{frame}
+\frametitle{Hybrid Comparable Pipeline}
+
+\textbf{Neither approach alone is sufficient:}
+\begin{itemize}
+  \item Prompt-based: broad world knowledge but hallucinates tickers
+  \item Embedding-based: grounded but may surface textual lookalikes with different businesses
+\end{itemize}
+
+\medskip
+\textbf{Two-stage hybrid:}
+\begin{enumerate}
+  \item \textbf{Candidate generation}: embedding index returns top 30 by cosine similarity.
+  \item \textbf{LLM filtering}: model receives candidates + brief company descriptions;
+        removes firms that are geographically incomparable, in different competitive positions,
+        or subject to idiosyncratic events (pending acquisition, bankruptcy).
+        Filtered set of 8--12 comparables proceeds to multiple analysis.
+\end{enumerate}
+
+\medskip
+\begin{block}{Principle: confine the LLM to its strengths}
+Stage 1: grounded retrieval (no hallucination risk --- candidates come from real company vectors).
+Stage 2: qualitative business-model reasoning (LLM excels).
+Stage 2 \emph{never} needs to recall whether a specific ticker exists --- that is already guaranteed by Stage 1.
+\end{block}
+\end{frame}
+
+% ============================================================
+\section{End-to-End Pipeline and Best Practices}
+% ============================================================
+
+% ============================================================
+% FRAME 21: Error propagation
+% ============================================================
+\begin{frame}
+\frametitle{Error Propagation in Multi-Step Pipelines}
+
+Suppose extraction produces FCF with error $\varepsilon_1$ and forecasting introduces a terminal growth bias $\varepsilon_2$. First-order approximation:
+\[
+  \Delta V \approx \frac{\partial V}{\partial \text{FCF}} \varepsilon_1
+                 + \frac{\partial V}{\partial g} \varepsilon_2
+\]
+
+For the Gordon Growth perpetuity:
+\[
+  \frac{\partial V}{\partial \text{FCF}_n} = \frac{1+g}{\text{WACC}-g}, \qquad
+  \frac{\partial V}{\partial g} = \frac{\text{FCF}_n(1+\text{WACC})}{(\text{WACC}-g)^2}
+\]
+
+\medskip
+\textbf{At WACC = 9\%, $g$ = 3\%:}
+\begin{itemize}
+  \item 1\% relative error in FCF $\to$ $\approx$ 1\% error in enterprise value
+  \item \textbf{100-bps error in terminal growth $\to$ $\approx$ 15--18\% error in enterprise value}
+\end{itemize}
+
+\medskip
+\begin{alertblock}{The dominant uncertainty source}
+Terminal growth rate uncertainty \emph{dominates} enterprise value uncertainty.
+Always run Monte Carlo simulation; always present percentile ranges.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 22: Case study
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Mid-Cap SaaS Company}
+
+\textbf{Profile:} Revenue \$4.2B (+12\% YoY), EBIT margin 20\%, D\&A \$310M,
+CapEx \$180M, net debt \$800M, 280M shares outstanding.
+
+\medskip
+\textbf{After normalisation:} EBIT = \$915M, FCFF = \$789M
+(two non-recurring items: \$45M restructuring + \$30M acquired intangible amortisation).
+
+\medskip
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Method} & \textbf{Enterprise Value} & \textbf{Equity/share} \\
+\midrule
+DCF (WACC 9\%, $g$ 3\%) & \$17.0B & \$57.9 \\
+Comparables (EV/EBITDA 24.5$\times$) & \$29.9B & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+DCF vs.\ comparables gap: sector trading at elevated growth multiples.
+Both are informative; neither is definitive.
+
+\medskip
+\textbf{Monte Carlo} (10{,}000 draws): mean \$17.2B, P10--P90 range \$12.5B--\$24.1B.
+The range quantifies the uncertainty a point estimate conceals.
+\end{frame}
+
+% ============================================================
+% FRAME 23: Agent orchestration
+% ============================================================
+\begin{frame}
+\frametitle{Multi-Agent Orchestration}
+
+\textbf{Why not a monolithic script?}
+A failure in step 6 (terminal value) requires rerunning all prior steps.
+A monolithic pipeline is also untestable in parts.
+
+\medskip
+\textbf{Orchestrator + specialists:}
+\begin{itemize}
+  \item \texttt{edgar\_agent}: retrieval and extraction
+  \item \texttt{fcf\_agent}: computation and normalisation
+  \item \texttt{forecast\_agent}: CoT projections
+  \item \texttt{comps\_agent}: comparable selection
+  \item \texttt{dcf\_agent}: final valuation and scenario synthesis
+\end{itemize}
+
+\medskip
+\textbf{Parallelism}: comparable selection has no dependency on the FCF forecast ---
+both can run concurrently, reducing end-to-end latency.
+
+\medskip
+\begin{block}{Production latency}
+6 LLM calls $\times$ 1--5 seconds each + parallelisation $\approx$
+\textbf{15--30 seconds end-to-end} per company valuation.
+Cost: \$0.50--\$3.00 per company at 2024 frontier-model pricing.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 24: Best practices
+% ============================================================
+\begin{frame}
+\frametitle{Best Practices for Production Deployment}
+
+\begin{enumerate}
+  \item \textbf{XBRL first}: verify extracted numbers against XBRL tags.
+        Flag any conflict for human review. LLM extraction is a complement, not a sole source.
+
+  \item \textbf{Code interpreter for all arithmetic}: no financial calculation should be
+        performed by in-context LLM reasoning. Generated code is the deliverable.
+
+  \item \textbf{Run Monte Carlo}: a point-estimate DCF is misleading.
+        Communicate the P10--P90 range alongside the central estimate.
+
+  \item \textbf{Mandatory hallucination guards}: validate every ticker against a securities register;
+        trace every financial figure to a specific EDGAR accession number;
+        suppress unverifiable claims from final output.
+
+  \item \textbf{Human review before publication}: LLMs are a powerful analytical assistant,
+        not an autonomous decision-maker.
+        A qualified analyst must take responsibility for the figures.
+\end{enumerate}
+
+\medskip
+\textit{Consistent with FSB (2023) guidance on AI in finance: human accountability,
+model transparency, and robust back-testing are prerequisites.}
+\end{frame}
+
+% ============================================================
+% FRAME 25: Summary
+% ============================================================
+\begin{frame}
+\frametitle{Summary: The LLM-Assisted Valuation Stack}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Component} & \textbf{Key mechanism} \\
+\midrule
+Data extraction & EDGAR API + LLM table parsing + XBRL validation \\
+FCF computation & Pydantic schema + code interpreter \\
+Forecasting & CoT prompting; evaluate with MAPE / RMSE / DA \\
+Scenarios & Bull/base/bear + Monte Carlo over WACC and $g$ \\
+Comparable selection & Embedding index + LLM qualitative filter \\
+Orchestration & Multi-agent with parallel specialist execution \\
+Governance & HITL review; hallucination guards; audit trail \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{block}{Connection to Chapter 6}
+Chapter 6 applies the same data extraction and forecasting tools to credit risk ---
+where target variables are probability of default and loss given default, and regulatory
+constraints on model transparency are stricter.
+\end{block}
 \end{frame}
 
 \end{document}

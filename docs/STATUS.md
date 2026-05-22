@@ -9,3 +9,4 @@
 | 03 | Training and Fine-Tuning LLMs | Yes | Yes | 9 | 8 | 9 | 9 | 8 | No |
 | 04 | LLM Agents and Finance Applications | Yes | Yes | 9 | 9 | 9 | 8 | 8 | No |
 | 05 | LLMs for Business Valuation | No | No | — | — | — | — | — | No |
+| 06 | LLMs for Credit Risk Analysis | No | No | — | — | — | — | — | No |

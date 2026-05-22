@@ -1,62 +1,691 @@
 \documentclass{beamer}
 \usetheme{Madrid}
+\usepackage{amsmath,amssymb,booktabs,xcolor}
+\usepackage{listings}
 
-\title{Other Applications in Finance and Future Trends}
-\subtitle{Lecture 7 — Large Language Models in Finance}
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+}
+
+\title{Lecture 7: Other Applications in Finance and Future Trends}
+\subtitle{Large Language Models in Finance}
 \author{Juan F.\ Imbet}
 \institute{Paris Dauphine -- PSL University}
 \date{}
 
 \begin{document}
 
+% ============================================================
+% FRAME 1: Title
+% ============================================================
 \begin{frame}
-  \titlepage
+\frametitle{}
+\titlepage
 \end{frame}
 
-\begin{frame}{Outline}
-  \tableofcontents
+% ============================================================
+% FRAME 2: Outline
+% ============================================================
+\begin{frame}
+\frametitle{Outline}
+\tableofcontents
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{LLM Applications Across Finance: A Survey}
+% ============================================================
+\section{LLM Applications Across Finance}
+% ============================================================
 
-\begin{frame}{LLM Applications Across Finance: A Survey}
-  [Placeholder]
+% ============================================================
+% FRAME 3: Book map
+% ============================================================
+\begin{frame}
+\frametitle{Where We Have Been: A Map of the Book}
+
+\begin{center}
+\small
+\begin{tabular}{clll}
+\toprule
+\textbf{Ch.} & \textbf{Topic} & \textbf{Primary Technique} & \textbf{Application} \\
+\midrule
+1 & Text Fundamentals & TF-IDF, word embeddings & Sentiment, classification \\
+2 & Modern LLM Landscape & Transformer, RLHF & General financial NLP \\
+3 & Training \& Fine-Tuning & LoRA, PEFT & Domain adaptation \\
+4 & LLM Agents & ReAct, tool use & Research automation \\
+5 & Business Valuation & RAG, summarisation & DCF, comparables \\
+6 & Credit Risk & Constrained gen., SHAP & Scoring, fairness \\
+\textbf{7} & \textbf{Applications \& Future} & \textbf{Workflows, multimodal} & \textbf{Deployment, governance} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{block}{The through-line}
+  Early chapters: lightweight representations, large corpora, modest compute.\\
+  Later chapters: generative and agent-based models, multi-step reasoning.\\
+  This chapter: cross-cutting concerns of \textbf{deployment, governance, and frontier capability}.
+\end{block}
 \end{frame}
 
-%% ---------------------------------------------------------------
+% ============================================================
+% FRAME 4: Remaining application areas
+% ============================================================
+\begin{frame}
+\frametitle{Remaining Application Areas}
+
+\textbf{Portfolio Management}
+\begin{itemize}
+  \item Natural-language mandate specification $\to$ quantitative optimisation inputs
+  \item ESG screening from heterogeneous sustainability reports
+  \item Earnings surprise prediction from call transcripts: outperforms bag-of-words dictionaries
+  \item L\'{o}pez-Lira (2025): heterogeneous LLM agents in simulated markets $\to$ real market dynamics + systemic risk from correlated strategies
+\end{itemize}
+
+\medskip
+\textbf{Regulatory Compliance}
+\begin{itemize}
+  \item MiFID~II suitability report generation (client profile + instrument + regulatory template)
+  \item AML Suspicious Activity Reports: improved consistency, reduced analyst time
+\end{itemize}
+
+\medskip
+\textbf{Insurance}: underwriting risk extraction; claims triage; policy question-answering.
+
+\medskip
+\textbf{Algorithmic Trading}: signal generation (news/filings $\to$ sentiment indicators), strategy co-pilot (hypothesis $\to$ testable code), conversational OMS interface.
+\end{frame}
+
+% ============================================================
+% FRAME 5: Deployment pattern selection
+% ============================================================
+\begin{frame}
+\frametitle{Choosing the Right Deployment Pattern}
+
+\begin{center}
+\begin{tabular}{lllll}
+\toprule
+\textbf{Pattern} & \textbf{Best for} & \textbf{Data} & \textbf{Latency} & \textbf{Cost} \\
+\midrule
+Zero-shot & General reasoning, novel tasks & None & Low & Per-call \\
+RAG & Document QA, live data, audit trail & Corpus & Medium & Corpus + call \\
+Fine-tuning & Structured output, consistency & Labelled & Low & High (train) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Three practical heuristics:}
+\begin{enumerate}
+  \item Prefer RAG over fine-tuning when the task requires grounding in \emph{updatable} documents (current regulation, recent filings). Fine-tuning embeds knowledge statically.
+  \item Fine-tune when output format is highly structured and consistency across thousands of calls matters more than generality.
+  \item Zero-shot with a frontier model is a valid baseline before investing in more expensive approaches. FinanceBench: frontier models answer $\approx$80\% of financial QA correctly on the first attempt.
+\end{enumerate}
+
+\medskip
+\begin{alertblock}{Tiebreaker}
+  When the two selection axes conflict, latency and interpretability dominate:
+  real-time, high-stakes applications default to the simplest, most auditable approach.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 6: Architecture family selection
+% ============================================================
+\begin{frame}
+\frametitle{Architecture Family Selection}
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Task Property} & \textbf{Enc-only} & \textbf{Dec-only} & \textbf{Enc-Dec} & \textbf{Agentic} \\
+\midrule
+Labelled fine-tuning data available   & Strong & Weak   & Strong & Weak   \\
+Output is classification / embedding  & Strong & Weak   & Weak   & Weak   \\
+Output requires fluent generation     & Weak   & Strong & Strong & Strong \\
+Task needs up-to-date external data   & Weak   & Weak   & Weak   & Strong \\
+Real-time / low-latency constraint    & Strong & Weak   & Weak   & Weak   \\
+Audit trail / interpretability needed & Strong & Weak   & Weak   & Weak   \\
+Task spans multiple steps / documents & Weak   & Weak   & Weak   & Strong \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Archetypes}:
+\begin{itemize}
+  \item Trade surveillance classifier $\to$ encoder-only + fine-tuning
+  \item Regulatory filing summariser $\to$ decoder-only or enc-dec + RAG
+  \item Autonomous due-diligence agent $\to$ agentic + zero/few-shot
+\end{itemize}
+\end{frame}
+
+% ============================================================
 \section{Automating Financial Workflows}
+% ============================================================
 
-\begin{frame}{Automating Financial Workflows}
-  [Placeholder]
+% ============================================================
+% FRAME 7: Workflow as a DAG
+% ============================================================
+\begin{frame}
+\frametitle{Financial Workflow as a Directed Acyclic Graph}
+
+\begin{block}{Definition}
+  A \emph{financial workflow} is a DAG $W = (T, E)$ where:
+  \begin{itemize}
+    \item $T = \{t_1, \ldots, t_n\}$ is a set of tasks, each $t_i : \mathcal{X}_i \to \mathcal{Y}_i$
+    \item $E \subseteq T \times T$: $(t_i, t_j) \in E$ iff $t_j$ requires an output of $t_i$
+    \item Acyclic: no directed path from any task back to itself
+  \end{itemize}
+  An \emph{execution} is a topological ordering consistent with $E$.
+\end{block}
+
+\medskip
+\textbf{Three canonical automation patterns:}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Pattern} & \textbf{Concurrency} & \textbf{Best for} \\
+\midrule
+Sequential pipeline & None & Ordered, batch, cascading failures \\
+Event-triggered & Per-event & Semantic triggers, alert systems \\
+Orchestrator-worker & Parallel subtasks & Expert specialisation, replanning \\
+\bottomrule
+\end{tabular}
+\end{center}
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Building Your Own Research Assistant}
+% ============================================================
+% FRAME 8: Workflow examples
+% ============================================================
+\begin{frame}
+\frametitle{Three Representative Finance Workflows}
 
-\begin{frame}{Building Your Own Research Assistant}
-  [Placeholder]
+\textbf{1. Earnings call processing pipeline} (sequential):
+\begin{enumerate}\small
+  \item Retrieve transcript
+  \item Extract structured guidance (revenue, margin, capex) as JSON
+  \item Compare against analyst consensus; compute surprises
+  \item Classify management tone (constructive / cautious / evasive)
+  \item Draft standardised analyst briefing
+\end{enumerate}
+Minutes from call end to delivered briefing, vs.\ hours of analyst time.
+
+\medskip
+\textbf{2. Regulatory filing monitor} (event-triggered):
+SEC EDGAR RSS feed $\to$ classify 8-K by type and materiality $\to$ route to appropriate team with summary. Materiality is semantic, not syntactic.
+
+\medskip
+\textbf{3. Trade surveillance narrative} (orchestrator-worker):
+Rule-based system flags unusual order pattern $\to$ LLM retrieves news + social media + internal communications $\to$ drafts structured narrative $\to$ compliance analyst reviews and decides.
+
+\medskip
+\begin{alertblock}{Integration principle}
+  LLMs operate at seconds-to-minutes scale. Execution systems operate at microseconds.
+  Integration is always \textbf{asynchronous}. This is structural, not a limitation.
+\end{alertblock}
 \end{frame}
 
-%% ---------------------------------------------------------------
+% ============================================================
+% FRAME 9: EDGAR monitor code
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Event-Triggered EDGAR Monitor: Code Sketch}
+
+\begin{lstlisting}
+CLASSIFICATION_PROMPT = """Classify this newly filed SEC 8-K.
+Company: {company}
+Filing description: {description}
+
+Respond with valid JSON:
+{"materiality_score": 1-5, "event_type": "earnings|merger_acquisition|...",
+ "summary": "..."}"""
+
+def classify_filing(client, company, description):
+    message = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=256,
+        messages=[{"role": "user", "content":
+                   CLASSIFICATION_PROMPT.format(
+                       company=company, description=description)}]
+    )
+    return json.loads(message.content[0].text)
+
+def monitor_edgar(poll_interval=300):
+    seen_ids = set()
+    while True:
+        feed = feedparser.parse(EDGAR_RSS)
+        for entry in feed.entries:
+            if entry.id not in seen_ids:
+                seen_ids.add(entry.id)
+                result = classify_filing(client,
+                    entry.get("edgar_companyname"),
+                    entry.get("summary"))
+                if result["materiality_score"] >= 3:
+                    dispatch_alert(result)
+        time.sleep(poll_interval)
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+\section{Building a Financial Research Assistant}
+% ============================================================
+
+% ============================================================
+% FRAME 10: Research assistant architecture
+% ============================================================
+\begin{frame}
+\frametitle{Financial Research Assistant Architecture}
+
+\begin{block}{Definition}
+$\mathcal{A} = (\mathcal{R}, \mathcal{M}, \mathcal{K}, \mathcal{T}, \mathcal{I})$ where:
+\begin{itemize}
+  \item $\mathcal{R}$: retrieval engine over corpus $\mathcal{D}$
+  \item $\mathcal{M}$: LLM reader synthesising response from query + retrieved passages
+  \item $\mathcal{K}$: persistent memory (user preferences, portfolio context)
+  \item $\mathcal{T}$: tool layer (market data APIs, filing databases, calculators)
+  \item $\mathcal{I}$: interface layer (text, voice, tables, visualisations)
+\end{itemize}
+\end{block}
+
+\medskip
+\textbf{Hybrid retrieval is non-negotiable.}
+
+Semantic search alone fails on:
+\begin{itemize}
+  \item Numerical queries (``what was Apple's FCF in fiscal 2023?'')
+  \item Exact-term queries (``Article 22 GDPR'', ``IFRS 9 ECL'')
+\end{itemize}
+
+\textbf{Reciprocal Rank Fusion:}
+\[
+  s_{\text{RRF}}(q, d_i) = \frac{1}{k + r_{\text{dense}}(d_i)} + \frac{1}{k + r_{\text{sparse}}(d_i)}, \quad k = 60
+\]
+
+Parameter-free; robust to different score scales of dense and sparse systems.
+\end{frame}
+
+% ============================================================
+% FRAME 11: RAG for financial documents
+% ============================================================
+\begin{frame}
+\frametitle{RAG Implementation for Financial Documents}
+
+\textbf{Chunking strategy matters.} Naive 512-token chunking:
+\begin{itemize}
+  \item Fragments financial tables (destroys row/column structure)
+  \item Splits financial statements across chunks
+  \item Disrupts cross-references between filing sections
+\end{itemize}
+
+\textbf{Section-aware chunking for 10-K filings:}
+\begin{itemize}
+  \item Each SEC Item indexed independently (Item 1A, 7, 8, etc.)
+  \item Tables extracted as structured objects; indexed by a separate retriever
+  \item Substantial reduction in retrieval noise on financial document QA benchmarks
+\end{itemize}
+
+\medskip
+\textbf{Source attribution is a non-negotiable requirement:}
+\begin{itemize}
+  \item Every claim must cite a retrieved passage
+  \item Claims without retrieved support must be flagged as model inference, not retrieved fact
+  \item In regulated contexts: source attribution = the audit mechanism
+\end{itemize}
+
+\medskip
+\begin{block}{Context length paradox (Balogh \& Didisheim, 2025)}
+  LLM predictive accuracy follows an inverted-U in context length.
+  Excessive context degrades performance. Mirrors cognitive overload in human analysts.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 12: OpenClaw
+% ============================================================
+\begin{frame}
+\frametitle{OpenClaw: Local Personal AI for Finance Professionals}
+
+\textbf{Design principles:}
+\begin{enumerate}
+  \item \textbf{Privacy by default}: all processing local; financial data never leaves the machine
+  \item \textbf{Meet users where they work}: queries via WhatsApp, Telegram, Slack, Signal
+  \item \textbf{Model flexibility}: cloud (Claude, GPT-4) for capability; local (Llama, Mistral) for sensitivity
+  \item \textbf{Extensibility through skills}: a Python function with a descriptive docstring becomes a callable tool
+\end{enumerate}
+
+\medskip
+\textbf{Finance-specific skills:}
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+Skill & What it does \\
+\midrule
+\texttt{/earnings AAPL} & Guidance summary vs.\ consensus from most recent transcript \\
+Filing monitor & Daily digest of new SEC filings from watchlist \\
+Portfolio Q\&A & Natural-language questions about local CSV portfolio \\
+Macro digest & Morning briefing from central bank speeches + market moves \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Self-modification}: the assistant can itself write new skills. ``Write me a skill that monitors short interest changes above 5\%'' $\to$ new Python file, user reviews, permanently extends capabilities.
+\end{frame}
+
+% ============================================================
 \section{Ethical Considerations and Bias Mitigation}
+% ============================================================
 
-\begin{frame}{Ethical Considerations and Bias Mitigation}
-  [Placeholder]
+% ============================================================
+% FRAME 13: Sources of bias
+% ============================================================
+\begin{frame}
+\frametitle{Sources of Bias in LLM-Based Finance Systems}
+
+\begin{enumerate}
+  \item \textbf{Training data bias}: frontier LLMs are trained on English-language, US-centric financial content. Geographic bias in risk assessment is a \emph{systematic pricing error}, not merely a fairness concern.
+
+  \item \textbf{Historical discrimination encoded in data}: LLMs trained on historically discriminatory lending records reproduce those patterns. This is not a model failure — it faithfully reproduces the signal in the training data.
+
+  \item \textbf{Feedback loop bias}: when LLM outputs influence asset prices, those prices enter future training data, reinforcing the model's priors. Analogous to Soros's reflexivity but at faster timescales. Widespread deployment of similar strategies amplifies volatility.
+
+  \item \textbf{Anchoring bias}: LLMs weight salient numerical anchors disproportionately. An LLM that just processed a dramatic earnings beat will over-weight that number in subsequent analysis. Documented in human judgment by Tversky and Kahneman (1974); reproduced by LLMs trained on human-generated text.
+\end{enumerate}
 \end{frame}
 
-%% ---------------------------------------------------------------
+% ============================================================
+% FRAME 14: Fairness metrics and impossibility
+% ============================================================
+\begin{frame}
+\frametitle{Fairness Metrics and the Impossibility Theorem}
+
+\textbf{Demographic parity:}
+$\Pr(\hat{Y} = 1 \mid A = a) = \Pr(\hat{Y} = 1 \mid A = b)$ for all $a, b$.
+
+\textbf{Equalized odds:}
+$\Pr(\hat{Y} = 1 \mid Y = y, A = a) = \Pr(\hat{Y} = 1 \mid Y = y, A = b)$ for $y \in \{0, 1\}$.
+
+\textbf{Calibration within group:}
+$\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
+
+\medskip
+\begin{alertblock}{Chouldechova (2017) Impossibility Theorem}
+  When base rates differ across groups --- $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$ ---
+  a non-trivial classifier \textbf{cannot simultaneously} satisfy demographic parity,
+  equalized odds, and calibration within group.
+
+  Demographic parity and calibration within group are mutually incompatible
+  whenever base rates differ.
+\end{alertblock}
+
+\medskip
+\begin{block}{Implication}
+  Fairness is a \emph{family of criteria}, not a single concept.
+  Choosing which criterion to satisfy is a \textbf{policy choice}, not a technical one.
+  In regulated finance, this choice must be made explicitly and justified to regulators.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 15: Bias mitigation
+% ============================================================
+\begin{frame}
+\frametitle{Bias Mitigation: Three Stages}
+
+\textbf{Pre-processing}:
+\begin{itemize}
+  \item Data rebalancing (oversampling underrepresented groups)
+  \item Causal data augmentation: vary protected attributes while holding other features fixed
+  \item Effect: reduces representation bias; some cost to majority-group accuracy
+\end{itemize}
+
+\medskip
+\textbf{In-processing}:
+\begin{itemize}
+  \item Adversarial debiasing: classifier trained to predict outcome while adversary cannot recover sensitive attribute from intermediate representations
+  \item Requires sensitive attribute annotations in training data
+\end{itemize}
+
+\medskip
+\textbf{Post-processing}:
+\begin{itemize}
+  \item Threshold adjustment: select decision thresholds satisfying the desired fairness criterion on a held-out calibration set
+  \item Applicable to black-box APIs; comes at the cost of accepting different error rates for different groups
+\end{itemize}
+
+\medskip
+\textbf{Human-in-the-loop}: mandatory for high-stakes decisions regardless of technical mitigation. Regular auditing is essential — bias can emerge or worsen after deployment as the population shifts and models feedback into the features of the next generation.
+\end{frame}
+
+% ============================================================
+% FRAME 16: Regulatory landscape
+% ============================================================
+\begin{frame}
+\frametitle{The Regulatory Landscape for AI in Finance}
+
+\begin{center}
+\small
+\begin{tabular}{lp{8cm}}
+\toprule
+\textbf{Framework} & \textbf{Key implications for LLM finance} \\
+\midrule
+\textbf{EU AI Act (2024)} & Credit scoring and life insurance risk assessment = \emph{high-risk} AI. Conformity assessment before market entry, mandatory registration, transparency obligations, meaningful human oversight. \\[6pt]
+\textbf{ECOA / Fair Housing Act} & Adverse action notice requirements: specific and accurate, not generic. In direct tension with LLM opacity. \\[6pt]
+\textbf{GDPR Art.~22} & Right to human review of automated decisions. ``We use a large language model'' does not constitute meaningful information about the logic involved. \\[6pt]
+\textbf{MiFID II} & LLM-generated investment recommendations and market analyses must be logged: prompt, model version, output, timestamp. \\[6pt]
+\textbf{FSB (2024)} & AI amplifies third-party concentration risk, market correlations via herding, and financial disinformation. Calls for AI-powered supervisory tools. \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% ============================================================
 \section{Deploying LLMs in Regulated Environments}
+% ============================================================
 
-\begin{frame}{Deploying LLMs in Regulated Environments}
-  [Placeholder]
+% ============================================================
+% FRAME 17: SR 11-7 three lines of defence
+% ============================================================
+\begin{frame}
+\frametitle{SR 11-7 for LLM Systems: Three Lines of Defence}
+
+\textbf{SR 11-7 (2011)}: when an LLM produces quantitative estimates feeding into material business decisions, it constitutes a model --- regardless of its internal architecture.
+
+\medskip
+\begin{enumerate}
+  \item \textbf{First line (Development)}: document purpose, scope, data inputs, architecture (foundation model + fine-tuning), known limitations, performance metrics. For LLMs: document failure modes from red-teaming explicitly, even if incomplete.
+
+  \item \textbf{Second line (Independent Validation)}: adversarial testing including prompt injection, jailbreaking, and distribution shift tests. The FAIR framework (Noguer, 2025) addresses LLM-specific failure modes: temporal data inconsistencies, hallucination in numerical extraction, privacy leakage.
+
+  \item \textbf{Third line (Internal Audit)}: periodically verify that documentation is current, validation is genuinely independent, findings are tracked to resolution, and model usage has not drifted beyond the validated scope.
+\end{enumerate}
+
+\medskip
+\begin{alertblock}{What changes for LLMs vs.\ classical models}
+  The failure mode space is not fully characterised. Emergent capabilities can cause unexpected behaviour on out-of-distribution inputs. Best practice: red-team aggressively and document observed failures honestly.
+\end{alertblock}
 \end{frame}
 
-%% ---------------------------------------------------------------
-\section{Future Trends and Open Research Problems}
+% ============================================================
+% FRAME 18: Explainability and monitoring
+% ============================================================
+\begin{frame}
+\frametitle{Explainability, Monitoring, and Incident Response}
 
-\begin{frame}{Future Trends and Open Research Problems}
-  [Placeholder]
+\textbf{Two kinds of explainability:}
+\begin{itemize}
+  \item \textbf{Post-hoc attribution} (SHAP, attention saliency): ``what features most influenced this output?''
+  \item \textbf{Procedural transparency} (chain-of-thought): provides an auditable reasoning trace, but is a \emph{natural-language reconstruction} of reasoning, not an explanation of neural network internals
+\end{itemize}
+
+\medskip
+\textbf{Four monitoring signal classes:}
+\begin{enumerate}
+  \item Input distribution: KL divergence between prompt embeddings detects distributional shift
+  \item Output quality: accuracy on sampled outputs where ground truth is verifiable
+  \item Operational: latency, cost, error rates, refusal rates
+  \item Fairness: periodic re-runs of bias evaluation framework
+\end{enumerate}
+
+\medskip
+\textbf{Incident severity classification (pre-define before incidents occur):}
+\begin{description}
+  \item[Low] Hallucination in low-stakes summarisation $\to$ standard review cycle
+  \item[High] Hallucinated figure in a credit decision $\to$ immediate escalation, potential reversal, regulatory notification, root-cause investigation
+\end{description}
+\end{frame}
+
+% ============================================================
+\section{Future Trends and Open Research Problems}
+% ============================================================
+
+% ============================================================
+% FRAME 19: Multimodal LLMs
+% ============================================================
+\begin{frame}
+\frametitle{Multimodal LLMs and Long-Context Models}
+
+\textbf{The limitation of text-only models in finance:}
+\begin{itemize}
+  \item Earnings presentations contain charts visualising trends
+  \item Annual reports embed tables organising financial statements
+  \item Earnings calls carry prosodic cues (hesitation, urgency) lost in transcription
+\end{itemize}
+
+\textbf{Multimodal models} jointly encode text, images, audio, and structured data. Early benchmark evidence: multimodal models outperform text-only on financial QA tasks requiring chart and table interpretation.
+
+\medskip
+\textbf{Long-context models} (hundreds of thousands of tokens): an entire 10-K can be processed in a single forward pass, linking risk factors to MD\&A to legal proceedings without losing context between chunks.
+
+\medskip
+\begin{alertblock}{The ``lost in the middle'' problem}
+  Recall accuracy for long-context models degrades for passages positioned far from either end of the context. Retrieval-augmented approaches do not share this limitation.
+\end{alertblock}
+
+\medskip
+\textbf{Optimal architecture}: combine long-context reasoning for intra-document tasks with retrieval for multi-document synthesis.
+\end{frame}
+
+% ============================================================
+% FRAME 20: Autonomous agents
+% ============================================================
+\begin{frame}
+\frametitle{Autonomous Financial Agents: Opportunities and Risks}
+
+\textbf{The trajectory:}
+\begin{itemize}
+  \item Quantitative research: hypothesis $\to$ tested strategy, order-of-magnitude faster
+  \item Trading strategy self-improvement: propose modifications to signal construction, back-test, adopt improvements that pass quality thresholds
+\end{itemize}
+
+\medskip
+\textbf{Systemic risk concerns (FSB 2024, L\'{o}pez-Lira 2025):}
+\begin{itemize}
+  \item Many market participants deploying similar LLM strategies $\to$ correlated actions
+  \item Cascade risk: simultaneous repositioning in response to a common signal
+  \item Regulators examining circuit-breaker requirements for AI-driven strategies
+\end{itemize}
+
+\medskip
+\begin{block}{Governance principle: three output categories}
+  \begin{enumerate}
+    \item \textbf{Informational}: analysis and recommendations
+    \item \textbf{Advisory}: proposed actions for human approval
+    \item \textbf{Executive}: acts on the financial system directly
+  \end{enumerate}
+  Confine executive autonomy to pre-approved action spaces with hard limits. Any action outside that space requires explicit human authorisation.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 21: Five open research problems
+% ============================================================
+\begin{frame}
+\frametitle{Five Open Research Problems}
+
+\begin{enumerate}
+  \item \textbf{Calibrated uncertainty quantification}: well-calibrated uncertainty from token-level log-probabilities (Chen et al., 2024) outperforms post-hoc sampling on financial QA. Essential for risk-adjusted decisions and regulatory documentation.
+
+  \item \textbf{Comparable selection in thin markets}: embedding spaces trained on US financial text are biased toward US market characteristics. Cross-market comparables require market-invariant, firm-sensitive embeddings.
+
+  \item \textbf{Cross-lingual finance LLMs}: current multilingual models perform substantially worse on non-English regulatory filings (J-GAAP, HGB, local GAAP variants). Corpora and evaluation frameworks do not yet exist.
+
+  \item \textbf{Feedback loops and memorisation}: Didisheim \& L\'{o}pez-Lira (2025) formalise the LLM's ``predictable memory'' --- look-ahead bias most severe at low frequencies for large models. Credible identification strategies for loop dynamics are an open problem.
+
+  \item \textbf{Faithful chain-of-thought verification}: stated reasoning in CoT outputs may not be the actual computation (``unfaithful reasoning''). Verifying consistency between stated reasoning and output has direct regulatory relevance.
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 22: The path forward
+% ============================================================
+\begin{frame}
+\frametitle{The Path Forward: Three Disciplines}
+
+\begin{block}{Why capability and responsibility are jointly necessary}
+  An LLM credit model that discriminates unlawfully misallocates capital.\\
+  A trading system amplifying volatility damages market infrastructure.\\
+  A valuation agent that hallucinates financial figures undermines the professional
+  standards that give financial analysis its social function.
+\end{block}
+
+\medskip
+\textbf{Three disciplines that separate successful deployments from failures:}
+
+\begin{enumerate}
+  \item \textbf{Measure everything}: retrieval quality, output faithfulness, fairness metrics, distributional drift. What is not measured cannot be managed, and in regulated finance what is not managed creates liability.
+
+  \item \textbf{Document honestly}: purpose, limitations, known failure conditions, the human oversight structure that catches failures. Documentation is the mechanism by which institutional knowledge survives model updates and team turnover.
+
+  \item \textbf{Escalate appropriately}: build human review into every consequential decision workflow as a genuine check --- not a legal formality --- that the reviewer is empowered to override.
+\end{enumerate}
+
+\medskip
+\begin{alertblock}{}
+  The tools are new. The professional standards are not.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+% FRAME 23: Course summary
+% ============================================================
+\begin{frame}
+\frametitle{Course Summary: The LLM Finance Stack}
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Layer} & \textbf{What we have learned} \\
+\midrule
+Text \& sentiment & Embeddings, sentiment dictionaries, event extraction \\
+Foundation models & Transformer, attention, pre-training, RLHF, fine-tuning \\
+Domain adaptation & LoRA, PEFT, instruction tuning, training data curation \\
+Agents & ReAct, tool use, orchestrator-worker, multi-agent systems \\
+Business valuation & DCF pipeline, scenario analysis, comparables, Monte Carlo \\
+Credit risk & Constrained generation, calibration, SHAP, fairness, SR 11-7 \\
+Workflows & DAG patterns, event triggers, EDGAR integration \\
+Research assistant & Hybrid RAG, persistent memory, OpenClaw \\
+Governance & SR 11-7, EU AI Act, GDPR, MiFID II, incident response \\
+Frontier & Multimodal, long-context, autonomous agents, open problems \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{block}{The field is young}
+  Researchers and practitioners reading this chapter will shape its norms,
+  its standards, and its failures as much as its successes. Use that privilege deliberately.
+\end{block}
 \end{frame}
 
 \end{document}

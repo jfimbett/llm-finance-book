@@ -1,0 +1,315 @@
+\documentclass{beamer}
+\usetheme{Madrid}
+\usepackage{amsmath,amssymb,booktabs,xcolor}
+\usepackage{listings}
+
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+}
+
+\title{Practical Session 7: Applications, Governance, and Future Trends}
+\subtitle{Large Language Models in Finance}
+\author{Juan F.\ Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{}
+
+\begin{document}
+
+% ============================================================
+% FRAME 1: Title
+% ============================================================
+\begin{frame}
+\frametitle{}
+\titlepage
+\end{frame}
+
+% ============================================================
+% FRAME 2: Session outline
+% ============================================================
+\begin{frame}
+\frametitle{Practical Session Outline}
+
+\textbf{Duration}: 60 minutes
+
+\begin{enumerate}
+  \item \textbf{Recap} (5 min) — key formulas and decision frameworks
+  \item \textbf{Problem 1} (10 min) — deployment pattern and architecture selection
+  \item \textbf{Problem 2} (10 min) — fairness metrics and the impossibility theorem
+  \item \textbf{Problem 3} (10 min) — hybrid retrieval and reciprocal rank fusion
+  \item \textbf{Case Study} (15 min) — designing a full financial AI governance package
+  \item \textbf{Discussion} (5 min) — open research problems and responsible deployment
+  \item \textbf{Solutions} (5 min) — worked answers
+\end{enumerate}
+
+\medskip
+\begin{block}{Session focus}
+  This practical brings together concepts from the entire course.
+  The case study synthesises governance, bias mitigation, and system design
+  into a realistic end-to-end deployment scenario.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 3: Recap — key frameworks
+% ============================================================
+\begin{frame}
+\frametitle{Recap: Key Frameworks}
+
+\textbf{Deployment pattern heuristics:}
+\begin{itemize}
+  \item Zero-shot: general reasoning, no data; RAG: updatable documents, audit trail; Fine-tuning: structured output, consistency
+\end{itemize}
+
+\textbf{Reciprocal Rank Fusion:}
+\[
+  s_{\text{RRF}}(q, d_i) = \frac{1}{k + r_{\text{dense}}(d_i)} + \frac{1}{k + r_{\text{sparse}}(d_i)}, \quad k = 60
+\]
+
+\textbf{Three fairness criteria:}
+\[
+  \underbrace{\Pr(\hat{Y}=1 \mid A=a) = \Pr(\hat{Y}=1 \mid A=b)}_{\text{Demographic parity}}
+\]
+\[
+  \underbrace{\Pr(\hat{Y}=1 \mid Y=y, A=a) = \Pr(\hat{Y}=1 \mid Y=y, A=b)}_{\text{Equalized odds}}
+\]
+\[
+  \underbrace{\Pr(Y=1 \mid \hat{P}=p, A=a) = p}_{\text{Calibration within group}}
+\]
+
+\textbf{Impossibility (Chouldechova, 2017):} when base rates differ, these three criteria cannot be simultaneously satisfied by a non-trivial classifier.
+
+\textbf{SR 11-7 three lines:} Development, Independent Validation, Internal Audit.
+\end{frame}
+
+% ============================================================
+% FRAME 4: Problem 1 — architecture selection
+% ============================================================
+\begin{frame}
+\frametitle{Problem 1: Deployment Pattern and Architecture Selection}
+
+For each of the five finance tasks below, select: (a) the deployment pattern (zero-shot / RAG / fine-tuning), and (b) the architecture family (encoder-only / decoder-only / enc-dec / agentic). Justify each choice in one sentence.
+
+\medskip
+\begin{center}
+\small
+\begin{tabular}{lp{6.5cm}}
+\toprule
+\textbf{Task} & \textbf{Description} \\
+\midrule
+(i) Trade classification & Classify trades as ``value'' or ``momentum'' from order flow logs; 10,000 labelled examples available; decision must complete within 1 ms \\
+(ii) 10-K summariser & Generate a 3-paragraph summary of the MD\&A section from the most recent 10-K; no labelled training data \\
+(iii) Comparable selection & For a given target company, identify 8--12 comparable firms from a universe of 5,000 public companies, using their latest MD\&A text \\
+(iv) SAR drafting & Given a flagged transaction pattern and retrieved news context, draft a Suspicious Activity Report narrative for analyst review \\
+(v) Credit scoring & Score loan applications from serialised applicant text; must produce calibrated PD and FCRA-compliant reason codes \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% ============================================================
+% FRAME 5: Problem 2 — fairness metrics
+% ============================================================
+\begin{frame}
+\frametitle{Problem 2: Fairness Metrics and Impossibility}
+
+A binary loan approval model is evaluated on two demographic groups (Group A and Group B).
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{\textbf{Group A}} & \multicolumn{2}{c}{\textbf{Group B}} \\
+ & Actual default & Actual non-default & Actual default & Actual non-default \\
+\midrule
+Predicted approve & 15 & 300 & 30 & 400 \\
+Predicted deny   & 85 & 100 & 70 & 100 \\
+\midrule
+\textbf{Total}   & 100 & 400 & 100 & 500 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Part A}: Compute the approval rate for each group. Does the model satisfy demographic parity?
+
+\textbf{Part B}: Compute TPR (true positive rate for defaults correctly predicted to default and denied) and FPR for each group. Does the model satisfy equalized odds?
+
+\textbf{Part C}: Observed default rates are: Group A = $100/500 = 20\%$; Group B = $100/600 \approx 16.7\%$. Explain, using the Chouldechova impossibility theorem, why the model cannot simultaneously satisfy demographic parity and calibration within group given these base rates.
+
+\textbf{Part D}: If you must choose one fairness criterion to enforce, which would you choose for a consumer credit application under ECOA? Justify.
+\end{frame}
+
+% ============================================================
+% FRAME 6: Problem 3 — hybrid retrieval
+% ============================================================
+\begin{frame}
+\frametitle{Problem 3: Hybrid Retrieval with Reciprocal Rank Fusion}
+
+A financial research assistant retrieves passages from a 10-K corpus. For a query $q$, the dense retriever and the BM25 sparse retriever return the following rankings for five candidate passages:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Passage & Dense rank $r_{\text{dense}}$ & Sparse rank $r_{\text{sparse}}$ & \\
+\midrule
+$d_1$ & 1 & 4 & \\
+$d_2$ & 2 & 1 & \\
+$d_3$ & 3 & 5 & \\
+$d_4$ & 4 & 2 & \\
+$d_5$ & 5 & 3 & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Part A}: Compute $s_{\text{RRF}}(q, d_i)$ for each passage using $k = 60$. Round to 5 decimal places.
+
+\textbf{Part B}: Rank the passages by their RRF score (highest first). Which passage ranks first?
+
+\textbf{Part C}: Query $q$ is: ``What was the capital expenditure for fiscal year 2023?'' Is this query more likely to be served well by the dense retriever or the BM25 retriever? Explain why, and note the advantage of the hybrid approach.
+
+\textbf{Part D}: Why is $k = 60$ used as the smoothing constant rather than $k = 0$ (pure reciprocal rank)? What happens to the RRF scores as $k \to \infty$?
+\end{frame}
+
+% ============================================================
+% FRAME 7: Case study setup
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Governance Package for an LLM Investment Assistant}
+
+\textbf{Context}: A European asset manager wants to deploy an LLM-based investment research assistant for its equity analysts. The system will: (1) answer natural-language queries about public companies using a RAG pipeline over 10-K/10-Q filings; (2) generate one-page analyst briefings on demand; (3) classify the sentiment of earnings call transcripts; and (4) suggest comparable companies for a given target.
+
+The assistant will be accessible via the firm's internal Slack workspace. Analysts will use its outputs as inputs to investment recommendations that may reach retail clients.
+
+\medskip
+\textbf{Step 1} (5 min): Map each of the four capabilities to an architecture (deployment pattern + family). Identify the most important integration constraint for each.
+
+\medskip
+\textbf{Step 2} (5 min): Draft the SR 11-7 governance structure. For each of the three lines of defence, describe one LLM-specific control that would not appear in the governance of a traditional statistical model.
+
+\medskip
+\textbf{Step 3} (5 min): The assistant sometimes hallucinates company-specific financial figures. Design a monitoring and incident response protocol. Specify: (a) how hallucinations are detected, (b) severity classification criteria, and (c) the escalation pathway.
+\end{frame}
+
+% ============================================================
+% FRAME 8: Case study — code snippet
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: Hallucination Detection via Source Attribution}
+
+Complete the following function that checks whether each numerical claim in a response is supported by retrieved passages:
+
+\begin{lstlisting}
+import re, anthropic
+
+def verify_numerical_claims(response: str,
+                             retrieved_passages: list[str],
+                             client: anthropic.Anthropic) -> dict:
+    """
+    For each numerical claim in `response`, verify whether it appears
+    in `retrieved_passages`. Return a dict with keys:
+      'supported': list of (claim, source_passage) pairs
+      'unsupported': list of claims NOT found in any passage
+      'hallucination_rate': float in [0.0, 1.0]
+    """
+    # Step 1: extract all numerical claims from response
+    # (use the LLM to list them as JSON)
+    # TODO: write extraction prompt
+
+    # Step 2: for each claim, check if it appears in any retrieved passage
+    # TODO: use string matching or a second LLM call for semantic matching
+
+    # Step 3: compute hallucination_rate = len(unsupported) / len(all_claims)
+    pass
+\end{lstlisting}
+
+\textbf{Questions}: (1) Why might string matching fail for financial figures (e.g., ``\$4.2 billion'' vs.\ ``4,200'')?
+(2) What is the risk of using a second LLM call for semantic matching?
+\end{frame}
+
+% ============================================================
+% FRAME 9: Discussion
+% ============================================================
+\begin{frame}
+\frametitle{Discussion: Responsible Deployment in Practice}
+
+\textbf{Three scenarios for small-group discussion (5 minutes):}
+
+\medskip
+\textbf{Scenario A — Unfaithful reasoning}: The investment assistant generates a buy recommendation accompanied by a chain-of-thought reasoning trace. A senior analyst notices that the reasoning trace correctly identifies the firm's strong free cash flow but concludes it is a concern rather than a positive. The recommendation, however, is ``buy.'' How do you classify this incident? What does it imply about relying on CoT outputs for auditability?
+
+\medskip
+\textbf{Scenario B — Feedback loop}: Six months after deploying the assistant, the portfolio management team notices that the stocks rated most positively by the assistant have lower subsequent alpha than at launch. They suspect other firms have deployed similar systems. What evidence would you look for? What governance response is appropriate?
+
+\medskip
+\textbf{Scenario C — Regulatory inquiry}: MiFID II regulators request the full log of all investment recommendations generated by the assistant over the past 12 months, including the prompts used to generate them. The system logs outputs but not prompts. Describe the compliance gap and the remediation.
+\end{frame}
+
+% ============================================================
+% FRAME 10: Solutions — Problems 1 and 2
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problems 1 and 2}
+
+\textbf{Problem 1:}
+(i) Trade classification: \textbf{Fine-tuning + Encoder-only}. 10K labelled examples; sub-millisecond latency; classification task. (ii) 10-K summariser: \textbf{Zero-shot + Decoder-only}. No labelled data; fluent text output required; RAG optional for freshness. (iii) Comparable selection: \textbf{RAG + Agentic}. Must retrieve and reason over a universe of 5,000 companies; multi-step. (iv) SAR drafting: \textbf{RAG + Decoder-only or Enc-Dec}. Retrieved context (news); fluent generation required. (v) Credit scoring: \textbf{Fine-tuning + Decoder-only} with constrained generation. Structured output (PD + reason codes); consistency required.
+
+\medskip
+\textbf{Problem 2A}: Approval rates: Group A = $(15+300)/500 = 63\%$; Group B = $(30+400)/600 \approx 71.7\%$. Demographic parity \textbf{not} satisfied.
+
+\textbf{Problem 2B}: TPR = (correctly denied defaults) / (all defaults). Group A TPR = $85/100 = 85\%$; Group B TPR = $70/100 = 70\%$. FPR = (incorrectly denied non-defaults) / (all non-defaults). Group A FPR = $100/400 = 25\%$; Group B FPR = $100/500 = 20\%$. Equalized odds \textbf{not} satisfied (both TPR and FPR differ).
+
+\textbf{Problem 2C}: Since base rates differ (20\% vs. 16.7\%), satisfying calibration within group requires different approval rates across groups, which violates demographic parity. The two criteria are mutually incompatible under differing base rates by Chouldechova's theorem.
+
+\textbf{Problem 2D}: Under ECOA, equalized odds is the most defensible choice as it equalises error rates across groups — ensuring that creditworthy borrowers from different groups face equal false-denial rates.
+\end{frame}
+
+% ============================================================
+% FRAME 11: Solutions — Problem 3 and Case Study
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problem 3 and Case Study Key Points}
+
+\textbf{Problem 3A}: $s_{\text{RRF}} = 1/(60 + r_{\text{dense}}) + 1/(60 + r_{\text{sparse}})$.
+
+$d_1$: $1/61 + 1/64 \approx 0.01639 + 0.01563 = 0.03202$. $d_2$: $1/62 + 1/61 \approx 0.01613 + 0.01639 = 0.03252$. $d_3$: $1/63 + 1/65 \approx 0.01587 + 0.01538 = 0.03125$. $d_4$: $1/64 + 1/62 \approx 0.01563 + 0.01613 = 0.03176$. $d_5$: $1/65 + 1/63 \approx 0.01538 + 0.01587 = 0.03125$.
+
+\textbf{Problem 3B}: Ranking: $d_2 > d_1 > d_4 > d_3 = d_5$. $d_2$ ranks first (top in sparse, 2nd in dense).
+
+\textbf{Problem 3C}: ``Capital expenditure for fiscal year 2023'' is a specific numerical query — BM25 handles exact term matching better. Dense retrieval may return semantically related passages that don't contain the exact figure. The hybrid approach captures both the exact-match strength of BM25 and the semantic generalisation of dense retrieval.
+
+\textbf{Problem 3D}: At $k=0$, a passage ranked 1st gets score 1 and ranked 2nd gets 0.5 — large gap. At large $k$, all passages get nearly equal scores; the ranking flattens. $k=60$ provides a moderate smoothing that reduces the outsized influence of top ranks without discarding rank information.
+
+\textbf{Case Study Step 3}: Detection via cross-validation against structured XBRL database. Severity: Low = unverifiable figure in summarisation; High = hallucinated figure in a recommendation that reached a client. Escalation: High severity $\to$ immediate review, potential reversal, compliance notification, root-cause analysis before system resumed.
+\end{frame}
+
+% ============================================================
+% FRAME 12: Course-level takeaways
+% ============================================================
+\begin{frame}
+\frametitle{Course Takeaways: Seven Principles}
+
+\begin{enumerate}
+  \item \textbf{Match the tool to the task}: not every problem requires a frontier model. Use the simplest approach that meets the latency, accuracy, and interpretability requirements.
+
+  \item \textbf{Architecture is compliance}: the feature store, append-only decision database, versioned API, and monitoring system are regulatory requirements, not engineering niceties.
+
+  \item \textbf{Retrieval beats memorisation for factual queries}: ground LLM outputs in retrieved sources for any claim that must be auditable or accurate.
+
+  \item \textbf{Fairness is a policy choice}: the impossibility theorem is non-negotiable. Choosing which fairness criterion to satisfy must be explicit and justified.
+
+  \item \textbf{Chain-of-thought is a trace, not a proof}: stated reasoning in CoT may not be the actual computation. Do not treat it as an explanation of the neural network.
+
+  \item \textbf{Measure everything}: retrieval quality, faithfulness, fairness, drift. What is not measured cannot be managed.
+
+  \item \textbf{The tools are new; the standards are not}: document honestly, validate independently, escalate appropriately, and retire models when their limitations prove material.
+\end{enumerate}
+\end{frame}
+
+\end{document}

@@ -77,6 +77,13 @@ trading volume.  He interprets the return predictability as consistent with inve
 sentiment temporarily depressing prices below fundamental value, and the mean reversion
 as the subsequent correction.
 
+A companion study by Tetlock, Saar-Tsechansky, and Macskassy \cite{tetlock2008words}
+extended this approach to firm-level news: they showed that the fraction of negative
+words in firm-specific stories from the Dow Jones Newswires predicts both short-run
+stock returns and subsequent quarterly earnings, with the earnings predictability
+concentrated in stories that directly discuss fundamentals.  This established that
+media sentiment contains information beyond what contemporaneous prices already reflect.
+
 The Tetlock study demonstrated three things that shaped the subsequent literature.
 First, textual sentiment can be quantified in a reproducible way.  Second, the resulting
 signal has economically meaningful predictive content for asset prices even in a world
@@ -107,7 +114,11 @@ abnormal returns, among other outcomes.
 
 The LM dictionary remains a standard benchmark in financial NLP.  Most subsequent
 studies report results using both the Harvard IV-4 and LM lists to allow comparability.
-However, both suffer from the same fundamental limitation: they are static.  Words are
+Loughran and McDonald's 2020 review \cite{loughran2020textual} surveys the subsequent
+decade of textual analysis research, cataloguing how the field has extended beyond
+sentiment to readability, complexity, political bias, and fraud detection, while
+cautioning that many readability measures lack a clear theoretical foundation.
+However, both dictionary approaches suffer from the same fundamental limitation: they are static.  Words are
 classified once, by human judgment, and the classifications do not adapt to new usages,
 new jargon, or sector-specific connotations.  Moreover, dictionary methods score only
 the words they recognise, ignoring syntax, negation, context, and word order entirely.
@@ -170,7 +181,11 @@ For finance, word embeddings offered the prospect of capturing semantic similari
 without hand-crafted dictionaries.  Researchers trained word2vec on large corpora of
 earnings call transcripts, news articles, and 10-K filings and used the resulting
 embeddings as features for downstream tasks such as sentiment classification and return
-prediction.  Manela and Moreira \cite{manela2017news} % [CITE: Manela, A. & Moreira, A. (2017). News Implied Volatility and Disaster Concerns. Journal of Financial Economics, 123(1), 137–162.]
+prediction.  Ke, Kelly, and Xiu \cite{ke2019predicting} introduced a supervised
+text-mining framework that learns which words in financial news articles are most
+predictive of subsequent asset returns, combining a sentiment-term screening step with
+topic-model weighting; their method substantially outperforms bag-of-words baselines
+on out-of-sample return prediction.  Manela and Moreira \cite{manela2017news} % [CITE: Manela, A. & Moreira, A. (2017). News Implied Volatility and Disaster Concerns. Journal of Financial Economics, 123(1), 137–162.]
 used text-based features including embedding-based similarities to construct a news-based
 measure of disaster risk.  Simultaneously, GloVe (Global Vectors for Word
 Representation) \cite{pennington2014glove} % [CITE: Pennington, J., Socher, R. & Manning, C.D. (2014). GloVe: Global Vectors for Word Representation. EMNLP 2014.]
@@ -361,7 +376,11 @@ the theory must explain.  The key stylised facts from the literature are:
   \item \textbf{LLM-based signals show incremental predictive power.}  More recent work
     has found that prompt-based or fine-tuned LLMs generate sentiment signals with
     higher out-of-sample predictive accuracy than dictionary or classical ML methods on
-    the same financial text datasets \cite{lopezleal2023can}. % [CITE: Lopez-Leal, A., et al. (2023). Can ChatGPT Forecast Stock Price Movements? SSRN Working Paper.]
+    the same financial text datasets.  Lopez-Lira and Tang \cite{lopezlira2023chatgpt}
+    demonstrate that ChatGPT-generated sentiment scores for news headlines predict
+    next-day stock returns with a positive-coefficient pattern, and that this return
+    predictability is absent for smaller, less capable predecessors such as GPT-1 and
+    BERT, suggesting it is an emergent property of scale.
 \end{enumerate}
 
 We now introduce a minimal formal model that will underpin the empirical analyses
@@ -1278,19 +1297,42 @@ for an overview in the transformer setting.
 \section{Looking Ahead}
 \label{sec:intro-looking-ahead}
 
-\begin{context}
 
-We have come a long way from Tetlock's spreadsheet.  A word, it turns out, is
-not just a symbol: it is a point in a geometric space whose neighbourhood
-encodes meaning.  A document is not just a bag of tokens; it is a trajectory
-through that space.  But the representations built in this chapter still miss
-something fundamental.  They treat language as a static inventory of symbols
-rather than a sequence of choices.  \emph{Equity} and \emph{stock} remain
-synonyms only by the accident of co-occurrence statistics; they are not linked
-by any model of grammar or syntax.  The sentence \emph{earnings did not
-disappoint} scores the same sentiment as \emph{earnings disappointed} in any
-dictionary model, because the word \emph{not} earns no category in the Harvard
-IV-4 list.  The next chapter is about what happens when we take order
-seriously---and what becomes possible once we do.
+egin{context}
+
+The representations developed in this chapter treat language as bags of tokens or
+low-dimensional geometric objects.  They capture lexical similarity and rudimentary
+document structure, but they cannot model syntax, long-range dependencies, or the
+meaning of a word in context.  Chapter~\ref{ch:llm-foundations} addresses these
+limitations directly.  It derives the recurrent architectures that first brought
+sequential order into text modelling, shows why they fail at the scales demanded by
+modern financial corpora, and then builds up the Transformer---the architecture
+underlying every large language model in use today---from first principles.  It
+continues with the practical layer: how to control generation through temperature
+and structured decoding, how to ground model outputs in retrieved documents, how to
+compress large models into deployable ones, and how to measure and mitigate the
+hallucinations that remain the central reliability challenge for LLMs in finance.
+
+The landscape of financial LLMs has expanded rapidly.  Li et al.\
+\cite{li2023llmfinsurvey} survey the full range of LLM applications in finance---from
+sentiment analysis and question answering to algorithmic trading and regulatory
+compliance---providing a systematic taxonomy of tasks, models, and benchmark datasets.
+On the open-source side, Yang, Liu, and Wang \cite{yang2023fingpt} propose FinGPT, a
+data-centric open-source framework for training and fine-tuning financial LLMs via
+low-rank adaptation, making domain-specific model development accessible to academic
+researchers without proprietary data access.
+
+Alongside the promise, recent research has uncovered important failure modes specific
+to financial applications.  Didisheim, Fraschini, and Somoza \cite{didisheim2025memory}
+show that LLMs carry \emph{predictable memorised knowledge} about historical asset
+returns into zero-shot forecasting tasks, raising concerns about data contamination
+and the validity of out-of-sample tests when models have been pre-trained on the very
+time series they are asked to predict.  Chen, Didisheim, and Somoza
+\cite{chen2024uncertainty} demonstrate that the conditional probabilities produced by
+LLMs encode economically meaningful uncertainty estimates, offering a principled way
+to quantify model confidence in financial classification tasks without access to
+internal model weights.  Together these results motivate the careful evaluation
+protocols developed throughout this book.
 
 \end{context}
+

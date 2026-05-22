@@ -28,3 +28,4 @@
 | 2026-05-22 | 19 files | feat(ch01,ch02): complete dual-mode section environments — deepdive and context boxes applied;chore: session log 2026-05-22;feat(ch02): wrap Knowledge Distillation section in deepdive box; | — |
 | 2026-05-22 | 12 files | chore: scaffold topic 05-business-valuation;chore: session log 2026-05-22;feat(ch01,ch02): complete dual-mode section environments — deepdive and context boxes applied; | — |
 | 2026-05-22 | 15 files | feat(ch04): draft LLM agents and finance applications chapter;chore: session log 2026-05-22;chore: scaffold topic 05-business-valuation; | — |
+| 2026-05-22 | 7 files | chore: merge ch03/ch04 bibliography additions into main bib; update STATUS.md;feat(ch03): draft training and fine-tuning chapter;chore: session log 2026-05-22; | — |

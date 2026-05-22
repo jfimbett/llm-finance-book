@@ -75,3 +75,4 @@
 | 2026-05-22 | 4 files | chore: session log 2026-05-22;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 1 files | chore: session log 2026-05-22;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-22 | 4 files | feat(lec01): draft Introduction lecture notes and slides;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
+| 2026-05-22 | 4 files | chore: session log 2026-05-22;feat(lec01): draft Introduction lecture notes and slides;chore: session log 2026-05-22; | — |

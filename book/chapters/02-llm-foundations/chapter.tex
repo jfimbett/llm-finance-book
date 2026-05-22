@@ -919,6 +919,11 @@ released FinBERT, a BERT-base model further pre-trained on Reuters/Bloomberg new
 On the Financial PhraseBank dataset \cite{malo2014phrasebank}, % [CITE: Malo et al. 2014, Good Debt or Bad Debt: Detecting Semantic Orientations in Economic Texts]
 FinBERT achieves over $97\%$ accuracy on financial phrase sentiment classification,
 outperforming general BERT-base by approximately 8 percentage points.
+A complementary variant by \citet{huang2023finbert} fine-tunes BERT on analyst report
+sentences labelled by domain experts, achieving state-of-the-art performance on
+three financial sentiment benchmarks and demonstrating that contextual embeddings
+substantially outperform the Loughran--McDonald dictionary and classical machine-learning
+classifiers on sentences that those methods systematically mislabel as neutral.
 \end{example}
 
 \begin{example}[BloombergGPT]
@@ -1086,8 +1091,14 @@ BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ 
 \end{center}
 
 The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
-weights are not released, and access is mediated through pay-per-token APIs.  This
-raises important issues for financial practitioners.  First, there is a
+weights are not released, and access is mediated through pay-per-token APIs.
+Early empirical evidence that general-purpose LLMs encode actionable financial
+knowledge comes from \citet{lopezlira2023chatgpt}, who show that ChatGPT sentiment
+scores for news headlines significantly predict next-day stock returns, with the
+forecasting ability increasing monotonically with model size---an early demonstration
+that return predictability is an \emph{emergent} property of scale rather than
+the result of explicit financial training.
+This raises important issues for financial practitioners.  First, there is a
 \emph{data-privacy} concern: sending confidential earnings call transcripts, trading
 strategies, or client portfolios to a third-party API may conflict with internal
 compliance policies, GDPR obligations, or NDA terms.  Second, there is an
@@ -1114,11 +1125,16 @@ But general-purpose models at significantly larger scale---GPT-4 or Claude 3---o
 match or exceed BloombergGPT on the same benchmarks, because scale compensates for
 domain specificity.  This is an instance of the \emph{emergent capability} effect:
 beyond a threshold of model scale and training compute, models acquire domain knowledge
-implicitly, even without targeted domain training. % [CITE: wei2022emergent]
+implicitly, even without targeted domain training \citep{wei2022emergent}.
 The practical implication is that \emph{task-specific fine-tuning of a general-purpose
 model} often outperforms a domain-pre-trained model of the same size, and
 \emph{prompt engineering} applied to a large general model often outperforms
 both---a theme developed extensively in Chapter~6.
+\citet{niszczota2023gpt} provide an independent calibration of this point: in a
+standardised financial literacy test, GPT-4 achieves a near-perfect score of 99\%
+against a population of college students, confirming that frontier LLMs have absorbed
+substantial financial domain knowledge from their pre-training corpus, without any
+task-specific fine-tuning.
 
 Raw pre-trained models (\emph{base} models) are not directly usable as assistants.
 \emph{Instruction tuning} fine-tunes a base model on curated (instruction, response)
@@ -2025,8 +2041,14 @@ passage numbers creates an audit trail that allows a downstream verification ste
 check each factual claim against the source passage---a key step in the SelfCheckGPT
 and FActScore pipelines described in Section~\ref{sec:hallucinations-detection}.
 
-\end{context}
+The difficulty of the financial QA task even with retrieval is highlighted by
+\citet{islam2023financebench}, who introduce FinanceBench, a benchmark of over 10,000
+questions grounded in SEC filings.  They find that GPT-4-Turbo with a retrieval system
+\emph{incorrectly answers or refuses} 81\% of questions, demonstrating that na\"ive
+RAG pipelines are insufficient for high-stakes financial document QA and that more
+sophisticated chunking, re-ranking, and verification strategies are necessary.
 
+\end{context}
 % ---------------------------------------------------------------
 \section{Knowledge Distillation and Model Compression}
 \label{sec:distillation}
@@ -2226,7 +2248,11 @@ generation: the model is trained to produce plausible text, and plausibility
 correlates with, but is not identical to, factual accuracy \citep{ji2023survey}.
 Reducing temperature to zero eliminates stochasticity but does not eliminate
 hallucination, because the model's most probable completion may still be factually
-incorrect.
+incorrect.  \citet{kang2023hallucination} provide the first systematic empirical
+examination of hallucination specifically in financial tasks, showing that off-the-shelf
+LLMs exhibit severe hallucination when asked to recall historical stock prices or
+explain domain-specific financial concepts, and that retrieval augmentation (RAG)
+is the most effective of four mitigation strategies they evaluate.
 
 \subsection{Detection}
 \label{sec:hallucinations-detection}
@@ -2255,6 +2281,15 @@ overall \emph{factual precision} score is the fraction of atomic claims that are
 supported.  For financial document Q\&A, FActScore can be adapted to use the source
 filing as the knowledge base, providing a fine-grained sentence-level audit of model
 outputs.
+
+A complementary approach exploits the model's own token-level probability estimates.
+\citet{chen2024blackbox} construct an entropy-based \emph{inner confidence} measure
+from the conditional probability distributions of autoregressive LLMs, and show that
+in financial news classification, high-confidence predictions are systematically more
+accurate: a portfolio built from high-inner-confidence LLM signals achieves a Sharpe
+ratio approximately 20\% above the unconditional benchmark, while low-confidence
+predictions offer no excess returns---a result that motivates confidence-gating as a
+practical hallucination-mitigation strategy in production pipelines.
 
 \subsection{State-of-the-Art Mitigation Techniques}
 \label{sec:hallucinations-mitigation}
@@ -2374,6 +2409,17 @@ constitutes a ``recommendation'' under the Investment Advisers Act of 1940 has n
 been definitively resolved by case law, but the SEC's enforcement posture has been to
 hold advisers fully responsible for AI-generated outputs used in client-facing
 communications.
+
+A subtler risk in financial back-testing applications is \emph{look-ahead bias} induced
+by the LLM's training data.  \citet{didisheim2025memory} demonstrate that LLMs exhibit
+\emph{predictable memory}: when queried about aggregate financial time series or
+low-frequency economic indicators that were part of their training corpus, models can
+reconstruct historical values from parametric memory, producing spurious return
+predictability in any back-test that does not account for this leakage.  The bias is
+most pronounced for widely reported aggregate indices and diminishes for granular
+firm-level or high-frequency data, which are under-represented in pre-training corpora.
+Practitioners using LLMs in historical signal generation must therefore verify that
+any information the model might have memorised is treated as contaminated.
 
 Fine-tuning or retrieval-augmented generation on proprietary client data---transaction
 histories, portfolio compositions, know-your-customer (KYC) files---raises significant

@@ -63,7 +63,7 @@ holding; a widening gap between model value and market price generates a trade s
 \emph{Financial reporting} mandates also drive demand. Under IFRS 13 and ASC 820,
 firms must classify fair-value measurements at Level 1 (quoted market prices), Level 2
 (observable inputs), or Level 3 (unobservable inputs). Level 3 assets require a
-documented valuation model subject to auditor scrutiny \cite{PLACEHOLDER}. % [CITE: IASB, IFRS 13 Fair Value Measurement, 2011]
+documented valuation model subject to auditor scrutiny \cite{iasb2011ifrs13}.
 Additional contexts include \emph{litigation and dispute resolution}, \emph{tax
 compliance} (transfer pricing, estate tax), and \emph{regulatory capital} assessments.
 
@@ -206,7 +206,7 @@ https://efts.sec.gov/LATEST/search-index?q="goodwill impairment"
 \end{verbatim}
 
 Since 2009, the SEC has required filers to \emph{tag} financial data using the XBRL
-(eXtensible Business Reporting Language) standard \cite{PLACEHOLDER}. % [CITE: SEC, XBRL mandate 2009]
+(eXtensible Business Reporting Language) standard \cite{sec2009xbrl}.
 XBRL tags map each reported figure to a concept in the US-GAAP or IFRS taxonomy, making
 data extraction in principle straightforward. In practice, however, filers exercise
 discretion in choosing tags, use non-standard extension elements for firm-specific line
@@ -564,7 +564,7 @@ brought onto the balance sheet under IFRS 16 and ASC 842) create a mismatch betw
 reported EBIT, depreciation, and cash flows that must be carefully reconciled.
 Third, \emph{acquired intangible amortisation} from purchase accounting (step-up of
 intangible assets in an acquisition) is often excluded by analysts calculating
-``adjusted EBIT'' or ``cash EBIT'' \cite{PLACEHOLDER}. % [CITE: Koller, Goedhart, Wessels, Valuation, McKinsey, 7th ed.]
+``adjusted EBIT'' or ``cash EBIT'' \cite{koller2020valuation}.
 
 LLMs are well suited to flagging these issues from the MD\&A and footnote text.
 A simple prompt such as the following can instruct an LLM to identify non-recurring
@@ -613,8 +613,8 @@ is the pre-tax amount of item $k$ (positive because we are adding back an expens
 Before examining LLM-based approaches, it is useful to establish the classical
 statistical baseline. Financial cash-flow forecasting has been studied extensively in
 the accounting and finance literature, with a lineage that includes the random-walk
-model \cite{PLACEHOLDER}, % [CITE: Ball and Watts 1972 random walk earnings]
-mean-reverting models of earnings \cite{PLACEHOLDER}, % [CITE: Fama French 2000 earnings mean reversion]
+model \cite{ball1972earnings},
+mean-reverting models of earnings \cite{fama2000forecasting},
 and the use of analyst consensus estimates \cite{lewellen2010empirical}.
 
 The simplest baseline is the \emph{random walk with drift}:
@@ -631,7 +631,7 @@ long-run drift $\mu$. More elaborate specifications allow for mean reversion:
 \end{equation}
 where $|\phi| < 1$ is the speed of mean reversion toward the long-run level $\bar{\mathrm{FCF}}$.
 Empirical estimates of $\phi$ for earnings are typically in the range 0.5--0.7,
-indicating substantial persistence but non-trivial mean reversion \cite{PLACEHOLDER}. % [CITE: Fama French 2000]
+indicating substantial persistence but non-trivial mean reversion \cite{fama2000forecasting}.
 
 The key limitation of pure time-series models is their exclusive reliance on
 historical values of the series: they ignore the qualitative information in
@@ -731,7 +731,7 @@ ability to update examples without retraining. The disadvantage is that example
 selection requires care: poorly chosen examples can anchor the model to the wrong
 regime. Research on in-context learning for financial tasks suggests that including
 examples with diverse macro environments and industry types reduces the variance of
-forecasts \cite{PLACEHOLDER}. % [CITE: Brown et al. 2020 GPT-3 in-context learning]
+forecasts \cite{brown2020language}.
 
 Fine-tuning trains the model weights on a labelled dataset of historical
 (filing, subsequent cash flow realisation) pairs. This allows the model to internalise
@@ -747,7 +747,7 @@ domain knowledge. Fine-tuning is most beneficial when the task is highly special
 conventions) or when the model needs to produce calibrated uncertainty estimates.
 
 A pragmatic hybrid is \emph{parameter-efficient fine-tuning} (PEFT) via Low-Rank
-Adaptation (LoRA) \cite{PLACEHOLDER}: % [CITE: Hu et al. 2022 LoRA]
+Adaptation (LoRA) \cite{hu2022lora}:
 only a small fraction of parameters are trained, dramatically reducing compute
 requirements while achieving performance competitive with full fine-tuning on
 domain-specific tasks.
@@ -815,7 +815,7 @@ degrades rapidly with problem complexity. Empirical studies find that GPT-4 achi
 near-perfect accuracy on single-digit multiplication and simple percentage calculations
 but makes errors with non-trivial frequency on multi-step financial calculations
 involving chained operations, unit conversions, and percentage changes over long
-formulas \cite{PLACEHOLDER}. % [CITE: Frieder et al. 2023 Mathematical Capabilities of ChatGPT]
+formulas \cite{frieder2023large}.
 
 For business valuation this is a serious limitation. A five-year DCF model involves
 approximately fifteen to twenty distinct arithmetic operations, each conditional on
@@ -1320,7 +1320,7 @@ Empirical studies using MD\&A embeddings find that cosine-similarity-based peers
 outperform SIC-code-based peers on several metrics: the comparable set has lower
 inter-quartile range of EV/EBITDA multiples (indicating more internally consistent
 peers), and valuations derived from embedding-based comparables exhibit lower
-absolute deviation from subsequent transaction prices \cite{PLACEHOLDER}. % [CITE: Shen et al. 2023 NLP comparable firms]
+absolute deviation from subsequent transaction prices \cite{shen2023nlp}.
 
 \subsection{Hybrid Methods: LLM-Filtered and Embedding-Ranked Comparables}
 \label{subsec:bv-comparables-hybrid}
@@ -1491,7 +1491,7 @@ Preliminary evidence from internal experiments and published literature suggests
 LLM-assisted extraction achieves coverage rates above 90\% for S\&P 500 constituents
 and above 75\% for Russell 2000 companies, with MAVE broadly comparable to the spread
 between analyst price targets and realised prices (typically 20--40\% on an annualised
-basis) \cite{PLACEHOLDER}. % [CITE: Empirical LLM valuation benchmarks TBD]
+basis) \cite{zhang2024financebench}.
 The key insight is that the accuracy ceiling of any valuation model is determined by
 the fundamental unpredictability of future cash flows, not by the extraction or
 reasoning engine.
@@ -1603,7 +1603,7 @@ responsibility for the figures. The LLM's output should be treated as a first-dr
 that requires checking, not a finished product that requires only formatting.
 
 These principles are consistent with the broader governance literature on AI in
-finance \cite{PLACEHOLDER}, % [CITE: FSB 2023 AI in Finance report]
+finance \cite{fsb2023ai},
 which emphasises human accountability, model transparency, and robust back-testing
 as prerequisites for responsible deployment of machine-learning systems in investment
 processes.

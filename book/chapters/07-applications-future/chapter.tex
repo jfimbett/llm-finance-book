@@ -30,20 +30,22 @@ After completing this chapter, the reader should be able to:
 \section{LLM Applications Across Finance: A Survey}
 \label{sec:af-survey}
 
+\begin{context}
+
 \subsection{Where We Have Been: A Map of the Book}
 \label{subsec:af-survey-map}
 
-\begin{context}
 Six chapters ago, this book opened with a question that felt speculative to many readers when the first edition was drafted: can a language model contribute to serious financial work? The intervening chapters have answered that question empirically, one application at a time. We have seen transformer architectures encode market sentiment with surprising reliability; we have watched fine-tuned models extract structured cash flow projections from the dense prose of a 10-K filing; we have traced an autonomous agent as it navigated EDGAR, computed a discounted cash flow valuation, and benchmarked the result against comparable firms---all from a single natural-language instruction. The question is no longer whether LLMs belong in finance. The question is how to deploy them well.
 
 Before moving to the applications we have not yet covered, it is worth pausing to consolidate what the preceding chapters have established, because the full scope only becomes visible in retrospect.
-\end{context}
 
 The book has developed its argument across six interconnected themes. Chapter~\ref{ch:intro} introduced the theoretical and empirical basis for using language models in finance: the information density of financial text, the limitations of classical NLP pipelines, and the emergent capabilities of large pre-trained models. Chapter~\ref{ch:llm-foundations} grounded that motivation in the technical machinery of transformers, attention, and autoregressive generation---the substrate on which every subsequent application rests. Chapter~\ref{ch:llm-training} addressed the gap between a general-purpose foundation model and a finance-specific tool, covering instruction tuning, parameter-efficient fine-tuning, and the design of training data pipelines for financial corpora. Chapter~\ref{ch:llm-agents} elevated the unit of analysis from a single model call to a multi-step reasoning agent, introducing the ReAct framework \cite{yao2022react}, tool use, chain-of-thought decomposition \cite{wei2022chain}, and orchestrator-worker architectures. Chapter~\ref{ch:business-valuation} applied that agent infrastructure to the full pipeline of business valuation: EDGAR extraction, free-cash-flow computation, scenario analysis, and comparable-company selection \cite{damodaran2012investment}. Chapter~\ref{ch:credit-risk} turned to the credit domain, where the stakes of automated decision-making are most acute and where fairness and regulatory constraints are most binding.
 
 Each chapter has also been a case study in a recurring design challenge: bridging the gap between what a language model can do in a research prototype and what a production finance system must do. That design challenge---reliable, auditable, compliant, and economically rational deployment of LLMs---is the organising thread of this final chapter.
 
 Table~\ref{tab:chapter-map} provides a bird's-eye view of the book's journey, mapping each chapter to its primary LLM technique and the canonical finance application that chapter develops.
+
+\end{context}
 
 \begin{table}[htbp]
 \caption{Chapter map: primary LLM technique and finance application by chapter.}
@@ -79,6 +81,8 @@ Table~\ref{tab:chapter-map} provides a bird's-eye view of the book's journey, ma
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{context}
 
 Reading across columns, the table reveals a clear progression: early chapters used lightweight representations applicable to large corpora with modest compute; later chapters required generative or agent-based models capable of nuanced multi-step reasoning; this final chapter addresses the cross-cutting concerns of deployment, governance, and frontier capability that arise once LLMs are embedded in production financial systems.
 
@@ -119,6 +123,8 @@ Let $\mathcal{T}$ denote a finance task characterised by input distribution $\ma
 
 Table~\ref{tab:deployment-heuristics} summarises the practical selection heuristics derived from the preceding chapters and the broader empirical literature.
 
+\end{context}
+
 \begin{table}[ht]
 \centering
 \caption{Deployment pattern selection heuristics for finance LLM tasks.}
@@ -134,6 +140,8 @@ Fine-tuning & Domain jargon, consistent format & Labelled pairs & Low (inference
 \end{tabular}
 \end{table}
 
+\begin{context}
+
 Three additional heuristics structure the decision in practice. First, prefer RAG over fine-tuning when the task requires grounding in specific, updatable documents (current regulatory texts, recent filings, live prices), because fine-tuning embeds knowledge statically while RAG can retrieve the latest version. Second, fine-tuning is justified when the output format is highly structured (e.g., populating a fixed schema of financial ratios from a filing) and consistency across thousands of calls matters more than generality. Third, zero-shot prompting with a frontier model is a reasonable baseline for any task before investing in more expensive approaches; the FinanceBench benchmark \cite{zhang2024financebench} shows that frontier models answer approximately 80\% of financial QA questions correctly on the first attempt, setting a high bar for more elaborate systems to clear.
 
 A complementary decision concerns the \emph{model architecture family} rather than the deployment pattern. Four families are relevant: encoder-only models (BERT-class, e.g.\ FinBERT), decoder-only models (GPT-class), encoder-decoder models (T5-class), and agentic systems that wrap a generative model with a tool-calling loop. Table~\ref{tab:arch-decision} frames the selection across six task properties that characterise the large majority of finance NLP problems.
@@ -148,6 +156,10 @@ The four families relevant to finance NLP tasks are:
   \item \emph{Agentic system}: a generative model augmented with a planning loop (e.g.\ ReAct) that interleaves reasoning steps with calls to external tools — databases, APIs, code executors. Appropriate when task completion requires retrieving or manipulating external state.
 \end{enumerate}
 \end{definition}
+
+Table~\ref{tab:arch-decision} provides the complete selection guide across task properties.
+
+\end{context}
 
 \begin{table}[htbp]
 \caption{Architecture family selection guide for finance NLP tasks. \emph{Strong}: the family handles this property well. \emph{Weak}: it does not. \emph{N/A}: the property does not apply.}
@@ -173,12 +185,18 @@ Task spans multiple steps or documents & Weak   & Weak   & Weak   & Strong \\
 \end{tabular}
 \end{table}
 
+\begin{context}
+
 The two decisions — deployment pattern (Table~\ref{tab:deployment-heuristics}) and architecture family (Table~\ref{tab:arch-decision}) — combine naturally. A trade surveillance classifier will use an encoder-only architecture with fine-tuning; a regulatory filing summariser will use a decoder-only or encoder-decoder model with RAG; an autonomous due-diligence agent will use an agentic system with zero-shot or few-shot prompting. When the two tables give conflicting signals, the latency and interpretability requirements of the task are usually the tiebreakers: real-time, high-stakes applications should default to the simplest, most auditable approach.
+
+\end{context}
 
 % --- Section: Automating Financial Workflows ---
 
 \section{Automating Financial Workflows}
 \label{sec:af-workflows}
+
+\begin{context}
 
 \subsection{Workflow Automation Patterns: Pipelines, Triggers, and Orchestrators}
 \label{subsec:af-workflows-patterns}
@@ -327,10 +345,14 @@ At the compute level, low-latency trading systems impose constraints that genera
 
 At the governance level, every integration point is an audit surface. Prompts and model outputs must be logged, timestamped, and attributable; they may be subject to record-keeping requirements under MiFID II and analogous regulations. Integration architecture should treat LLM calls as first-class transactions: each call generates a record that includes the model version, the full prompt, the output, and any tool calls made during the interaction.
 
+\end{context}
+
 % --- Section: Building Your Own Research Assistant ---
 
 \section{Building Your Own Research Assistant}
 \label{sec:af-research-assistant}
+
+\begin{context}
 
 \subsection{Architecture of an LLM-Powered Research Assistant}
 \label{subsec:af-ra-architecture}
@@ -473,10 +495,14 @@ Deploying a research assistant into production introduces constraints that the p
 
 \emph{User feedback as a quality signal.} Research assistants are unusual LLM applications in that users can directly assess the quality of every response. Collecting explicit thumbs-up/thumbs-down feedback, logging queries that users immediately reformulate (an implicit signal of dissatisfaction), and reviewing a sample of responses weekly provides the signal needed for continuous improvement of both the retrieval and generation components.
 
+\end{context}
+
 % --- Section: Ethical Considerations and Bias Mitigation ---
 
 \section{Ethical Considerations and Bias Mitigation}
 \label{sec:af-ethics}
+
+\begin{context}
 
 \subsection{Sources of Bias in LLM-Based Finance Systems}
 \label{subsec:af-ethics-sources}
@@ -561,10 +587,14 @@ The \emph{US Equal Credit Opportunity Act} (ECOA) and the \emph{Fair Housing Act
 
 The \emph{Financial Stability Board}'s 2023 report on AI in finance identified systemic risk concerns arising from the concentration of AI capabilities among a small number of providers, the potential for herding behaviour when many institutions use similar models, and the opacity of model behaviour under stress conditions. These macro-prudential concerns supplement the micro-level fairness concerns and motivate the call for regulatory monitoring of AI adoption at the system level, not merely firm-by-firm.
 
+\end{context}
+
 % --- Section: Deploying LLMs in Regulated Environments ---
 
 \section{Deploying LLMs in Regulated Environments}
 \label{sec:af-deployment}
+
+\begin{context}
 
 \subsection{Model Risk Management for LLM Systems (SR 11-7)}
 \label{subsec:af-deployment-mrm}
@@ -613,10 +643,14 @@ Monitoring should track four classes of signals. \emph{Input distribution} monit
 
 Incident response for LLM systems follows a pattern analogous to software security incident response. A severity classification determines the response timeline: a hallucination in a low-stakes summarisation task triggers a review within a standard change cycle; a hallucinated financial figure in a credit decision triggers immediate escalation, potential reversal of affected decisions, regulatory notification if required, and a root-cause investigation. The key discipline is pre-defining severity thresholds and response protocols before incidents occur, not after.
 
+\end{context}
+
 % --- Section: Future Trends and Open Research Problems ---
 
 \section{Future Trends and Open Research Problems}
 \label{sec:af-future}
+
+\begin{context}
 
 \subsection{Emerging Capabilities: Multimodal LLMs and Structured Financial Data}
 \label{subsec:af-future-multimodal}
@@ -667,6 +701,8 @@ For the academic researcher, the open problems in \S\ref{subsec:af-future-resear
 For the practitioner, three disciplines will separate the deployments that succeed from those that fail. First, measure everything: retrieval quality, output faithfulness, fairness metrics, and distributional drift. What is not measured cannot be managed, and in regulated finance, what is not managed creates liability. Second, document honestly: the model's purpose, its limitations, the conditions under which it is known to fail, and the human oversight structure that catches failures when they occur. Documentation is not a bureaucratic burden — it is the mechanism by which institutional knowledge survives model updates, team turnover, and regulatory examination. Third, escalate appropriately: build human review into every consequential decision workflow, not as a legal formality, but as a genuine check on model outputs that the reviewer is empowered to override.
 
 The combination of LLM capability and professional expertise, applied with rigour, transparency, and a clear-eyed understanding of both what these models can do and what they cannot, is what finance AI looks like at its best. The field is young enough that the researchers and practitioners reading this chapter will shape its norms, its standards, and its failures as much as its successes. That is an unusual privilege. Use it deliberately.
+
+\end{context}
 
 \begin{remark}[A Note on Model Versions and Reproducibility]
 The code examples throughout this book use specific model identifiers (e.g., \texttt{claude-opus-4-5}). Model providers update and retire models continuously; readers implementing the examples should consult current provider documentation for the appropriate model identifier and adapt prompt templates as necessary for the model's instruction format. The underlying techniques---chain-of-thought prompting, tool use, RAG, agent orchestration---are architecture-level patterns that generalise across model versions. Specific prompt templates and API call structures may require adjustment.

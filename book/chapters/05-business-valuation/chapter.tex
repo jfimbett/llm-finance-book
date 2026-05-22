@@ -227,7 +227,8 @@ The following code illustrates a minimal but complete pipeline for retrieving a 
 filing. It first resolves a ticker symbol to a CIK, then fetches the filing index to
 locate the primary document, and finally downloads it for parsing.
 
-\begin{lstlisting}[language=Python, caption={EDGAR Filing Retrieval Pipeline}, label={lst:edgar-pipeline}]
+\begin{listing}[H]
+\begin{minted}{python}
 import requests
 import json
 from pathlib import Path
@@ -292,7 +293,10 @@ def download_10k(ticker: str, save_dir: Path = Path("filings")) -> Path:
     out_path = save_dir / f"{ticker}_10K.html"
     out_path.write_bytes(doc_resp.content)
     return out_path
-\end{lstlisting}
+\end{minted}
+\caption{EDGAR Filing Retrieval Pipeline}
+\label{lst:edgar-pipeline}
+\end{listing}
 
 Several engineering considerations deserve attention. The SEC's EDGAR data services
 require the \texttt{User-Agent} header to identify the requesting party; requests that
@@ -325,7 +329,8 @@ table using a lightweight parser such as BeautifulSoup. Convert the table to a c
 plain-text representation---preserving column headers and indentation but stripping
 HTML tags. Then send this representation to an LLM with a structured extraction prompt:
 
-\begin{lstlisting}[language=Python, caption={LLM-Based Income Statement Extraction Prompt}, label={lst:llm-extract-prompt}]
+\begin{listing}[H]
+\begin{minted}{python}
 EXTRACTION_PROMPT = """You are a financial data extraction assistant.
 Below is the text of a financial table from a 10-K SEC filing.
 
@@ -360,7 +365,10 @@ Rules:
 TABLE TEXT:
 {table_text}
 """
-\end{lstlisting}
+\end{minted}
+\caption{LLM-Based Income Statement Extraction Prompt}
+\label{lst:llm-extract-prompt}
+\end{listing}
 
 The structured output approach---requesting JSON directly rather than free-form
 text---reduces post-processing effort and enables automatic validation against a schema.
@@ -513,7 +521,8 @@ Given a structured financial data object produced by the extraction pipeline
 algebraic operation. The following function takes the standardised JSON output
 and returns FCFF for each available period:
 
-\begin{lstlisting}[language=Python, caption={FCFF Computation from Extracted Financial Data}, label={lst:fcff-computation}]
+\begin{listing}[H]
+\begin{minted}{python}
 def compute_fcff(financials: dict, tax_rate: float | None = None) -> dict:
     """
     Compute FCFF from standardised extracted financials.
@@ -557,7 +566,10 @@ def compute_fcff(financials: dict, tax_rate: float | None = None) -> dict:
         "delta_nwc": delta_nwc,
         "tax_rate_used": tax_rate,
     }
-\end{lstlisting}
+\end{minted}
+\caption{FCFF Computation from Extracted Financial Data}
+\label{lst:fcff-computation}
+\end{listing}
 
 A production implementation applies this function across a time series of annual or
 quarterly observations, producing a vector of historical FCFFs that seeds the
@@ -583,7 +595,8 @@ LLMs are well suited to flagging these issues from the MD\&A and footnote text.
 A simple prompt such as the following can instruct an LLM to identify non-recurring
 items that should be stripped from operating income:
 
-\begin{lstlisting}[language=Python, caption={Prompt for Non-Recurring Item Identification}, label={lst:nonrecurring-prompt}]
+\begin{listing}[H]
+\begin{minted}{python}
 NORMALISATION_PROMPT = """You are a senior financial analyst reviewing a 10-K filing.
 Read the following Management Discussion and Analysis excerpt and identify
 any non-recurring, one-time, or extraordinary items that affected operating income
@@ -601,7 +614,10 @@ Format the response as a JSON array of objects with keys:
 MD&A TEXT:
 {mdna_text}
 """
-\end{lstlisting}
+\end{minted}
+\caption{Prompt for Non-Recurring Item Identification}
+\label{lst:nonrecurring-prompt}
+\end{listing}
 
 The LLM output is then reviewed programmatically: high-confidence items are
 automatically stripped from EBIT, medium-confidence items are flagged for analyst
@@ -674,7 +690,8 @@ A well-designed CoT forecasting prompt structures the reasoning in four stages:
 (1) characterise the macro environment, (2) assess industry dynamics, (3) evaluate
 firm-specific factors, and (4) synthesise into a numerical projection.
 
-\begin{lstlisting}[language=Python, caption={Chain-of-Thought Cash Flow Forecasting Prompt}, label={lst:cot-forecast-prompt}]
+\begin{listing}[H]
+\begin{minted}{python}
 COT_FORECAST_PROMPT = """You are an experienced sell-side equity analyst.
 Your task is to forecast the Free Cash Flow to Firm (FCFF) for the next
 three fiscal years for {company_name}.
@@ -727,7 +744,10 @@ Respond in the following JSON format:
   ]
 }}
 """
-\end{lstlisting}
+\end{minted}
+\caption{Chain-of-Thought Cash Flow Forecasting Prompt}
+\label{lst:cot-forecast-prompt}
+\end{listing}
 
 The separation of reasoning from numerical output is not merely cosmetic: it enables
 downstream validation. If the reasoning step contains an internally inconsistent claim
@@ -863,7 +883,8 @@ prediction loss.
 
 The code interpreter pattern for DCF computation looks as follows:
 
-\begin{lstlisting}[language=Python, caption={Code Interpreter Tool for DCF Calculation}, label={lst:code-interpreter-dcf}]
+\begin{listing}[H]
+\begin{minted}{python}
 import subprocess
 import sys
 
@@ -905,7 +926,10 @@ def execute_python(code: str, timeout: int = 30) -> dict:
         }
     except subprocess.TimeoutExpired:
         return {"stdout": "", "stderr": "Execution timed out.", "success": False}
-\end{lstlisting}
+\end{minted}
+\caption{Code Interpreter Tool for DCF Calculation}
+\label{lst:code-interpreter-dcf}
+\end{listing}
 
 The advantage of generating Python over performing mental arithmetic is not merely
 accuracy: the generated code is an auditable artefact. A human reviewer can inspect
@@ -931,7 +955,8 @@ consists of three phases:
 
 Applied to DCF valuation, a ReAct loop might unfold as follows:
 
-\begin{lstlisting}[language=Python, caption={Illustrative ReAct Loop for DCF Valuation}, label={lst:react-dcf}]
+\begin{listing}[H]
+\begin{minted}{python}
 # Illustrative trace of a ReAct agent computing enterprise value
 
 Thought 1: I need to compute FCFF. I have EBIT=840M, DA=310M,
@@ -973,7 +998,10 @@ Observation 2: PV of FCFs = 3210.4 M
 
 Thought 3: Enterprise value is approximately $13.3B.
            I can now report this result with full provenance.
-\end{lstlisting}
+\end{minted}
+\caption{Illustrative ReAct Loop for DCF Valuation}
+\label{lst:react-dcf}
+\end{listing}
 
 The ReAct pattern makes the reasoning transparent and auditable while offloading all
 arithmetic to a reliable executor. The agent's role is to formulate the calculation
@@ -1053,7 +1081,8 @@ LLMs are valuable at this stage not for numerical computation but for
 model can assess whether the numbers are consistent with the described business
 environment and flag contradictions. An example prompt:
 
-\begin{lstlisting}[language=Python, caption={Scenario Consistency Validation Prompt}, label={lst:scenario-consistency}]
+\begin{listing}[H]
+\begin{minted}{python}
 SCENARIO_CHECK_PROMPT = """You are a senior equity research analyst reviewing
 a DCF valuation scenario for {company_name} in the {industry} industry.
 
@@ -1078,7 +1107,10 @@ Respond with a JSON object:
   "issues": ["<list of specific inconsistencies or concerns>"],
   "recommendation": "<brief corrective action if needed>"}}
 """
-\end{lstlisting}
+\end{minted}
+\caption{Scenario Consistency Validation Prompt}
+\label{lst:scenario-consistency}
+\end{listing}
 
 \subsection{Monte Carlo Simulation Orchestrated by Agents}
 \label{subsec:bv-scenarios-montecarlo}
@@ -1106,7 +1138,8 @@ for enterprise value.
 
 A practical Monte Carlo implementation for valuation, invoked by an agent, is:
 
-\begin{lstlisting}[language=Python, caption={Monte Carlo DCF Simulation}, label={lst:monte-carlo-dcf}]
+\begin{listing}[H]
+\begin{minted}{python}
 import numpy as np
 
 def monte_carlo_dcf(
@@ -1167,7 +1200,10 @@ def monte_carlo_dcf(
         "p90": float(np.percentile(ev_sim, 90)),
         "simulations": ev_sim.tolist(),
     }
-\end{lstlisting}
+\end{minted}
+\caption{Monte Carlo DCF Simulation}
+\label{lst:monte-carlo-dcf}
+\end{listing}
 
 Typical parameterisation in a mid-cap equity context might use
 $\mu_\mathrm{WACC} = 0.09$, $\sigma_\mathrm{WACC} = 0.015$,
@@ -1234,7 +1270,8 @@ LLMs can identify peer companies from a natural-language description of the targ
 firm's business model, without relying on rigid classification codes. A zero-shot
 prompt simply describes the target and requests comparable firms:
 
-\begin{lstlisting}[language=Python, caption={Zero-Shot Comparable Identification Prompt}, label={lst:zero-shot-comps}]
+\begin{listing}[H]
+\begin{minted}{python}
 ZERO_SHOT_COMPS_PROMPT = """You are an investment banking analyst specialising
 in equity valuation. Your task is to identify publicly listed comparable companies
 for the following target firm.
@@ -1265,7 +1302,10 @@ Rules:
 Respond as a JSON array of objects with keys:
 "name", "ticker", "exchange", "rationale", "similarity_score".
 """
-\end{lstlisting}
+\end{minted}
+\caption{Zero-Shot Comparable Identification Prompt}
+\label{lst:zero-shot-comps}
+\end{listing}
 
 The instruction ``Do NOT invent tickers or company names'' is necessary but not
 sufficient: hallucinated comparables occur with non-trivial frequency even with
@@ -1302,7 +1342,8 @@ markets, competitive position, and strategy. Embedding the MD\&A of all companie
 a universe and indexing them in a vector database allows efficient nearest-neighbour
 retrieval.
 
-\begin{lstlisting}[language=Python, caption={Embedding-Based Comparable Selection}, label={lst:embedding-comps}]
+\begin{listing}[H]
+\begin{minted}{python}
 import numpy as np
 import faiss  # pip install faiss-cpu
 
@@ -1354,7 +1395,10 @@ def find_comparables(
         if len(results) == top_k:
             break
     return results
-\end{lstlisting}
+\end{minted}
+\caption{Embedding-Based Comparable Selection}
+\label{lst:embedding-comps}
+\end{listing}
 
 Empirical studies using MD\&A embeddings find that cosine-similarity-based peers
 outperform SIC-code-based peers on several metrics: the comparable set has lower

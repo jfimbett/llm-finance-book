@@ -53,3 +53,4 @@
 | 2026-05-22 | 4 files | fix(skills): resolve bib path from chapter directive; guard missing bib file;chore(config): register /ssrn-enrich in CLAUDE.md entry points;feat(skills): add /ssrn-enrich skill for SSRN working paper enrichment; | — |
 | 2026-05-22 | 5 files | merge(ch07): dual-mode split from worktree;feat(ch06): wrap sections in context/deepdive boxes (dual-mode split);feat(ch07): wrap sections in context/deepdive boxes (dual-mode split); | — |
 | 2026-05-22 | 4 files | chore: session log 2026-05-22;merge(ch07): dual-mode split from worktree;feat(ch06): wrap sections in context/deepdive boxes (dual-mode split); | — |
+| 2026-05-22 | 3 files | merge(ch06): ssrn-enrich from worktree — bib entries only;fix(ch01): restore backslash on \begin{context} in Looking Ahead;merge(ch05): ssrn-enrich from worktree — bib entries only; | — |

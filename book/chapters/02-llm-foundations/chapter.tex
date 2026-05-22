@@ -1401,13 +1401,17 @@ at modest additional cost.
 \section{Structured Generation}
 \label{sec:structured-gen}
 
-Financial applications rarely need free prose.  A risk-management system extracting
-covenant violations from loan agreements needs a precise structured record, not a
-narrative.  A trading signal pipeline processing earnings call transcripts requires
-numerically reliable fields, not approximate summaries.  \emph{Structured generation}
-refers to techniques that constrain the output of a language model to conform to a
-predefined schema, grammar, or format, transforming what is otherwise a stochastic
-text generator into a deterministic extraction or classification engine.
+\begin{context}
+
+A bank's model risk team has a problem.  Their junior analysts are using an LLM
+to extract covenants from loan agreements, and the model keeps producing prose---
+long, fluent, accurate-sounding prose---when what the downstream system needs is
+a JSON object with three fields.  The analysts copy-paste.  The pipeline breaks.
+Escalation follows.  The answer is not a better prompt.  The answer is
+\emph{constrained decoding}: making it structurally impossible for the model to
+output anything that does not conform to a predefined schema.  Financial
+applications rarely need the model to be creative.  They need it to be
+\emph{precise}.
 
 \subsection{Constrained Decoding}
 \label{sec:structured-gen-constrained}
@@ -1536,14 +1540,21 @@ a scale error into a portfolio management system.
 Taken together, these considerations make structured generation not an optional
 optimisation but an architectural requirement for any production financial NLP pipeline.
 
+\end{context}
+
 % ---------------------------------------------------------------
 \section{Working with LLMs via API}
 \label{sec:api}
 
-The transition from understanding how LLMs work to using them in practice requires
-familiarity with a small set of engineering concepts.  This section covers those
-concepts and provides working code examples for the three ecosystems most relevant to
-financial practitioners.
+\begin{context}
+
+Every LLM workflow that matters in production goes through an API.  The model you
+choose, the temperature you set, the number of tokens you send---these are not
+academic parameters.  They are engineering decisions with real cost, latency, and
+risk consequences.  A 10,000-token prompt sent to a frontier model costs roughly
+twenty cents.  Run that prompt a thousand times a day and you have spent
+\$73,000 in a year on a single workflow.  This section covers the concepts and
+Python code you need to build that workflow correctly from the start.
 
 \subsection{Core Concepts: Tokens, Context Windows, and Sampling}
 \label{sec:api-concepts}
@@ -1831,6 +1842,8 @@ tokens.  When designing pipelines that issue many similar requests (e.g., proces
 all filings from a given company under the same analytical framework), caching the
 shared system prompt is among the highest-ROI optimisations available.
 \end{remark}
+
+\end{context}
 
 % ---------------------------------------------------------------
 \section{Retrieval-Augmented Generation}

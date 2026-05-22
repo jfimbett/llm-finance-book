@@ -459,6 +459,8 @@ embeddings, to instruction-tuned LLMs used as zero-shot classifiers or reasoning
 \section{Classical Text Representations}
 \label{sec:classical}
 
+\begin{deepdive}
+
 Before turning to neural representations it is essential to understand classical methods,
 for several reasons.  First, they remain competitive baselines in many financial
 applications.  Second, neural methods such as self-attention can be understood as
@@ -824,9 +826,13 @@ Section~\ref{sec:embeddings}, which replace the discrete, high-dimensional one-h
 basis with a continuous, low-dimensional space in which semantically similar words are
 represented by geometrically close vectors.
 
+\end{deepdive}
+
 % ---------------------------------------------------------------
 \section{Word Embeddings}
 \label{sec:embeddings}
+
+\begin{deepdive}
 
 The Bag-of-Words and TF-IDF representations introduced in
 Section~\ref{sec:classical} treat every word as an isolated symbol.
@@ -1268,19 +1274,25 @@ for an overview in the transformer setting.
 \end{remark}
 
 
+\end{deepdive}
+
 % ---------------------------------------------------------------
 \section{Looking Ahead}
 \label{sec:intro-looking-ahead}
 
-The representations developed in this chapter treat language as bags of tokens or
-low-dimensional geometric objects.  They capture lexical similarity and rudimentary
-document structure, but they cannot model syntax, long-range dependencies, or the
-meaning of a word in context.  Chapter~\ref{ch:llm-foundations} addresses these
-limitations directly.  It derives the recurrent architectures that first brought
-sequential order into text modelling, shows why they fail at the scales demanded by
-modern financial corpora, and then builds up the Transformer---the architecture
-underlying every large language model in use today---from first principles.  It
-continues with the practical layer: how to control generation through temperature
-and structured decoding, how to ground model outputs in retrieved documents, how to
-compress large models into deployable ones, and how to measure and mitigate the
-hallucinations that remain the central reliability challenge for LLMs in finance.
+\begin{context}
+
+We have come a long way from Tetlock's spreadsheet.  A word, it turns out, is
+not just a symbol: it is a point in a geometric space whose neighbourhood
+encodes meaning.  A document is not just a bag of tokens; it is a trajectory
+through that space.  But the representations built in this chapter still miss
+something fundamental.  They treat language as a static inventory of symbols
+rather than a sequence of choices.  \emph{Equity} and \emph{stock} remain
+synonyms only by the accident of co-occurrence statistics; they are not linked
+by any model of grammar or syntax.  The sentence \emph{earnings did not
+disappoint} scores the same sentiment as \emph{earnings disappointed} in any
+dictionary model, because the word \emph{not} earns no category in the Harvard
+IV-4 list.  The next chapter is about what happens when we take order
+seriously---and what becomes possible once we do.
+
+\end{context}

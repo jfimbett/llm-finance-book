@@ -27,15 +27,19 @@ After completing this chapter, the reader should be able to:
 \section{A Brief History of Textual Analysis in Finance}
 \label{sec:history}
 
-Language is the medium through which economic agents transmit intentions, negotiate
-contracts, reveal expectations, and argue about value.  Long before the advent of
-statistical machine learning, financial economists had recognised that the words
-contained in annual reports, earnings calls, central-bank communiqués, and newspaper
-columns carry information that prices do not yet fully reflect.  The challenge has always
-been to extract that information systematically.  This section traces the intellectual
-lineage of textual analysis in finance from its sociological origins in content analysis,
-through the first dictionary-based sentiment tools, and onward to the statistical and
-neural methods that underpin modern large language model (LLM) applications.
+\begin{context}
+It is the autumn of 2006 and Paul Tetlock, then a doctoral student, is staring
+at a spreadsheet.  On one side: a column of numbers representing the daily
+fraction of negative words in the \emph{Wall Street Journal}'s \emph{Abreast of
+the Market} column, running back to 1984.  On the other: the next-day return on
+the Dow Jones Industrial Average.  The correlation is small.  But it is
+there---and according to the textbooks that line his shelves, it should not be.
+If markets are efficient, prices should already reflect the sentiment of the
+country's most widely-read financial column.  Tetlock would publish this finding
+in the \emph{Journal of Finance} \cite{tetlock2007giving}, and the paper would
+become a founding document of a new field.  But the deeper story began forty
+years earlier, in a social science department with no interest in stock prices
+whatsoever.
 
 % ---------------------------------------------------------------
 \subsection{Early Approaches: Keyword Counting and Dictionary Methods}
@@ -210,16 +214,23 @@ shortcomings of the previous one, but also introduced new failure modes.  Unders
 where the field came from illuminates why LLMs behave the way they do, what they can be
 expected to do well, and where they remain unreliable.
 
+\end{context}
+
 % ---------------------------------------------------------------
 \section{Why Text Matters in Finance}
 \label{sec:motivation}
 
-Financial economics is built on the notion that prices aggregate information.  If all
-relevant information is already incorporated in prices, there is no role for additional
-analysis---textual or otherwise.  Yet text-based signals have repeatedly demonstrated
-predictive power in careful empirical studies.  This section reconciles that finding
-with the efficient markets hypothesis, catalogues the landscape of financial text, and
-introduces a formal framework for thinking about text as a signal.
+\begin{context}
+Every quarter, thousands of companies assemble their executives on a conference
+call, dial in a few hundred sell-side analysts, and spend an hour narrating the
+past three months.  The ritual is called the earnings call.  The transcript is
+published within days and largely forgotten---except by the people who have
+learned to listen to what is not in the numbers.  The word \emph{challenges}
+appearing where \emph{headwinds} used to appear.  The CFO's sentences getting
+shorter.  The count of hedge words---\emph{approximately}, \emph{roughly},
+\emph{we believe}---ticking upward.  None of this information lives in the
+earnings per share figure.  All of it lives in the transcript.  This section
+asks why that matters, and how we know it does.
 
 % ---------------------------------------------------------------
 \subsection{The Information Content of Earnings Calls, News, and Filings}
@@ -441,6 +452,8 @@ about future returns if and only if it is correlated with $r_{t+1}$ conditional 
 information set available at $t$.  The rest of this book can be read as an investigation
 of the best choice of $f$: from simple word counts, to topic models, to transformer
 embeddings, to instruction-tuned LLMs used as zero-shot classifiers or reasoning agents.
+
+\end{context}
 
 % ---------------------------------------------------------------
 \section{Classical Text Representations}

@@ -78,6 +78,9 @@
 \definecolor{keywordblue}{RGB}{0, 100, 180}
 \definecolor{commentgray}{RGB}{120, 120, 120}
 \definecolor{stringgreen}{RGB}{30, 130, 30}
+\definecolor{deepdivebg}{RGB}{235, 244, 255}
+\definecolor{narrativebg}{RGB}{255, 252, 240}
+\definecolor{narrativerule}{RGB}{180, 130, 40}
 
 % --- Figures & Tables ---
 \usepackage{graphicx}
@@ -185,6 +188,44 @@
 \usepackage{enumitem}
 \setlist[enumerate]{itemsep=2pt, topsep=4pt}
 \setlist[itemize]{itemsep=2pt, topsep=4pt}
+
+% --- Dual-mode section environments ---
+\usepackage[skins, breakable]{tcolorbox}
+
+\newtcolorbox{deepdive}{%
+  enhanced, breakable,
+  colback  = deepdivebg,
+  colframe = linkblue,
+  boxrule  = 0pt,
+  toprule  = 1.5pt,
+  bottomrule = 0.5pt,
+  leftrule = 0pt,
+  rightrule = 0pt,
+  arc      = 0pt,
+  before upper = {%
+    \noindent\hfill
+    {\footnotesize\scshape\color{linkblue}under the hood}%
+    \par\smallskip\noindent},
+  left = 10pt, right = 10pt, top = 6pt, bottom = 8pt,
+}
+
+\newtcolorbox{context}{%
+  enhanced, breakable,
+  colback  = narrativebg,
+  colframe = narrativerule,
+  boxrule  = 0pt,
+  toprule  = 1.5pt,
+  bottomrule = 0.5pt,
+  leftrule = 0pt,
+  rightrule = 0pt,
+  arc      = 0pt,
+  before upper = {%
+    \setlength{\parskip}{5pt}%
+    \noindent\hfill
+    {\footnotesize\scshape\color{narrativerule}the bigger picture}%
+    \par\smallskip\noindent},
+  left = 10pt, right = 10pt, top = 6pt, bottom = 8pt,
+}
 
 % Tighter paragraph spacing (book style)
 \setlength{\parskip}{3pt}

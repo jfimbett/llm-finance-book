@@ -10,3 +10,4 @@
 | 04 | LLM Agents and Finance Applications | Yes | Yes | 9 | 9 | 9 | 8 | 8 | No |
 | 05 | LLMs for Business Valuation | Yes | Yes | 9 | 9 | 9 | 9 | 8 | No |
 | 06 | LLMs for Credit Risk Analysis | No | No | — | — | — | — | — | No |
+| 07 | Other Applications in Finance and Future Trends | No | No | — | — | — | — | — | No |

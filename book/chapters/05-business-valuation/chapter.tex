@@ -1,0 +1,1679 @@
+\chapter{LLMs for Business Valuation}
+\label{ch:business-valuation}
+
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Define business valuation and situate the three main valuation frameworks---income,
+        market, and asset approaches---within a rigorous financial theory.
+  \item Build an automated pipeline that retrieves, parses, and structures SEC EDGAR
+        filings using LLM-assisted extraction.
+  \item Derive FCFF and FCFE from raw financial statements and implement the computation
+        programmatically from LLM-extracted data.
+  \item Design and evaluate prompt-based cash-flow forecasting strategies using
+        chain-of-thought reasoning, and benchmark them with MAPE, RMSE, and directional
+        accuracy metrics.
+  \item Explain why LLMs require external tools for reliable arithmetic and implement a
+        ReAct agent that routes calculations to a code interpreter.
+  \item Construct bull, base, and bear valuation scenarios and orchestrate Monte Carlo
+        simulation over WACC and growth-rate distributions.
+  \item Apply embedding-based and prompt-based methods to identify peer companies for
+        comparable analysis, and combine them in a hybrid pipeline.
+  \item Assemble an end-to-end valuation agent, estimate first-order error propagation,
+        and apply best practices for production deployment.
+\end{enumerate}
+\end{remark}
+
+% --- Section: Introduction to Business Valuation ---
+
+\section{Introduction to Business Valuation}
+\label{sec:bv-intro}
+
+\begin{context}
+Imagine a private equity firm that has identified a mid-cap software company as an
+acquisition target. Before the partners can table a bid, they must answer a deceptively
+simple question: what is this company worth? The answer, it turns out, depends on
+assumptions about future cash flows that will not be realised for years, on discount rates
+derived from noisy market data, and on comparisons with peer companies that are never
+quite identical to the target. Every assumption is defensible; every assumption is
+contestable. Business valuation is, at its core, the discipline of making these
+assumptions explicit, consistent, and auditable.
+
+\subsection{What Is Business Valuation?}
+\label{subsec:bv-intro-definition}
+
+\begin{definition}[Business Valuation]
+\label{def:business-valuation}
+\emph{Business valuation} is the process of determining the economic value of an ownership
+interest in a firm or a specific set of its assets. Formally, it maps a set of
+observable and projected financial variables---cash flows, discount rates, growth
+rates---into a scalar value $V \in \mathbb{R}_{+}$ that represents the price a rational,
+fully informed market participant would assign to the claim under consideration.
+\end{definition}
+
+Rigorous valuations arise across diverse professional contexts.
+In \emph{mergers and acquisitions} both buyer and seller commission independent analyses
+to anchor negotiating positions; the spread between their estimates defines the zone of
+possible agreement. In \emph{initial public offerings}, investment banks produce
+valuation ranges to price new shares, balancing the issuer's desire for a high price
+against the underwriters' need to ensure a successful book-building. \emph{Portfolio
+managers} at long/short equity funds maintain proprietary valuation models for each
+holding; a widening gap between model value and market price generates a trade signal.
+\emph{Financial reporting} mandates also drive demand. Under IFRS 13 and ASC 820,
+firms must classify fair-value measurements at Level 1 (quoted market prices), Level 2
+(observable inputs), or Level 3 (unobservable inputs). Level 3 assets require a
+documented valuation model subject to auditor scrutiny \cite{iasb2011ifrs13}.
+Additional contexts include \emph{litigation and dispute resolution}, \emph{tax
+compliance} (transfer pricing, estate tax), and \emph{regulatory capital} assessments.
+
+What unites these contexts is that valuation is always forward-looking. A firm's
+balance sheet records historical cost; the market prices a claim on future earnings.
+Translating current information into a credible forward-looking estimate is the
+analytical core of the discipline---and it is precisely here that large language models
+offer the most transformative capabilities.
+
+\subsection{Key Valuation Methodologies}
+\label{subsec:bv-intro-methodologies}
+
+The valuation literature, synthesised in standard references such as \citet{damodaran2012investment}
+and \citet{berk2020corporate}, organises approaches into three broad frameworks.
+
+The \textbf{income approach} values a firm by the present value of the economic benefits
+it will generate for its owners. The canonical implementation is the
+\emph{discounted cash flow} (DCF) model. Let $\mathrm{FCF}_t$ denote the free cash
+flow generated in period $t$, $n$ the explicit forecast horizon, and $\mathrm{WACC}$
+the weighted-average cost of capital. The enterprise value is
+
+\begin{equation}
+\label{eq:dcf}
+V = \sum_{t=1}^{n} \frac{\mathrm{FCF}_t}{(1+\mathrm{WACC})^t}
+    + \frac{TV}{(1+\mathrm{WACC})^n},
+\end{equation}
+
+where $TV$ is the \emph{terminal value}, representing cash flows beyond the explicit
+horizon. Under the Gordon Growth Model assumption that free cash flows grow at a
+constant perpetual rate $g < \mathrm{WACC}$ after period $n$,
+
+\begin{equation}
+\label{eq:terminal-value}
+TV = \frac{\mathrm{FCF}_{n+1}}{\mathrm{WACC} - g}.
+\end{equation}
+
+Equation~\eqref{eq:terminal-value} is sensitive to both $\mathrm{WACC}$ and $g$: a
+100-basis-point change in either parameter typically alters the terminal value by
+20--40\% for a firm with moderate growth, which is why scenario analysis, discussed
+in Section~\ref{sec:bv-scenarios}, is indispensable.
+
+The \textbf{market approach} values a firm by reference to the prices at which comparable
+businesses have been bought and sold. The most common implementation uses \emph{trading
+multiples}: ratios such as Enterprise Value / EBITDA, Price / Earnings, or Price /
+Book that are observed for a peer group and then applied to the target's own financial
+metrics. The appeal is simplicity and direct market grounding; the challenge is
+identifying peers that are genuinely comparable in terms of risk, growth, and capital
+structure---a task to which LLMs and embedding methods are well suited, as shown in
+Section~\ref{sec:bv-comparables}.
+
+The \textbf{asset approach} values a firm by the fair value of its individual assets
+minus its liabilities. It is most applicable to asset-intensive firms (real estate
+holding companies, liquidating entities) or as a floor valuation cross-check. Under the
+net asset value approach:
+\begin{equation}
+\label{eq:nav}
+V_{\mathrm{NAV}} = \sum_{i} FV(\mathrm{Asset}_i) - \sum_{j} FV(\mathrm{Liability}_j),
+\end{equation}
+where $FV(\cdot)$ denotes fair value, itself often determined by subsidiary DCF or
+market-price lookups.
+
+In practice, a rigorous analysis triangulates across all three approaches and presents
+a valuation range rather than a point estimate. The practitioner's judgment about
+which method to weight most heavily depends on the firm's stage of development,
+the availability of comparable transactions, and the purpose of the valuation.
+
+\subsection{Chapter Roadmap: How LLMs Transform Each Step}
+\label{subsec:bv-intro-roadmap}
+
+A standard DCF valuation requires roughly six analytical steps: (1) collect and clean
+financial data from filings, (2) compute historical free cash flows, (3) forecast
+future cash flows, (4) estimate the discount rate, (5) calculate terminal value,
+and (6) stress-test through scenario analysis. Each step has traditionally required
+either skilled human labour or specialised software. Large language models, particularly
+when augmented with tools and organised into agents, can now automate or substantially
+accelerate every one of these steps.
+
+Section~\ref{sec:bv-extraction} addresses the data collection problem: SEC EDGAR
+contains structured and unstructured filings for every public US company, and we build
+a pipeline that uses LLMs to extract, parse, and normalise financial tables from raw
+HTML documents. Section~\ref{sec:bv-cashflows} covers the computation of free cash
+flows from extracted data and the handling of missing or non-recurring items with
+LLM assistance. Section~\ref{sec:bv-forecasting} examines how LLMs can generate
+cash-flow forecasts through chain-of-thought reasoning and how those forecasts compare
+with classical time-series models. Section~\ref{sec:bv-tools} is devoted to tool
+augmentation: because LLMs are unreliable arithmetic engines, we show how to route
+all numerical computation through a code interpreter within a ReAct loop.
+Section~\ref{sec:bv-scenarios} covers scenario construction and Monte Carlo simulation
+orchestrated by an agent. Section~\ref{sec:bv-comparables} treats comparable selection,
+combining embedding-based semantic search with LLM filtering.
+Section~\ref{sec:bv-pipeline} assembles these components into a complete end-to-end
+pipeline, illustrated with a case study. Finally, Section~\ref{sec:bv-efficiency}
+evaluates accuracy and efficiency benchmarks and discusses deployment best practices.
+\end{context}
+
+% --- Section: Extracting Financial Data with LLMs and Agents ---
+
+\section{Extracting Financial Data with LLMs and Agents}
+\label{sec:bv-extraction}
+
+\begin{context}
+Every valuation begins with raw financial data — and for public US companies, that
+data lives in the SEC EDGAR system. This section shows how to build an automated
+pipeline that retrieves filings, parses complex HTML tables, and assembles a
+clean, structured financial data model ready for downstream computation.
+
+\subsection{The SEC EDGAR Ecosystem and Structured Filings}
+\label{subsec:bv-extraction-edgar}
+
+The US Securities and Exchange Commission requires every public company to submit
+standardised periodic reports to the EDGAR (\emph{Electronic Data Gathering, Analysis,
+and Retrieval}) system. For valuation purposes the most important filing types are:
+
+\begin{itemize}
+  \item \textbf{Form 10-K}: Annual report containing audited financial statements
+        (income statement, balance sheet, cash flow statement), Management Discussion
+        and Analysis (MD\&A), and detailed footnote disclosures. The 10-K is the
+        canonical source for historical financial data and qualitative business
+        assessment.
+  \item \textbf{Form 10-Q}: Quarterly report with unaudited interim financial statements.
+        Three 10-Qs are filed each fiscal year; together with the 10-K they provide
+        quarterly granularity.
+  \item \textbf{Form 8-K}: Current report filed within four business days of any
+        \emph{material event}, such as earnings releases, merger agreements, CEO
+        departures, or credit-rating changes.
+  \item \textbf{Form DEF 14A}: Proxy statement filed ahead of the annual meeting,
+        containing executive compensation tables, board composition, and related-party
+        transactions---inputs to corporate governance adjustments in valuation.
+\end{itemize}
+
+EDGAR exposes two programmatic interfaces that are central to automated pipelines.
+The \emph{submissions API} returns structured filing metadata for a given company
+identified by its Central Index Key (CIK):
+
+\begin{verbatim}
+https://data.sec.gov/submissions/CIK{cik:010d}.json
+\end{verbatim}
+
+The response is a JSON object containing the company's name, ticker, SIC code, and a
+paginated table of recent filings with their accession numbers, dates, and primary
+document names. The \emph{full-text search} endpoint allows queries against the
+content of all EDGAR filings:
+
+\begin{verbatim}
+https://efts.sec.gov/LATEST/search-index?q="goodwill impairment"
+    &dateRange=custom&startdt=2022-01-01&enddt=2023-12-31&forms=10-K
+\end{verbatim}
+
+Since 2009, the SEC has required filers to \emph{tag} financial data using the XBRL
+(eXtensible Business Reporting Language) standard \cite{sec2009xbrl}.
+XBRL tags map each reported figure to a concept in the US-GAAP or IFRS taxonomy, making
+data extraction in principle straightforward. In practice, however, filers exercise
+discretion in choosing tags, use non-standard extension elements for firm-specific line
+items, and sometimes apply the taxonomy inconsistently. Raw XBRL thus covers the
+majority of line items reliably but misses a material fraction of the detail required for
+a full valuation. LLMs fill this gap by parsing the residual HTML and plain-text content.
+
+\subsection{Building an Automated EDGAR Extraction Pipeline}
+\label{subsec:bv-extraction-pipeline}
+
+The following code illustrates a minimal but complete pipeline for retrieving a 10-K
+filing. It first resolves a ticker symbol to a CIK, then fetches the filing index to
+locate the primary document, and finally downloads it for parsing.
+
+\begin{lstlisting}[language=Python, caption={EDGAR Filing Retrieval Pipeline}, label={lst:edgar-pipeline}]
+import requests
+import json
+from pathlib import Path
+
+HEADERS = {"User-Agent": "Your Name your@email.com"}
+
+def ticker_to_cik(ticker: str) -> str:
+    """Look up the 10-digit CIK for a given ticker symbol."""
+    url = "https://www.sec.gov/files/company_tickers.json"
+    resp = requests.get(url, headers=HEADERS)
+    resp.raise_for_status()
+    data = resp.json()
+    ticker_upper = ticker.upper()
+    for entry in data.values():
+        if entry["ticker"] == ticker_upper:
+            return str(entry["cik_str"]).zfill(10)
+    raise ValueError(f"Ticker {ticker} not found in EDGAR.")
+
+def get_filings_metadata(cik: str) -> dict:
+    """Retrieve submission history for a given CIK."""
+    url = f"https://data.sec.gov/submissions/CIK{cik}.json"
+    resp = requests.get(url, headers=HEADERS)
+    resp.raise_for_status()
+    return resp.json()
+
+def get_latest_10k_accession(cik: str) -> str:
+    """Return the accession number of the most recent 10-K filing."""
+    meta = get_filings_metadata(cik)
+    filings = meta["filings"]["recent"]
+    for form, accession in zip(filings["form"], filings["accessionNumber"]):
+        if form == "10-K":
+            return accession.replace("-", "")
+    raise ValueError("No 10-K found for this company.")
+
+def download_10k(ticker: str, save_dir: Path = Path("filings")) -> Path:
+    """Download the primary HTML document of the latest 10-K."""
+    cik = ticker_to_cik(ticker)
+    accession = get_latest_10k_accession(cik)
+    # Build the filing index URL
+    index_url = (
+        f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+        f"{accession}/{accession}-index.json"
+    )
+    resp = requests.get(index_url, headers=HEADERS)
+    resp.raise_for_status()
+    index_data = resp.json()
+    # Find the primary document (htm/html)
+    primary_doc = None
+    for item in index_data.get("directory", {}).get("item", []):
+        if item.get("type") == "10-K":
+            primary_doc = item["name"]
+            break
+    if primary_doc is None:
+        raise ValueError("Could not identify primary 10-K document.")
+    doc_url = (
+        f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+        f"{accession}/{primary_doc}"
+    )
+    doc_resp = requests.get(doc_url, headers=HEADERS)
+    doc_resp.raise_for_status()
+    save_dir.mkdir(parents=True, exist_ok=True)
+    out_path = save_dir / f"{ticker}_10K.html"
+    out_path.write_bytes(doc_resp.content)
+    return out_path
+\end{lstlisting}
+
+Several engineering considerations deserve attention. The SEC's EDGAR data services
+require the \texttt{User-Agent} header to identify the requesting party; requests that
+omit this header are throttled or blocked. Rate limiting is generous for automated
+pipelines (approximately ten requests per second) but must be respected to avoid
+IP-level restrictions. For large-scale workflows---hundreds of companies over multiple
+filing dates---a queuing mechanism with exponential backoff is advisable. Accession
+numbers follow the format \texttt{XXXXXXXXXX-YY-ZZZZZZ}, where the first ten digits
+are the filer's CIK; stripping hyphens yields the directory path used in the
+\texttt{/Archives/} URL tree.
+
+\subsection{Parsing Financial Tables and Statements with LLMs}
+\label{subsec:bv-extraction-parsing}
+
+A raw 10-K document is an HTML file that can exceed 200 pages. Financial statements
+occupy perhaps ten pages of that total but are embedded in a sea of legal boilerplate,
+footnotes, and risk-factor disclosures. The practical task is to locate the income
+statement, balance sheet, and cash flow statement, extract the numerical data within
+each table, and return it in a structured format amenable to computation.
+
+Classical rule-based approaches---searching for known header strings such as
+``CONSOLIDATED STATEMENTS OF OPERATIONS'' and extracting table rows by HTML tag
+parsing---work for companies with consistent formats but fail on the long tail of
+non-standard layouts, merged cells, multi-level headers, and footnote references
+embedded within cells. LLMs handle this variation gracefully because they understand
+the \emph{semantics} of the content, not merely its structure.
+
+The recommended pattern is as follows. First, extract the raw HTML of each candidate
+table using a lightweight parser such as BeautifulSoup. Convert the table to a compact
+plain-text representation---preserving column headers and indentation but stripping
+HTML tags. Then send this representation to an LLM with a structured extraction prompt:
+
+\begin{lstlisting}[language=Python, caption={LLM-Based Income Statement Extraction Prompt}, label={lst:llm-extract-prompt}]
+EXTRACTION_PROMPT = """You are a financial data extraction assistant.
+Below is the text of a financial table from a 10-K SEC filing.
+
+Your task: extract the income statement data as a JSON object.
+The JSON must have the following structure:
+{
+  "statement_type": "income_statement",
+  "fiscal_year_end": "YYYY-MM-DD",
+  "currency": "USD",
+  "unit": "millions",
+  "line_items": {
+    "revenue": <float or null>,
+    "cost_of_revenue": <float or null>,
+    "gross_profit": <float or null>,
+    "operating_expenses": <float or null>,
+    "ebit": <float or null>,
+    "interest_expense": <float or null>,
+    "ebt": <float or null>,
+    "income_tax_expense": <float or null>,
+    "net_income": <float or null>,
+    "depreciation_amortization": <float or null>,
+    "ebitda": <float or null>
+  }
+}
+
+Rules:
+- Return ONLY the JSON object, no additional text.
+- If a line item is not present in the table, set it to null.
+- Expenses should be positive numbers (do not use the sign from the filing).
+- Convert all figures to the same unit indicated in the table header.
+
+TABLE TEXT:
+{table_text}
+"""
+\end{lstlisting}
+
+The structured output approach---requesting JSON directly rather than free-form
+text---reduces post-processing effort and enables automatic validation against a schema.
+Modern LLMs, particularly those supporting a \emph{JSON mode} or \emph{structured
+outputs} feature, virtually eliminate format violations. Where a model does not support
+forced JSON, adding the instruction ``Respond only with valid JSON. Do not include
+markdown code fences'' and validating with a \texttt{json.loads} call with a retry on
+failure achieves near-perfect reliability in practice.
+
+\begin{remark}[XBRL as Ground Truth]
+\label{rem:xbrl-groundtruth}
+Whenever XBRL-tagged data is available for a line item, it should serve as the primary
+source and the LLM extraction should serve as a cross-check or fallback. The SEC's
+\texttt{companyfacts} API at \texttt{https://data.sec.gov/api/xbrl/companyfacts/CIK\{cik\}.json}
+returns every tagged data point for a company across all filings in a single JSON
+response. Using XBRL as the first-pass extractor and LLM parsing as the gap-filler
+provides both coverage and reliability.
+\end{remark}
+
+\subsection{Structuring Extracted Data for Downstream Computation}
+\label{subsec:bv-extraction-structuring}
+
+Once individual statements are extracted, they must be assembled into a consistent
+\emph{financial data model}. The minimal representation for DCF valuation requires
+three to five years of historical data per statement, with a consistent mapping from
+filing-specific line-item names to a canonical schema. A practical schema includes:
+(1) a company identifier (ticker and CIK), (2) the fiscal period end date, (3) the
+filing date (to avoid look-ahead bias in backtests), and (4) a dictionary of
+standardised financial quantities with units and sources clearly annotated.
+
+Normalisation issues that frequently arise include currency-unit mismatch (some filers
+report in thousands, others in millions), fiscal-year offset (not all fiscal years end
+December 31), and restatements (a refiled 10-K supersedes the original and may change
+previously reported figures). The extracted data object should carry a
+\texttt{restatement\_flag} field and the provenance of each figure (XBRL tag or LLM
+extraction with model and date) to support auditing.
+\end{context}
+
+% --- Section: Computing Cash Flows ---
+
+\section{Computing Cash Flows}
+\label{sec:bv-cashflows}
+
+\begin{deepdive}
+This section derives the two canonical free-cash-flow measures from first principles,
+proves their algebraic relationship, and shows how to implement each computation from
+structured extracted data — giving you a formula-level foundation you can audit and
+extend.
+
+\subsection{Free Cash Flow: Definitions and Formulas}
+\label{subsec:bv-cashflows-definitions}
+
+Cash flow is the foundation of income-approach valuation, but the term is used
+inconsistently in practice. We adopt the standard definitions from
+\citet{damodaran2012investment}.
+
+\begin{definition}[Free Cash Flow to Firm (FCFF)]
+\label{def:fcff}
+The \emph{free cash flow to the firm} in period $t$ is the after-tax operating cash flow
+available to all capital providers (debt and equity) after funding net investment:
+\begin{equation}
+\label{eq:fcff}
+\mathrm{FCFF}_t = \mathrm{EBIT}_t \times (1 - \tau)
+                + \mathrm{DA}_t
+                - \mathrm{CapEx}_t
+                - \Delta\mathrm{NWC}_t,
+\end{equation}
+where $\tau$ is the marginal corporate tax rate, $\mathrm{DA}_t$ is depreciation
+and amortisation, $\mathrm{CapEx}_t$ is capital expenditure (net of asset disposals),
+and $\Delta\mathrm{NWC}_t = \mathrm{NWC}_t - \mathrm{NWC}_{t-1}$ is the change in
+net working capital (current assets excluding cash minus current liabilities excluding
+short-term debt).
+\end{definition}
+
+\begin{definition}[Free Cash Flow to Equity (FCFE)]
+\label{def:fcfe}
+The \emph{free cash flow to equity} is the residual cash flow available to common
+shareholders after meeting all obligations, including debt service:
+\begin{equation}
+\label{eq:fcfe}
+\mathrm{FCFE}_t = \mathrm{NI}_t + \mathrm{DA}_t
+                - \mathrm{CapEx}_t
+                - \Delta\mathrm{NWC}_t
+                + \mathrm{NB}_t,
+\end{equation}
+where $\mathrm{NI}_t$ is net income and $\mathrm{NB}_t$ is net new borrowing (debt
+issued minus debt repaid in period $t$).
+\end{definition}
+
+\begin{proposition}[Relationship Between FCFF and FCFE]
+\label{prop:fcff-fcfe-relation}
+Under the Modigliani-Miller framework with corporate taxes,
+\begin{equation}
+\label{eq:fcff-fcfe}
+\mathrm{FCFE}_t = \mathrm{FCFF}_t - \mathrm{InterestExp}_t \times (1 - \tau) + \mathrm{NB}_t.
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Starting from~\eqref{eq:fcff}, note that $\mathrm{NI}_t = [\mathrm{EBIT}_t - \mathrm{InterestExp}_t] \times (1 - \tau)$, so
+\[
+\mathrm{FCFF}_t = \mathrm{NI}_t + \mathrm{InterestExp}_t\times(1-\tau) + \mathrm{DA}_t - \mathrm{CapEx}_t - \Delta\mathrm{NWC}_t.
+\]
+Substituting this expression into~\eqref{eq:fcfe} and rearranging yields~\eqref{eq:fcff-fcfe}.
+\end{proof}
+
+The choice between FCFF and FCFE depends on the valuation objective. FCFF is discounted
+at WACC to yield enterprise value; FCFE is discounted at the cost of equity to yield
+equity value directly. When leverage is stable, both approaches should---and in practice
+approximately do---give the same equity value once net debt is subtracted from enterprise
+value. When capital structure is changing materially, however, FCFF is more robust
+because WACC can be held constant while FCFE requires adjustments to the cost of equity
+as leverage changes \citep{damodaran2012investment}.
+
+\begin{example}[FCFF Computation: Illustrative Technology Firm]
+\label{ex:fcff-example}
+Consider a hypothetical software company reporting the following figures for its most
+recent fiscal year (all in USD millions):
+\begin{center}
+\begin{tabular}{lr}
+\hline
+Revenue & 4{,}200 \\
+EBIT & 840 \\
+Depreciation \& Amortisation & 310 \\
+Capital Expenditure & 180 \\
+Net Working Capital (current year) & 620 \\
+Net Working Capital (prior year) & 540 \\
+Tax Rate ($\tau$) & 21\% \\
+\hline
+\end{tabular}
+\end{center}
+Applying Definition~\ref{def:fcff}:
+\begin{align*}
+\Delta\mathrm{NWC} &= 620 - 540 = 80\text{ M},\\
+\mathrm{FCFF} &= 840 \times (1 - 0.21) + 310 - 180 - 80\\
+              &= 663.6 + 310 - 180 - 80 = 713.6\text{ M}.
+\end{align*}
+With a WACC of 9\%, a five-year explicit forecast period growing at 8\%, and a terminal
+growth rate of 3\%, the enterprise value from~\eqref{eq:dcf}
+and~\eqref{eq:terminal-value} works out to approximately \$15.2B---a multiple of
+roughly $3.6\times$ trailing revenue, consistent with high-quality software-sector
+medians for firms with strong near-term growth.
+\end{example}
+
+\subsection{Programmatic Computation from Extracted Data}
+\label{subsec:bv-cashflows-computation}
+
+Given a structured financial data object produced by the extraction pipeline
+(Section~\ref{sec:bv-extraction}), computing historical FCFF is a straightforward
+algebraic operation. The following function takes the standardised JSON output
+and returns FCFF for each available period:
+
+\begin{lstlisting}[language=Python, caption={FCFF Computation from Extracted Financial Data}, label={lst:fcff-computation}]
+def compute_fcff(financials: dict, tax_rate: float | None = None) -> dict:
+    """
+    Compute FCFF from standardised extracted financials.
+
+    Parameters
+    ----------
+    financials : dict
+        Dictionary with keys: 'ebit', 'depreciation_amortization',
+        'capex', 'nwc_current', 'nwc_prior', 'income_tax_expense',
+        'ebt'.  All values are floats in the same currency/unit.
+    tax_rate : float or None
+        Explicit marginal tax rate. If None, inferred from
+        income_tax_expense / ebt (effective rate).
+
+    Returns
+    -------
+    dict with 'fcff', 'tax_rate_used', and component breakdown.
+    """
+    ebit = financials["ebit"]
+    da   = financials["depreciation_amortization"]
+    capex = financials["capex"]
+    delta_nwc = financials["nwc_current"] - financials["nwc_prior"]
+
+    if tax_rate is None:
+        ebt = financials.get("ebt")
+        tax_expense = financials.get("income_tax_expense")
+        if ebt and ebt != 0 and tax_expense is not None:
+            tax_rate = tax_expense / ebt
+        else:
+            raise ValueError(
+                "Cannot infer tax rate; provide tax_rate explicitly."
+            )
+
+    nopat = ebit * (1 - tax_rate)
+    fcff = nopat + da - capex - delta_nwc
+    return {
+        "fcff": fcff,
+        "nopat": nopat,
+        "da": da,
+        "capex": capex,
+        "delta_nwc": delta_nwc,
+        "tax_rate_used": tax_rate,
+    }
+\end{lstlisting}
+
+A production implementation applies this function across a time series of annual or
+quarterly observations, producing a vector of historical FCFFs that seeds the
+forecasting models of Section~\ref{sec:bv-forecasting}.
+
+\subsection{Handling Missing Data and Normalisation with LLM Assistance}
+\label{subsec:bv-cashflows-missing}
+
+Financial statements frequently contain items that distort the FCFF calculation if
+treated naively. Three categories merit particular attention.
+
+First, \emph{one-time items}---restructuring charges, litigation settlements,
+impairment write-downs---inflate or deflate EBIT in the reporting period but do not
+reflect the firm's recurring earning power. Standard practice is to remove them from
+the base EBIT used for forecasting. Second, \emph{capitalised operating leases} (now
+brought onto the balance sheet under IFRS 16 and ASC 842) create a mismatch between
+reported EBIT, depreciation, and cash flows that must be carefully reconciled.
+Third, \emph{acquired intangible amortisation} from purchase accounting (step-up of
+intangible assets in an acquisition) is often excluded by analysts calculating
+``adjusted EBIT'' or ``cash EBIT'' \cite{koller2020valuation}.
+
+LLMs are well suited to flagging these issues from the MD\&A and footnote text.
+A simple prompt such as the following can instruct an LLM to identify non-recurring
+items that should be stripped from operating income:
+
+\begin{lstlisting}[language=Python, caption={Prompt for Non-Recurring Item Identification}, label={lst:nonrecurring-prompt}]
+NORMALISATION_PROMPT = """You are a senior financial analyst reviewing a 10-K filing.
+Read the following Management Discussion and Analysis excerpt and identify
+any non-recurring, one-time, or extraordinary items that affected operating income
+this year but are unlikely to recur.
+
+For each item, provide:
+1. Description of the item
+2. Amount (in USD millions, sign-corrected so positive = expense)
+3. Line item affected (e.g., EBIT, gross profit)
+4. Your confidence that it is non-recurring (High / Medium / Low)
+
+Format the response as a JSON array of objects with keys:
+"description", "amount", "line_item", "confidence".
+
+MD&A TEXT:
+{mdna_text}
+"""
+\end{lstlisting}
+
+The LLM output is then reviewed programmatically: high-confidence items are
+automatically stripped from EBIT, medium-confidence items are flagged for analyst
+review, and low-confidence items are passed through unchanged. This human-in-the-loop
+design is important: the LLM accelerates identification but does not make the final
+adjustment autonomously. The normalised EBIT is:
+\begin{equation}
+\label{eq:ebit-normalised}
+\mathrm{EBIT}^* = \mathrm{EBIT} + \sum_{k \in \mathcal{K}} a_k,
+\end{equation}
+where $\mathcal{K}$ is the set of identified non-recurring expense items and $a_k > 0$
+is the pre-tax amount of item $k$ (positive because we are adding back an expense).
+\end{deepdive}
+
+% --- Section: Forecasting Cash Flows with LLMs ---
+
+\section{Forecasting Cash Flows with LLMs}
+\label{sec:bv-forecasting}
+
+\begin{deepdive}
+By the end of this section you will be able to implement chain-of-thought forecasting
+prompts, select between fine-tuning and few-shot strategies, and evaluate the resulting
+forecasts with MAPE, RMSE, and directional accuracy against a classical baseline.
+
+\subsection{Time-Series Perspectives on Financial Forecasting}
+\label{subsec:bv-forecasting-timeseries}
+
+Before examining LLM-based approaches, it is useful to establish the classical
+statistical baseline. Financial cash-flow forecasting has been studied extensively in
+the accounting and finance literature, with a lineage that includes the random-walk
+model \cite{ball1972earnings},
+mean-reverting models of earnings \cite{fama2000forecasting},
+and the use of analyst consensus estimates \cite{lewellen2010empirical}.
+
+The simplest baseline is the \emph{random walk with drift}:
+\begin{equation}
+\label{eq:rw-fcf}
+\mathrm{FCF}_{t+1} = \mu + \mathrm{FCF}_t + \varepsilon_{t+1},
+\quad \varepsilon_{t+1} \sim \mathcal{N}(0, \sigma^2),
+\end{equation}
+which asserts that the best forecast of next year's FCF is this year's FCF plus a
+long-run drift $\mu$. More elaborate specifications allow for mean reversion:
+\begin{equation}
+\label{eq:mean-reversion}
+\mathrm{FCF}_{t+1} - \bar{\mathrm{FCF}} = \phi (\mathrm{FCF}_t - \bar{\mathrm{FCF}}) + \varepsilon_{t+1},
+\end{equation}
+where $|\phi| < 1$ is the speed of mean reversion toward the long-run level $\bar{\mathrm{FCF}}$.
+Empirical estimates of $\phi$ for earnings are typically in the range 0.5--0.7,
+indicating substantial persistence but non-trivial mean reversion \cite{fama2000forecasting}.
+
+The key limitation of pure time-series models is their exclusive reliance on
+historical values of the series: they ignore the qualitative information in
+management guidance, industry trends, and macroeconomic conditions that financial
+analysts routinely incorporate. LLMs, trained on text corpora that include financial
+disclosures, analyst reports, and economic news, can incorporate this qualitative
+dimension. The empirical question---examined in detail in the evaluation subsection
+below---is whether this additional information yields a measurable improvement in
+forecast accuracy.
+
+\subsection{Prompt-Based Forecasting: Chain-of-Thought Approaches}
+\label{subsec:bv-forecasting-cot}
+
+\citet{wei2022chain} introduced \emph{chain-of-thought} (CoT) prompting, which
+elicits intermediate reasoning steps before the final answer. For financial
+forecasting, CoT is particularly valuable because it forces the model to articulate
+the causal mechanisms driving its projection, making the output auditable and reducing
+the risk of pattern-matching confabulation.
+
+A well-designed CoT forecasting prompt structures the reasoning in four stages:
+(1) characterise the macro environment, (2) assess industry dynamics, (3) evaluate
+firm-specific factors, and (4) synthesise into a numerical projection.
+
+\begin{lstlisting}[language=Python, caption={Chain-of-Thought Cash Flow Forecasting Prompt}, label={lst:cot-forecast-prompt}]
+COT_FORECAST_PROMPT = """You are an experienced sell-side equity analyst.
+Your task is to forecast the Free Cash Flow to Firm (FCFF) for the next
+three fiscal years for {company_name}.
+
+You have access to the following information:
+- Historical FCFF (last 5 years): {historical_fcff}
+- Most recent 10-K MD&A summary: {mdna_summary}
+- Industry: {industry}
+- Current macroeconomic conditions: {macro_summary}
+- Analyst consensus revenue growth estimates: {consensus_estimates}
+
+Please reason through the following steps BEFORE giving your forecast:
+
+Step 1 - Macroeconomic context:
+Assess how the current macro environment (interest rates, GDP growth,
+inflation) is likely to affect this company's revenue and margins.
+
+Step 2 - Industry dynamics:
+Identify the key drivers and headwinds for this industry over the next
+three years. Consider competitive dynamics, technology disruption,
+and regulatory changes.
+
+Step 3 - Firm-specific factors:
+Evaluate the company's competitive position, recent strategic
+initiatives, margin trajectory, and capital expenditure plans
+as disclosed in the MD&A.
+
+Step 4 - Synthesis and projection:
+Combining the above, provide your FCFF forecast for Years 1, 2, and 3.
+For each year, give:
+  - Point estimate (USD millions)
+  - Upside case (90th percentile)
+  - Downside case (10th percentile)
+  - Two-sentence justification
+
+Respond in the following JSON format:
+{{
+  "reasoning": {{
+    "macro": "<your macro analysis>",
+    "industry": "<your industry analysis>",
+    "firm_specific": "<your firm analysis>"
+  }},
+  "forecasts": [
+    {{"year": 1, "base": <float>, "upside": <float>, "downside": <float>,
+      "justification": "<text>"}},
+    {{"year": 2, "base": <float>, "upside": <float>, "downside": <float>,
+      "justification": "<text>"}},
+    {{"year": 3, "base": <float>, "upside": <float>, "downside": <float>,
+      "justification": "<text>"}}
+  ]
+}}
+"""
+\end{lstlisting}
+
+The separation of reasoning from numerical output is not merely cosmetic: it enables
+downstream validation. If the reasoning step contains an internally inconsistent claim
+(e.g., projecting 20\% revenue growth while simultaneously noting a highly competitive
+market with stable pricing), an automated consistency-checker or a human reviewer can
+flag it before the numbers propagate into the DCF model.
+
+\subsection{Fine-Tuning vs.\ Few-Shot Approaches for Financial Projection}
+\label{subsec:bv-forecasting-finetuning}
+
+Two broad strategies exist for adapting a general-purpose LLM to financial
+forecasting: \emph{in-context learning} (few-shot prompting) and
+\emph{fine-tuning} (supervised adaptation of model weights).
+
+In few-shot prompting, three to ten examples of historical (company, context, forecast)
+triples are prepended to the prompt. The model generalises the pattern demonstrated
+by the examples to the new query. The advantages of few-shot are deployment
+flexibility (no training infrastructure), zero marginal cost per new company, and the
+ability to update examples without retraining. The disadvantage is that example
+selection requires care: poorly chosen examples can anchor the model to the wrong
+regime. Research on in-context learning for financial tasks suggests that including
+examples with diverse macro environments and industry types reduces the variance of
+forecasts \cite{brown2020language}.
+
+Fine-tuning trains the model weights on a labelled dataset of historical
+(filing, subsequent cash flow realisation) pairs. This allows the model to internalise
+domain-specific patterns---for example, the empirical relationship between specific
+MD\&A language and subsequent earnings surprises---that cannot be conveyed efficiently
+in a prompt. The cost is dataset construction (historical filing collection and
+labelling), training compute, and the need to retrain when the model base changes.
+\citet{lopezlira2023chatgpt} provide empirical evidence that LLM-generated signals
+from financial text carry information about subsequent stock returns even without
+fine-tuning, implying that strong general-purpose models already encode substantial
+domain knowledge. Fine-tuning is most beneficial when the task is highly specialised
+(e.g., forecasting cash flows for a specific sector with non-standard accounting
+conventions) or when the model needs to produce calibrated uncertainty estimates.
+
+A pragmatic hybrid is \emph{parameter-efficient fine-tuning} (PEFT) via Low-Rank
+Adaptation (LoRA) \cite{hu2022lora}:
+only a small fraction of parameters are trained, dramatically reducing compute
+requirements while achieving performance competitive with full fine-tuning on
+domain-specific tasks.
+
+\subsection{Evaluating Forecast Quality}
+\label{subsec:bv-forecasting-evaluation}
+
+Forecast evaluation requires metrics that capture both \emph{magnitude accuracy}
+and \emph{directional accuracy}, since a valuation model is sensitive to both.
+
+\begin{definition}[Mean Absolute Percentage Error]
+\label{def:mape}
+Let $y_t$ be the realised value and $\hat{y}_t$ the forecast for period $t$, over a
+test set of $n$ observations. The \emph{mean absolute percentage error} is
+\begin{equation}
+\label{eq:mape}
+\mathrm{MAPE} = \frac{1}{n}\sum_{t=1}^{n} \frac{|y_t - \hat{y}_t|}{|y_t|} \times 100.
+\end{equation}
+\end{definition}
+
+\begin{definition}[Root Mean Squared Error]
+\label{def:rmse}
+The \emph{root mean squared error} is
+\begin{equation}
+\label{eq:rmse}
+\mathrm{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}(y_t - \hat{y}_t)^2}.
+\end{equation}
+\end{definition}
+
+\begin{definition}[Directional Accuracy]
+\label{def:da}
+The \emph{directional accuracy} measures the fraction of periods in which the forecast
+correctly predicts the direction of change:
+\begin{equation}
+\label{eq:da}
+\mathrm{DA} = \frac{1}{n}\sum_{t=1}^{n}
+  \mathbf{1}\!\left[\mathrm{sign}(y_t - y_{t-1}) = \mathrm{sign}(\hat{y}_t - y_{t-1})\right].
+\end{equation}
+\end{definition}
+
+MAPE is intuitive but problematic when $y_t$ is near zero or negative, which occurs
+for firms with volatile cash flows. RMSE is sensitive to large outliers and on an
+absolute scale that depends on company size, making cross-company comparisons difficult.
+Directional accuracy is scale-invariant and directly relevant to investment
+decision-making: a fund manager whose valuation model correctly identifies whether FCF
+will grow or shrink next year captures trading alpha even if the magnitude estimate is
+imprecise. A well-specified evaluation framework reports all three metrics and compares
+them against a random-walk baseline and, where available, sell-side analyst consensus
+estimates \citep{zhang2024financebench}.
+\end{deepdive}
+
+% --- Section: Tool-Augmented Agents for Financial Math ---
+
+\section{Tool-Augmented Agents for Financial Math}
+\label{sec:bv-tools}
+
+\begin{deepdive}
+This section explains the architectural reason why LLMs cannot be trusted for
+multi-step arithmetic, then shows how to implement the code-interpreter and ReAct
+patterns that route all financial calculations to a deterministic executor —
+giving you a blueprint you can extend to any valuation workflow.
+
+\subsection{Why LLMs Alone Struggle with Arithmetic}
+\label{subsec:bv-tools-limitations}
+
+Large language models are next-token predictors trained on text corpora. Arithmetic
+computation is not a natural fit for this architecture: the correct answer to
+$47{,}382 \times 631$ is determined not by statistical patterns in training data but
+by a deterministic algorithm. While transformers can learn to approximate certain
+arithmetic operations through repeated exposure to worked examples, their reliability
+degrades rapidly with problem complexity. Empirical studies find that GPT-4 achieves
+near-perfect accuracy on single-digit multiplication and simple percentage calculations
+but makes errors with non-trivial frequency on multi-step financial calculations
+involving chained operations, unit conversions, and percentage changes over long
+formulas \cite{frieder2023large}.
+
+For business valuation this is a serious limitation. A five-year DCF model involves
+approximately fifteen to twenty distinct arithmetic operations, each conditional on
+the results of the previous ones. Errors compound: an incorrectly applied tax rate in
+the FCFF formula propagates through every subsequent calculation, and the final
+valuation error can be several times the original computational error. The solution
+is architectural: remove arithmetic from the LLM's responsibility entirely and route
+it to a deterministic computational tool.
+
+\subsection{Code Interpreter and Calculator Tools}
+\label{subsec:bv-tools-code-interpreter}
+
+The \emph{code interpreter} pattern allows an LLM to generate executable code,
+submit it to a sandboxed Python interpreter, receive the output, and incorporate
+it into its reasoning. This approach has been formalised in systems such as
+Toolformer \citep{schick2024toolformer}, which demonstrated that models can
+learn to decide when to call external tools by observing how tool use reduces
+prediction loss.
+
+The code interpreter pattern for DCF computation looks as follows:
+
+\begin{lstlisting}[language=Python, caption={Code Interpreter Tool for DCF Calculation}, label={lst:code-interpreter-dcf}]
+import subprocess
+import sys
+
+DCF_TOOL_SCHEMA = {
+    "name": "python_executor",
+    "description": (
+        "Execute Python code and return the output. "
+        "Use this for all arithmetic, financial calculations, "
+        "and data transformations."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "code": {
+                "type": "string",
+                "description": "Python code to execute. Must be self-contained."
+            }
+        },
+        "required": ["code"]
+    }
+}
+
+def execute_python(code: str, timeout: int = 30) -> dict:
+    """
+    Execute Python code in an isolated subprocess and return results.
+    Returns dict with 'stdout', 'stderr', and 'success' fields.
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return {
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip(),
+            "success": result.returncode == 0,
+        }
+    except subprocess.TimeoutExpired:
+        return {"stdout": "", "stderr": "Execution timed out.", "success": False}
+\end{lstlisting}
+
+The advantage of generating Python over performing mental arithmetic is not merely
+accuracy: the generated code is an auditable artefact. A human reviewer can inspect
+the code to verify that the model applied the correct formula, used the correct
+inputs, and performed the calculation in the intended units. This transparency is
+essential in any regulated or high-stakes financial context.
+
+\subsection{ReAct and Tool-Use Patterns in Valuation Workflows}
+\label{subsec:bv-tools-react}
+
+\citet{yao2022react} proposed the ReAct (Reason + Act) framework, which interleaves
+chain-of-thought reasoning with tool invocations in a structured loop. Each iteration
+consists of three phases:
+
+\begin{enumerate}
+  \item \textbf{Thought}: The agent articulates its current understanding and decides
+        what to do next.
+  \item \textbf{Action}: The agent invokes a tool (e.g.,\ \texttt{python\_executor},
+        \texttt{edgar\_search}, \texttt{calculator}).
+  \item \textbf{Observation}: The agent receives the tool's output and incorporates it
+        into its context before the next thought.
+\end{enumerate}
+
+Applied to DCF valuation, a ReAct loop might unfold as follows:
+
+\begin{lstlisting}[language=Python, caption={Illustrative ReAct Loop for DCF Valuation}, label={lst:react-dcf}]
+# Illustrative trace of a ReAct agent computing enterprise value
+
+Thought 1: I need to compute FCFF. I have EBIT=840M, DA=310M,
+           CapEx=180M, delta_NWC=80M, tax_rate=0.21.
+           I will use the python_executor to ensure correctness.
+
+Action 1:  python_executor(code="""
+               ebit = 840; da = 310; capex = 180
+               delta_nwc = 80; tau = 0.21
+               fcff = ebit * (1 - tau) + da - capex - delta_nwc
+               print(f"FCFF = {fcff:.1f} M")
+           """)
+
+Observation 1: FCFF = 713.6 M
+
+Thought 2: FCFF is 713.6M. Now I need the terminal value.
+           Assuming FCF grows at 8% for 5 years then perpetuity at 3%,
+           WACC = 9%. Let me compute the full DCF.
+
+Action 2:  python_executor(code="""
+               import numpy as np
+               fcff0 = 713.6; g_explicit = 0.08; g_terminal = 0.03
+               wacc = 0.09; n = 5
+               fcfs = [fcff0 * (1 + g_explicit)**t for t in range(1, n+1)]
+               tv = fcfs[-1] * (1 + g_terminal) / (wacc - g_terminal)
+               pv_fcfs = sum(f / (1+wacc)**t for t, f in enumerate(fcfs, 1))
+               pv_tv = tv / (1+wacc)**n
+               ev = pv_fcfs + pv_tv
+               print(f"PV of FCFs = {pv_fcfs:.1f} M")
+               print(f"Terminal Value = {tv:.1f} M")
+               print(f"PV of TV = {pv_tv:.1f} M")
+               print(f"Enterprise Value = {ev:.1f} M")
+           """)
+
+Observation 2: PV of FCFs = 3210.4 M
+               Terminal Value = 15601.7 M
+               PV of TV = 10136.3 M
+               Enterprise Value = 13346.7 M
+
+Thought 3: Enterprise value is approximately $13.3B.
+           I can now report this result with full provenance.
+\end{lstlisting}
+
+The ReAct pattern makes the reasoning transparent and auditable while offloading all
+arithmetic to a reliable executor. The agent's role is to formulate the calculation
+correctly and interpret the results; the Python interpreter handles the computation.
+
+\subsection{Hallucinations and Limitations in Numerical Reasoning}
+\label{subsec:bv-tools-hallucinations}
+
+Even with tool augmentation, LLMs introduce distinctive failure modes in financial
+workflows. It is important to catalogue these systematically so that appropriate
+guardrails can be designed.
+
+\emph{Phantom tickers and fabricated companies}: an LLM asked to identify comparable
+companies may generate realistic-sounding but non-existent ticker symbols or company
+names. All tickers must be validated against an authoritative source (e.g.,\ the EDGAR
+company search API or a securities master file) before use.
+
+\emph{Invented financial ratios}: models may cite multiples, margin percentages, or
+other financial statistics with false precision, confabulating plausible-looking numbers
+that do not correspond to any filed data. The mitigation is mandatory grounding:
+every financial figure used in a valuation must be traced to a specific EDGAR filing
+or verified market data source. The ``trust but verify'' principle should be replaced
+with ``do not trust until verified.''
+
+\emph{Misapplied formulas}: the model may generate syntactically correct code that
+implements the wrong formula (e.g., computing FCFE when FCFF was requested, or
+forgetting the tax shield on interest). Code review by a human analyst, or automated
+formula-level testing against known benchmark cases, is necessary in production.
+
+\emph{Stale knowledge}: LLMs have a knowledge cutoff date. Financial data, tax rates,
+and accounting standards change. Any retrieval-augmented system must ensure that
+information retrieved from EDGAR is used in preference to the model's parametric
+knowledge for all factual claims about specific companies \citep{zhang2024financebench}.
+\end{deepdive}
+
+% --- Section: Scenario Analysis with LLMs ---
+
+\section{Scenario Analysis with LLMs}
+\label{sec:bv-scenarios}
+
+\begin{deepdive}
+This section formalises valuation scenarios as distributional objects, derives the
+Monte Carlo DCF estimator, and implements a simulation you can parameterise and
+re-run in under a second — turning qualitative bull/base/bear narratives into a
+quantified enterprise-value distribution.
+
+\subsection{Bull, Base, and Bear Case Construction}
+\label{subsec:bv-scenarios-cases}
+
+A single-point DCF estimate is a misleading representation of value because the inputs
+to the model are uncertain. Professional practice addresses this through \emph{scenario
+analysis}, in which the analyst constructs a small number of internally consistent
+input sets representing different macroeconomic and business outcomes.
+
+\begin{definition}[Valuation Scenarios]
+\label{def:scenarios}
+A \emph{bull case} corresponds approximately to the 90th percentile of the
+distribution of plausible outcomes---a scenario in which the firm benefits from
+favourable macro conditions, strong competitive execution, and above-consensus
+growth. A \emph{base case} corresponds to the 50th percentile (median expectation)
+and represents the analyst's best estimate of the most likely trajectory. A
+\emph{bear case} corresponds to the 10th percentile---a scenario of adverse macro
+conditions, margin compression, or competitive deterioration.
+\end{definition}
+
+Each scenario specifies a complete and internally consistent set of model inputs:
+revenue growth rates for each explicit forecast year, EBIT margins, CapEx intensity,
+net working capital ratios, and terminal growth rate. The internal consistency
+requirement is important: a bull case that combines high revenue growth with high
+margins and low CapEx is plausible only if the business model supports such scale
+economics. A model that simultaneously assumes 25\% revenue growth, 35\% EBIT margins,
+and a terminal growth rate of 1\% is internally contradictory---rapid growth
+corporations rarely decelerate to near-zero growth abruptly.
+
+LLMs are valuable at this stage not for numerical computation but for
+\emph{narrative coherence checking}: given a proposed set of scenario inputs, the
+model can assess whether the numbers are consistent with the described business
+environment and flag contradictions. An example prompt:
+
+\begin{lstlisting}[language=Python, caption={Scenario Consistency Validation Prompt}, label={lst:scenario-consistency}]
+SCENARIO_CHECK_PROMPT = """You are a senior equity research analyst reviewing
+a DCF valuation scenario for {company_name} in the {industry} industry.
+
+The following scenario has been proposed:
+- Scenario: {scenario_name}
+- Revenue CAGR (Years 1-5): {revenue_cagr}%
+- EBIT Margin (Year 5): {ebit_margin}%
+- CapEx as % of Revenue: {capex_pct}%
+- Terminal Growth Rate: {terminal_growth}%
+- WACC: {wacc}%
+
+Context: {scenario_narrative}
+
+Please evaluate the internal consistency of these assumptions. Specifically:
+1. Are the margin and growth assumptions consistent with each other
+   and with industry benchmarks?
+2. Is the terminal growth rate defensible relative to long-run GDP growth?
+3. Are there any assumptions that are internally contradictory?
+
+Respond with a JSON object:
+{{"is_consistent": true/false,
+  "issues": ["<list of specific inconsistencies or concerns>"],
+  "recommendation": "<brief corrective action if needed>"}}
+"""
+\end{lstlisting}
+
+\subsection{Monte Carlo Simulation Orchestrated by Agents}
+\label{subsec:bv-scenarios-montecarlo}
+
+Scenario analysis with three discrete cases is informative but does not characterise
+the full distribution of enterprise value. \emph{Monte Carlo simulation} generates
+this distribution by sampling from parametric distributions over the key inputs.
+
+\begin{definition}[Monte Carlo DCF]
+\label{def:monte-carlo-dcf}
+Let $\mathrm{WACC} \sim \mathcal{N}(\mu_\mathrm{WACC}, \sigma^2_\mathrm{WACC})$
+and $g \sim \mathcal{N}(\mu_g, \sigma^2_g)$ (truncated to ensure $g < \mathrm{WACC}$).
+For $M$ simulation paths indexed by $m = 1, \ldots, M$, draw
+$(\mathrm{WACC}^{(m)}, g^{(m)})$ and compute the enterprise value
+\begin{equation}
+\label{eq:monte-carlo-ev}
+V^{(m)} = \sum_{t=1}^{n} \frac{\mathrm{FCF}_t^{(m)}}{(1+\mathrm{WACC}^{(m)})^t}
++ \frac{\mathrm{FCF}_{n+1}^{(m)}}{(\mathrm{WACC}^{(m)} - g^{(m)})(1+\mathrm{WACC}^{(m)})^n},
+\end{equation}
+where $\mathrm{FCF}_t^{(m)}$ may itself be drawn from a distribution over
+cash-flow forecasts. The empirical distribution $\{V^{(m)}\}_{m=1}^M$ yields
+the mean, median, standard deviation, and percentile-based confidence intervals
+for enterprise value.
+\end{definition}
+
+A practical Monte Carlo implementation for valuation, invoked by an agent, is:
+
+\begin{lstlisting}[language=Python, caption={Monte Carlo DCF Simulation}, label={lst:monte-carlo-dcf}]
+import numpy as np
+
+def monte_carlo_dcf(
+    fcff_base: float,
+    g_explicit_mean: float,
+    g_explicit_std: float,
+    wacc_mean: float,
+    wacc_std: float,
+    g_terminal_mean: float,
+    g_terminal_std: float,
+    n_years: int = 5,
+    n_simulations: int = 10_000,
+    seed: int = 42,
+) -> dict:
+    """
+    Monte Carlo DCF simulation.
+
+    Parameters
+    ----------
+    fcff_base : float
+        Current-year FCFF (USD millions).
+    g_explicit_* : float
+        Mean and std of explicit-period annual FCF growth rate.
+    wacc_* : float
+        Mean and std of WACC.
+    g_terminal_* : float
+        Mean and std of terminal growth rate.
+    """
+    rng = np.random.default_rng(seed)
+    wacc_sim = rng.normal(wacc_mean, wacc_std, n_simulations)
+    g_term_sim = rng.normal(g_terminal_mean, g_terminal_std, n_simulations)
+    g_exp_sim = rng.normal(g_explicit_mean, g_explicit_std,
+                            size=(n_simulations, n_years))
+
+    # Clip to ensure g_terminal < wacc (Gordon Growth Model validity)
+    g_term_sim = np.minimum(g_term_sim, wacc_sim - 0.005)
+
+    ev_sim = np.zeros(n_simulations)
+    for m in range(n_simulations):
+        fcfs = [fcff_base]
+        for t in range(n_years):
+            fcfs.append(fcfs[-1] * (1 + g_exp_sim[m, t]))
+        pv_fcf = sum(
+            fcfs[t] / (1 + wacc_sim[m]) ** t for t in range(1, n_years + 1)
+        )
+        tv = (fcfs[n_years] * (1 + g_term_sim[m])
+              / (wacc_sim[m] - g_term_sim[m]))
+        pv_tv = tv / (1 + wacc_sim[m]) ** n_years
+        ev_sim[m] = pv_fcf + pv_tv
+
+    return {
+        "mean": float(np.mean(ev_sim)),
+        "median": float(np.median(ev_sim)),
+        "std": float(np.std(ev_sim)),
+        "p10": float(np.percentile(ev_sim, 10)),
+        "p25": float(np.percentile(ev_sim, 25)),
+        "p75": float(np.percentile(ev_sim, 75)),
+        "p90": float(np.percentile(ev_sim, 90)),
+        "simulations": ev_sim.tolist(),
+    }
+\end{lstlisting}
+
+Typical parameterisation in a mid-cap equity context might use
+$\mu_\mathrm{WACC} = 0.09$, $\sigma_\mathrm{WACC} = 0.015$,
+$\mu_g = 0.03$, $\sigma_g = 0.01$. With $M = 10{,}000$ draws, the simulation
+runs in under a second on a modern laptop, making it practical to re-run after
+every revision to the model inputs.
+
+\subsection{Sensitivity Analysis and Narrative Generation}
+\label{subsec:bv-scenarios-sensitivity}
+
+A sensitivity table examines how enterprise value responds to independent variation
+in two key parameters, holding all others constant. The two most informative
+dimensions are WACC and terminal growth rate, since together they dominate the
+terminal value calculation.
+
+Beyond the numerical sensitivity table, LLMs add value by \emph{generating
+the accompanying investment narrative}: a paragraph that interprets the
+simulation results in plain language, identifies the key risk factors driving
+the downside scenario, and frames the upside drivers. This narrative synthesis
+is where LLMs genuinely augment analyst productivity---producing a first-draft
+investment write-up that would otherwise take an analyst several hours.
+\end{deepdive}
+
+% --- Section: Comparable Selection Using LLMs ---
+
+\section{Comparable Selection Using LLMs}
+\label{sec:bv-comparables}
+
+\begin{deepdive}
+This section develops two complementary algorithms for peer-company identification ---
+prompt-based retrieval from the model's parametric memory and cosine-similarity search
+over MD\&A embeddings --- then combines them in a hybrid pipeline that you can implement
+and validate against a securities master file.
+
+\subsection{Traditional Comparable Selection: Criteria and Pitfalls}
+\label{subsec:bv-comparables-traditional}
+
+The market approach to valuation requires a peer group of companies that are
+sufficiently similar to the target to make multiple-based comparisons meaningful.
+Traditional comparable selection applies a hierarchy of filters. The first and
+most common filter is \emph{industry classification}: SIC (Standard Industrial
+Classification) codes, GICS (Global Industry Classification Standard) segments,
+or NAICS codes identify firms in the same sector. The second filter is
+\emph{size}: comparable firms typically fall within a band of 0.3--3.0 times
+the target's revenue or market capitalisation, since multiples vary systematically
+with scale. Geographic and regulatory constraints may further narrow the peer group.
+
+Three well-documented pitfalls afflict this approach. First, \emph{code obsolescence}:
+SIC codes were last revised in 1987; many technology, platform, and life-sciences
+businesses are assigned to codes that do not reflect their current business model.
+A cloud computing company and a 1990s software distributor may share the same
+SIC code. Second, \emph{diversified conglomerates}: a company with SIC code
+indicating manufacturing may derive the majority of its revenue from financial
+services. Multiples from that company are not informative peers for a pure-play
+manufacturer. Third, \emph{cyclical timing}: firms in the same sector at different
+points in their business cycles exhibit very different multiples; including a
+temporarily distressed firm in the peer group depresses the median multiple and
+undervalues the target.
+
+\subsection{Prompt-Based Comparable Identification}
+\label{subsec:bv-comparables-prompts}
+
+LLMs can identify peer companies from a natural-language description of the target
+firm's business model, without relying on rigid classification codes. A zero-shot
+prompt simply describes the target and requests comparable firms:
+
+\begin{lstlisting}[language=Python, caption={Zero-Shot Comparable Identification Prompt}, label={lst:zero-shot-comps}]
+ZERO_SHOT_COMPS_PROMPT = """You are an investment banking analyst specialising
+in equity valuation. Your task is to identify publicly listed comparable companies
+for the following target firm.
+
+Target firm description:
+{target_description}
+
+Financial profile:
+- Revenue: {revenue} USD millions
+- EBIT margin: {ebit_margin}%
+- Geography: {geography}
+- Stage: {company_stage}
+
+Identify 8 to 12 publicly listed comparable companies. For each, provide:
+- Company name
+- Ticker symbol
+- Stock exchange
+- Similarity rationale (2-3 sentences)
+- Similarity score (1-5, where 5 is near-identical business model)
+
+Rules:
+- Include only actually existing, currently publicly listed companies.
+- Do NOT invent tickers or company names.
+- Prefer companies with similar revenue scale (0.3x to 3x target revenue).
+- Exclude competitors that are more than 5x larger (index-constituents with
+  very different multiple dynamics).
+
+Respond as a JSON array of objects with keys:
+"name", "ticker", "exchange", "rationale", "similarity_score".
+"""
+\end{lstlisting}
+
+The instruction ``Do NOT invent tickers or company names'' is necessary but not
+sufficient: hallucinated comparables occur with non-trivial frequency even with
+this guard. A mandatory validation step---checking every returned ticker against
+a securities master---is non-negotiable in production use. Few-shot prompts that
+include three to five examples of correct (target, comparables) pairs drawn from
+historical analyst reports markedly reduce the hallucination rate by anchoring the
+model to real firm names.
+
+\subsection{Embedding-Based Approaches: Semantic Similarity on Financial Data}
+\label{subsec:bv-comparables-embeddings}
+
+The limitation of prompt-based comparable selection is that it relies on the model's
+parametric memory of company names, which may be stale or incomplete for smaller
+companies. Embedding-based approaches address this by directly measuring semantic
+similarity between financial text representations.
+
+\begin{definition}[Cosine Similarity]
+\label{def:cosine-similarity}
+For two embedding vectors $\mathbf{a}, \mathbf{b} \in \mathbb{R}^d$, the
+\emph{cosine similarity} is
+\begin{equation}
+\label{eq:cosine-sim}
+\mathrm{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \in [-1, 1].
+\end{equation}
+A value near $+1$ indicates that the two vectors point in the same direction---that is,
+the two documents occupy the same region of the embedding space---while a value near
+$0$ or $-1$ indicates orthogonality or opposition.
+\end{definition}
+
+The MD\&A section of the 10-K is the most semantically rich source for business-model
+characterisation: it describes in management's own words the company's products,
+markets, competitive position, and strategy. Embedding the MD\&A of all companies in
+a universe and indexing them in a vector database allows efficient nearest-neighbour
+retrieval.
+
+\begin{lstlisting}[language=Python, caption={Embedding-Based Comparable Selection}, label={lst:embedding-comps}]
+import numpy as np
+import faiss  # pip install faiss-cpu
+
+def build_comparable_index(
+    company_embeddings: dict[str, np.ndarray],
+) -> tuple[faiss.IndexFlatIP, list[str]]:
+    """
+    Build a FAISS inner-product index for fast comparable retrieval.
+
+    Parameters
+    ----------
+    company_embeddings : dict mapping ticker -> embedding vector (L2-normalised)
+
+    Returns
+    -------
+    index : faiss.IndexFlatIP
+    tickers : list of tickers in index order
+    """
+    tickers = list(company_embeddings.keys())
+    dim = len(next(iter(company_embeddings.values())))
+    # Stack into matrix
+    matrix = np.vstack([company_embeddings[t] for t in tickers]).astype("float32")
+    # L2-normalise so inner product equals cosine similarity
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    matrix /= norms
+    index = faiss.IndexFlatIP(dim)
+    index.add(matrix)
+    return index, tickers
+
+def find_comparables(
+    target_embedding: np.ndarray,
+    index: faiss.IndexFlatIP,
+    tickers: list[str],
+    top_k: int = 15,
+    exclude_self: str | None = None,
+) -> list[dict]:
+    """
+    Retrieve the top-k most similar companies by cosine similarity.
+    """
+    query = target_embedding.reshape(1, -1).astype("float32")
+    query /= np.linalg.norm(query)
+    similarities, indices = index.search(query, top_k + 1)
+    results = []
+    for sim, idx in zip(similarities[0], indices[0]):
+        ticker = tickers[idx]
+        if exclude_self and ticker == exclude_self:
+            continue
+        results.append({"ticker": ticker, "cosine_similarity": float(sim)})
+        if len(results) == top_k:
+            break
+    return results
+\end{lstlisting}
+
+Empirical studies using MD\&A embeddings find that cosine-similarity-based peers
+outperform SIC-code-based peers on several metrics: the comparable set has lower
+inter-quartile range of EV/EBITDA multiples (indicating more internally consistent
+peers), and valuations derived from embedding-based comparables exhibit lower
+absolute deviation from subsequent transaction prices \cite{shen2023nlp}.
+
+\subsection{Hybrid Methods: LLM-Filtered and Embedding-Ranked Comparables}
+\label{subsec:bv-comparables-hybrid}
+
+Both methods have complementary weaknesses. Prompt-based selection leverages broad
+world knowledge but hallucinate. Embedding-based selection is grounded but may
+return companies that are textually similar for the wrong reasons (e.g., two
+companies with similar MD\&A boilerplate language but different businesses).
+
+A \emph{hybrid} pipeline combines both in two stages. In the \emph{candidate
+generation} stage, the embedding index returns the top 30 candidates by cosine
+similarity---a large enough set to capture genuine peers, but manageable for the
+filtering stage. In the \emph{LLM filtering} stage, the model receives the list of
+candidates alongside brief company descriptions and applies qualitative judgment:
+removing firms that are geographically incomparable, in demonstrably different
+competitive positions, or subject to idiosyncratic events (e.g., under pending
+acquisition or bankruptcy protection). The filtered set of 8--12 comparables is
+then used for multiple analysis.
+
+The two-stage design confines the LLM's role to a task where it excels (qualitative
+business-model reasoning) and avoids the task where it is unreliable (recalling
+whether a specific ticker exists and what it refers to).
+\end{deepdive}
+
+% --- Section: End-to-End Valuation Pipeline ---
+
+\section{End-to-End Valuation Pipeline}
+\label{sec:bv-pipeline}
+
+\begin{context}
+The preceding sections each solved one piece of the valuation puzzle in isolation.
+Here we show how a practitioner wires them together into a production pipeline,
+orchestrates the components with a multi-agent architecture, and walks through
+the full workflow on a concrete case study.
+
+\subsection{Integrating Extraction, Forecasting, and Comparables}
+\label{subsec:bv-pipeline-integration}
+
+The components developed in the preceding sections can be assembled into a coherent
+valuation pipeline. The data flow is as follows:
+
+\begin{enumerate}
+  \item \textbf{EDGAR Retrieval}: Given a ticker, resolve the CIK, download the
+        most recent 10-K (and prior four years for historical context).
+  \item \textbf{LLM Extraction}: Parse the income statement, balance sheet, and
+        cash flow statement into structured JSON; flag non-recurring items using the
+        MD\&A analysis prompt.
+  \item \textbf{XBRL Cross-check}: Retrieve tagged XBRL data and reconcile with
+        LLM extraction; prefer XBRL for unambiguous tagged items.
+  \item \textbf{FCF Computation}: Apply the FCFF formula to the normalised financials
+        to produce a historical time series.
+  \item \textbf{Forecasting}: Apply the CoT forecasting prompt to generate base,
+        upside, and downside FCF paths for the explicit horizon.
+  \item \textbf{Terminal Value}: Compute terminal values under Gordon Growth Model
+        assumptions corresponding to each scenario.
+  \item \textbf{Comparable Selection}: Run the hybrid pipeline to identify a peer group;
+        compute current-year multiples for each peer.
+  \item \textbf{DCF and Comparables Valuation}: Compute DCF enterprise value and
+        equity value; compute comparable-based equity value using selected multiples.
+  \item \textbf{Monte Carlo}: Simulate the distribution of DCF values under parameter
+        uncertainty.
+  \item \textbf{Report Generation}: Synthesise results into a structured valuation
+        summary with narrative commentary.
+\end{enumerate}
+
+Each step produces a structured artefact that is passed to the next, creating an
+auditable data lineage. A formal data contract between pipeline stages---enforced
+with Pydantic models or equivalent schema validators---prevents silent failures
+from propagating.
+
+\subsection{Agent Orchestration for Multi-Step Valuation}
+\label{subsec:bv-pipeline-orchestration}
+
+The pipeline above can be implemented as a monolithic script, but this design is
+brittle: a failure in step 6 requires rerunning all prior steps. A more robust
+design uses an \emph{orchestrator agent} that maintains state and dispatches to
+specialist sub-agents, analogous to the multi-agent patterns described in
+Chapter~\ref{ch:llm-agents}.
+
+The orchestrator receives the target ticker and valuation objective (e.g., ``enterprise
+value for M\&A due diligence''), decomposes the task into sub-problems, and routes
+each sub-problem to the appropriate specialist: an \texttt{edgar\_agent} for retrieval
+and extraction, a \texttt{fcf\_agent} for computation and normalisation, a
+\texttt{forecast\_agent} for projections, a \texttt{comps\_agent} for comparable
+selection, and a \texttt{dcf\_agent} for final valuation and scenario synthesis. Each
+specialist reports back to the orchestrator with its output and any flags (e.g.,\
+``data gap in 2021 CapEx''). The orchestrator aggregates these outputs, handles
+exceptions, and initiates human-escalation when a specialist signals low confidence.
+
+This architecture has several advantages. First, each specialist can be independently
+tested and replaced---if a better forecasting agent becomes available, it can be
+swapped in without touching the orchestration logic. Second, specialists can run
+in parallel where there are no dependencies: comparable selection does not depend on
+the FCF forecast and can proceed concurrently. Third, the orchestrator maintains a
+shared valuation state dictionary that provides full provenance for the final output.
+
+\subsection{Case Study: Full Pipeline on a Public Company}
+\label{subsec:bv-pipeline-casestudy}
+
+To illustrate the pipeline concretely, consider a mid-cap US technology company
+with the following stylised profile, based on a composite of publicly available
+filings (specific company names and figures are illustrative):
+
+\begin{itemize}
+  \item \textbf{Industry}: Cloud software and infrastructure (SaaS)
+  \item \textbf{Revenue (TTM)}: \$4.2B, growing at 12\% year-over-year
+  \item \textbf{EBIT margin}: 20\%, with D\&A of \$310M and CapEx of \$180M
+  \item \textbf{Net debt}: \$800M
+  \item \textbf{Shares outstanding}: 280M
+\end{itemize}
+
+Applying the extraction pipeline to the most recent 10-K yields structured financials
+after LLM parsing, with two non-recurring items flagged by the MD\&A analysis: a
+\$45M restructuring charge and a \$30M acquired intangible amortisation step-up.
+After normalisation, EBIT becomes \$915M and FCFF (with $\tau = 0.21$) equals
+\$789M.
+
+The CoT forecasting prompt, seeded with the historical FCFF series and the MD\&A
+summary, returns the following base-case projections:
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+Year & FCF (Base, \$M) & FCF (Upside, \$M) & FCF (Bear, \$M) \\
+\hline
+1 & 868 & 940 & 760 \\
+2 & 947 & 1{,}050 & 820 \\
+3 & 1{,}025 & 1{,}170 & 870 \\
+4 & 1{,}100 & 1{,}280 & 900 \\
+5 & 1{,}170 & 1{,}385 & 920 \\
+\hline
+\end{tabular}
+\end{center}
+
+With WACC of 9\% and terminal growth of 3\%, the base-case DCF enterprise value
+is \$17.0B. Subtracting net debt yields an equity value of \$16.2B, or \$57.9 per
+share on 280M shares outstanding. The embedding-based comparable pipeline identifies
+nine peers with a median EV/EBITDA of 24.5$\times$. Applying this multiple to the
+firm's EBITDA of \$1.22B yields a comparables-based enterprise value of \$29.9B---a
+substantial premium to the DCF estimate, consistent with the sector trading at elevated
+growth multiples at the time of the analysis. The Monte Carlo simulation (10{,}000
+draws with $\sigma_\mathrm{WACC} = 1.5\%$ and $\sigma_g = 1\%$) produces an EV
+distribution with a mean of \$17.2B and a 10th--90th percentile range of
+\$12.5B--\$24.1B, providing quantified uncertainty alongside the point estimate.
+\end{context}
+
+% --- Section: Efficiency and Accuracy in LLM-Assisted Valuation ---
+
+\section{Efficiency and Accuracy in LLM-Assisted Valuation}
+\label{sec:bv-efficiency}
+
+\begin{deepdive}
+This section derives the evaluation metrics for benchmarking LLM-assisted valuations,
+quantifies token cost and latency, and provides a first-order error-propagation
+analysis showing how extraction errors compound through the DCF formula — then closes
+with deployment best practices grounded in those quantitative findings.
+
+\subsection{Benchmarking LLM Valuations Against Analyst Estimates}
+\label{subsec:bv-efficiency-benchmarking}
+
+Evaluating the quality of LLM-assisted valuations requires a benchmark. Three
+natural comparators are available: (1) sell-side analyst consensus price targets,
+(2) subsequent realised stock prices (12-month forward returns), and (3) transaction
+multiples from M\&A deals where an independent fairness opinion was rendered.
+
+The \citet{zhang2024financebench} benchmark provides a rigorous evaluation framework
+for LLM performance on financial question-answering tasks using actual SEC filings.
+For valuation-specific tasks, an analogous benchmark should evaluate the pipeline
+on a held-out set of companies and fiscal years, comparing the LLM-derived DCF
+equity value against the observed market price. The standard metrics are:
+
+\begin{itemize}
+  \item \emph{Mean absolute valuation error}: $\text{MAVE} = \frac{1}{N}\sum_{i=1}^{N} |V_i^{\mathrm{LLM}} - V_i^{\mathrm{market}}| / V_i^{\mathrm{market}} \times 100\%$.
+  \item \emph{Directional accuracy relative to consensus}: fraction of cases where the
+        LLM model is directionally consistent with analyst consensus (both above or both
+        below the current trading price).
+  \item \emph{Coverage rate}: fraction of companies for which the pipeline completes
+        successfully without manual intervention.
+\end{itemize}
+
+Preliminary evidence from internal experiments and published literature suggests that
+LLM-assisted extraction achieves coverage rates above 90\% for S\&P 500 constituents
+and above 75\% for Russell 2000 companies, with MAVE broadly comparable to the spread
+between analyst price targets and realised prices (typically 20--40\% on an annualised
+basis) \cite{zhang2024financebench}.
+The key insight is that the accuracy ceiling of any valuation model is determined by
+the fundamental unpredictability of future cash flows, not by the extraction or
+reasoning engine.
+
+\subsection{Cost, Latency, and Token Efficiency}
+\label{subsec:bv-efficiency-cost}
+
+Running an LLM-assisted valuation incurs token costs that are non-trivial for
+large-scale applications. A representative 10-K filing contains approximately
+50{,}000 tokens. With a retrieval-augmented pipeline that sends relevant excerpts
+(rather than the full document) to the model, the typical input context for a
+single extraction call is 3{,}000--8{,}000 tokens; for a forecasting call,
+1{,}000--2{,}000 tokens. The total token budget per company valuation is therefore
+roughly:
+
+\begin{equation}
+\label{eq:token-cost}
+\text{Cost} \approx (T_{\mathrm{in}} \times p_{\mathrm{in}} + T_{\mathrm{out}} \times p_{\mathrm{out}}) \times N_{\mathrm{calls}},
+\end{equation}
+
+where $T_{\mathrm{in}}$ and $T_{\mathrm{out}}$ are average input and output tokens
+per call, $p_{\mathrm{in}}$ and $p_{\mathrm{out}}$ are the per-token prices, and
+$N_{\mathrm{calls}}$ is the number of LLM calls in the pipeline. For a full
+valuation with six LLM calls (three extraction, one normalisation, one forecast,
+one comparable filter) at typical 2024 frontier-model pricing, the cost per company
+is in the range \$0.50--\$3.00. At scale---a universe of 3{,}000 companies
+refreshed quarterly---the budget is thus \$6{,}000--\$36{,}000 per quarter, well
+within the operational budget of a mid-size investment management firm.
+
+Latency is a separate concern. Each LLM call introduces 1--5 seconds of network and
+inference latency. The pipeline can be parallelised across companies (each company's
+valuation is independent) and, within a single company, across pipeline stages that
+have no data dependencies (e.g., comparable selection can run concurrently with FCF
+computation). With aggressive parallelisation, end-to-end latency per company can
+be reduced to 15--30 seconds.
+
+\subsection{Error Propagation in Multi-Step Agent Workflows}
+\label{subsec:bv-efficiency-errors}
+
+A critical concern in multi-step pipelines is \emph{error propagation}: a mistake
+in an early stage compounds through all downstream calculations. To quantify this,
+consider a first-order Taylor approximation of the DCF enterprise value.
+
+Let $V = V(\mathrm{FCF}, g, \mathrm{WACC})$ denote the DCF value as a function of
+its key inputs. Suppose extraction produces a cash-flow estimate with error
+$\varepsilon_1 = \hat{\mathrm{FCF}} - \mathrm{FCF}^*$, and the forecasting stage
+introduces a bias in terminal growth of $\varepsilon_2 = \hat{g} - g^*$.
+The induced error in enterprise value is approximately
+
+\begin{equation}
+\label{eq:error-propagation}
+\Delta V \approx \frac{\partial V}{\partial \mathrm{FCF}} \varepsilon_1
+             + \frac{\partial V}{\partial g} \varepsilon_2,
+\end{equation}
+
+where, for the Gordon Growth perpetuity component $V \approx \mathrm{FCF}_n(1+g)/(\mathrm{WACC}-g)$
+(with $\mathrm{FCF}_n$ the current-period free cash flow):
+\begin{equation}
+\label{eq:dv-dfcf}
+\frac{\partial V}{\partial \mathrm{FCF}_n} = \frac{1+g}{\mathrm{WACC} - g},
+\end{equation}
+\begin{equation}
+\label{eq:dv-dg}
+\frac{\partial V}{\partial g} = \frac{\mathrm{FCF}_n\,(1 + \mathrm{WACC})}{(\mathrm{WACC} - g)^2}.
+\end{equation}
+
+Both partial derivatives are large when $g$ is close to WACC, confirming that
+valuation is most sensitive to terminal-growth and discount-rate assumptions in
+high-growth scenarios. With $\mathrm{WACC} = 0.09$ and $g = 0.03$, a 1\% relative
+error in FCF translates into a 1\% error in enterprise value; but a 100-basis-point
+error in terminal growth translates into approximately a 15--18\% error in enterprise
+value---since $\partial V / \partial g \times 0.01 / V \approx (1+\mathrm{WACC})/[(\mathrm{WACC}-g)(1+g)] \times 0.01 \approx 0.176$ at these parameters (with the first-order approximation slightly above the exact discrete change of $\approx 16\%$). This analysis
+justifies the emphasis on Monte Carlo simulation and scenario analysis rather than
+single-point estimates.
+
+\subsection{Best Practices and Deployment Considerations}
+\label{subsec:bv-efficiency-bestpractices}
+
+Assembling the lessons of this chapter, the following best practices characterise a
+production-grade LLM-assisted valuation system.
+
+Always verify extracted numbers against XBRL tags where available. LLM extraction
+is a valuable complement to XBRL but should not serve as the sole source of
+financial data. The SEC's XBRL API provides ground-truth tagged figures for the
+majority of standard line items, and any LLM-extracted figure that conflicts with
+the corresponding XBRL tag should be flagged for human review.
+
+Use a code interpreter for all arithmetic. No financial calculation---however
+simple---should be performed by the LLM's in-context reasoning. The code interpreter
+pattern provides deterministic, auditable results and eliminates an entire class
+of valuation errors. The generated code is itself a deliverable: it documents exactly
+what was computed.
+
+Run Monte Carlo to quantify uncertainty. A point-estimate DCF is a misleading
+representation of value. At a minimum, a simulation over WACC and terminal growth
+distributions should accompany every valuation, with the resulting percentile range
+communicated alongside the central estimate.
+
+Implement mandatory hallucination guards. Every company name and ticker returned by
+the comparable-selection pipeline must be validated against an authoritative
+securities register. Every financial figure cited by the model must be traced to a
+specific EDGAR accession number. Any unverifiable claim should be suppressed from
+the final output.
+
+Never use LLM-only output in production without human review. The current generation
+of LLMs is a powerful analytical assistant but not an autonomous decision-maker.
+Final valuation reports should be reviewed by a qualified analyst who takes
+responsibility for the figures. The LLM's output should be treated as a first-draft
+that requires checking, not a finished product that requires only formatting.
+
+These principles are consistent with the broader governance literature on AI in
+finance \cite{fsb2023ai},
+which emphasises human accountability, model transparency, and robust back-testing
+as prerequisites for responsible deployment of machine-learning systems in investment
+processes.
+\end{deepdive}
+
+\begin{remark}[Summary of Chapter Contributions]
+\label{rem:ch5-summary}
+This chapter has developed a comprehensive framework for LLM-assisted business
+valuation. The key technical contributions are: (1) an end-to-end EDGAR extraction
+pipeline using LLM table parsing with XBRL cross-validation; (2) a normalised FCFF
+computation workflow with LLM-assisted non-recurring item identification; (3) a
+chain-of-thought forecasting architecture with formal evaluation metrics; (4) a
+ReAct agent pattern that routes all arithmetic to a sandboxed Python interpreter;
+(5) a hybrid comparable-selection pipeline combining FAISS vector search with
+LLM-based qualitative filtering; and (6) a first-order error-propagation analysis
+that quantifies how extraction and forecast errors translate into valuation uncertainty.
+Together, these components form a production-oriented reference architecture for
+LLM-augmented equity valuation.
+\end{remark}

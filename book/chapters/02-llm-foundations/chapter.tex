@@ -944,10 +944,18 @@ for practitioners.
 \section{The Modern LLM Landscape}
 \label{sec:landscape}
 
-The preceding sections established the architectural foundations of the Transformer
-and the pre-training paradigm.  We now survey the landscape of deployed large language
-models (LLMs) as it stands in the mid-2020s, drawing distinctions that will recur
-throughout this book.
+\begin{context}
+
+In November 2022, a chatbot launched with almost no fanfare.  Within sixty days
+it had a hundred million users---the fastest consumer adoption of any product in
+history.  ChatGPT did not introduce any fundamentally new technology; the
+Transformer architecture had existed since 2017, GPT-3 since 2020.  What it
+introduced was \emph{interface}: a fluent, patient, conversational layer over a
+raw language model that made the underlying capability legible to people who had
+never written a line of code.  For finance, the question was not whether this was
+impressive.  The question was more specific and more urgent: what, exactly, can
+these models do, and what will they get confidently, catastrophically wrong?  The
+answer begins with understanding what is actually being deployed.
 
 \subsection{Generative Models vs.\ Reasoning Models}
 \label{sec:landscape-genreason}
@@ -1056,9 +1064,8 @@ latency and cost of extended thinking may not be justified.
 Table~\ref{tab:model-families} provides a structured overview of the major model
 families referenced throughout this book.
 
-\begin{table}[htbp]
-\centering
-\caption{Major language model families relevant to financial NLP (as of 2024--2025).
+\begin{center}
+\captionof{table}{Major language model families relevant to financial NLP (as of 2024--2025).
 Parameter counts are approximate.  ``Finance'' indicates whether the model was
 trained or fine-tuned specifically on financial corpora.}
 \label{tab:model-families}
@@ -1076,7 +1083,7 @@ FinBERT          & Araci (2019)  & Encoder      & 110M             & Financial n
 BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ tok.  & Yes \\
 \hline
 \end{tabular}
-\end{table}
+\end{center}
 
 The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
 weights are not released, and access is mediated through pay-per-token APIs.  This
@@ -1132,9 +1139,8 @@ Progress in financial NLP is measured against a set of standardised benchmarks.
 Table~\ref{tab:benchmarks} summarises the major ones; all are used in evaluation
 experiments in subsequent chapters.
 
-\begin{table}[htbp]
-\centering
-\caption{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
+\begin{center}
+\captionof{table}{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
 ``Metric'' is the primary evaluation metric used in the literature.}
 \label{tab:benchmarks}
 \small
@@ -1150,7 +1156,7 @@ FinQA               & Numerical reasoning  & 8,281 Q\&A pairs  & Execution acc. 
 FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  & \cite{shah2022flue} \\
 \hline
 \end{tabular}
-\end{table}
+\end{center}
 % [CITE: malo2014good] Malo et al. (2014), FinancialPhraseBank
 % [CITE: fiqa2018] Maia et al. (2018), FiQA challenge
 % [CITE: mukherjee2022ectsum] Mukherjee et al. (2022), ECTSum
@@ -1198,6 +1204,8 @@ distributional bias for evaluating models intended for European or Asian financi
 markets, and Chapter~12 highlights specific challenges that arise when FLUE-trained
 models are applied to MiFID~II or IFRS filings.
 \end{remark}
+
+\end{context}
 
 % ---------------------------------------------------------------
 \section{Temperature, Sampling, and Controlled Generation}

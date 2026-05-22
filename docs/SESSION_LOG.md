@@ -50,3 +50,4 @@
 | 2026-05-22 | 3 files | docs: add /ssrn-enrich implementation plan;chore: session log 2026-05-22;docs: add ssrn-enrich skill design spec; | — |
 | 2026-05-22 | 4 files | feat(ch04): wrap sections in context/deepdive boxes (dual-mode split);chore: session log 2026-05-22;docs: add /ssrn-enrich implementation plan; | — |
 | 2026-05-22 | 4 files | feat(agents): add ssrn-researcher agent for SSRN working paper discovery;chore: session log 2026-05-22;feat(ch04): wrap sections in context/deepdive boxes (dual-mode split); | — |
+| 2026-05-22 | 4 files | fix(skills): resolve bib path from chapter directive; guard missing bib file;chore(config): register /ssrn-enrich in CLAUDE.md entry points;feat(skills): add /ssrn-enrich skill for SSRN working paper enrichment; | — |

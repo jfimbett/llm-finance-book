@@ -35,12 +35,17 @@ Run after `/draft-chapter` and before `/release-chapter`.
    If the output contains a `WARNING: Only N papers found` line, relay that warning to
    the user but continue.
 
-5. Append BibTeX entries to `book/bibliography.bib`:
-   - Read the existing `bibliography.bib` and collect all current entry keys.
+5. Resolve the target `.bib` file and append BibTeX entries:
+   - Scan `book/chapters/NN-name/chapter.tex` for `\addbibresource{...}` or
+     `\bibliography{...}` directives to identify the correct `.bib` file. If no directive
+     is found, default to `book/bibliography.bib`.
+   - If the resolved `.bib` file does not exist, create it as an empty file before
+     proceeding.
+   - Read the existing `.bib` file and collect all current entry keys.
    - For each new `@unpublished` entry from the researcher, check if its key already
      exists. If it does, append `_ssrn` to the incoming key (e.g. `Smith2024_ssrn`) and
      log: `NOTE: key Smith2024 already exists — renamed to Smith2024_ssrn.`
-   - Append all new entries to the end of `bibliography.bib`.
+   - Append all new entries to the end of the `.bib` file.
 
 6. **Invoke the `editor` agent** — provide:
    - The full chapter text (as last read in step 2)
@@ -63,16 +68,17 @@ Run after `/draft-chapter` and before `/release-chapter`.
 
 10. Commit:
     ```
-    git add book/chapters/NN-name/chapter.tex book/bibliography.bib
+    git add book/chapters/NN-name/chapter.tex <resolved-bib-file>
     git commit -m "feat(chNN): enrich with SSRN working papers"
     ```
-    Replace `NN` with the chapter number.
+    Replace `NN` with the chapter number and `<resolved-bib-file>` with the actual `.bib`
+    path identified in step 5.
 
 ## Expected Output
 
 - `book/chapters/NN-name/chapter.tex` — updated with `\cite{}` markers and explanatory
   prose for each new working paper
-- `book/bibliography.bib` — new `@unpublished` entries appended at the end
+- The chapter's `.bib` file (resolved from `\addbibresource`/`\bibliography`, defaulting to `book/bibliography.bib`) — new `@unpublished` entries appended at the end
 - Quality scores at or above `quality_threshold` in all dimensions
 
 ## Error Handling

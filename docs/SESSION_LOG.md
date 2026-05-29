@@ -93,3 +93,4 @@
 | 2026-05-29 | 7 files | feat(appB): draft Codex CLI practitioner's reference appendix;chore: session log 2026-05-29;refine(appA): remove all self-referential book-production mentions; | — |
 | 2026-05-29 | 8 files | feat(appB): complete draft pipeline for Codex CLI appendix;chore: session log 2026-05-29;feat(appB): draft Codex CLI practitioner's reference appendix; | — |
 | 2026-05-29 | 9 files | feat(appC): scaffold and draft Hugging Face & local models appendix;chore: session log 2026-05-29;feat(appB): complete draft pipeline for Codex CLI appendix; | — |
+| 2026-05-29 | 9 files | feat(appC): complete draft pipeline for Hugging Face & local models appendix;chore: session log 2026-05-29;feat(appC): scaffold and draft Hugging Face & local models appendix; | — |

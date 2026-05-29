@@ -28,7 +28,7 @@ After working through this appendix, the reader should be able to:
 
 \begin{context}
 On 16 April 2025, OpenAI released Codex CLI as an open-source terminal agent.
-The release was deliberate counterpart positioning: within days of Anthropic's
+The release was a deliberate competitive response: within days of Anthropic's
 Claude Code reaching widespread adoption, OpenAI shipped a tool with a similar
 surface---reads files, runs tests, edits code, commits changes---but with a
 fundamentally different security architecture.  Where Claude Code enforces
@@ -36,7 +36,8 @@ safety at the application layer through programmable hooks and an allowlist,
 Codex CLI enforces safety at the operating-system kernel layer using platform
 sandboxing primitives.  By early 2026, approximately four million developers
 were using Codex each week, and GPT-5.5---OpenAI's first fully agentic-first
-retrained base model---had become the default engine behind every Codex surface.
+retrained base model---had become the default engine behind every Codex surface
+\citep{openai2026gpt55}.
 \end{context}
 
 \subsection{Overview and Positioning}
@@ -344,10 +345,10 @@ what can go wrong when an AI agent makes a mistake or is manipulated by
 adversarial input.  Claude Code enforces safety at the application layer:
 a misconfigured allowlist or a prompt-injection attack can potentially
 cause the model to execute a command that the developer did not intend.
-Codex CLI enforces safety at the operating-system kernel layer, which means
-that even if the model requests a forbidden operation, the kernel will refuse
-it before any harm occurs.  For financial institutions with strict data
-governance requirements, this distinction matters.
+Codex CLI enforces safety at the operating-system kernel layer.  Even if the
+model requests a forbidden operation, the kernel refuses it before any harm
+occurs.  For financial institutions with strict data governance requirements,
+this distinction matters.
 \end{context}
 
 \subsection{Local Sandboxing}
@@ -366,8 +367,8 @@ primitives:
 
   \item[Linux --- Landlock] A Linux Security Module (available since kernel
         5.13) that implements a stackable, unprivileged access-control
-        mechanism.  Codex uses Landlock to restrict file-system access to the
-        working directory tree.
+        mechanism \citep{linux2022landlock}.  Codex uses Landlock to restrict
+        file-system access to the working directory tree.
 
   \item[Linux --- seccomp] A kernel mechanism that filters system calls.
         Codex's seccomp profile blocks dangerous syscalls (e.g.,
@@ -402,9 +403,9 @@ Platform               & macOS, Linux      & All platforms \\
 \label{app:codex:cloud}
 
 Setting \texttt{"sandbox.mode": "cloud"} routes each Codex task to an
-ephemeral virtual machine on OpenAI's infrastructure.  The VM is pre-loaded
-with the repository (fetched from GitHub or supplied as a tarball) and
-destroyed after the task completes.  Benefits for financial workflows:
+ephemeral virtual machine on OpenAI's infrastructure.  Codex pre-loads the VM
+with the repository (fetched from GitHub or supplied as a tarball) and destroys
+it after the task completes.  Benefits for financial workflows:
 
 \begin{itemize}
   \item \textbf{Data isolation} --- sensitive datasets remain in the cloud VM

@@ -88,3 +88,4 @@
 | 2026-05-29 | 8 files | feat(skills): add appendix support to book scaffolding commands;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
 | 2026-05-29 | 9 files | feat(appA): scaffold and draft Claude Code practitioner's reference appendix;chore: session log 2026-05-29;feat(skills): add appendix support to book scaffolding commands; | — |
 | 2026-05-29 | 11 files | feat(appA): complete draft pipeline for Claude Code appendix;chore: session log 2026-05-29;feat(appA): scaffold and draft Claude Code practitioner's reference appendix; | — |
+| 2026-05-29 | 7 files | fix(appA): remove duplicate park2023generative bib entry; book compiles cleanly;chore: session log 2026-05-29;feat(appA): complete draft pipeline for Claude Code appendix; | — |

@@ -86,3 +86,4 @@
 | 2026-05-22 | 11 files | chore: update ch07 quality score to 9.0 and refresh STATUS.md;chore: session log 2026-05-22;feat(lec07): draft Applications and Future Trends lecture and practical; | — |
 | 2026-05-22 | 7 files | chore: session log 2026-05-22;chore: update ch07 quality score to 9.0 and refresh STATUS.md;chore: session log 2026-05-22; | — |
 | 2026-05-29 | 8 files | feat(skills): add appendix support to book scaffolding commands;chore: session log 2026-05-22;chore: session log 2026-05-22; | — |
+| 2026-05-29 | 9 files | feat(appA): scaffold and draft Claude Code practitioner's reference appendix;chore: session log 2026-05-29;feat(skills): add appendix support to book scaffolding commands; | — |

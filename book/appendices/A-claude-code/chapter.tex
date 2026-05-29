@@ -207,7 +207,7 @@ commands.
 \end{table}
 
 Any skill installed in \texttt{.claude/skills/} is also accessible as a slash
-command (e.g., \texttt{/draft-chapter}, \texttt{/score-content}).
+command (e.g., \texttt{/fetch-filings}, \texttt{/run-backtest}).
 
 \subsection{Plan Mode}
 \label{app:claude-code:plan-mode}
@@ -326,8 +326,9 @@ history, and detected languages/frameworks.
 
 \begin{deepdive}
 \texttt{CLAUDE.md} is not limited to free-form prose.  It can contain structured
-YAML front matter (as in this book's \texttt{TOPIC.md}), conditional blocks, and
-even embedded skill references.  Claude Code does not execute front matter
+YAML front matter (useful for storing project-level configuration such as data
+paths, model parameters, or quality thresholds), conditional blocks, and even
+embedded skill references.  Claude Code does not execute front matter
 directly; rather, skills and agents read it programmatically using the
 \texttt{Read} tool to extract configuration.  This indirection---human-readable
 markdown that is also machine-parseable---is what allows a single configuration
@@ -399,17 +400,17 @@ Each memory is a markdown file with YAML front matter:
 
 \begin{minted}{markdown}
 ---
-name: feedback-no-paragraphs
-description: Never use \paragraph{} as inline labels; prose must flow
+name: project-data-conventions
+description: Return convention for this project is log returns, not simple
 metadata:
-  type: feedback
+  type: project
 ---
 
-Rule: Do not use `\paragraph{}` or `\textbf{}` as inline paragraph labels.
-**Why:** The author finds heading-dense prose easier to scan in source but
-harder to read in the compiled PDF.
-**How to apply:** In all `.tex` content files, let sections flow as continuous
-prose without sub-headings smaller than `\subsubsection`.
+Always compute log returns: `np.log(price / price.shift(1))`.
+**Why:** Risk models and factor regressions assume additive returns; simple
+returns compound multiplicatively and bias long-horizon estimates.
+**How to apply:** Flag any code that uses `price.pct_change()` without a
+subsequent log transformation.
 \end{minted}
 
 The memory system has four types: \textbf{user} (the human's role and
@@ -469,8 +470,8 @@ true}, in which case Claude Code is notified when the process completes rather
 than blocking.  This is essential for long compilation jobs or test suites.
 
 \begin{minted}{bash}
-# Example: compile the book in the background
-cd book && pdflatex -interaction=nonstopmode main.tex
+# Example: run a backtest in the background
+python scripts/run_backtest.py --strategy momentum --start 2015-01-01
 \end{minted}
 
 \textbf{Security note.}  The Bash tool is the highest-risk tool because it can
@@ -543,13 +544,12 @@ Skills are:
         they govern; changes are visible in \texttt{git log}.
   \item \textbf{Composable} --- a skill can invoke other skills via the
         \texttt{Skill} tool, enabling pipelines like
-        \texttt{/draft-chapter} → \texttt{/score-content} →
-        \texttt{/refine-until-threshold}.
+        \texttt{/fetch-filings} → \texttt{/extract-sentiment} →
+        \texttt{/build-factors}.
 \end{itemize}
 
-This book defines skills for every major authoring task; see the
-\texttt{.claude/skills/} directory for the full catalogue, or run
-\texttt{/help} to list available commands.
+Skills live in \texttt{.claude/skills/}; run \texttt{/help} from any session
+to list those available in the current project.
 
 \subsection{Hooks}
 \label{app:claude-code:hooks}
@@ -584,9 +584,9 @@ automatically in response to tool-use events.  The available hook events are:
 
 Hook scripts receive tool input and output as environment variables and can
 write to \texttt{stdout} to inject messages into the conversation.  A common
-pattern in this book's project is a \texttt{PostToolUse} hook on \texttt{Edit}
-that re-runs the \LaTeX{} linter on any modified \texttt{.tex} file,
-surfacing syntax errors before the next agent step.
+pattern for quantitative projects is a \texttt{PostToolUse} hook on \texttt{Edit}
+that re-runs a data-validation script whenever a model configuration file
+changes, surfacing schema errors before the next agent step.
 
 \subsection{MCP Server Integration}
 \label{app:claude-code:mcp}
@@ -675,13 +675,13 @@ piece in parallel.
 \begin{minted}{json}
 // Simplified Agent call (as JSON schema)
 {
-  "description": "Classify whether chapter section covers tokenization",
-  "prompt": "Read book/chapters/02-llm-foundations/chapter.tex and return ...",
+  "description": "Classify sentiment of an earnings call transcript",
+  "prompt": "Read data/transcripts/AAPL_2024Q4.txt and classify overall ...",
   "schema": {
     "type": "object",
     "properties": {
-      "covers_tokenization": { "type": "boolean" },
-      "evidence": { "type": "string" }
+      "sentiment": { "type": "string", "enum": ["positive","neutral","negative"] },
+      "confidence": { "type": "number" }
     }
   }
 }
@@ -693,24 +693,24 @@ piece in parallel.
 Named sub-agent types are defined as markdown files in
 \texttt{.claude/agents/}.  Each file specifies a persona, a set of inputs, a
 task description, and constraints.  When an \texttt{Agent} call includes
-\texttt{agentType: "math-checker"}, Claude Code reads
-\texttt{.claude/agents/math-checker.md} and prepends it to the child's system
+\texttt{agentType: "risk-checker"}, Claude Code reads
+\texttt{.claude/agents/risk-checker.md} and prepends it to the child's system
 prompt.
 
-This book defines the following agent types:
+A finance research project might define agent types such as:
 
 \begin{itemize}
-  \item \texttt{book-writer} --- drafts \LaTeX{} content following the book's
-        structural conventions.
-  \item \texttt{math-checker} --- verifies derivations and proofs; returns
-        \texttt{PASS} or \texttt{FAIL} with a list of issues.
-  \item \texttt{editor} --- improves clarity and flow without changing
-        mathematical content.
-  \item \texttt{scorer} --- applies the 5-dimension quality rubric and writes
-        a JSON score report.
-  \item \texttt{outline-curator} --- audits and refines section outlines.
-  \item \texttt{literature-reviewer} --- suggests references with BibTeX entries.
-  \item \texttt{proofreader} --- checks grammar, spelling, and style consistency.
+  \item \texttt{data-validator} --- checks that a dataset conforms to expected
+        schema, return conventions, and date ranges; returns \texttt{PASS} or
+        \texttt{FAIL} with a list of issues.
+  \item \texttt{factor-builder} --- constructs Fama--French-style factor
+        portfolios from cleaned price and fundamentals data.
+  \item \texttt{risk-checker} --- verifies that a proposed portfolio does not
+        breach position limits, sector concentration caps, or drawdown thresholds.
+  \item \texttt{report-writer} --- drafts regulatory or client-facing reports
+        from structured backtest output, following a house style guide.
+  \item \texttt{literature-reviewer} --- scans SSRN and arXiv for recent papers
+        on a given topic and returns structured BibTeX entries.
 \end{itemize}
 
 \subsection{The Workflow Tool}
@@ -723,47 +723,48 @@ Workflow script is controlled by explicit JavaScript control flow---loops,
 conditionals, and fan-out---making the execution pattern reproducible and
 auditable.
 
-A minimal Workflow script that scores three chapters concurrently illustrates
-the core pattern:
+A minimal Workflow script that classifies the sentiment of multiple earnings
+call transcripts concurrently illustrates the core pattern:
 
 \begin{minted}{javascript}
 export const meta = {
-  name: 'score-all-chapters',
-  description: 'Run quality scorer on every chapter in parallel',
-  phases: [{ title: 'Score' }],  // declares progress group shown in /workflows
+  name: 'classify-earnings-calls',
+  description: 'Sentiment-classify earnings transcripts in parallel',
+  phases: [{ title: 'Classify' }],  // progress group shown in /workflows
 }
 
-const chapters = ['01-intro', '02-llm-foundations', '03-llm-training-finetuning']
+const tickers = ['AAPL', 'MSFT', 'JPM', 'GS', 'BAC']
 
 // JSON Schema forces each agent to return structured data, not free text.
-const SCORE_SCHEMA = {
+const SENTIMENT_SCHEMA = {
   type: 'object',
   properties: {
-    clarity: { type: 'number' },
-    rigor: { type: 'number' },
-    completeness: { type: 'number' },
-    pedagogy: { type: 'number' },
-    style: { type: 'number' },
+    ticker:     { type: 'string' },
+    sentiment:  { type: 'string', enum: ['positive', 'neutral', 'negative'] },
+    confidence: { type: 'number' },
+    key_phrases: { type: 'array', items: { type: 'string' } },
   },
 }
 
-// parallel() fans out: all three agents start immediately and run concurrently.
-// Wall-clock time = slowest single agent, not sum of all three.
-const results = await parallel(chapters.map(ch => () =>
+// parallel() fans out: all five agents start immediately and run concurrently.
+// Wall-clock time = slowest single agent, not sum of all five.
+const results = await parallel(tickers.map(t => () =>
   agent(
-    `Score book/chapters/${ch}/chapter.tex on 5 dimensions (0-10 each).`,
-    { label: `score:${ch}`, phase: 'Score', schema: SCORE_SCHEMA }
+    `Read data/transcripts/${t}_2024Q4.txt. Classify sentiment and extract
+     up to five key forward-looking phrases.`,
+    { label: `classify:${t}`, phase: 'Classify', schema: SENTIMENT_SCHEMA }
   )
 ))
 
-// results is an array: [{ clarity: 8, rigor: 7, ... }, { ... }, { ... }]
+// results is an array of validated objects: [{ ticker: 'AAPL', sentiment: 'positive', ... }, ...]
 return results
 \end{minted}
 
-Running this script with \texttt{/workflows} open shows three concurrent
-``score:ch-name'' agents in the \emph{Score} group.  Each returns a validated
-JSON object matching \texttt{SCORE\_SCHEMA}; if a model response does not
-conform to the schema, the runtime retries automatically before failing.
+Running this script with \texttt{/workflows} open shows five concurrent
+``classify:TICKER'' agents in the \emph{Classify} group.  Each returns a
+validated JSON object matching \texttt{SENTIMENT\_SCHEMA}; if a model response
+does not conform to the schema, the runtime retries automatically before
+failing.
 
 Key Workflow primitives:
 
@@ -825,18 +826,20 @@ execute on Anthropic-managed infrastructure, decoupled from the developer's
 local machine.  Create a routine with the \texttt{/schedule} command:
 
 \begin{minted}{text}
-/schedule "every Monday 08:00 UTC: /full-review all chapters, commit if PASS"
+/schedule "every weekday 06:00 UTC: /fetch-factor-returns, validate schema, commit"
 \end{minted}
 
 Routines are stored in \texttt{.claude/routines/} and have the same access to
 project skills and MCP servers as an interactive session.  Common use cases for
-research workflows:
+quantitative finance workflows:
 
 \begin{itemize}
-  \item Nightly bibliography audits that flag broken DOI links.
-  \item Weekly quality re-scores after upstream dependency updates.
-  \item Post-merge hooks that re-sync lecture slides with their companion
-        chapters whenever a chapter \texttt{.tex} file changes.
+  \item Nightly factor return downloads from WRDS or Ken French's data library,
+        with automatic schema validation before appending to the master dataset.
+  \item Weekly model recalibration reports that re-estimate factor loadings,
+        flag any Sharpe ratio regression, and post a summary to Slack.
+  \item Post-merge checks that re-run all backtest notebooks and compare
+        performance metrics against a stored baseline, alerting on regressions.
 \end{itemize}
 
 \subsection{External Integrations}
@@ -853,8 +856,8 @@ For CI/CD integration, Claude Code can be invoked non-interactively:
 # In a GitHub Actions workflow step:
 claude --non-interactive \
        --model claude-sonnet-4-6 \
-       "Run /score-content on all modified .tex files in this PR. \
-        Fail if any dimension is below 8."
+       "Run the backtest suite on all modified strategy files in this PR. \
+        Fail if any strategy's Sharpe ratio drops below 0.5."
 \end{minted}
 
 The \texttt{--non-interactive} flag disables the permission-approval UI; the
@@ -925,21 +928,21 @@ rather than the Anthropic API, so data never leaves your perimeter.
 
 Claude Code sessions can consume substantial tokens, particularly when extended
 thinking is active or when Workflow scripts run large agent fleets.
-Table~\ref{tab:token-costs} gives approximate consumption for the tasks most
-relevant to this book.
+Table~\ref{tab:token-costs} gives approximate consumption for representative
+finance research tasks.
 
 \begin{table}[ht]
 \centering
-\caption{Approximate token consumption for common Claude Code tasks (Sonnet 4.6).}
+\caption{Approximate token consumption for representative Claude Code tasks (Sonnet 4.6).}
 \label{tab:token-costs}
 \begin{tabular}{lrr}
 \toprule
 \textbf{Task} & \textbf{Input tokens} & \textbf{Output tokens} \\
 \midrule
-\texttt{/score-content} on one chapter & 15{,}000--30{,}000 & 2{,}000--4{,}000 \\
-\texttt{/draft-chapter} full pipeline & 50{,}000--120{,}000 & 10{,}000--25{,}000 \\
-\texttt{/full-review} (all agents)     & 80{,}000--200{,}000 & 15{,}000--40{,}000 \\
-Agent Teams run (7 sessions)           & 350{,}000+          & 70{,}000+ \\
+Classify one earnings call transcript   & 10{,}000--20{,}000  & 1{,}000--2{,}000 \\
+Parallel sentiment: 10 transcripts      & 100{,}000--200{,}000 & 10{,}000--20{,}000 \\
+Full codebase review (multi-agent)      & 80{,}000--200{,}000 & 15{,}000--40{,}000 \\
+Agent Teams run (7 sessions)            & 350{,}000+          & 70{,}000+ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -965,8 +968,8 @@ Cost-reduction strategies:
 \subsection{Use Cases for Quants and Researchers}
 \label{app:claude-code:use-cases}
 
-The following use cases have proven especially productive for the audience of
-this book:
+The following use cases have proven especially productive for quantitative
+finance researchers and practitioners:
 
 \begin{description}
   \item[Literature synthesis] A Workflow script that fans out across a list of
@@ -978,9 +981,10 @@ this book:
         directory and asking Claude Code to generate a call graph, identify
         undocumented assumptions, and produce a test suite covering edge cases.
 
-  \item[Report drafting] Using \texttt{/draft-chapter} and
-        \texttt{/score-content} iteratively to produce investment memos or
-        regulatory reports that meet a house style and a readability threshold.
+  \item[Report drafting] Using a \texttt{report-writer} agent iteratively to
+        produce investment memos or regulatory reports that meet a house style
+        and a readability threshold, with a \texttt{PostToolUse} hook that
+        checks compliance terminology on every edit.
 
   \item[Data pipeline debugging] Providing a failing notebook and asking Claude
         Code to reproduce the error, hypothesise causes, write a minimal
@@ -993,77 +997,54 @@ this book:
         check fails.
 \end{description}
 
-\begin{example}[End-to-end: drafting a literature survey with Claude Code]
-\label{ex:claude-code-survey}
-Suppose a researcher wishes to survey ten recent SSRN working papers on LLM
-applications in credit risk.  The following session, executed inside the
-project repo, illustrates a complete workflow.
+\begin{example}[End-to-end: building an earnings-call sentiment factor]
+\label{ex:claude-code-sentiment-factor}
+Suppose a quant researcher wants to build a long/short equity factor based on
+earnings-call sentiment for S\&P 500 firms.  The following session illustrates
+a complete Claude Code workflow from raw transcripts to a factor return series.
 
-\begin{minted}{text}
-# Step 1: Create the scaffold
-/new-topic  appendix B on credit-risk LLM survey
+\begin{minted}{bash}
+# Step 1: Use Plan mode to review the task scope before touching any files
+# (Press Shift+Tab to enter Plan mode, then submit the prompt)
+"Outline a pipeline to classify Q4 2024 earnings calls for S&P 500 firms,
+ construct a long-short sentiment factor, and backtest it 2015-2024."
 
-# Step 2: Invoke the SSRN researcher agent on the new appendix
-/ssrn-enrich appB
+# Step 2: Approve the plan, switch back to Edit mode, then run the fetch skill
+/fetch-filings --source seekingalpha --quarter 2024Q4 --universe sp500
 
-# Step 3: Draft with the book-writer and literature-reviewer agents
-/draft-chapter A-credit-risk-survey
+# Step 3: Fan out sentiment classification across all transcripts (Workflow)
+/classify-sentiment --input data/transcripts/2024Q4/ --output data/sentiment/
 
-# Step 4: Score and refine until the 8/10 threshold is met
-/score-content book/appendices/B-credit-risk-survey/chapter.tex
-/refine-until-threshold book/appendices/B-credit-risk-survey/chapter.tex
+# Step 4: Build the factor and run the backtest
+claude "Using data/sentiment/2024Q4_scores.csv, construct a monthly
+        long-short portfolio: long top-quintile sentiment, short bottom-quintile.
+        Use equal weights within each leg. Compute net returns 2015-2024."
 
-# Step 5: Run quality gates and release
-/release-chapter B-credit-risk-survey
+# Step 5: Validate and commit
+/validate-backtest results/sentiment_factor_2015_2024.csv
+git add data/sentiment/ results/ && git commit -m "feat: Q4-2024 sentiment factor"
 \end{minted}
 
-Each slash command is a skill that chains a sequence of specialised agents.
-The researcher reviews the plan at each stage (Plan mode) before approving
-execution; the full pipeline from scaffold to release typically runs in a
-single afternoon session.
+At Step 3, the \texttt{/classify-sentiment} skill launches a Workflow that
+runs one sub-agent per transcript in parallel; wall-clock time for 500
+transcripts is roughly equal to the slowest single classification rather than
+the sum.  The researcher reviews the plan at each stage and uses the double-Esc
+rewind to undo any step that produces unexpected output.
 \end{example}
-
-\subsection{This Book as a Working Example}
-\label{app:claude-code:book}
-
-This book was produced using Claude Code as the primary authoring environment.
-The \texttt{.claude/} directory at the repository root encodes the entire
-production workflow:
-
-\begin{itemize}
-  \item \texttt{.claude/CLAUDE.md} --- master instructions: conventions,
-        quality gates, commit message format.
-  \item \texttt{.claude/skills/} --- one skill per workflow step
-        (scaffold, draft, score, refine, release).
-  \item \texttt{.claude/agents/} --- specialised personas (book-writer,
-        math-checker, scorer, etc.).
-  \item \texttt{.claude/hooks/} --- shell scripts that lint \LaTeX{} on save
-        and re-run quality scores on pre-commit.
-  \item \texttt{docs/quality/} --- JSON score reports for every chapter,
-        committed alongside the content.
-  \item \texttt{TOPIC.md} --- YAML configuration for subject, audience,
-        quality threshold, and auto-commit behaviour.
-\end{itemize}
-
-Replicating this structure for a new research project requires running
-\texttt{/interview-me} to configure \texttt{TOPIC.md}, then
-\texttt{/new-topic} for each chapter.  The entire scaffold is version-controlled
-and portable: cloning the repository gives any collaborator (human or AI) the
-same working environment.
 
 \subsection{Recommended Workflow Patterns}
 \label{app:claude-code:patterns}
 
 \begin{enumerate}
   \item \textbf{Plan before writing.}  Use Plan mode to review the proposed
-        changes before committing to Auto-Accept.  For new chapters, run
-        \texttt{/new-topic} in Plan mode first; approve the outline, then
-        switch to Edit mode for the actual scaffold.
+        changes before committing to Auto-Accept.  For any new pipeline or
+        feature, enter Plan mode first to inspect the intended file changes,
+        then switch to Edit mode to execute.
 
-  \item \textbf{Score early, score often.}  Run \texttt{/score-content} after
-        every significant draft, not just at the end.  The quality JSON
-        provides a compass for the next iteration that is more reliable than
-        subjective impression.
+  \item \textbf{Validate early, validate often.}  Run your validation skill
+        after every significant change, not just at the end.  Structured JSON
+        output from a validator agent provides a more reliable compass for the
+        next iteration than subjective impression.
 
   \item \textbf{Separate concerns with agents.}  Do not ask a single session to
         draft content, check math, and improve style in the same turn.  Each
@@ -1079,8 +1060,7 @@ same working environment.
         releasing.  This preserves the task state while eliminating draft
         history that is no longer actionable.
 
-  \item \textbf{Commit checkpoints.}  The skills in this book commit after every
-        major step.  Frequent small commits make it easy to bisect a regression
-        introduced by an agent and revert to a known-good state without losing
-        days of work.
+  \item \textbf{Commit checkpoints.}  Have skills commit after every major step.
+        Frequent small commits make it easy to bisect a regression introduced
+        by an agent and revert to a known-good state without losing work.
 \end{enumerate}

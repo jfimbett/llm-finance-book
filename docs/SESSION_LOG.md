@@ -92,3 +92,4 @@
 | 2026-05-29 | 5 files | refine(appA): remove all self-referential book-production mentions;chore: session log 2026-05-29;fix(appA): remove duplicate park2023generative bib entry; book compiles cleanly; | — |
 | 2026-05-29 | 7 files | feat(appB): draft Codex CLI practitioner's reference appendix;chore: session log 2026-05-29;refine(appA): remove all self-referential book-production mentions; | — |
 | 2026-05-29 | 8 files | feat(appB): complete draft pipeline for Codex CLI appendix;chore: session log 2026-05-29;feat(appB): draft Codex CLI practitioner's reference appendix; | — |
+| 2026-05-29 | 9 files | feat(appC): scaffold and draft Hugging Face & local models appendix;chore: session log 2026-05-29;feat(appB): complete draft pipeline for Codex CLI appendix; | — |

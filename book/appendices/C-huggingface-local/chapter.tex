@@ -231,9 +231,10 @@ BloombergGPT        & 50B   & 0.87 & 0.68 & 0.97 \\
 \begin{context}
 Full fine-tuning a 7-billion-parameter model requires updating all seven
 billion weights simultaneously, which at 16-bit precision demands roughly
-14\,GB of GPU memory for the weights alone---before accounting for optimizer
-states, which add another 56\,GB for AdamW.  For most practitioners, this is
-infeasible.  Parameter-efficient fine-tuning (PEFT) methods solve this by
+14\,GB of GPU memory for the weights alone.  Optimizer states add substantially
+more: AdamW stores a float32 master copy of the weights plus first and second
+moment tensors, totalling at least 112\,GB for a 7B model in mixed-precision
+training.  For most practitioners, this is infeasible.  Parameter-efficient fine-tuning (PEFT) methods solve this by
 freezing the pre-trained weights and learning a small number of additional
 parameters that steer the model's behaviour.  LoRA reduces the memory
 requirement by a factor of 10--20 while retaining 90--95\% of the quality of
@@ -394,8 +395,8 @@ separate configuration files.
 
 \texttt{llama.cpp} is an open-source C/C++ inference engine that reads GGUF
 files and runs on CPUs, Apple Silicon (via Metal), and NVIDIA GPUs (via CUDA).
-It is the reference implementation for local LLM inference and is embedded
-in most higher-level tools including Ollama.
+It is the reference implementation for local LLM inference and underpins most
+higher-level tools, including Ollama.
 
 \begin{minted}{bash}
 # Download a GGUF model from the Hub (bartowski provides many quantizations)
@@ -515,10 +516,9 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 \end{minted}
 
-The OpenAI-compatible interface means existing Python code that calls the
-OpenAI API can be redirected to a local Ollama instance by changing two
-lines---\texttt{base\_url} and \texttt{api\_key}---with no other
-modifications.
+Existing Python code that calls the OpenAI API can be redirected to a local
+Ollama instance by changing two lines---\texttt{base\_url} and
+\texttt{api\_key}---with no other modifications.
 
 % ---------------------------------------------------------------
 \section{Production Inference Servers}
@@ -537,8 +537,8 @@ and suit different workload profiles.
 \subsection{Text Generation Inference (TGI)}
 \label{app:hf:tgi}
 
-TGI is Hugging Face's production-grade inference server.  It is the backend
-for Hugging Face Inference Endpoints and is optimised for low tail latency in
+TGI is Hugging Face's production-grade inference server and the backend for
+Hugging Face Inference Endpoints.  Its design prioritises low tail latency in
 interactive, single-user scenarios.  Key features:
 
 \begin{itemize}

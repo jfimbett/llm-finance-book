@@ -1,0 +1,800 @@
+\chapter{Hugging Face and Local Model Deployment}
+\label{app:hf}
+
+\begin{remark}[Learning Objectives]
+After working through this appendix, the reader should be able to:
+\begin{enumerate}
+  \item Navigate the Hugging Face Hub to identify models and datasets suited
+        to a given financial NLP task.
+  \item Load a pre-trained model with the \texttt{pipeline()} API, run
+        inference, and interpret the output.
+  \item Explain the LoRA and QLoRA fine-tuning strategies, estimate the
+        GPU memory required for a given configuration, and apply PEFT to
+        adapt a base model to financial text.
+  \item Select an appropriate quantization level (GGUF Q4--Q8) for a target
+        model size and hardware budget, and deploy the quantised model using
+        \texttt{llama.cpp} or Ollama.
+  \item Deploy a production inference server with vLLM or TGI and justify
+        the choice based on concurrency and latency requirements.
+  \item Articulate the data sovereignty, regulatory, and cost arguments for
+        on-premise deployment of LLMs in regulated finance environments.
+  \item Design a complete local-model pipeline for a quantitative finance
+        task---from model selection and optional fine-tuning through to a
+        queryable REST endpoint.
+\end{enumerate}
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{The Hugging Face Ecosystem}
+\label{app:hf:ecosystem}
+
+\begin{context}
+When Meta released LLaMA in February 2023, it uploaded the weights to the
+Hugging Face Hub.  Within hours, the model had been downloaded tens of
+thousands of times.  That episode crystallised the Hub's role: it had become
+the de facto distribution channel for open-weight AI models, the way PyPI is
+for Python packages or npm for JavaScript modules.  By 2026 the Hub hosted
+more than two million models, half a million datasets, and one million
+interactive demo applications.  For finance practitioners, this means that
+virtually every open-weight language model relevant to their work---from
+general-purpose instruction-following models to domain-specific financial
+classifiers---is one \texttt{pip install} and one \texttt{from\_pretrained}
+call away.
+\end{context}
+
+\subsection{Hub: Models, Datasets, Spaces, and Endpoints}
+\label{app:hf:hub}
+
+The Hugging Face Hub (\texttt{huggingface.co}) is a web platform and Python
+API that serves four types of artefact:
+
+\begin{description}
+  \item[Models] Pre-trained weight checkpoints stored in \texttt{safetensors}
+        or \texttt{pytorch\_model.bin} format, versioned with Git LFS.  Each
+        model card documents the training data, evaluation results, intended
+        use, and known limitations.
+
+  \item[Datasets] Curated tabular, text, vision, and audio datasets accessible
+        via the \texttt{datasets} library.  Finance-relevant collections include
+        earnings call transcripts, SEC filings, credit ratings histories, and
+        financial news corpora.
+
+  \item[Spaces] Hosted Gradio or Streamlit web applications that let model
+        authors publish interactive demos without requiring users to run code
+        locally.  Useful for evaluating a model's behaviour before committing
+        to a download.
+
+  \item[Inference Endpoints] Managed, autoscaling API endpoints for Hub models,
+        billed per token.  They provide a production-grade alternative to
+        self-hosting for workloads where traffic is variable or the team lacks
+        GPU infrastructure.
+\end{description}
+
+Interact with the Hub programmatically via the \texttt{huggingface\_hub}
+library:
+
+\begin{minted}{python}
+from huggingface_hub import hf_hub_download, list_models
+
+# List finance-tagged models sorted by downloads
+models = list(list_models(filter="finance", sort="downloads", direction=-1))
+for m in models[:5]:
+    print(m.id, m.downloads)
+\end{minted}
+
+\subsection{Transformers and Datasets Libraries}
+\label{app:hf:libraries}
+
+The \textbf{Transformers} library (\texttt{pip install transformers}) is the
+primary SDK for working with Hub models.  It provides:
+
+\begin{itemize}
+  \item \texttt{AutoTokenizer}, \texttt{AutoModel}, and task-specific heads
+        (\texttt{AutoModelForSequenceClassification}, etc.) that load any
+        compatible model from the Hub or a local directory.
+  \item A \texttt{pipeline()} API that wraps tokenization, inference, and
+        post-processing into a single callable.
+  \item \texttt{Trainer} and \texttt{SFTTrainer} for supervised fine-tuning.
+  \item Tight integration with PEFT, bitsandbytes, and Flash Attention 2.
+\end{itemize}
+
+The \textbf{Datasets} library (\texttt{pip install datasets}) provides
+memory-mapped access to large datasets via Apache Arrow, enabling streaming
+of corpora too large to fit in RAM---an important property when fine-tuning
+on multi-year collections of financial filings.
+
+\begin{minted}{python}
+from datasets import load_dataset
+
+# Stream SEC 10-K filings without downloading the full corpus
+ds = load_dataset("JanosAudran/financial-reports-sec", split="train",
+                  streaming=True)
+for example in ds.take(3):
+    print(example["text"][:200])
+\end{minted}
+
+% ---------------------------------------------------------------
+\section{Model Discovery and the Pipeline API}
+\label{app:hf:models}
+
+\subsection{Browsing the Hub for Finance Tasks}
+\label{app:hf:browsing}
+
+The Hub's filter system lets practitioners narrow to models by task, language,
+and licence.  For finance NLP the most relevant task tags are:
+
+\begin{description}
+  \item[\texttt{text-classification}] Sentiment analysis, intent classification,
+        regulatory document categorisation.
+  \item[\texttt{token-classification}] Named entity recognition for financial
+        entities (companies, currencies, financial instruments).
+  \item[\texttt{question-answering}] Extractive QA over earnings reports and
+        analyst transcripts.
+  \item[\texttt{text-generation}] Instruction-following models for report
+        drafting, data extraction, and chain-of-thought reasoning over
+        financial data.
+  \item[\texttt{feature-extraction}] Embedding models for semantic search over
+        document corpora and RAG pipelines.
+\end{description}
+
+\subsection{The Pipeline API}
+\label{app:hf:pipeline}
+
+The \texttt{pipeline()} function is the quickest path from Hub model to
+inference result:
+
+\begin{minted}{python}
+from transformers import pipeline
+
+# Zero-shot sentiment on an earnings call excerpt
+clf = pipeline("zero-shot-classification",
+               model="facebook/bart-large-mnli",
+               device=0)          # device=0 → GPU; -1 → CPU
+
+labels = ["positive", "negative", "neutral"]
+result = clf(
+    "Revenue grew 18% year-over-year, driven by strong mortgage originations.",
+    candidate_labels=labels,
+)
+# {'labels': ['positive', 'neutral', 'negative'], 'scores': [0.89, 0.08, 0.03]}
+print(result)
+\end{minted}
+
+For generation tasks, set \texttt{max\_new\_tokens} and
+\texttt{do\_sample=False} for deterministic output---important in research
+contexts where reproducibility matters:
+
+\begin{minted}{python}
+gen = pipeline("text-generation", model="mistralai/Mistral-7B-Instruct-v0.3",
+               device_map="auto", torch_dtype="auto")
+
+output = gen(
+    "<s>[INST] Summarise the key risk factors from: {text} [/INST]",
+    max_new_tokens=256, do_sample=False,
+)
+print(output[0]["generated_text"])
+\end{minted}
+
+\subsection{Finance-Specific Model Families}
+\label{app:hf:finance-models}
+
+Several model families are specifically relevant to quantitative finance:
+
+\begin{description}
+  \item[FinBERT \citep{araci2019finbert}] A BERT model pre-trained on
+        financial communication and fine-tuned for financial sentiment
+        classification.  Available at
+        \texttt{ProsusAI/finbert} on the Hub.  The standard baseline for
+        earnings call and news sentiment tasks.
+
+  \item[BloombergGPT \citep{wu2023bloomberggpt}] A 50-billion-parameter model
+        trained on Bloomberg's proprietary financial corpus.  Not publicly
+        available on the Hub but provides the benchmark against which
+        open-weight finance models are evaluated.
+
+  \item[FinLLMs] A family of open-weight models fine-tuned on financial
+        instruction datasets; evaluated on FinQA, FPB (Financial Phrase Bank),
+        and Headline classification benchmarks.  Multiple variants at different
+        parameter scales are available on the Hub.
+
+  \item[Llama 3 / Mistral 7B instruction variants] General-purpose instruction-
+        following models that, with appropriate prompting or light fine-tuning,
+        perform competitively on financial NLP tasks while remaining locally
+        deployable on commodity GPU hardware.
+\end{description}
+
+Table~\ref{tab:finance-models} gives a concise evaluation snapshot across
+key finance NLP benchmarks.
+
+\begin{table}[ht]
+\centering
+\caption{Selected model performance on finance NLP benchmarks (higher is better).}
+\label{tab:finance-models}
+\begin{tabular}{llccc}
+\toprule
+\textbf{Model} & \textbf{Size} & \textbf{FPB F1} & \textbf{FinQA} & \textbf{Headline} \\
+\midrule
+FinBERT             & 110M  & 0.88 & ---  & 0.97 \\
+Llama 3.1 8B (inst.)& 8B    & 0.82 & 0.61 & 0.93 \\
+Mistral 7B (inst.)  & 7B    & 0.80 & 0.58 & 0.91 \\
+BloombergGPT        & 50B   & 0.87 & 0.68 & 0.97 \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize FPB: Financial Phrase Bank. FinQA: numerical reasoning over financial tables.} \\
+\multicolumn{5}{l}{\footnotesize Headline: financial news headline classification. Scores are approximate.}
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Parameter-Efficient Fine-Tuning}
+\label{app:hf:peft}
+
+\begin{context}
+Full fine-tuning a 7-billion-parameter model requires updating all seven
+billion weights simultaneously, which at 16-bit precision demands roughly
+14\,GB of GPU memory for the weights alone---before accounting for optimizer
+states, which add another 56\,GB for AdamW.  For most practitioners, this is
+infeasible.  Parameter-efficient fine-tuning (PEFT) methods solve this by
+freezing the pre-trained weights and learning a small number of additional
+parameters that steer the model's behaviour.  LoRA reduces the memory
+requirement by a factor of 10--20 while retaining 90--95\% of the quality of
+full fine-tuning, enabling adaptation on a single consumer GPU.
+\end{context}
+
+\subsection{LoRA: Low-Rank Adaptation}
+\label{app:hf:lora}
+
+LoRA \citep{hu2022lora} decomposes each weight update $\Delta W \in
+\mathbb{R}^{d \times k}$ as the product of two low-rank matrices:
+\begin{equation}
+  \Delta W = B A, \quad B \in \mathbb{R}^{d \times r},\; A \in \mathbb{R}^{r \times k},\; r \ll \min(d, k).
+  \label{eq:lora}
+\end{equation}
+During training only $A$ and $B$ are updated; the pre-trained weight $W_0$
+is frozen.  At inference, the adapter can be merged: $W = W_0 + \Delta W$,
+adding zero latency overhead.  The rank $r$ is a hyperparameter: values of
+4--16 are typical for fine-tuning general instruction-following models;
+higher ranks (32--64) are used when the target domain is very different from
+the pre-training distribution.
+
+\begin{minted}{python}
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import get_peft_model, LoraConfig, TaskType
+
+base = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-v0.3",
+                                             torch_dtype="auto",
+                                             device_map="auto")
+
+config = LoraConfig(
+    task_type=TaskType.CAUSAL_LM,
+    r=16,                          # rank
+    lora_alpha=32,                 # scaling factor
+    target_modules=["q_proj", "v_proj"],
+    lora_dropout=0.05,
+)
+
+model = get_peft_model(base, config)
+model.print_trainable_parameters()
+# trainable params: 6,815,744 || all params: 7,248,547,840 || trainable%: 0.09
+\end{minted}
+
+\subsection{QLoRA: Quantised Low-Rank Adaptation}
+\label{app:hf:qlora}
+
+QLoRA \citep{dettmers2023qlora} combines LoRA with 4-bit NormalFloat (NF4)
+quantisation of the frozen base weights.  This reduces the memory footprint
+of a 7B model from approximately 14\,GB (bfloat16) to approximately 4--5\,GB,
+making fine-tuning feasible on a single consumer GPU with 6--8\,GB of VRAM.
+
+\begin{minted}{python}
+from transformers import BitsAndBytesConfig
+import torch
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16,
+    bnb_4bit_use_double_quant=True,   # nested quantization: saves ~0.4 GB
+)
+
+base = AutoModelForCausalLM.from_pretrained(
+    "mistralai/Mistral-7B-v0.3",
+    quantization_config=bnb_config,
+    device_map="auto",
+)
+\end{minted}
+
+\subsection{Fine-Tuning on Financial Text}
+\label{app:hf:finetuning}
+
+A practical fine-tuning pipeline for a financial instruction dataset using the
+\texttt{SFTTrainer} from the TRL library:
+
+\begin{minted}{python}
+from trl import SFTTrainer
+from transformers import TrainingArguments
+from datasets import load_dataset
+
+dataset = load_dataset("json",
+                       data_files="data/finance_instruct.jsonl",
+                       split="train")
+
+args = TrainingArguments(
+    output_dir="checkpoints/mistral-finance",
+    num_train_epochs=3,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=8,
+    learning_rate=2e-4,
+    fp16=True,
+    logging_steps=10,
+    save_strategy="epoch",
+)
+
+trainer = SFTTrainer(
+    model=model,          # QLoRA model from previous step
+    train_dataset=dataset,
+    dataset_text_field="text",
+    max_seq_length=2048,
+    args=args,
+)
+trainer.train()
+\end{minted}
+
+Merging the adapter back into the base weights for deployment:
+
+\begin{minted}{python}
+from peft import PeftModel
+
+merged = PeftModel.from_pretrained(base, "checkpoints/mistral-finance/final")
+merged = merged.merge_and_unload()
+merged.save_pretrained("models/mistral-finance-merged")
+\end{minted}
+
+% ---------------------------------------------------------------
+\section{Quantization and the GGUF Format}
+\label{app:hf:quant}
+
+\subsection{Quantization Levels and Quality Trade-offs}
+\label{app:hf:quant-levels}
+
+Post-training quantization compresses model weights from 16-bit floats to
+lower-bit integer representations, reducing both memory footprint and
+inference latency.  Table~\ref{tab:quant-levels} summarises the commonly
+used levels in the GGUF ecosystem.
+
+\begin{table}[ht]
+\centering
+\caption{GGUF quantization levels: memory and quality trade-offs for a 7B model.}
+\label{tab:quant-levels}
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Quantization} & \textbf{VRAM (7B)} & \textbf{Quality loss} & \textbf{Best use} \\
+\midrule
+Q2\_K     & $\approx$2.8\,GB & High ($>$5\%)  & Ultra-constrained hardware only \\
+Q4\_K\_M  & $\approx$4.1\,GB & Low ($<$1\%)   & Standard local deployment \\
+Q5\_K\_M  & $\approx$4.8\,GB & Very low       & Accuracy-sensitive tasks \\
+Q6\_K     & $\approx$5.5\,GB & Negligible     & Near-lossless on 6\,GB VRAM \\
+Q8\_0     & $\approx$7.2\,GB & Negligible     & Research: maximal quality \\
+F16       & $\approx$14\,GB  & None (baseline)& Serving; requires server GPU \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For most finance NLP tasks, Q4\_K\_M delivers the best balance: approximately
+75\% memory reduction relative to full precision with less than 1\% quality
+degradation on standard benchmarks \citep{llamacpp2023}.
+
+\subsection{GGUF and llama.cpp}
+\label{app:hf:llamacpp}
+
+GGUF (GPT-Generated Unified Format) is the standard single-file format for
+quantized model checkpoints.  A GGUF file bundles the quantized weights,
+the tokenizer vocabulary, positional encoding parameters, and all metadata
+needed to run inference---enabling distribution as a single artefact with no
+separate configuration files.
+
+\texttt{llama.cpp} is an open-source C/C++ inference engine that reads GGUF
+files and runs on CPUs, Apple Silicon (via Metal), and NVIDIA GPUs (via CUDA).
+It is the reference implementation for local LLM inference and is embedded
+in most higher-level tools including Ollama.
+
+\begin{minted}{bash}
+# Download a GGUF model from the Hub (bartowski provides many quantizations)
+huggingface-cli download bartowski/Mistral-7B-Instruct-v0.3-GGUF \
+    --include "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf" \
+    --local-dir models/
+
+# Run interactive inference
+./llama-cli -m models/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf \
+            -n 256 -p "Summarise the credit risk in: {text}"
+\end{minted}
+
+\texttt{llama.cpp} also exposes an OpenAI-compatible HTTP server:
+
+\begin{minted}{bash}
+./llama-server -m models/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf \
+               --port 8080 --n-gpu-layers 35
+\end{minted}
+
+\begin{deepdive}
+The \texttt{--n-gpu-layers} flag controls how many transformer layers are
+offloaded to the GPU; the remainder run on CPU.  For a 7B model with 32
+layers on a machine with 4\,GB of GPU VRAM, offloading 20--24 layers
+typically maximises throughput while keeping the remainder in system RAM.
+The optimal split is model- and hardware-specific; benchmark with
+\texttt{llama-bench} before committing to a production configuration.
+\end{deepdive}
+
+\subsection{Hardware Requirements by Model Size}
+\label{app:hf:hardware}
+
+Table~\ref{tab:hardware-reqs} gives the minimum GPU VRAM needed to run
+inference at Q4\_K\_M quantization for the most commonly deployed open-weight
+model sizes.
+
+\begin{table}[ht]
+\centering
+\caption{Minimum GPU VRAM for inference at Q4\_K\_M quantization.}
+\label{tab:hardware-reqs}
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Model size} & \textbf{VRAM (Q4\_K\_M)} & \textbf{Example models} & \textbf{Consumer GPU} \\
+\midrule
+3--4B   & $\approx$2.5\,GB & Phi-3 Mini, Llama 3.2 3B & RTX 3060 (8\,GB) \\
+7--8B   & $\approx$4.5\,GB & Mistral 7B, Llama 3.1 8B & RTX 3060 (8\,GB) \\
+13B     & $\approx$8\,GB   & Llama 2 13B, CodeLlama 13B & RTX 3080/4070 \\
+32--34B & $\approx$20\,GB  & Llama 3.3 32B, CodeLlama 34B & RTX 4090 (24\,GB) \\
+70B     & $\approx$42\,GB  & Llama 3.1 70B              & 2$\times$ RTX 4090 or A100 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Local Deployment with Ollama}
+\label{app:hf:ollama}
+
+Ollama provides a user-friendly wrapper around llama.cpp that manages model
+downloads, versioning, and a persistent OpenAI-compatible REST server.  By
+early 2026 it had accumulated over 112 million pulls for Llama 3.1 alone,
+making it the most widely used local LLM runtime in the developer community.
+
+\subsection{Installation and Model Management}
+\label{app:hf:ollama-install}
+
+\begin{minted}{bash}
+# Install (macOS/Linux)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull and run a model (starts the server automatically)
+ollama pull mistral               # downloads Mistral 7B Q4_K_M by default
+ollama run mistral "Explain duration risk in plain language."
+
+# List locally available models
+ollama list
+\end{minted}
+
+Ollama stores models in \texttt{\textasciitilde/.ollama/models/} and manages
+multiple versions side by side.  Custom GGUF files can be registered with a
+\texttt{Modelfile}:
+
+\begin{minted}{text}
+# Modelfile for a finance-tuned variant
+FROM ./models/mistral-finance-merged.gguf
+SYSTEM "You are a quantitative finance assistant. Always use log returns and
+        cite data sources."
+PARAMETER temperature 0.1
+PARAMETER num_ctx 8192
+\end{minted}
+
+\begin{minted}{bash}
+ollama create mistral-finance -f Modelfile
+ollama run mistral-finance "What is the Sharpe ratio of this return series?"
+\end{minted}
+
+\subsection{REST API and Python Integration}
+\label{app:hf:ollama-api}
+
+Ollama exposes an OpenAI-compatible API at \texttt{http://localhost:11434},
+enabling drop-in replacement for OpenAI API calls:
+
+\begin{minted}{python}
+from openai import OpenAI          # standard openai client
+
+client = OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama",              # required but ignored by Ollama
+)
+
+response = client.chat.completions.create(
+    model="mistral-finance",
+    messages=[
+        {"role": "system", "content": "You are a credit risk analyst."},
+        {"role": "user",   "content": "Summarise the key covenants in: ..."},
+    ],
+    temperature=0.0,
+)
+print(response.choices[0].message.content)
+\end{minted}
+
+The OpenAI-compatible interface means existing Python code that calls the
+OpenAI API can be redirected to a local Ollama instance by changing two
+lines---\texttt{base\_url} and \texttt{api\_key}---with no other
+modifications.
+
+% ---------------------------------------------------------------
+\section{Production Inference Servers}
+\label{app:hf:servers}
+
+\begin{context}
+Single-user local inference with Ollama or llama.cpp is sufficient for
+individual research tasks.  When a model must serve multiple analysts
+simultaneously---routing queries from a Slack bot, a web application, or an
+automated pipeline---a production inference server is required.  The two
+dominant open-source options are Hugging Face's Text Generation Inference
+(TGI) and the community-developed vLLM.  They are architecturally distinct
+and suit different workload profiles.
+\end{context}
+
+\subsection{Text Generation Inference (TGI)}
+\label{app:hf:tgi}
+
+TGI is Hugging Face's production-grade inference server.  It is the backend
+for Hugging Face Inference Endpoints and is optimised for low tail latency in
+interactive, single-user scenarios.  Key features:
+
+\begin{itemize}
+  \item Flash Attention 2 and Paged Attention for memory-efficient attention.
+  \item Continuous batching, enabling multiple concurrent requests to share a
+        single forward pass.
+  \item Native support for AWQ, GPTQ, and bitsandbytes quantization.
+  \item OpenAI-compatible API with streaming support.
+\end{itemize}
+
+\begin{minted}{bash}
+docker run --gpus all \
+  -p 8080:80 \
+  -v $HOME/models:/data \
+  ghcr.io/huggingface/text-generation-inference:latest \
+  --model-id mistralai/Mistral-7B-Instruct-v0.3 \
+  --quantize bitsandbytes-nf4 \
+  --max-total-tokens 4096
+\end{minted}
+
+\subsection{vLLM and PagedAttention}
+\label{app:hf:vllm}
+
+vLLM \citep{kwon2023vllm} introduces \emph{PagedAttention}, an attention
+mechanism inspired by virtual memory paging.  Rather than allocating a
+contiguous block of GPU memory for each request's KV cache, PagedAttention
+stores KV cache pages in non-contiguous blocks and maps them on demand.
+This eliminates memory fragmentation, enables much larger effective batch
+sizes, and delivers up to 24$\times$ higher throughput than TGI under
+high-concurrency workloads.
+
+\begin{minted}{bash}
+pip install vllm
+
+python -m vllm.entrypoints.openai.api_server \
+    --model mistralai/Mistral-7B-Instruct-v0.3 \
+    --quantization awq \
+    --max-model-len 8192 \
+    --port 8000
+\end{minted}
+
+In production, Stripe achieved a 73\% inference cost reduction by migrating
+to vLLM, processing 50 million daily API calls on one-third of the original
+GPU fleet \citep{kwon2023vllm}.
+
+\subsection{Choosing an Inference Server}
+\label{app:hf:server-choice}
+
+\begin{table}[ht]
+\centering
+\caption{Inference server selection guide: TGI vs vLLM.}
+\label{tab:server-choice}
+\begin{tabular}{lll}
+\toprule
+\textbf{Criterion} & \textbf{TGI (Hugging Face)} & \textbf{vLLM} \\
+\midrule
+Throughput (high concurrency) & Good              & Excellent (up to 24$\times$ TGI) \\
+Tail latency (single user)    & Excellent         & Good \\
+Quantization support          & AWQ, GPTQ, BnB    & AWQ, GPTQ, FP8 \\
+Kubernetes / Helm charts      & Official support  & Community Helm chart \\
+HF Hub model compatibility    & Native            & Via \texttt{--model} flag \\
+Best fit                      & Interactive apps  & Batch / high-throughput API \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For quantitative finance workflows, vLLM is typically the better choice when
+running batch sentiment analysis, document extraction pipelines, or overnight
+model monitoring jobs.  TGI is preferable for interactive analyst tools where
+individual query latency matters more than aggregate throughput.
+
+% ---------------------------------------------------------------
+\section{Privacy, Compliance, and On-Premise Deployment}
+\label{app:hf:privacy}
+
+\subsection{Data Sovereignty and Regulatory Requirements}
+\label{app:hf:sovereignty}
+
+Cloud-hosted LLM APIs transmit prompt text to a third-party server.  For
+financial institutions, this raises several regulatory concerns:
+
+\begin{itemize}
+  \item \textbf{Data residency} --- MiFID II, DORA, and national data
+        protection laws may prohibit transferring client or trading data
+        outside specified jurisdictions.
+  \item \textbf{Model risk governance} --- SR 11-7 and equivalent frameworks
+        require auditability of every model that influences a financial
+        decision; a third-party API's internals are opaque.
+  \item \textbf{Confidential information} --- Analyst reports, pending M\&A
+        data, and portfolio holdings are material non-public information;
+        submitting them to an external API may violate insider-trading
+        regulations.
+\end{itemize}
+
+Local and on-premise deployment eliminates the data-transmission risk entirely:
+all prompts and completions remain within the institution's controlled
+environment.
+
+\subsection{On-Premise Cost Analysis}
+\label{app:hf:cost}
+
+On-premise GPU servers have high upfront capital costs but dramatically lower
+per-token compute costs for sustained workloads.  A server equipped with
+8$\times$ NVIDIA H100 GPUs costs approximately \$0.87 per hour in electricity
+and cooling; the equivalent cloud configuration costs approximately \$98.32 per
+hour, a 113$\times$ difference \citep{openai2025codex}.  For a team running
+continuous inference workloads, the breakeven point against cloud API pricing
+is typically reached within 6--18 months of acquisition.
+
+\begin{table}[ht]
+\centering
+\caption{On-premise vs cloud cost comparison for sustained LLM inference.}
+\label{tab:onprem-cost}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Cost component} & \textbf{On-premise (8$\times$ H100)} & \textbf{Cloud (8$\times$ H100)} \\
+\midrule
+Compute (per hour)    & \$0.87  & \$98.32 \\
+Capital amortisation  & \$3.50  & ---     \\
+Effective total/hour  & \$4.37  & \$98.32 \\
+Annual cost (24/7)    & \$38{,}281 & \$861{,}283 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Architecture Patterns for Finance}
+\label{app:hf:arch}
+
+Three deployment patterns are common in regulated finance environments:
+
+\begin{description}
+  \item[Air-gapped on-premise] All model weights, serving infrastructure, and
+        data reside within the institution's data centre.  Maximum security;
+        highest operational burden.  Required for most tier-1 trading system
+        use cases.
+
+  \item[Private cloud (VPC)] Model weights are loaded into a dedicated tenant
+        environment on a major cloud provider's infrastructure.  Data remains
+        within the institution's VPC; regulatory requirements for data residency
+        are typically satisfied.
+
+  \item[Hybrid] Public API for non-sensitive tasks (e.g., public document
+        summarisation, general code assistance); on-premise or VPC deployment
+        for tasks involving client or trading data.  Most cost-effective for
+        institutions with a mix of sensitivity levels across workflows.
+\end{description}
+
+% ---------------------------------------------------------------
+\section{Finance Research Workflows}
+\label{app:hf:finance}
+
+\subsection{Use Cases for Quants and Researchers}
+\label{app:hf:use-cases}
+
+\begin{description}
+  \item[Earnings call sentiment] Run FinBERT or a fine-tuned Mistral variant
+        over quarterly earnings transcripts to construct a sentiment factor.
+        A Q4\_K\_M quantised model running on a workstation GPU can process
+        500 transcripts per hour without any API cost.
+
+  \item[Financial document extraction] Use a structured-output pipeline to
+        extract numerical tables, covenant definitions, or risk factor summaries
+        from PDF filings.  Local deployment eliminates concerns about disclosing
+        confidential deal terms to a cloud provider.
+
+  \item[RAG over internal research] Build a retrieval-augmented generation
+        system over internal research notes using a local embedding model (e.g.,
+        \texttt{BAAI/bge-m3}) and a local generation model.  Queries and
+        responses never leave the institution's network.
+
+  \item[Domain-adapted fine-tuning] Use QLoRA to adapt a 7B general model to
+        the vocabulary and reasoning style of regulatory filings, credit
+        agreements, or derivatives term sheets.  A 3-epoch fine-tune on 10{,}000
+        examples completes in 4--6 hours on a single RTX 4090.
+
+  \item[Stress testing and scenario generation] Prompt a local instruct model
+        to generate hypothetical market narratives or macroeconomic scenarios
+        for stress-testing model assumptions.
+\end{description}
+
+\begin{example}[End-to-end: local earnings-call sentiment factor]
+\label{ex:hf-sentiment}
+A researcher builds a monthly sentiment factor from quarterly earnings calls
+using a fully local pipeline, with no data leaving the workstation.
+
+\begin{minted}{python}
+from transformers import pipeline
+from datasets import Dataset
+import pandas as pd
+
+# 1. Load FinBERT once; all inference is local
+clf = pipeline("text-classification",
+               model="ProsusAI/finbert",
+               device=0,           # GPU
+               truncation=True, max_length=512)
+
+# 2. Load earnings call transcripts (local CSV)
+df = pd.read_csv("data/transcripts_2010_2024.csv")  # ticker, date, text
+
+# 3. Batch inference (HF datasets handles batching automatically)
+hf_ds = Dataset.from_pandas(df[["text"]])
+results = hf_ds.map(
+    lambda batch: {"label": [r["label"] for r in clf(batch["text"])],
+                   "score": [r["score"]  for r in clf(batch["text"])]},
+    batched=True, batch_size=32,
+)
+
+df["sentiment"] = results["label"]
+df["confidence"] = results["score"]
+
+# 4. Map label to numeric score, compute monthly averages
+score_map = {"positive": 1, "neutral": 0, "negative": -1}
+df["score_num"] = df["sentiment"].map(score_map)
+factor = df.groupby(["ticker", pd.Grouper(key="date", freq="ME")])["score_num"].mean()
+
+factor.to_csv("data/factors/finbert_sentiment.csv")
+print(factor.describe())
+\end{minted}
+
+The entire pipeline runs on-premise, processes 500 transcripts per hour on
+a single RTX 3080, and produces a factor ready for integration into a
+Fama--French regression.
+\end{example}
+
+\subsection{Recommended Workflow Patterns}
+\label{app:hf:patterns}
+
+\begin{enumerate}
+  \item \textbf{Start with the Hub, then localise.}  Prototype with the
+        \texttt{pipeline()} API against the cloud Hub to identify the right
+        model and prompt format.  Once the approach is validated, download
+        the GGUF or safetensors weights and switch to local inference.
+
+  \item \textbf{Match quantization to task sensitivity.}  Use Q4\_K\_M for
+        classification and extraction tasks where 1\% quality loss is
+        acceptable.  Use Q6\_K or F16 for tasks requiring precise numerical
+        reasoning (e.g., extracting financial ratios from tables).
+
+  \item \textbf{Fine-tune on domain data before deploying at scale.}  A
+        QLoRA adapter trained on 5{,}000--10{,}000 finance-domain examples
+        typically outperforms a much larger general model on domain-specific
+        tasks at a fraction of the inference cost.
+
+  \item \textbf{Use vLLM for batch, Ollama for interactive.}  Route overnight
+        bulk pipelines through vLLM's OpenAI-compatible API; route analyst
+        interactive queries through Ollama.  Both expose the same API schema,
+        so switching requires only a \texttt{base\_url} change.
+
+  \item \textbf{Enforce data-handling rules via the inference server.}  Set
+        hard limits on \texttt{max\_tokens} and log all requests server-side.
+        Never pass raw client data through a model server that is not subject
+        to your institution's data-retention and access-control policies.
+
+  \item \textbf{Version your models like code.}  Store model checkpoints and
+        GGUF files in a content-addressed registry (e.g., DVC or MLflow
+        artifacts).  Tag each deployment with the model hash, quantization
+        level, and fine-tuning dataset version so that results are reproducible
+        months later.
+\end{enumerate}

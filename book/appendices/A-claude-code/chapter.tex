@@ -1,0 +1,1029 @@
+\chapter{Claude Code: A Practitioner's Reference}
+\label{app:claude-code}
+
+\begin{remark}[Purpose of this Appendix]
+This appendix is a comprehensive reference for Claude Code, the agentic
+command-line interface developed by Anthropic that was used to draft, score,
+refine, and maintain this book.  Readers who wish to understand the tool's
+architecture, configure it for their own research workflows, or build on the
+skills and agents defined in \texttt{.claude/} will find the material here
+essential.  The appendix follows the natural onboarding arc: what the tool is,
+how to install and configure it, the built-in tools and extension mechanisms,
+multi-agent orchestration, and finally patterns that are particularly productive
+for quantitative finance research.
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{What is Claude Code}
+\label{app:claude-code:overview}
+
+\begin{context}
+On 27 February 2025, Anthropic released a research preview of a terminal-native
+coding assistant named Claude Code.  The reception was unusual: engineers who
+tried it reported that it was the first AI coding tool that could take a vague
+description of a task and actually complete it across dozens of files without
+constant hand-holding.  Within thirteen months, 4\% of all public GitHub
+commits---roughly 135{,}000 per day---were attributed to Claude Code, a
+42{,}896$\times$ growth rate.  By early 2026, Anthropic reported that
+90\% of its own production code was AI-written, predominantly via Claude Code.
+The tool had graduated from curiosity to infrastructure.
+\end{context}
+
+\subsection{Overview and Positioning}
+\label{app:claude-code:positioning}
+
+Claude Code is an \emph{agentic} coding assistant that runs inside a terminal
+(or an IDE terminal panel) and has persistent access to the developer's file
+system, shell, and external services.  Unlike chat-based assistants that operate
+purely in a conversation window, Claude Code can read files, write files, run
+shell commands, spawn background processes, call external APIs via
+Model-Context-Protocol servers, and coordinate fleets of parallel sub-agents.
+
+The key architectural decision that distinguishes Claude Code from earlier AI
+coding tools is that the model is placed \emph{in the loop of the build process}
+rather than acting as a side-channel advisor.  When the model writes a function,
+it can immediately compile it, run the test suite, read the error output, and
+iterate---all within a single conversation turn if the user's permission settings
+allow it.
+
+\subsection{Supported Models}
+\label{app:claude-code:models}
+
+Claude Code works with the full range of production Anthropic models.  As of
+mid-2026, the three actively supported model tiers are:
+
+\begin{itemize}
+  \item \textbf{Claude Opus 4.8} --- the flagship reasoning model; required for
+        Agent Teams (Section~\ref{app:claude-code:agent-teams}) and
+        recommended for complex multi-file refactors.
+  \item \textbf{Claude Sonnet 4.6} --- the default model; balances capability
+        and cost for day-to-day coding tasks and lecture drafting.
+  \item \textbf{Claude Haiku 4.5} --- the fast, low-cost model; useful for
+        high-frequency sub-agent calls (e.g., batch file classification) where
+        latency and cost dominate accuracy concerns.
+\end{itemize}
+
+The active model can be overridden per session with the \texttt{/model} command
+or set permanently in \texttt{settings.json}.  Individual sub-agents and
+Workflow stages can specify their own model via the \texttt{model} option,
+enabling cost-aware tiering within a single orchestration run.
+
+\subsection{Key Milestones}
+\label{app:claude-code:milestones}
+
+The evolution of Claude Code's feature set matters for practitioners because
+community resources and blog posts are often written against older versions.
+Table~\ref{tab:claude-code-milestones} summarises the major capability
+releases.
+
+\begin{table}[ht]
+\centering
+\caption{Major Claude Code capability releases (2024--2026).}
+\label{tab:claude-code-milestones}
+\begin{tabular}{lll}
+\toprule
+\textbf{Date} & \textbf{Feature} & \textbf{Notes} \\
+\midrule
+November 2024 & MCP support & Model Context Protocol; first external tool bridge \\
+February 2025 & Research preview & Public launch with Bash, Read, Edit, Write tools \\
+July 2025     & Subagents (Agent tool) & Spawning isolated child sessions \\
+September 2025 & Hooks & Pre/post tool-call shell scripts \\
+October 2025  & Skills \& Plugins & Markdown slash commands; bundled plugin packages \\
+October 2025  & Workflow tool & Deterministic multi-agent fan-out scripts \\
+February 2026 & Agent Teams & Peer-to-peer multi-session coordination \\
+March 2026    & Scheduled Routines & Cron-style remote execution on Anthropic infra \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Installation and Setup}
+\label{app:claude-code:setup}
+
+\subsection{Prerequisites and Authentication}
+\label{app:claude-code:install}
+
+Claude Code requires Node.js 18 or later.  Installation is a single
+\texttt{npm} command:
+
+\begin{minted}{bash}
+npm install -g @anthropic-ai/claude-code
+\end{minted}
+
+On first launch, Claude Code opens a browser-based OAuth flow to authenticate
+against an Anthropic account.  For headless servers (CI/CD environments, remote
+compute nodes), set the \texttt{ANTHROPIC\_API\_KEY} environment variable
+instead; the browser flow is then skipped.
+
+\begin{minted}{bash}
+export ANTHROPIC_API_KEY="sk-ant-..."
+claude                        # start interactive session
+claude "fix all type errors"  # non-interactive single-shot mode
+\end{minted}
+
+To run Claude Code with a specific model from the command line:
+
+\begin{minted}{bash}
+claude --model claude-opus-4-8
+\end{minted}
+
+\subsection{IDE Integration}
+\label{app:claude-code:ide}
+
+Claude Code ships first-party IDE extensions for VS Code and JetBrains IDEs
+(IntelliJ IDEA, PyCharm, WebStorm, etc.).  The extensions embed the full
+Claude Code terminal panel inside the IDE, with additional GUI affordances:
+
+\begin{itemize}
+  \item \textbf{Inline diffs} --- proposed file edits are shown as unified diffs
+        inside the editor gutter before the user approves them.
+  \item \textbf{Plan review pane} --- in Plan mode
+        (Section~\ref{app:claude-code:plan-mode}), the plan document is
+        rendered in a dedicated editor panel and can be edited directly.
+  \item \textbf{\texttt{@}-mention} --- any open file can be dragged into the
+        conversation with \texttt{@filename} to provide immediate context.
+  \item \textbf{Conversation history} --- previous sessions are browsable via
+        the IDE's activity bar.
+\end{itemize}
+
+Install the VS Code extension from the Marketplace by searching
+\emph{Claude Code} (publisher: \texttt{Anthropic}).  For the integrated
+terminal to support multi-line input via \textsc{Shift+Enter}, run the
+following inside a Claude Code session once after installation:
+
+\begin{minted}{text}
+/terminal-setup
+\end{minted}
+
+This writes the required keybinding to VS Code's \texttt{keybindings.json}.
+
+% ---------------------------------------------------------------
+\section{Core Interface}
+\label{app:claude-code:interface}
+
+\subsection{CLI Commands and Navigation}
+\label{app:claude-code:cli}
+
+Claude Code's slash commands are the primary navigation layer.
+Table~\ref{tab:claude-code-slash} lists the most commonly used built-in
+commands.
+
+\begin{table}[ht]
+\centering
+\caption{Built-in Claude Code slash commands.}
+\label{tab:claude-code-slash}
+\begin{tabular}{ll}
+\toprule
+\textbf{Command} & \textbf{Effect} \\
+\midrule
+\texttt{/help}            & List all available commands and skills \\
+\texttt{/model [name]}    & Switch the active model \\
+\texttt{/compact}         & Compress conversation history to free context \\
+\texttt{/clear}           & Start a fresh session (context wiped) \\
+\texttt{/config}          & Open interactive settings editor \\
+\texttt{/permissions}     & Add or remove tool allowlist entries \\
+\texttt{/memory}          & View and edit auto-memory files \\
+\texttt{/status}          & Show current session token usage \\
+\texttt{/fast}            & Toggle Fast mode (Opus with faster output) \\
+\texttt{/terminal-setup}  & Write IDE keybindings for multi-line input \\
+\texttt{/init}            & Generate a \texttt{CLAUDE.md} for the current repo \\
+\texttt{/workflows}       & Show live progress of running Workflow tasks \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Any skill installed in \texttt{.claude/skills/} is also accessible as a slash
+command (e.g., \texttt{/draft-chapter}, \texttt{/score-content}).
+
+\subsection{Plan Mode}
+\label{app:claude-code:plan-mode}
+
+Plan mode is a read-only exploration mode in which Claude Code analyzes the
+codebase, reasons about architecture, and produces a structured plan---but
+cannot execute any writes or shell commands.  It is the safest way to understand
+what a large, ambiguous task will require before granting execution permissions.
+
+Activate Plan mode by pressing \textsc{Shift+Tab} once from the default Edit
+mode; subsequent presses cycle through Auto-Accept mode and back.  The three
+modes are:
+
+\begin{enumerate}
+  \item \textbf{Edit mode} (default) --- Claude proposes each file change
+        individually; the user approves or rejects before writing.
+  \item \textbf{Plan mode} --- read-only; Claude explores and writes a plan
+        document; no files are modified.
+  \item \textbf{Auto-Accept mode} --- Claude executes approved tool categories
+        without per-call confirmation; see Section~\ref{app:claude-code:permissions}
+        for how to configure which tools are auto-approved.
+\end{enumerate}
+
+\begin{deepdive}
+In Plan mode, Claude Code internally activates the \texttt{EnterPlanMode} and
+\texttt{ExitPlanMode} tools.  These tools are deferred-schema tools: their
+parameter schemas are not loaded until explicitly requested, which is why Plan
+mode imposes essentially zero overhead on sessions that never use it.  This
+pattern---load schemas on demand---is used broadly in Claude Code to keep the
+system prompt size bounded even when hundreds of extension tools are registered.
+\end{deepdive}
+
+\subsection{Keyboard Shortcuts}
+\label{app:claude-code:shortcuts}
+
+The most productive keyboard shortcuts differ slightly between macOS and
+Windows/Linux.  Table~\ref{tab:claude-code-keys} gives the canonical bindings.
+
+\begin{table}[ht]
+\centering
+\caption{Claude Code keyboard shortcuts (macOS / Windows--Linux).}
+\label{tab:claude-code-keys}
+\begin{tabular}{lll}
+\toprule
+\textbf{Action} & \textbf{macOS} & \textbf{Windows/Linux} \\
+\midrule
+Submit prompt (single line)    & \textsc{Return}    & \textsc{Return} \\
+Newline in prompt              & \textsc{Shift+Return} & \textsc{Shift+Return} \\
+Cycle Edit → Plan → Auto       & \textsc{Shift+Tab} & \textsc{Shift+Tab} \\
+Open plan file in editor       & \textsc{Cmd+G}     & \textsc{Ctrl+G} \\
+Undo last AI change            & \textsc{Esc, Esc}  & \textsc{Esc, Esc} \\
+Toggle extended thinking       & \textsc{Option+T}  & \textsc{Alt+T} \\
+Toggle editor/Claude focus     & \textsc{Cmd+Esc}   & \textsc{Ctrl+Esc} \\
+Interrupt running agent        & \textsc{Ctrl+C}    & \textsc{Ctrl+C} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The double-\textsc{Esc} rewind is particularly useful during iterative
+drafting: it undoes all file changes from the last assistant turn and removes
+that turn from the conversation history, allowing a clean retry with a different
+prompt.
+
+\subsection{Context Compaction and Conversation Management}
+\label{app:claude-code:context}
+
+Claude Code's context window grows with every tool call and assistant response.
+When the context approaches its limit, Claude Code automatically runs
+\texttt{/compact}: it summarises the conversation history into a compressed
+representation that preserves task state while freeing tokens for continued
+work.
+
+Key points for practitioners:
+
+\begin{itemize}
+  \item Running \texttt{/compact} \emph{manually} before starting a new phase
+        of work gives more predictable results than waiting for the automatic
+        trigger.
+  \item The Anthropic prompt cache has a 5-minute TTL.  Sleeping longer than
+        300 seconds between turns (e.g., during a manual review step) incurs a
+        cache miss; in the Workflow tool the scheduler accounts for this when
+        choosing polling intervals.
+  \item For very long autonomous runs, consider splitting the task into
+        independent Workflow phases; each phase starts with a fresh agent and a
+        focused prompt rather than a compacted summary of a long history.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Configuration and Memory}
+\label{app:claude-code:config}
+
+\subsection{The CLAUDE.md File Hierarchy}
+\label{app:claude-code:claude-md}
+
+\texttt{CLAUDE.md} is the primary instruction file: Claude Code reads it
+automatically at the start of every session and treats its content as
+highest-priority guidance, overriding default system-prompt behaviour.  The
+file system supports a layered hierarchy:
+
+\begin{enumerate}
+  \item \textbf{Global} (\texttt{\textasciitilde/.claude/CLAUDE.md}) ---
+        applies to all projects on the machine; a good place for personal
+        preferences and cross-project conventions.
+  \item \textbf{Project} (\texttt{.claude/CLAUDE.md} at the repo root) ---
+        applies to the current project; checked into version control so all
+        collaborators (human and AI) see the same rules.
+  \item \textbf{Sub-directory} (any \texttt{CLAUDE.md} in a nested folder) ---
+        automatically included when Claude Code works within that directory;
+        useful for monorepos with per-package conventions.
+\end{enumerate}
+
+All three levels are loaded and merged, with the more specific file taking
+precedence on any conflict.  The \texttt{/init} command generates a starter
+\texttt{CLAUDE.md} by reading the current directory structure, recent git
+history, and detected languages/frameworks.
+
+\begin{deepdive}
+\texttt{CLAUDE.md} is not limited to free-form prose.  It can contain structured
+YAML front matter (as in this book's \texttt{TOPIC.md}), conditional blocks, and
+even embedded skill references.  Claude Code does not execute front matter
+directly; rather, skills and agents read it programmatically using the
+\texttt{Read} tool to extract configuration.  This indirection---human-readable
+markdown that is also machine-parseable---is what allows a single configuration
+file to govern both AI sessions and the shell hooks that validate them.
+\end{deepdive}
+
+\subsection{Settings, Permissions, and Environment Variables}
+\label{app:claude-code:settings}
+
+Runtime behaviour is controlled by JSON settings files at three scopes:
+
+\begin{minted}{json}
+// ~/.claude/settings.json       (global — lowest priority)
+// .claude/settings.json         (project — medium priority)
+// .claude/settings.local.json   (session — highest priority; gitignored)
+\end{minted}
+
+The most important keys are:
+
+\begin{minted}{json}
+{
+  "model": "claude-sonnet-4-6",
+  "permissions": {
+    "allow": [
+      "Bash(git log:*)",
+      "Bash(npm test:*)",
+      "Edit",
+      "Read"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(curl:*)"
+    ]
+  },
+  "env": {
+    "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+    "PYTHONPATH": "${workspaceRoot}/src"
+  },
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "Edit", "command": "bash .claude/hooks/lint.sh" }
+    ]
+  }
+}
+\end{minted}
+
+The \texttt{permissions.allow} list uses a \texttt{Tool(pattern:*)} syntax
+where the pattern is matched against the tool's first argument.  The
+\texttt{permissions.deny} list takes precedence over \texttt{allow}: if a
+command matches both, it is denied.  This asymmetric design ensures that safety
+constraints cannot be accidentally overridden by a broad allowlist entry.
+
+The \texttt{/permissions} slash command provides an interactive editor for the
+allowlist that does not require manually editing JSON.
+
+\textbf{Environment variables.}  Variables declared in \texttt{settings.json}
+under \texttt{env} are injected into every Bash tool call.  Use
+\texttt{\$\{VAR\}} syntax to forward a variable from the parent shell.  Never
+hardcode API keys in settings files that are committed to version control; use
+\texttt{settings.local.json} (gitignored by default) or OS-level secret stores
+instead.
+
+\subsection{Auto-Memory System}
+\label{app:claude-code:memory}
+
+Claude Code maintains a persistent memory store at
+\texttt{\textasciitilde/.claude/projects/\textless{}encoded-path\textgreater/memory/}.
+Each memory is a markdown file with YAML front matter:
+
+\begin{minted}{markdown}
+---
+name: feedback-no-paragraphs
+description: Never use \paragraph{} as inline labels; prose must flow
+metadata:
+  type: feedback
+---
+
+Rule: Do not use `\paragraph{}` or `\textbf{}` as inline paragraph labels.
+**Why:** The author finds heading-dense prose easier to scan in source but
+harder to read in the compiled PDF.
+**How to apply:** In all `.tex` content files, let sections flow as continuous
+prose without sub-headings smaller than `\subsubsection`.
+\end{minted}
+
+The memory system has four types: \textbf{user} (the human's role and
+preferences), \textbf{feedback} (corrections and confirmations), \textbf{project}
+(goals, deadlines, decisions), and \textbf{reference} (pointers to external
+systems).  A \texttt{MEMORY.md} index file is always loaded into context; the
+full memory files are read on demand when flagged as relevant by the index.
+
+Use the \texttt{/memory} command to inspect and edit the memory store from
+within a Claude Code session.
+
+% ---------------------------------------------------------------
+\section{Built-in Tools}
+\label{app:claude-code:tools}
+
+Claude Code exposes a curated set of tools to the language model.  Each tool
+call requires user approval unless the tool (or a matching pattern) is listed in
+\texttt{permissions.allow}.
+
+\subsection{File System Tools}
+\label{app:claude-code:tools-fs}
+
+\begin{description}
+  \item[\texttt{Read}] Reads a file at an absolute path.  Supports line-range
+        offsets (\texttt{offset}, \texttt{limit}) for large files; for PDFs
+        accepts a \texttt{pages} range.  Always read a file before editing it:
+        the \texttt{Edit} tool refuses to operate on files it has not seen.
+
+  \item[\texttt{Write}] Overwrites a file with new content.  Use only for new
+        files or complete rewrites; prefer \texttt{Edit} for partial changes.
+
+  \item[\texttt{Edit}] Applies an exact string replacement (\texttt{old\_string}
+        → \texttt{new\_string}) in a file.  The \texttt{replace\_all} flag
+        performs the substitution everywhere in the file, useful for renaming a
+        symbol throughout a module.  The replacement fails if \texttt{old\_string}
+        is not unique, preventing accidental edits.
+
+  \item[\texttt{Glob}] Fast file-pattern matching.  Returns paths sorted by
+        modification time.  Use instead of \texttt{find} for any file-discovery
+        task.
+
+  \item[\texttt{Grep}] Content search backed by \texttt{ripgrep}.  Supports
+        full regex syntax, file-type filtering (\texttt{type} parameter),
+        multi-line matching, and context lines (\texttt{-C}).  Output modes:
+        \texttt{files\_with\_matches}, \texttt{content}, or \texttt{count}.
+\end{description}
+
+\subsection{The Bash Tool}
+\label{app:claude-code:tools-bash}
+
+The \texttt{Bash} tool executes arbitrary shell commands with a configurable
+timeout (up to 600\,s).  Working directory persists across calls within a
+session; environment state (variables, functions) does not.
+
+Commands can be run in the background by setting \texttt{run\_in\_background:
+true}, in which case Claude Code is notified when the process completes rather
+than blocking.  This is essential for long compilation jobs or test suites.
+
+\begin{minted}{bash}
+# Example: compile the book in the background
+cd book && pdflatex -interaction=nonstopmode main.tex
+\end{minted}
+
+\textbf{Security note.}  The Bash tool is the highest-risk tool because it can
+execute arbitrary code.  Use the \texttt{permissions.deny} list to block
+patterns that should never run in your environment (e.g., \texttt{curl} calls
+to external hosts, \texttt{rm -rf} without path specifics).
+
+\subsection{Orchestration Tools}
+\label{app:claude-code:tools-orchestration}
+
+Three tools control multi-agent execution:
+
+\begin{description}
+  \item[\texttt{Agent}] Spawns a child Claude Code session with its own context
+        window, prompt, and tool set.  Returns the agent's final text output (or
+        a structured JSON object if a \texttt{schema} is provided).  Useful for
+        parallelising independent tasks or protecting the main context window
+        from excessive search results.  The optional
+        \texttt{isolation: "worktree"} flag runs the agent in a fresh git
+        worktree, preventing file conflicts when multiple agents write in
+        parallel.
+
+  \item[\texttt{Skill}] Invokes a named skill (slash command) from
+        \texttt{.claude/skills/} and returns its output.  Equivalent to typing
+        \texttt{/skill-name} at the prompt, but callable programmatically from
+        within another skill or Workflow script.
+
+  \item[\texttt{Workflow}] Executes a JavaScript orchestration script that fans
+        out work across many agents deterministically.  See
+        Section~\ref{app:claude-code:workflow} for the full API.
+\end{description}
+
+\subsection{Extended Thinking}
+\label{app:claude-code:thinking}
+
+Claude Opus models support \emph{extended thinking}: an internal chain-of-thought
+scratchpad in which the model reasons before producing output.  Claude Code
+exposes this via the \texttt{Alt+T} / \texttt{Option+T} keyboard shortcut or
+the \texttt{/fast} toggle (which disables thinking in exchange for lower
+latency).
+
+Extended thinking is most valuable for:
+\begin{itemize}
+  \item architectural decisions that span many files,
+  \item mathematical derivations that require multi-step symbolic reasoning, and
+  \item debugging sessions where the root cause is non-obvious.
+\end{itemize}
+
+When extended thinking is active, the model's reasoning tokens are \emph{not}
+billed at the same rate as output tokens; consult the Anthropic pricing page for
+current rates.
+
+% ---------------------------------------------------------------
+\section{Extension Mechanisms}
+\label{app:claude-code:extensions}
+
+\subsection{Skills}
+\label{app:claude-code:skills}
+
+A \emph{skill} is a markdown file at
+\texttt{.claude/skills/\textless{}name\textgreater{}/SKILL.md} that describes a
+multi-step workflow.  When the user types \texttt{/\textless{}name\textgreater{}}
+at the prompt, Claude Code loads the file and follows its instructions exactly.
+Skills are:
+
+\begin{itemize}
+  \item \textbf{Portable} --- the same \texttt{SKILL.md} file works in Claude
+        Code, Codex CLI, Gemini CLI, and Cursor without modification.
+  \item \textbf{Version-controlled} --- stored in the repo alongside the code
+        they govern; changes are visible in \texttt{git log}.
+  \item \textbf{Composable} --- a skill can invoke other skills via the
+        \texttt{Skill} tool, enabling pipelines like
+        \texttt{/draft-chapter} → \texttt{/score-content} →
+        \texttt{/refine-until-threshold}.
+\end{itemize}
+
+This book defines skills for every major authoring task; see the
+\texttt{.claude/skills/} directory for the full catalogue, or run
+\texttt{/help} to list available commands.
+
+\subsection{Hooks}
+\label{app:claude-code:hooks}
+
+Hooks are shell scripts registered in \texttt{settings.json} that execute
+automatically in response to tool-use events.  The available hook events are:
+
+\begin{description}
+  \item[\texttt{PreToolUse}] Fires before a tool call; can cancel the call by
+        exiting non-zero.
+  \item[\texttt{PostToolUse}] Fires after a tool call completes; its output is
+        shown to the model as feedback.
+  \item[\texttt{UserPromptSubmit}] Fires when the user submits a prompt; can
+        prepend additional context.
+  \item[\texttt{Stop}] Fires when Claude Code finishes a turn; useful for
+        notifications or cleanup.
+\end{description}
+
+\begin{minted}{json}
+"hooks": {
+  "PostToolUse": [
+    {
+      "matcher": "Edit",
+      "command": "bash .claude/hooks/lint-on-save.sh \"$CLAUDE_TOOL_INPUT_FILE\""
+    }
+  ],
+  "Stop": [
+    { "command": "bash .claude/hooks/notify.sh" }
+  ]
+}
+\end{minted}
+
+Hook scripts receive tool input and output as environment variables and can
+write to \texttt{stdout} to inject messages into the conversation.  A common
+pattern in this book's project is a \texttt{PostToolUse} hook on \texttt{Edit}
+that re-runs the \LaTeX{} linter on any modified \texttt{.tex} file,
+surfacing syntax errors before the next agent step.
+
+\subsection{MCP Server Integration}
+\label{app:claude-code:mcp}
+
+The Model Context Protocol (MCP) is an open standard (released November 2024)
+that allows Claude Code to connect to external processes that expose tools and
+data sources.  An MCP server is a long-running process that Claude Code discovers
+via \texttt{settings.json}:
+
+\begin{minted}{json}
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "sqlite": {
+      "command": "uvx",
+      "args": ["mcp-server-sqlite", "--db-path", "data/research.db"]
+    }
+  }
+}
+\end{minted}
+
+MCP servers expose their tools as callable functions inside Claude Code's tool
+list.  The finance-relevant servers include database connectors (SQLite,
+PostgreSQL), browser automation (for scraping financial filings), internal API
+bridges (Bloomberg terminal, FactSet), and document stores (Google Drive, email).
+
+Tools from MCP servers are deferred: their parameter schemas are not loaded into
+context until the user invokes a \texttt{ToolSearch} query, keeping the system
+prompt compact when many servers are registered.
+
+\subsection{Plugins}
+\label{app:claude-code:plugins}
+
+A \emph{plugin} (introduced October 2025) is a packaged bundle that can include
+any combination of skills, MCP server configurations, sub-agent definitions, and
+hooks.  Plugins are installed with:
+
+\begin{minted}{bash}
+claude plugin install @anthropic/financial-data-plugin
+\end{minted}
+
+After installation, all of the plugin's components are available without manual
+configuration.  The community plugin registry hosts hundreds of domain-specific
+plugins; for regulated environments, private registries can be pointed to via
+the \texttt{pluginRegistry} setting.
+
+% ---------------------------------------------------------------
+\section{Agents and Multi-Agent Systems}
+\label{app:claude-code:agents}
+
+\begin{context}
+The move from a single LLM call to a \emph{system} of coordinated LLM calls is
+arguably the most consequential architectural shift in applied AI since the
+Transformer itself.  A single model, no matter how capable, operates within a
+fixed context window; a system of models can divide a large task into pieces,
+process them in parallel, check each other's work, and synthesise results that
+no single context window could hold.  Claude Code's multi-agent architecture is
+designed around exactly this observation.
+\end{context}
+
+\subsection{Subagents and the Agent Tool}
+\label{app:claude-code:subagents}
+
+The \texttt{Agent} tool spawns a child Claude Code session.  Each child has:
+
+\begin{itemize}
+  \item its own independent context window,
+  \item a prompt written by the parent agent,
+  \item a configurable tool set (defaulting to all tools), and
+  \item an optional \texttt{schema} that forces the child to return a validated
+        JSON object rather than free text.
+\end{itemize}
+
+Children run concurrently when multiple \texttt{Agent} calls appear in the same
+response turn.  The parent collects results and synthesises them.  The most
+common pattern is a two-level hierarchy: a \emph{planner} agent that breaks the
+task into pieces, followed by a fleet of \emph{worker} agents that execute each
+piece in parallel.
+
+\begin{minted}{json}
+// Simplified Agent call (as JSON schema)
+{
+  "description": "Classify whether chapter section covers tokenization",
+  "prompt": "Read book/chapters/02-llm-foundations/chapter.tex and return ...",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "covers_tokenization": { "type": "boolean" },
+      "evidence": { "type": "string" }
+    }
+  }
+}
+\end{minted}
+
+\subsection{Custom Subagent Types}
+\label{app:claude-code:custom-agents}
+
+Named sub-agent types are defined as markdown files in
+\texttt{.claude/agents/}.  Each file specifies a persona, a set of inputs, a
+task description, and constraints.  When an \texttt{Agent} call includes
+\texttt{agentType: "math-checker"}, Claude Code reads
+\texttt{.claude/agents/math-checker.md} and prepends it to the child's system
+prompt.
+
+This book defines the following agent types:
+
+\begin{itemize}
+  \item \texttt{book-writer} --- drafts \LaTeX{} content following the book's
+        structural conventions.
+  \item \texttt{math-checker} --- verifies derivations and proofs; returns
+        \texttt{PASS} or \texttt{FAIL} with a list of issues.
+  \item \texttt{editor} --- improves clarity and flow without changing
+        mathematical content.
+  \item \texttt{scorer} --- applies the 5-dimension quality rubric and writes
+        a JSON score report.
+  \item \texttt{outline-curator} --- audits and refines section outlines.
+  \item \texttt{literature-reviewer} --- suggests references with BibTeX entries.
+  \item \texttt{proofreader} --- checks grammar, spelling, and style consistency.
+\end{itemize}
+
+\subsection{The Workflow Tool}
+\label{app:claude-code:workflow}
+
+The \texttt{Workflow} tool runs a JavaScript orchestration script that fans
+work out across many agents deterministically.  Unlike the \texttt{Agent} tool
+(which is invoked by the model and subject to the model's discretion), a
+Workflow script is controlled by explicit JavaScript control flow---loops,
+conditionals, and fan-out---making the execution pattern reproducible and
+auditable.
+
+A minimal Workflow script:
+
+\begin{minted}{javascript}
+export const meta = {
+  name: 'score-all-chapters',
+  description: 'Run quality scorer on every chapter in parallel',
+  phases: [{ title: 'Score' }],
+}
+
+const chapters = ['01-intro', '02-llm-foundations', '03-llm-training-finetuning']
+
+const SCORE_SCHEMA = {
+  type: 'object',
+  properties: {
+    clarity: { type: 'number' },
+    rigor: { type: 'number' },
+    completeness: { type: 'number' },
+    pedagogy: { type: 'number' },
+    style: { type: 'number' },
+  },
+}
+
+const results = await parallel(chapters.map(ch => () =>
+  agent(
+    `Score book/chapters/${ch}/chapter.tex on 5 dimensions (0-10 each).`,
+    { label: `score:${ch}`, phase: 'Score', schema: SCORE_SCHEMA }
+  )
+))
+
+return results
+\end{minted}
+
+Key Workflow primitives:
+
+\begin{description}
+  \item[\texttt{agent(prompt, opts)}] Spawns one sub-agent; returns the
+        agent's text output or, when \texttt{opts.schema} is provided, a
+        validated JSON object.
+  \item[\texttt{parallel(thunks)}] Runs all thunk functions concurrently;
+        waits for all to complete (barrier); returns an array of results.
+  \item[\texttt{pipeline(items, ...stages)}] Runs each item through all
+        stages without inter-stage barriers.  The default choice: use
+        \texttt{parallel} only when all prior-stage results are genuinely
+        needed before the next stage can start.
+  \item[\texttt{phase(title)}] Opens a named progress group; subsequent
+        \texttt{agent} calls are grouped under this title in the live
+        \texttt{/workflows} view.
+  \item[\texttt{log(message)}] Emits a progress message visible in the UI.
+\end{description}
+
+Workflows support \emph{resume}: if a run is interrupted, re-launching with
+the same \texttt{scriptPath} and \texttt{resumeFromRunId} replays cached
+agent results and continues from the first changed or new call.
+
+\subsection{Agent Teams}
+\label{app:claude-code:agent-teams}
+
+Agent Teams (released February 2026) extend the parent/child subagent model
+to a \emph{peer} coordination model.  A team consists of:
+
+\begin{description}
+  \item[Team Lead] The main Claude Code session that initialises the team,
+        posts the initial task list, and synthesises final results.
+  \item[Teammates] Independent Claude Code processes, each with their own
+        context window.  Teammates can read from and write to a shared task
+        list, and can send direct messages to each other via a mailbox system.
+\end{description}
+
+Agent Teams require Claude Opus 4.8 for all participants and are disabled by
+default.  Enable them by setting the environment variable
+\texttt{CLAUDE\_CODE\_EXPERIMENTAL\_AGENT\_TEAMS=1}.  They are most productive
+for tasks that benefit from genuine collaboration: parallel code review, complex
+debugging where teammates test competing hypotheses, or large feature
+implementations where different teammates own different layers (frontend,
+backend, database, tests).
+
+Token consumption is roughly 7$\times$ a single-session Plan-mode run for
+comparable tasks; reserve Agent Teams for problems that would otherwise require
+repeated manual context-switching.
+
+% ---------------------------------------------------------------
+\section{Automation and Remote Execution}
+\label{app:claude-code:automation}
+
+\subsection{Scheduled Routines}
+\label{app:claude-code:routines}
+
+As of March 2026, Claude Code supports \emph{Routines}: cron-style tasks that
+execute on Anthropic-managed infrastructure, decoupled from the developer's
+local machine.  Create a routine with the \texttt{/schedule} command:
+
+\begin{minted}{text}
+/schedule "every Monday 08:00 UTC: /full-review all chapters, commit if PASS"
+\end{minted}
+
+Routines are stored in \texttt{.claude/routines/} and have the same access to
+project skills and MCP servers as an interactive session.  Common use cases for
+research workflows:
+
+\begin{itemize}
+  \item Nightly bibliography audits that flag broken DOI links.
+  \item Weekly quality re-scores after upstream dependency updates.
+  \item Post-merge hooks that re-sync lecture slides with their companion
+        chapters whenever a chapter \texttt{.tex} file changes.
+\end{itemize}
+
+\subsection{External Integrations}
+\label{app:claude-code:integrations}
+
+Claude Code integrates with Slack as a first-party surface.  After authorising
+the integration, mentioning \texttt{@Claude} in a Slack channel or thread
+triggers a Claude Code session on Anthropic infrastructure; the session has
+access to the linked repository and can commit results back to GitHub.
+
+For CI/CD integration, Claude Code can be invoked non-interactively:
+
+\begin{minted}{bash}
+# In a GitHub Actions workflow step:
+claude --non-interactive \
+       --model claude-sonnet-4-6 \
+       "Run /score-content on all modified .tex files in this PR. \
+        Fail if any dimension is below 8."
+\end{minted}
+
+The \texttt{--non-interactive} flag disables the permission-approval UI; the
+allowlist in \texttt{.claude/settings.json} governs what the agent is permitted
+to do.
+
+% ---------------------------------------------------------------
+\section{Security, Privacy, and Cost}
+\label{app:claude-code:security}
+
+\subsection{The Permissions Model}
+\label{app:claude-code:permissions}
+
+Claude Code's permission system follows a \emph{default-cautious} principle:
+every tool call that is not explicitly allowed prompts the user for approval.
+The layered allowlist/denylist design described in
+Section~\ref{app:claude-code:settings} provides fine-grained control.
+
+For shared codebases, commit a minimal \texttt{.claude/settings.json} that
+allows only the operations required for automated tasks (read-only tools plus
+specific git operations) and requires human approval for anything that touches
+production data or external network endpoints.
+
+The \texttt{permissions.deny} key provides a hard veto.  Any pattern listed
+there is blocked regardless of what the allowlist says or what the model
+requests.  Finance teams should at minimum deny:
+
+\begin{minted}{json}
+"deny": [
+  "Bash(curl:*)",
+  "Bash(wget:*)",
+  "Bash(pip install:*)",
+  "Bash(npm install:*)",
+  "Bash(rm -rf:*)"
+]
+\end{minted}
+
+This prevents the model from inadvertently (or through a prompt-injection
+attack) exfiltrating data or installing arbitrary packages.
+
+\subsection{Sensitive Data and Secrets Management}
+\label{app:claude-code:secrets}
+
+Claude Code reads the project directory, which may contain data files, model
+weights, or configuration with credentials.  Best practices:
+
+\begin{enumerate}
+  \item \textbf{Gitignore secrets} --- add \texttt{.env}, \texttt{*.pem},
+        and \texttt{secrets.json} to \texttt{.gitignore} before running
+        \texttt{/init}, which reads git history.
+  \item \textbf{Deny read access} ---
+        \texttt{"deny": ["Read(.env*)", "Read(*credentials*)"]} prevents
+        the model from inadvertently including secret values in its context.
+  \item \textbf{Use \texttt{settings.local.json}} --- environment variables
+        injected via this file are not committed to the repository; use it
+        for per-developer API keys.
+  \item \textbf{Redact before sharing transcripts} --- the \texttt{/export}
+        command saves the conversation; review the export before sharing, as
+        it may capture tool outputs that include file contents.
+\end{enumerate}
+
+For financial data subject to NDA or data sharing agreements, consider running
+Claude Code with a local model endpoint (via the \texttt{baseURL} setting)
+rather than the Anthropic API, so data never leaves your perimeter.
+
+\subsection{Token Consumption and Cost Control}
+\label{app:claude-code:cost}
+
+Claude Code sessions can consume substantial tokens, particularly when extended
+thinking is active or when Workflow scripts run large agent fleets.
+Table~\ref{tab:token-costs} gives approximate consumption for the tasks most
+relevant to this book.
+
+\begin{table}[ht]
+\centering
+\caption{Approximate token consumption for common Claude Code tasks (Sonnet 4.6).}
+\label{tab:token-costs}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Task} & \textbf{Input tokens} & \textbf{Output tokens} \\
+\midrule
+\texttt{/score-content} on one chapter & 15{,}000--30{,}000 & 2{,}000--4{,}000 \\
+\texttt{/draft-chapter} full pipeline & 50{,}000--120{,}000 & 10{,}000--25{,}000 \\
+\texttt{/full-review} (all agents)     & 80{,}000--200{,}000 & 15{,}000--40{,}000 \\
+Agent Teams run (7 sessions)           & 350{,}000+          & 70{,}000+ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cost-reduction strategies:
+
+\begin{itemize}
+  \item Use Sonnet 4.6 for bulk operations (scoring, proofreading) and reserve
+        Opus 4.8 for tasks requiring deep reasoning.
+  \item Exploit prompt caching: CLAUDE.md and long system prompts are cached by
+        Anthropic with a 5-minute TTL; rapid iteration within a session benefits
+        automatically.
+  \item Set the \texttt{budget} directive in Workflow scripts
+        (\texttt{+500k tokens}) to cap a run and prevent runaway agent loops.
+  \item Run \texttt{/compact} at natural task boundaries rather than letting
+        the context grow until automatic compaction triggers.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Claude Code in Research and Finance Workflows}
+\label{app:claude-code:finance}
+
+\subsection{Use Cases for Quants and Researchers}
+\label{app:claude-code:use-cases}
+
+The following use cases have proven especially productive for the audience of
+this book:
+
+\begin{description}
+  \item[Literature synthesis] A Workflow script that fans out across a list of
+        SSRN or arXiv paper IDs, has one sub-agent per paper extract
+        methodology and key results as structured JSON, then has a synthesis
+        agent produce a comparative table---in minutes rather than days.
+
+  \item[Code archaeology] Dropping a legacy pricing library into the project
+        directory and asking Claude Code to generate a call graph, identify
+        undocumented assumptions, and produce a test suite covering edge cases.
+
+  \item[Report drafting] Using \texttt{/draft-chapter} and
+        \texttt{/score-content} iteratively to produce investment memos or
+        regulatory reports that meet a house style and a readability threshold.
+
+  \item[Data pipeline debugging] Providing a failing notebook and asking Claude
+        Code to reproduce the error, hypothesise causes, write a minimal
+        reproducer, and propose a fix---all within one non-interactive
+        \texttt{claude} invocation.
+
+  \item[Nightly model monitoring] A scheduled routine that runs a battery of
+        sanity checks on a live NLP model (distribution shift, calibration, new
+        OOV tokens), commits a JSON report, and posts a summary to Slack if any
+        check fails.
+\end{description}
+
+\subsection{This Book as a Working Example}
+\label{app:claude-code:book}
+
+This book was produced using Claude Code as the primary authoring environment.
+The \texttt{.claude/} directory at the repository root encodes the entire
+production workflow:
+
+\begin{itemize}
+  \item \texttt{.claude/CLAUDE.md} --- master instructions: conventions,
+        quality gates, commit message format.
+  \item \texttt{.claude/skills/} --- one skill per workflow step
+        (scaffold, draft, score, refine, release).
+  \item \texttt{.claude/agents/} --- specialised personas (book-writer,
+        math-checker, scorer, etc.).
+  \item \texttt{.claude/hooks/} --- shell scripts that lint \LaTeX{} on save
+        and re-run quality scores on pre-commit.
+  \item \texttt{docs/quality/} --- JSON score reports for every chapter,
+        committed alongside the content.
+  \item \texttt{TOPIC.md} --- YAML configuration for subject, audience,
+        quality threshold, and auto-commit behaviour.
+\end{itemize}
+
+Replicating this structure for a new research project requires running
+\texttt{/interview-me} to configure \texttt{TOPIC.md}, then
+\texttt{/new-topic} for each chapter.  The entire scaffold is version-controlled
+and portable: cloning the repository gives any collaborator (human or AI) the
+same working environment.
+
+\subsection{Recommended Workflow Patterns}
+\label{app:claude-code:patterns}
+
+\begin{enumerate}
+  \item \textbf{Plan before writing.}  Use Plan mode to review the proposed
+        changes before committing to Auto-Accept.  For new chapters, run
+        \texttt{/new-topic} in Plan mode first; approve the outline, then
+        switch to Edit mode for the actual scaffold.
+
+  \item \textbf{Score early, score often.}  Run \texttt{/score-content} after
+        every significant draft, not just at the end.  The quality JSON
+        provides a compass for the next iteration that is more reliable than
+        subjective impression.
+
+  \item \textbf{Separate concerns with agents.}  Do not ask a single session to
+        draft content, check math, and improve style in the same turn.  Each
+        task is well-suited to a different agent persona; the \texttt{Agent}
+        tool makes this separation cheap.
+
+  \item \textbf{Use the deny list proactively.}  In research environments with
+        sensitive data, configure \texttt{permissions.deny} before the first
+        session, not after a concern arises.
+
+  \item \textbf{Compact at phase boundaries.}  Run \texttt{/compact} when
+        transitioning from drafting to reviewing, or from reviewing to
+        releasing.  This preserves the task state while eliminating draft
+        history that is no longer actionable.
+
+  \item \textbf{Commit checkpoints.}  The skills in this book commit after every
+        major step.  Frequent small commits make it easy to bisect a regression
+        introduced by an agent and revert to a known-good state without losing
+        days of work.
+\end{enumerate}

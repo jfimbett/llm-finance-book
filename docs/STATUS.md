@@ -11,3 +11,9 @@
 | 05 | Business Valuation | Yes | Yes | ? | ? | ? | ? | ? | No |
 | 06 | Credit Risk | Yes | No | - | - | - | - | - | No |
 | 07 | Applications Future | Yes | Yes | ? | ? | ? | ? | ? | No |
+
+## Appendices
+
+| # | Appendix | Draft | Scored | Clarity | Rigor | Completeness | Pedagogy | Style | Released |
+|---|----------|-------|--------|---------|-------|--------------|----------|-------|----------|
+| A | Claude Code | Yes | No | - | - | - | - | - | No |

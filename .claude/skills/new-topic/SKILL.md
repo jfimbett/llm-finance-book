@@ -2,19 +2,23 @@
 
 ## Purpose
 
-Scaffold a new numbered chapter/lecture/notebook unit with all required placeholder files.
+Scaffold a new numbered chapter/lecture/notebook unit, or a lettered appendix, with all required placeholder files.
 
 ## When to Invoke
 
-When the user wants to add a new topic to the course. Run before `/draft-chapter` or `/draft-lecture`.
+When the user wants to add a new topic (chapter or appendix) to the book/course. Run before `/draft-chapter` or `/draft-lecture`.
 
 ## Inputs Required
 
-- Topic number (e.g., `02`) and short name (e.g., `linear-algebra`) — ask the user if not provided
+- **Type**: chapter or appendix — ask the user if not clear from context
+- **Chapter**: topic number (e.g., `02`) and short name (e.g., `linear-algebra`)
+- **Appendix**: topic letter (e.g., `A`) and short name (e.g., `math-review`)
 - `TOPIC.md` — for project configuration
 - Optional: a raw section outline provided by the user in the invocation arguments
 
-## Steps
+---
+
+## Steps — Chapter Mode (default)
 
 1. Ask the user for the topic number (two digits, e.g., `02`) and short name (kebab-case, e.g., `linear-algebra`) if not already provided in the invocation.
 2. Check that `book/chapters/NN-name/` does not already exist — if it does, ask the user whether to overwrite or choose a different number.
@@ -42,13 +46,44 @@ Replace `NN-name` with the actual chapter directory segment (e.g., `02-linear-al
 14. Run `bash scripts/validate-scaffold.sh` to verify the new directories exist.
 15. Stage and commit: `git add book/chapters/NN-name course/lectures/NN-name code/notebooks/NN-name docs/STATUS.md book/main.tex && git commit -m "chore: scaffold topic NN-name"`
 
+---
+
+## Steps — Appendix Mode
+
+Use this mode when the user asks to create an appendix (e.g., "add appendix A on math review").
+
+1. Ask the user for the appendix letter (single uppercase letter, e.g., `A`) and short name (kebab-case, e.g., `math-review`) if not already provided.
+2. Check that `book/appendices/A-name/` does not already exist — if it does, ask the user whether to overwrite or choose a different letter.
+3. **Run the outline-curator agent** on the user-provided section list (or a minimal default outline). Apply the approved outline. If the agent returns `STATUS: NEEDS_REVISION`, fix and re-run until `STATUS: APPROVED`.
+4. Create `book/appendices/A-name/chapter.tex` using the approved outline: one `\section{}` per top-level section, one `\subsection{}` per subsection, each with a `[Placeholder]` body and correct `\label` tags. The file starts with `\chapter{[Appendix Title]}` (no number prefix — LaTeX handles lettering via `\appendix`).
+5. Create `book/appendices/A-name/figures/.gitkeep`.
+6. **No course lecture files** — appendices are book-only (no notes.md, slides.tex, exercises.md, solutions.md, or notebooks).
+7. Update `docs/STATUS.md` — append a new row in the appendices section: `| A | [Appendix Name] | No | No | — | — | — | — | — | No |`. If an appendices section doesn't exist yet, add a `## Appendices` header before it.
+
+**Step 8: Update `book/main.tex` to include the new appendix**
+
+Open `book/main.tex` and find the `% Add new appendices here` comment (it is under the `\appendix` command in the backmatter area). Add the following line immediately before that comment:
+
+```latex
+\include{appendices/A-name/chapter}
+```
+
+Replace `A-name` with the actual appendix directory segment (e.g., `A-math-review`).
+
+9. **Re-run outline-curator on the created `chapter.tex`** as a final check. Verify `STATUS: APPROVED`.
+10. Stage and commit: `git add book/appendices/A-name docs/STATUS.md book/main.tex && git commit -m "chore: scaffold appendix A-name"`
+
+---
+
 ## Expected Output
 
-Three new directories (`book/chapters/NN-name/`, `course/lectures/NN-name/`, `code/notebooks/NN-name/`) with section-structured placeholder files derived from an outline-curator-approved outline. `docs/STATUS.md` updated with a new row. Changes committed.
+**Chapter**: Three new directories with section-structured placeholder files. `docs/STATUS.md` updated. Changes committed.
+
+**Appendix**: One new directory (`book/appendices/A-name/`) with `chapter.tex` and `figures/`. `docs/STATUS.md` updated. Changes committed.
 
 ## Error Handling
 
-- If the topic number already exists: stop and ask the user to confirm overwrite or pick a new number.
+- If the topic/appendix identifier already exists: stop and ask the user to confirm overwrite or choose a different identifier.
 - If `docs/STATUS.md` cannot be found: create it with the standard header before appending the row.
 - If the scaffold validation fails after creation: report which paths are missing.
 - If the outline-curator returns `STATUS: NEEDS_REVISION` after three iterations: surface the remaining issues to the user and ask for guidance before proceeding.

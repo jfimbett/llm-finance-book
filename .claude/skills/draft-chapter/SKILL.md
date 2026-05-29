@@ -2,29 +2,40 @@
 
 ## Purpose
 
-Generate a first draft of a book chapter by orchestrating the literature-reviewer, book-writer, math-checker, and editor agents in sequence.
+Generate a first draft of a book chapter or appendix by orchestrating the literature-reviewer, book-writer, math-checker, and editor agents in sequence.
 
 ## When to Invoke
 
-After `/new-topic` has scaffolded the chapter directory. The target `chapter.tex` should still contain placeholder content.
+After `/new-topic` has scaffolded the chapter or appendix directory. The target `chapter.tex` should still contain placeholder content.
 
 ## Inputs Required
 
-- Chapter number/name (e.g., `01-intro`) — ask if not provided
+- Chapter identifier (e.g., `01-intro`) or appendix identifier (e.g., `A-math-review`) — ask if not provided
 - `TOPIC.md` — for subject, audience, and depth
 - Any outline, notes, or reference material the user wants to provide (optional)
+
+## Path Resolution
+
+Determine the target file based on the identifier format:
+
+- **Chapter** (numeric prefix, e.g., `01-intro`): `book/chapters/01-intro/chapter.tex`
+- **Appendix** (single uppercase letter prefix, e.g., `A-math-review`): `book/appendices/A-math-review/chapter.tex`
+
+If the user passes a full path, use it directly.
 
 ## Steps
 
 1. Read `TOPIC.md` to understand the subject, audience, and `book_depth` setting.
-2. Verify `book/chapters/NN-name/chapter.tex` exists. If it still contains placeholder text ("invoke /draft-chapter"), proceed. If it already has real content, ask the user whether to overwrite.
-3. **Invoke the literature-reviewer agent**: provide the chapter topic and ask it to suggest 3–7 relevant references with BibTeX entries. Append the returned BibTeX entries to `book/bibliography.bib`.
-4. **Invoke the book-writer agent**: provide the chapter topic, audience from `TOPIC.md`, and any user-supplied notes. Ask it to draft all sections of the chapter as LaTeX, using the chapter template structure (Motivation, Core Concepts, Examples, Summary). Write the output to `book/chapters/NN-name/chapter.tex`.
-5. **Invoke the math-checker agent** on the draft: pass the chapter content and ask for verification of all derivations and proofs. If the verdict is FAIL, return to the book-writer agent with the specific issues to fix. Repeat until PASS or after 2 iterations (flag for human review if still failing).
+2. Resolve the target path using the identifier (see Path Resolution above). Verify `chapter.tex` exists. If it still contains placeholder text, proceed. If it already has real content, ask the user whether to overwrite.
+3. **Invoke the literature-reviewer agent**: provide the topic and ask it to suggest 3–7 relevant references with BibTeX entries. Append the returned BibTeX entries to `book/bibliography.bib`.
+4. **Invoke the book-writer agent**: provide the topic, audience from `TOPIC.md`, and any user-supplied notes. Ask it to draft all sections as LaTeX, using the standard structure (Motivation, Core Concepts, Examples, Summary). Write the output to the resolved `chapter.tex`.
+5. **Invoke the math-checker agent** on the draft: verify all derivations and proofs. If the verdict is FAIL, return to the book-writer agent with the specific issues to fix. Repeat until PASS or after 2 iterations (flag for human review if still failing).
 6. **Invoke the editor agent** on the verified draft: ask it to improve clarity and flow. Apply the returned edits to `chapter.tex`.
-7. Run `/score-content book/chapters/NN-name/chapter.tex` to get the initial quality scores.
-8. If any dimension is below `quality_threshold` from `TOPIC.md`, run `/refine-until-threshold book/chapters/NN-name/chapter.tex`.
-9. Commit: `git add book/chapters/NN-name/ book/bibliography.bib && git commit -m "feat(chNN): draft [topic name] chapter"`
+7. Run `/score-content [resolved path]` to get the initial quality scores.
+8. If any dimension is below `quality_threshold` from `TOPIC.md`, run `/refine-until-threshold [resolved path]`.
+9. Commit:
+   - Chapter: `git add book/chapters/NN-name/ book/bibliography.bib && git commit -m "feat(chNN): draft [topic name] chapter"`
+   - Appendix: `git add book/appendices/A-name/ book/bibliography.bib && git commit -m "feat(appA): draft [topic name] appendix"`
 
 ## Expected Output
 

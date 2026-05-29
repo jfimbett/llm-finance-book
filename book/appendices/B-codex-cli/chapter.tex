@@ -1,0 +1,687 @@
+\chapter{Codex CLI: A Practitioner's Reference}
+\label{app:codex}
+
+\begin{remark}[Learning Objectives]
+After working through this appendix, the reader should be able to:
+\begin{enumerate}
+  \item Install Codex CLI, authenticate it, and select the appropriate approval
+        mode for a given task.
+  \item Explain the AGENTS.md file hierarchy and write project-level custom
+        instructions for a quantitative finance codebase.
+  \item Describe the three kernel-level sandboxing mechanisms (Seatbelt,
+        Landlock, seccomp) and explain when to prefer Codex CLI's OS-enforced
+        isolation over application-layer permission controls.
+  \item Deploy a cloud-sandbox Codex task for processing sensitive financial
+        documents without exposing data to the local development environment.
+  \item Write and install a SKILL.md file that encodes a reusable finance
+        research workflow.
+  \item Compare the architectural trade-offs between Codex CLI and Claude Code
+        and select the appropriate tool for a given research task.
+  \item Map at least three quantitative-finance research tasks to concrete
+        Codex CLI workflows, including an autonomous multi-hour data pipeline.
+\end{enumerate}
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{What is Codex CLI}
+\label{app:codex:overview}
+
+\begin{context}
+On 16 April 2025, OpenAI released Codex CLI as an open-source terminal agent.
+The release was deliberate counterpart positioning: within days of Anthropic's
+Claude Code reaching widespread adoption, OpenAI shipped a tool with a similar
+surface---reads files, runs tests, edits code, commits changes---but with a
+fundamentally different security architecture.  Where Claude Code enforces
+safety at the application layer through programmable hooks and an allowlist,
+Codex CLI enforces safety at the operating-system kernel layer using platform
+sandboxing primitives.  By early 2026, approximately four million developers
+were using Codex each week, and GPT-5.5---OpenAI's first fully agentic-first
+retrained base model---had become the default engine behind every Codex surface.
+\end{context}
+
+\subsection{Overview and Positioning}
+\label{app:codex:positioning}
+
+Codex CLI is a terminal-based agentic coding assistant that reads a repository,
+edits files, runs shell commands, and iterates on the results.  It is the
+command-line surface of a broader \emph{Codex} platform that also includes a
+cloud-hosted web interface, an IDE extension, a GitHub bot, and computer-use
+capabilities.  All surfaces share the same underlying model and account context.
+
+The most important architectural distinction from Claude Code
+(Appendix~\ref{app:claude-code}) is the execution environment.  Claude Code
+operates directly on the developer's local machine and file system; Codex CLI
+can optionally delegate tasks to ephemeral cloud virtual machines pre-loaded
+with the repository.  This cloud-sandbox mode provides reproducible, isolated
+execution that is particularly attractive for sensitive financial data pipelines
+where local environment contamination or credential leakage is a concern.
+
+\subsection{Supported Models}
+\label{app:codex:models}
+
+As of mid-2026, Codex runs on the following model tiers:
+
+\begin{itemize}
+  \item \textbf{GPT-5.5} --- the default and recommended model; agentic-first
+        training enables multi-hour autonomous sessions on real engineering tasks.
+        Context window: 272K tokens (default); up to 1.05M with long-context mode
+        enabled.
+  \item \textbf{GPT-5.5 Pro} --- higher rate limits and priority routing for
+        teams running parallel Codex agents on large pipelines.
+  \item \textbf{GPT-4.1} --- lower cost option for high-frequency, shorter
+        tasks such as linting, formatting, or schema validation.
+\end{itemize}
+
+Switch models with the \texttt{--model} flag or the \texttt{model} key in the
+configuration file.  GPT-5.5's explicit agentic-first training means it is
+significantly better than earlier models at sustaining multi-step task state
+across tool calls---an important property for long financial data pipelines.
+
+\subsection{Key Milestones}
+\label{app:codex:milestones}
+
+Table~\ref{tab:codex-milestones} summarises the major capability releases.
+
+\begin{table}[ht]
+\centering
+\caption{Major Codex CLI capability releases (2025--2026).}
+\label{tab:codex-milestones}
+\begin{tabular}{lll}
+\toprule
+\textbf{Date} & \textbf{Feature} & \textbf{Notes} \\
+\midrule
+April 2025     & Codex CLI launch      & Open-source terminal agent; three approval modes \\
+May 2025       & Cloud sandbox         & Ephemeral VM execution; pre-loaded repository \\
+September 2025 & IDE extension         & VS Code and JetBrains integration \\
+October 2025   & GitHub bot            & \texttt{@codex} in PR comments triggers a task \\
+December 2025  & Skills support        & SKILL.md spec; shared with Claude Code \\
+February 2026  & Computer use          & Screen reading; desktop app interaction \\
+April 2026     & GPT-5.5 default       & Agentic-first model; 1.05M max context \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Installation and Setup}
+\label{app:codex:setup}
+
+\subsection{Prerequisites and Authentication}
+\label{app:codex:install}
+
+Codex CLI requires Node.js 18 or later and is installed via \texttt{npm}:
+
+\begin{minted}{bash}
+npm install -g @openai/codex
+\end{minted}
+
+On first run, Codex opens a browser-based OAuth flow to authenticate against a
+ChatGPT account.  For headless or CI environments, set the
+\texttt{OPENAI\_API\_KEY} environment variable:
+
+\begin{minted}{bash}
+export OPENAI_API_KEY="sk-..."
+codex                            # start interactive session
+codex "analyse the factor model in src/models/ff5.py"
+\end{minted}
+
+To specify a model or run non-interactively:
+
+\begin{minted}{bash}
+codex --model gpt-5.5 --approval-mode full-access \
+      "Refactor the CAPM implementation and add unit tests."
+\end{minted}
+
+\subsection{First-Run Configuration}
+\label{app:codex:firstrun}
+
+On first run, Codex creates a global configuration file at
+\texttt{\textasciitilde/.codex/config.json}.  The most important top-level
+keys are:
+
+\begin{minted}{json}
+{
+  "model": "gpt-5.5",
+  "approvalMode": "auto",
+  "projectDocMaxBytes": 32768,
+  "projectDocFallbackFilenames": ["AGENTS.md", "README.md"],
+  "sandbox": {
+    "mode": "local",
+    "networkAccess": false
+  }
+}
+\end{minted}
+
+\texttt{projectDocMaxBytes} controls how much of the AGENTS.md file is read
+into context on session start (default 32\,KB).  For large codebases with
+detailed AGENTS.md conventions, increase this limit to ensure all conventions
+are loaded.
+
+% ---------------------------------------------------------------
+\section{Core Interface and Approval Modes}
+\label{app:codex:interface}
+
+\subsection{CLI Commands and Navigation}
+\label{app:codex:cli}
+
+Codex CLI's built-in slash commands are the primary navigation layer.
+Table~\ref{tab:codex-slash} lists the most commonly used commands.
+
+\begin{table}[ht]
+\centering
+\caption{Built-in Codex CLI slash commands.}
+\label{tab:codex-slash}
+\begin{tabular}{ll}
+\toprule
+\textbf{Command} & \textbf{Effect} \\
+\midrule
+\texttt{/plan}        & Produce a plan without executing any changes \\
+\texttt{/exec}        & Execute the current plan \\
+\texttt{/review}      & Review all pending changes before committing \\
+\texttt{/permissions} & Switch approval mode interactively \\
+\texttt{/model}       & Switch the active model \\
+\texttt{/context}     & Show current context usage and limits \\
+\texttt{/sandbox}     & Toggle between local and cloud-sandbox mode \\
+\texttt{/clear}       & Start a fresh session \\
+\texttt{/help}        & List all available commands and skills \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The \texttt{/plan} → \texttt{/exec} → \texttt{/review} loop is the
+recommended structured workflow for any task that modifies production data
+or trading logic: plan in read-only mode, inspect the diff, then execute.
+
+\subsection{The Three Approval Modes}
+\label{app:codex:approval-modes}
+
+Approval modes govern how much Codex can do without pausing for confirmation.
+Unlike Claude Code's fine-grained allowlist/denylist syntax, Codex CLI offers
+three coarse-grained modes:
+
+\begin{description}
+  \item[\texttt{read-only} (Suggest mode)] Codex can browse files and propose
+        a plan but cannot write files or run shell commands until the user
+        approves.  The safest mode for initial exploration of an unfamiliar
+        codebase or dataset.
+
+  \item[\texttt{auto} (Default)] Codex can read files, edit files, and run
+        shell commands within the working directory.  It still pauses before
+        accessing anything outside the working directory or performing network
+        operations.  Equivalent to Claude Code's Edit mode with a constrained
+        allowlist.
+
+  \item[\texttt{full-access} (Danger mode)] Codex operates without
+        confirmation across the entire machine, including network access.  Use
+        sparingly and only in sandboxed environments.
+\end{description}
+
+Switch modes at any time with \texttt{/permissions} or by restarting with the
+\texttt{--approval-mode} flag.
+
+\begin{deepdive}
+The coarse three-mode model is a deliberate design choice.  OpenAI's
+reasoning: most developers find fine-grained allowlists difficult to maintain
+correctly, so a well-enforced kernel-level boundary (see
+Section~\ref{app:codex:sandboxing}) is a more reliable safety guarantee than
+an application-layer list that can be misconfigured.  The trade-off is
+flexibility: Claude Code's hook system can express policies like ``allow
+\texttt{git commit} but deny \texttt{git push}'', whereas Codex cannot without
+a custom AGENTS.md guard script.
+\end{deepdive}
+
+\subsection{Context Management}
+\label{app:codex:context}
+
+GPT-5.5's default context window is 272K tokens.  Long-context mode (up to
+1.05M) is activated by setting \texttt{"longContext": true} in the
+configuration file.  Key practical points:
+
+\begin{itemize}
+  \item Use \texttt{/context} to inspect current usage before starting a
+        long pipeline; large repositories loaded in full can exhaust the
+        default window before the task completes.
+  \item Unlike Claude Code's \texttt{/compact} command, Codex does not offer
+        manual compaction.  When the context limit is approached, Codex
+        automatically summarises earlier turns.
+  \item For pipelines that operate on many files sequentially (e.g., processing
+        hundreds of earnings call transcripts), prefer the cloud-sandbox mode
+        (Section~\ref{app:codex:cloud}) where each task starts with a fresh
+        context.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Configuration}
+\label{app:codex:config}
+
+\subsection{The AGENTS.md File Hierarchy}
+\label{app:codex:agents-md}
+
+\texttt{AGENTS.md} is Codex CLI's analogue of Claude Code's
+\texttt{CLAUDE.md}.  It provides project-level custom instructions that Codex
+reads at the start of every session.  The hierarchy follows the same layered
+pattern:
+
+\begin{enumerate}
+  \item \textbf{Global} (\texttt{\textasciitilde/.codex/AGENTS.md}) ---
+        personal preferences applied to all projects.
+  \item \textbf{Project} (\texttt{AGENTS.md} at the repo root) --- project
+        conventions; checked into version control.
+  \item \textbf{Sub-directory} (any \texttt{AGENTS.md} in a nested folder) ---
+        package-level or module-level overrides.
+\end{enumerate}
+
+Codex merges all three levels on startup.  The
+\texttt{projectDocFallbackFilenames} configuration key allows additional files
+(e.g., \texttt{README.md}) to serve as the project instruction source when
+\texttt{AGENTS.md} is absent.
+
+A representative AGENTS.md for a quantitative finance project:
+
+\begin{minted}{markdown}
+# Project: Equity Factor Research
+
+## Conventions
+- Always use log returns: `np.log(price / price.shift(1))`.
+- Date columns must be `datetime64[ns]` with timezone `UTC`.
+- Factor returns are stored in `data/factors/` as Parquet files.
+
+## Testing
+- Run `pytest tests/ -x -q` after every file edit.
+- Coverage must remain above 80%.
+
+## Data Access
+- Raw price data: `data/raw/prices.parquet` (read-only).
+- Bloomberg data requires the `blpapi` conda environment.
+\end{minted}
+
+\subsection{Configuration Reference}
+\label{app:codex:config-ref}
+
+Beyond the top-level keys shown in Section~\ref{app:codex:firstrun}, the
+configuration file supports:
+
+\begin{description}
+  \item[\texttt{sandbox.mode}] \texttt{"local"} (default) or
+        \texttt{"cloud"} (ephemeral VM).
+  \item[\texttt{sandbox.networkAccess}] Boolean; default \texttt{false} in
+        auto mode.  Set \texttt{true} only when the task requires fetching
+        external data.
+  \item[\texttt{longContext}] Boolean; enables GPT-5.5's 1.05M context window.
+  \item[\texttt{historySize}] Number of past sessions stored in
+        \texttt{\textasciitilde/.codex/history/}; default 50.
+  \item[\texttt{shell}]  Shell used for command execution; default
+        \texttt{"/bin/bash"} on macOS/Linux, \texttt{"powershell"} on Windows.
+\end{description}
+
+\subsection{Skills}
+\label{app:codex:skills}
+
+Codex CLI implements the same open agent skills specification as Claude Code.
+A skill is a directory in \texttt{\textasciitilde/.agents/skills/} containing
+a required \texttt{SKILL.md} plus optional scripts and reference assets:
+
+\begin{minted}{text}
+~/.agents/skills/
+  fetch-factor-returns/
+    SKILL.md           # name, description, invocation instructions
+    scripts/
+      download.py      # optional supporting script
+\end{minted}
+
+Codex loads a skill when the user invokes \texttt{/skill-name} or when the
+task description semantically matches the skill's \texttt{description} field.
+Because the skill format is identical to Claude Code's, a well-written
+SKILL.md works in both tools without modification---a significant practical
+advantage for teams that use both.
+
+% ---------------------------------------------------------------
+\section{Sandboxing and the Security Model}
+\label{app:codex:sandboxing}
+
+\begin{context}
+The choice of where to enforce security boundaries has deep implications for
+what can go wrong when an AI agent makes a mistake or is manipulated by
+adversarial input.  Claude Code enforces safety at the application layer:
+a misconfigured allowlist or a prompt-injection attack can potentially
+cause the model to execute a command that the developer did not intend.
+Codex CLI enforces safety at the operating-system kernel layer, which means
+that even if the model requests a forbidden operation, the kernel will refuse
+it before any harm occurs.  For financial institutions with strict data
+governance requirements, this distinction matters.
+\end{context}
+
+\subsection{Local Sandboxing}
+\label{app:codex:local-sandbox}
+
+In local mode, Codex enforces sandboxing using platform-native kernel
+primitives:
+
+\begin{description}
+  \item[macOS --- Apple Seatbelt] A mandatory access control framework built
+        into the XNU kernel.  Codex's Seatbelt profile grants read access to
+        the working directory and system libraries, write access to the working
+        directory only, and no outbound network access (in auto mode).  The
+        profile is applied via \texttt{sandbox-exec} and cannot be bypassed by
+        the model or by malicious code running inside the session.
+
+  \item[Linux --- Landlock] A Linux Security Module (available since kernel
+        5.13) that implements a stackable, unprivileged access-control
+        mechanism.  Codex uses Landlock to restrict file-system access to the
+        working directory tree.
+
+  \item[Linux --- seccomp] A kernel mechanism that filters system calls.
+        Codex's seccomp profile blocks dangerous syscalls (e.g.,
+        \texttt{execve} outside the working directory, raw socket creation)
+        regardless of what the agent requests.
+\end{description}
+
+These three mechanisms work at layers below the process memory space, making
+them resistant to prompt injection, dependency confusion attacks, and malicious
+code execution via \texttt{eval}-style patterns.  Table~\ref{tab:sandbox-compare}
+compares the two approaches.
+
+\begin{table}[ht]
+\centering
+\caption{Security enforcement layer: Codex CLI vs Claude Code.}
+\label{tab:sandbox-compare}
+\begin{tabular}{lll}
+\toprule
+\textbf{Property} & \textbf{Codex CLI} & \textbf{Claude Code} \\
+\midrule
+Enforcement layer      & OS kernel (Seatbelt/Landlock/seccomp) & Application layer \\
+Bypass risk            & Very low (kernel cannot be overridden) & Low (requires misconfigured allowlist) \\
+Granularity            & Coarse (3 modes)  & Fine (per-tool patterns) \\
+Custom policies        & Limited (AGENTS.md scripts) & Rich (allowlist + denylist syntax) \\
+Network control        & Binary (on/off per mode) & Per-command pattern matching \\
+Platform               & macOS, Linux      & All platforms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cloud Sandbox Execution}
+\label{app:codex:cloud}
+
+Setting \texttt{"sandbox.mode": "cloud"} routes each Codex task to an
+ephemeral virtual machine on OpenAI's infrastructure.  The VM is pre-loaded
+with the repository (fetched from GitHub or supplied as a tarball) and
+destroyed after the task completes.  Benefits for financial workflows:
+
+\begin{itemize}
+  \item \textbf{Data isolation} --- sensitive datasets remain in the cloud VM
+        and are not written to the developer's local disk.
+  \item \textbf{Reproducibility} --- each task starts from a clean environment,
+        eliminating dependency on local Python versions, conda environments, or
+        system libraries.
+  \item \textbf{Parallelism} --- multiple tasks can run simultaneously in
+        separate VMs, enabling portfolio-wide analyses that would block a single
+        local machine for hours.
+  \item \textbf{Audit trail} --- VM execution logs are retained and exportable,
+        supporting MiFID II and similar regulatory obligations around algorithmic
+        decision-making.
+\end{itemize}
+
+Cloud sandbox mode is activated per-session:
+
+\begin{minted}{bash}
+codex --sandbox cloud \
+      "Run the full factor backtest suite on the 2010--2024 dataset \
+       and return a JSON summary of annualised Sharpe ratios."
+\end{minted}
+
+% ---------------------------------------------------------------
+\section{Multi-Surface Architecture}
+\label{app:codex:surfaces}
+
+\subsection{CLI, IDE Extension, and ChatGPT}
+\label{app:codex:surfaces-main}
+
+The Codex name covers a family of surfaces that share a single model and
+account context:
+
+\begin{description}
+  \item[Codex CLI] The terminal agent described in this appendix; the most
+        capable surface for autonomous, multi-step workflows.
+
+  \item[IDE Extension] Available for VS Code and JetBrains.  Provides inline
+        diffs, a plan review pane, and \texttt{@}-mention for open files,
+        analogous to Claude Code's IDE extensions.
+
+  \item[ChatGPT Codex] The cloud-hosted version accessible through the
+        ChatGPT interface.  Delegates tasks to cloud VMs; suitable for
+        non-technical collaborators who need to trigger data analysis tasks
+        without a terminal.
+\end{description}
+
+\subsection{GitHub Bot}
+\label{app:codex:github-bot}
+
+Mentioning \texttt{@codex} in a GitHub pull request comment or issue triggers
+a Codex task that runs in a cloud sandbox against the repository at that
+commit.  The bot can:
+
+\begin{itemize}
+  \item write unit tests for a new function described in the PR,
+  \item propose fixes for failing CI checks, or
+  \item analyse whether a change to a risk model breaks any existing
+        assumptions documented in \texttt{AGENTS.md}.
+\end{itemize}
+
+Results are posted as a follow-up PR comment with a diff and a summary.
+
+\subsection{Computer Use}
+\label{app:codex:computer-use}
+
+Codex's computer-use capability (released February 2026) allows the agent to
+read the screen and interact with arbitrary desktop applications.  For finance
+practitioners, this opens up workflows previously requiring manual data entry:
+
+\begin{itemize}
+  \item extracting structured data from Bloomberg terminal screens without an
+        API licence,
+  \item navigating legacy proprietary trading systems to retrieve historical
+        fills or position data, and
+  \item filling in regulatory reporting forms that do not expose a programmatic
+        interface.
+\end{itemize}
+
+Computer use runs in a cloud VM to prevent screen-capture of sensitive local
+displays.
+
+% ---------------------------------------------------------------
+\section{Cost and Token Management}
+\label{app:codex:cost}
+
+\subsection{Pricing Model}
+\label{app:codex:pricing}
+
+Codex CLI bills at standard OpenAI API rates for the selected model.
+Table~\ref{tab:codex-token-costs} gives approximate consumption for
+representative finance research tasks using GPT-5.5.
+
+\begin{table}[ht]
+\centering
+\caption{Approximate token consumption for representative Codex CLI tasks (GPT-5.5).}
+\label{tab:codex-token-costs}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Task} & \textbf{Input tokens} & \textbf{Output tokens} \\
+\midrule
+Explain a 500-line pricing library    & 8{,}000--15{,}000   & 1{,}000--3{,}000 \\
+Classify one earnings call transcript & 10{,}000--20{,}000  & 1{,}000--2{,}000 \\
+Refactor a factor model module        & 25{,}000--60{,}000  & 5{,}000--15{,}000 \\
+Full backtest suite debug (multi-step) & 80{,}000--200{,}000 & 15{,}000--40{,}000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cloud sandbox tasks additionally incur VM compute costs billed separately by
+OpenAI; consult the pricing page for current rates.
+
+\subsection{Cost-Reduction Strategies}
+\label{app:codex:cost-reduction}
+
+\begin{itemize}
+  \item Use GPT-4.1 for high-frequency, low-complexity tasks (linting, schema
+        validation, simple reformatting); reserve GPT-5.5 for tasks requiring
+        sustained reasoning.
+  \item Enable long-context mode only when the task genuinely requires it;
+        longer contexts incur proportionally higher input costs.
+  \item Use cloud sandbox parallelism for bulk batch tasks (e.g., classifying
+        500 transcripts) rather than running them sequentially in a single
+        long-context session.
+  \item Store intermediate results to disk and restart sessions at natural
+        checkpoints rather than allowing context to accumulate indefinitely.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Codex CLI in Research and Finance Workflows}
+\label{app:codex:finance}
+
+\subsection{Use Cases for Quants and Researchers}
+\label{app:codex:use-cases}
+
+The following use cases are particularly well-suited to Codex CLI's
+architecture:
+
+\begin{description}
+  \item[Large-document processing] OpenAI's own finance team used Codex to
+        review 24{,}771 K-1 tax forms totalling 71{,}637 pages, accelerating
+        the task by two weeks relative to the prior year \citep{openai2025codex}.
+        The cloud sandbox mode kept all document content within OpenAI's
+        infrastructure and off local developer machines.
+
+  \item[Legacy code archaeology] Loading a proprietary options pricing library
+        into a cloud sandbox and asking Codex to generate a call graph,
+        annotate undocumented assumptions, and produce a test suite.  The
+        kernel-level sandbox prevents the legacy code from accessing network
+        resources or writing outside the working directory during execution.
+
+  \item[Regulatory document parsing] Extracting structured data from SEC
+        filings, ESMA reports, or FINMA circulars using the \texttt{/plan} →
+        \texttt{/exec} structured loop, with \texttt{/review} before any
+        database writes.
+
+  \item[Automated backtesting] Delegating overnight backtest runs to cloud
+        sandbox VMs: each strategy variant runs in its own VM with its own
+        fresh environment, results are written to a shared S3 bucket, and a
+        summary is posted to Slack on completion.
+
+  \item[Computer-use data extraction] Using the computer-use capability to
+        extract historical volatility surface data from a Bloomberg terminal
+        screen directly into a Parquet file, bypassing the need for a Bloomberg
+        API licence.
+\end{description}
+
+\subsection{Choosing Between Codex CLI and Claude Code}
+\label{app:codex:comparison}
+
+Both tools are capable general-purpose coding agents; the choice depends on
+the task's security and ecosystem requirements.
+Table~\ref{tab:codex-vs-claude} summarises the key decision dimensions.
+
+\begin{table}[ht]
+\centering
+\caption{Decision guide: Codex CLI vs Claude Code (Appendix~\ref{app:claude-code}).}
+\label{tab:codex-vs-claude}
+\begin{tabular}{lll}
+\toprule
+\textbf{Dimension} & \textbf{Codex CLI} & \textbf{Claude Code} \\
+\midrule
+Security enforcement  & OS kernel (stronger guarantee)   & Application layer (more flexible) \\
+Permission granularity & 3 coarse modes                  & Per-tool pattern matching \\
+Cloud execution       & First-class (VM sandbox)         & Not built-in (CI/CD only) \\
+Extensibility         & Skills + AGENTS.md               & Skills + hooks + MCP + plugins \\
+Multi-agent           & Parallel cloud VMs               & Agent tool + Workflow + Agent Teams \\
+GitHub integration    & \texttt{@codex} bot              & Via CI/CD non-interactive mode \\
+Finance model access  & GPT-5.5 (OpenAI ecosystem)       & Claude Opus/Sonnet (Anthropic) \\
+Context window        & 272K default / 1.05M max         & Up to 1M (Opus 4.8) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Choose Codex CLI when:}
+\begin{itemize}
+  \item kernel-level sandboxing is a regulatory or security requirement,
+  \item the task involves processing sensitive documents that must not touch a
+        local disk,
+  \item your team already uses OpenAI's API and adding Anthropic would create
+        vendor complexity, or
+  \item you need cloud-parallel execution of many independent sub-tasks.
+\end{itemize}
+
+\textbf{Choose Claude Code when:}
+\begin{itemize}
+  \item fine-grained, per-command permission control is required (e.g.,
+        allow \texttt{git commit} but deny \texttt{git push}),
+  \item you need MCP server integration to connect directly to Bloomberg,
+        FactSet, or an internal data API,
+  \item the workflow requires programmable hooks that fire on specific tool
+        events, or
+  \item you are building a multi-agent system with a Workflow orchestration
+        script and Agent Teams.
+\end{itemize}
+
+\subsection{Recommended Workflow Patterns}
+\label{app:codex:patterns}
+
+\begin{enumerate}
+  \item \textbf{Plan before executing.}  Always start with \texttt{/plan} for
+        any task that modifies a production dataset or trading strategy.
+        Review the proposed diff carefully before typing \texttt{/exec}.
+
+  \item \textbf{Use cloud sandbox for sensitive data.}  Configure
+        \texttt{"sandbox.mode": "cloud"} in \texttt{\textasciitilde/.codex/config.json}
+        for any project that handles NDA-covered data, client portfolios, or
+        proprietary model weights.
+
+  \item \textbf{Encode conventions in AGENTS.md.}  Every project should have
+        a project-level \texttt{AGENTS.md} that specifies return conventions,
+        data paths, testing requirements, and prohibited operations.  Codex
+        reads this file at session start; consistent conventions eliminate an
+        entire class of agent errors.
+
+  \item \textbf{Separate concerns with skills.}  Build a SKILL.md for each
+        recurring workflow step---factor construction, backtest execution, report
+        generation---and invoke them by name.  Skills are portable: the same
+        SKILL.md works in Claude Code, making it straightforward to run a
+        workflow in either tool.
+
+  \item \textbf{Commit checkpoints frequently.}  Have skills commit after each
+        major step.  Small commits let you bisect regressions introduced by the
+        agent without losing days of pipeline work.
+
+  \item \textbf{Use \texttt{/review} before any destructive operation.}  For
+        any task that writes to a database, deletes files, or posts to an
+        external system, issue \texttt{/review} to inspect the full diff and
+        confirm there are no unintended side effects.
+\end{enumerate}
+
+\begin{example}[End-to-end: regulatory filing extraction with Codex CLI]
+\label{ex:codex-filing}
+A compliance analyst needs to extract structured risk metrics from 200 ESMA
+stress-test reports (PDF) and load them into a database.  Using Codex CLI in
+cloud sandbox mode:
+
+\begin{minted}{bash}
+# Configure cloud sandbox for this project (data stays off local disk)
+echo '{"sandbox": {"mode": "cloud"}}' > .codex/config.json
+
+# Step 1: Plan the extraction pipeline (read-only, no changes yet)
+codex --approval-mode read-only \
+  "/plan Extract risk metrics (CET1 ratio, LCR, NSFR) from PDF files in
+   data/esma_reports/. Output to data/structured/esma_metrics.parquet."
+
+# Step 2: Review the plan, then execute
+codex --approval-mode auto "/exec"
+
+# Step 3: Validate schema and commit
+codex "/review"
+codex "Run tests/test_esma_schema.py and confirm all 200 reports parsed."
+git add data/structured/ && git commit -m "feat: ESMA stress-test metrics"
+\end{minted}
+
+All PDF content is processed inside the cloud VM and never written to the
+analyst's local disk.  The \texttt{/plan} → \texttt{/exec} → \texttt{/review}
+loop provides an audit trail that satisfies internal model-governance
+requirements.
+\end{example}

@@ -17,3 +17,4 @@
 | # | Appendix | Draft | Scored | Clarity | Rigor | Completeness | Pedagogy | Style | Released |
 |---|----------|-------|--------|---------|-------|--------------|----------|-------|----------|
 | A | Claude Code | Yes | Yes | 8 | 8 | 9 | 8 | 8 | No |
+| B | Codex CLI | Yes | No | - | - | - | - | - | No |

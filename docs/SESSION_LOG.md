@@ -104,3 +104,4 @@
 | 2026-05-29 | 1 files | chore: session log 2026-05-29;chore: session log 2026-05-29;chore: session log 2026-05-29; | — |
 | 2026-05-29 | 1 files | chore: session log 2026-05-29;chore: session log 2026-05-29;chore: session log 2026-05-29; | — |
 | 2026-05-29 | 1 files | chore: session log 2026-05-29;chore: session log 2026-05-29;chore: session log 2026-05-29; | — |
+| 2026-05-29 | 2 files | docs: add illustration exercises design spec;chore: session log 2026-05-29;chore: session log 2026-05-29; | — |

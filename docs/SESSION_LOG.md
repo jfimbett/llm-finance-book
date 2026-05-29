@@ -94,3 +94,4 @@
 | 2026-05-29 | 8 files | feat(appB): complete draft pipeline for Codex CLI appendix;chore: session log 2026-05-29;feat(appB): draft Codex CLI practitioner's reference appendix; | — |
 | 2026-05-29 | 9 files | feat(appC): scaffold and draft Hugging Face & local models appendix;chore: session log 2026-05-29;feat(appB): complete draft pipeline for Codex CLI appendix; | — |
 | 2026-05-29 | 9 files | feat(appC): complete draft pipeline for Hugging Face & local models appendix;chore: session log 2026-05-29;feat(appC): scaffold and draft Hugging Face & local models appendix; | — |
+| 2026-05-29 | 7 files | fix(appC): remove 4 duplicate bib entries (araci, wu, hu2022lora, dettmers2023qlora); book compiles cleanly at 334pp;chore: session log 2026-05-29;feat(appC): complete draft pipeline for Hugging Face & local models appendix; | — |

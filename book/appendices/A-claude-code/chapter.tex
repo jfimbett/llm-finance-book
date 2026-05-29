@@ -1,16 +1,25 @@
 \chapter{Claude Code: A Practitioner's Reference}
 \label{app:claude-code}
 
-\begin{remark}[Purpose of this Appendix]
-This appendix is a comprehensive reference for Claude Code, the agentic
-command-line interface developed by Anthropic that was used to draft, score,
-refine, and maintain this book.  Readers who wish to understand the tool's
-architecture, configure it for their own research workflows, or build on the
-skills and agents defined in \texttt{.claude/} will find the material here
-essential.  The appendix follows the natural onboarding arc: what the tool is,
-how to install and configure it, the built-in tools and extension mechanisms,
-multi-agent orchestration, and finally patterns that are particularly productive
-for quantitative finance research.
+\begin{remark}[Learning Objectives]
+After working through this appendix, the reader should be able to:
+\begin{enumerate}
+  \item Install Claude Code, authenticate it, and configure a project-level
+        \texttt{CLAUDE.md} and \texttt{settings.json} with appropriate
+        permission and deny-list entries.
+  \item Describe the built-in tool set (Read, Write, Edit, Bash, Glob, Grep,
+        Agent, Workflow, Skill) and explain which tool to use for a given task.
+  \item Write a \texttt{SKILL.md} that orchestrates two or more agents in
+        sequence, and register it as a slash command.
+  \item Configure a \texttt{PostToolUse} hook that runs a linter after any
+        file edit.
+  \item Design a Workflow script that fans work out across multiple agents in
+        parallel and returns structured JSON results.
+  \item Identify the security risks relevant to deploying Claude Code on
+        financial data and apply the deny-list and secrets-management mitigations.
+  \item Map at least three quantitative-finance research tasks to concrete
+        Claude Code workflows involving skills, hooks, and scheduled routines.
+\end{enumerate}
 \end{remark}
 
 % ---------------------------------------------------------------
@@ -24,9 +33,10 @@ tried it reported that it was the first AI coding tool that could take a vague
 description of a task and actually complete it across dozens of files without
 constant hand-holding.  Within thirteen months, 4\% of all public GitHub
 commits---roughly 135{,}000 per day---were attributed to Claude Code, a
-42{,}896$\times$ growth rate.  By early 2026, Anthropic reported that
-90\% of its own production code was AI-written, predominantly via Claude Code.
-The tool had graduated from curiosity to infrastructure.
+42{,}896$\times$ growth rate \citep{anthropic2025claudecode}.  By early 2026,
+Anthropic reported that 90\% of its own production code was AI-written,
+predominantly via Claude Code.  The tool had graduated from curiosity to
+infrastructure.
 \end{context}
 
 \subsection{Overview and Positioning}
@@ -39,9 +49,13 @@ purely in a conversation window, Claude Code can read files, write files, run
 shell commands, spawn background processes, call external APIs via
 Model-Context-Protocol servers, and coordinate fleets of parallel sub-agents.
 
-The key architectural decision that distinguishes Claude Code from earlier AI
-coding tools is that the model is placed \emph{in the loop of the build process}
-rather than acting as a side-channel advisor.  When the model writes a function,
+AI coding assistants that generate code from natural language prompts have been
+studied since at least \citet{chen2021evaluating}, whose Codex model underpins
+GitHub Copilot.  Controlled experiments subsequently showed productivity gains
+of roughly 55\% for tasks assisted by such tools \citep{peng2023impact}.  What
+distinguishes Claude Code from those earlier systems is architectural: the model
+is placed \emph{in the loop of the build process} rather than acting as a
+side-channel advisor.  When the model writes a function,
 it can immediately compile it, run the test suite, read the error output, and
 iterate---all within a single conversation turn if the user's permission settings
 allow it.
@@ -198,10 +212,10 @@ command (e.g., \texttt{/draft-chapter}, \texttt{/score-content}).
 \subsection{Plan Mode}
 \label{app:claude-code:plan-mode}
 
-Plan mode is a read-only exploration mode in which Claude Code analyzes the
-codebase, reasons about architecture, and produces a structured plan---but
-cannot execute any writes or shell commands.  It is the safest way to understand
-what a large, ambiguous task will require before granting execution permissions.
+Plan mode is a read-only exploration mode: Claude Code can analyse the
+codebase, reason about architecture, and produce a structured plan, but it
+cannot execute any writes or shell commands.  Use Plan mode to understand what a
+large, ambiguous task will require before granting execution permissions.
 
 Activate Plan mode by pressing \textsc{Shift+Tab} once from the default Edit
 mode; subsequent presses cycle through Auto-Accept mode and back.  The three
@@ -305,7 +319,7 @@ file system supports a layered hierarchy:
         useful for monorepos with per-package conventions.
 \end{enumerate}
 
-All three levels are loaded and merged, with the more specific file taking
+Claude Code loads and merges all three levels, giving the more specific file
 precedence on any conflict.  The \texttt{/init} command generates a starter
 \texttt{CLAUDE.md} by reading the current directory structure, recent git
 history, and detected languages/frameworks.
@@ -323,7 +337,7 @@ file to govern both AI sessions and the shell hooks that validate them.
 \subsection{Settings, Permissions, and Environment Variables}
 \label{app:claude-code:settings}
 
-Runtime behaviour is controlled by JSON settings files at three scopes:
+Three JSON settings files govern runtime behaviour, one at each scope:
 
 \begin{minted}{json}
 // ~/.claude/settings.json       (global — lowest priority)
@@ -360,10 +374,10 @@ The most important keys are:
 }
 \end{minted}
 
-The \texttt{permissions.allow} list uses a \texttt{Tool(pattern:*)} syntax
-where the pattern is matched against the tool's first argument.  The
+The \texttt{permissions.allow} list uses \texttt{Tool(pattern:*)} syntax;
+the pattern matches against the tool's first argument.  The
 \texttt{permissions.deny} list takes precedence over \texttt{allow}: if a
-command matches both, it is denied.  This asymmetric design ensures that safety
+command matches both, Claude Code denies it.  This asymmetric design ensures that safety
 constraints cannot be accidentally overridden by a broad allowlist entry.
 
 The \texttt{/permissions} slash command provides an interactive editor for the
@@ -578,8 +592,8 @@ surfacing syntax errors before the next agent step.
 \label{app:claude-code:mcp}
 
 The Model Context Protocol (MCP) is an open standard (released November 2024)
-that allows Claude Code to connect to external processes that expose tools and
-data sources.  An MCP server is a long-running process that Claude Code discovers
+\citep{anthropic2024mcp} that allows Claude Code to connect to external
+processes that expose tools and data sources.  An MCP server is a long-running process that Claude Code discovers
 via \texttt{settings.json}:
 
 \begin{minted}{json}
@@ -629,11 +643,14 @@ the \texttt{pluginRegistry} setting.
 \begin{context}
 The move from a single LLM call to a \emph{system} of coordinated LLM calls is
 arguably the most consequential architectural shift in applied AI since the
-Transformer itself.  A single model, no matter how capable, operates within a
-fixed context window; a system of models can divide a large task into pieces,
-process them in parallel, check each other's work, and synthesise results that
-no single context window could hold.  Claude Code's multi-agent architecture is
-designed around exactly this observation.
+Transformer itself.  Early demonstrations used independent agents with shared
+memory to simulate complex social dynamics \citep{park2023generative}; more
+recent work has evaluated LLM systems against real-world software engineering
+tasks at scale \citep{jimenez2024swebench}.  A single model, no matter how
+capable, operates within a fixed context window; a system of models can divide
+a large task into pieces, process them in parallel, check each other's work, and
+synthesise results that no single context window could hold.  Claude Code's
+multi-agent architecture is designed around exactly this observation.
 \end{context}
 
 \subsection{Subagents and the Agent Tool}
@@ -706,17 +723,19 @@ Workflow script is controlled by explicit JavaScript control flow---loops,
 conditionals, and fan-out---making the execution pattern reproducible and
 auditable.
 
-A minimal Workflow script:
+A minimal Workflow script that scores three chapters concurrently illustrates
+the core pattern:
 
 \begin{minted}{javascript}
 export const meta = {
   name: 'score-all-chapters',
   description: 'Run quality scorer on every chapter in parallel',
-  phases: [{ title: 'Score' }],
+  phases: [{ title: 'Score' }],  // declares progress group shown in /workflows
 }
 
 const chapters = ['01-intro', '02-llm-foundations', '03-llm-training-finetuning']
 
+// JSON Schema forces each agent to return structured data, not free text.
 const SCORE_SCHEMA = {
   type: 'object',
   properties: {
@@ -728,6 +747,8 @@ const SCORE_SCHEMA = {
   },
 }
 
+// parallel() fans out: all three agents start immediately and run concurrently.
+// Wall-clock time = slowest single agent, not sum of all three.
 const results = await parallel(chapters.map(ch => () =>
   agent(
     `Score book/chapters/${ch}/chapter.tex on 5 dimensions (0-10 each).`,
@@ -735,8 +756,14 @@ const results = await parallel(chapters.map(ch => () =>
   )
 ))
 
+// results is an array: [{ clarity: 8, rigor: 7, ... }, { ... }, { ... }]
 return results
 \end{minted}
+
+Running this script with \texttt{/workflows} open shows three concurrent
+``score:ch-name'' agents in the \emph{Score} group.  Each returns a validated
+JSON object matching \texttt{SCORE\_SCHEMA}; if a model response does not
+conform to the schema, the runtime retries automatically before failing.
 
 Key Workflow primitives:
 
@@ -965,6 +992,36 @@ this book:
         OOV tokens), commits a JSON report, and posts a summary to Slack if any
         check fails.
 \end{description}
+
+\begin{example}[End-to-end: drafting a literature survey with Claude Code]
+\label{ex:claude-code-survey}
+Suppose a researcher wishes to survey ten recent SSRN working papers on LLM
+applications in credit risk.  The following session, executed inside the
+project repo, illustrates a complete workflow.
+
+\begin{minted}{text}
+# Step 1: Create the scaffold
+/new-topic  appendix B on credit-risk LLM survey
+
+# Step 2: Invoke the SSRN researcher agent on the new appendix
+/ssrn-enrich appB
+
+# Step 3: Draft with the book-writer and literature-reviewer agents
+/draft-chapter A-credit-risk-survey
+
+# Step 4: Score and refine until the 8/10 threshold is met
+/score-content book/appendices/B-credit-risk-survey/chapter.tex
+/refine-until-threshold book/appendices/B-credit-risk-survey/chapter.tex
+
+# Step 5: Run quality gates and release
+/release-chapter B-credit-risk-survey
+\end{minted}
+
+Each slash command is a skill that chains a sequence of specialised agents.
+The researcher reviews the plan at each stage (Plan mode) before approving
+execution; the full pipeline from scaffold to release typically runs in a
+single afternoon session.
+\end{example}
 
 \subsection{This Book as a Working Example}
 \label{app:claude-code:book}

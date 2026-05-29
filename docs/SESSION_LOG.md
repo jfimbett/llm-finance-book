@@ -98,3 +98,4 @@
 | 2026-05-29 | 5 files | chore: session log 2026-05-29;fix(appC): remove 4 duplicate bib entries (araci, wu, hu2022lora, dettmers2023qlora); book compiles cleanly at 334pp;chore: session log 2026-05-29; | — |
 | 2026-05-29 | 5 files | chore: session log 2026-05-29;chore: session log 2026-05-29;fix(appC): remove 4 duplicate bib entries (araci, wu, hu2022lora, dettmers2023qlora); book compiles cleanly at 334pp; | — |
 | 2026-05-29 | 2 files | chore: session log 2026-05-29;chore: session log 2026-05-29;chore: session log 2026-05-29; | — |
+| 2026-05-29 | 2 files | chore: session log 2026-05-29;chore: session log 2026-05-29;chore: session log 2026-05-29; | — |

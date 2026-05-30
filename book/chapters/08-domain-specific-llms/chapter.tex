@@ -1,83 +1,842 @@
 \chapter{Domain-Specific Financial Large Language Models}
+\label{ch:domain-specific-llms}
 
-\begin{itemize}
-  \item Understand the key concepts of domain-specific financial LLMs
-  \item Apply LLM-based techniques to financial NLP problems
-  \item Evaluate the trade-offs between different approaches
-  \item Implement a practical pipeline using Python and the Hugging Face ecosystem
-\end{itemize}
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Explain why general-purpose language models underperform on financial tasks
+        and identify the specific linguistic features of financial text that create
+        this gap.
+  \item Describe the principal families of financial LLMs---encoder-only (BERT-based)
+        and decoder-only---and select the appropriate architecture for a given task.
+  \item Apply domain-adaptive pre-training (DAPT) to a pre-trained model using a
+        financial corpus, and design a corpus composition strategy that balances
+        coverage and quality.
+  \item Evaluate a financial LLM on the standard benchmarks (FinQA, FLUE, FinBen)
+        and interpret the results in terms of the task taxonomy developed in this chapter.
+  \item Weigh the practical trade-offs---licensing, compute cost, data governance,
+        and performance---when choosing between a domain-specific model, a fine-tuned
+        general model, or a hybrid retrieval-augmented approach for a production
+        finance application.
+\end{enumerate}
+\end{remark}
 
+% ---------------------------------------------------------------
 \section{Why Domain-Specific LLMs?}
 \label{sec:ch08-why-domain-specific}
 
-[Placeholder]
+\begin{context}
+The promise of large language models in finance rests on a tension that every
+practitioner eventually encounters.  On one side stands the sheer breadth of
+general-purpose models: systems trained on hundreds of billions of tokens drawn
+from the web, books, and scientific literature have absorbed enough world knowledge
+to answer questions about option pricing, credit default swaps, and Basel III
+capital requirements without any finance-specific training.  On the other side
+stands the specificity that serious financial work requires: a model that confuses
+``basis risk'' with ``basis points'', misreads a tabular income statement, or
+applies general-English connotations to the word ``liability'' will produce
+outputs that are not merely imprecise but potentially dangerous to any workflow
+that depends on them.
 
+The resolution to this tension is not a choice between breadth and depth but a
+question of how best to combine them.  Domain-specific financial LLMs are one
+answer: models whose pre-training, fine-tuning, or both have been oriented
+toward the linguistic distribution of financial text.  Understanding when those
+models add value---and when they do not---requires first characterising what
+makes financial language genuinely different.
+\end{context}
+
+% ---------------------------------------------------------------
 \subsection{Financial Language: Jargon, Numerics, Tables}
 \label{sec:ch08-financial-language}
 
-[Placeholder]
+Financial text is not simply formal English with occasional technical terms.
+It is a distinct register with three structural features that are systematically
+underrepresented in general pre-training corpora.
 
+The first feature is specialised vocabulary.  Finance has accumulated, over
+centuries of practice and decades of regulation, a lexicon in which common
+English words carry precise and sometimes counterintuitive technical meanings.
+A ``liability'' in accounting is a specific obligation on a balance sheet, not
+a source of risk or responsibility in the everyday sense.  A ``short'' position
+is an investment posture, not a description of duration.  ``Haircut'' refers to
+a collateral discount, not a grooming service.  The Loughran--McDonald (LM)
+dictionary \cite{loughran2011liability} catalogues roughly 350 words that are
+positive or negative in general English but have neutral or reversed valence in
+SEC filings.  A model trained on web text that assigns the standard sentiment
+polarity to ``liability'' will systematically misclassify financial documents.
+
+The second feature is the prevalence and centrality of numeric reasoning.
+Financial documents are saturated with numbers: percentage changes, ratio
+computations, multi-period comparisons across fiscal years.  A general-purpose
+model may parse a sentence like ``revenue grew 12.3\% year-over-year to
+\$4.7~billion'' as a fluent English sentence without internalising the arithmetic
+relationships that make the claim meaningful.  Tasks like FinQA \cite{chen2021finqa}
+require multi-step numerical reasoning over tables extracted from 10-K filings---a
+capability that demands more than linguistic fluency.
+
+The third feature is tabular structure.  The most information-dense sections of
+financial documents---income statements, balance sheets, cash flow statements,
+loan-level data tapes---are presented in tables whose semantics depend on row and
+column headings that are spatially distant from the numbers they label.  Standard
+transformer tokenisation treats a table as a flat sequence of tokens, losing the
+two-dimensional alignment that gives the numbers their meaning.  Pre-training on
+a corpus that contains millions of financial tables can partially compensate for
+this structural blindness, but the problem is not fully solved by any existing
+model.
+
+\begin{definition}[Financial Language Register]
+\label{def:ch08-register}
+A \emph{language register} is a variety of a language used for a specific
+purpose or in a specific social situation, characterised by a distinctive
+vocabulary, syntax, and set of pragmatic conventions.  Financial language
+constitutes a distinct register along three dimensions:
+\begin{enumerate}
+  \item \textit{Lexical specificity}: a large vocabulary of technical terms,
+        many of which are homonyms with common English words but carry domain-specific
+        meanings.
+  \item \textit{Numeric density}: a high ratio of numerals, equations, and
+        percentage expressions relative to prose text.
+  \item \textit{Tabular embedding}: structured information encoded in two-dimensional
+        grids whose interpretation requires spatial reasoning over non-adjacent tokens.
+\end{enumerate}
+A language model is \emph{financially literate} to the extent that it correctly
+resolves the meaning of tokens in each of these three dimensions.
+\end{definition}
+
+\begin{remark}[Vocabulary coverage and tokenisation]
+The vocabulary mismatch problem operates at the sub-word level.  A Byte-Pair
+Encoding (BPE) tokeniser trained on general text may split the term
+``EBITDA'' into four or five subword tokens, each of which individually carries
+no financial meaning.  Tokenisers trained on financial corpora are more likely
+to represent such abbreviations as single tokens, reducing the representational
+burden on the model's attention layers.  BloombergGPT \cite{wu2023bloomberggpt}
+trained a custom BPE tokeniser on its combined general and financial corpus
+precisely to ensure that domain-specific tokens received compact representations.
+\end{remark}
+
+% ---------------------------------------------------------------
 \subsection{Limitations of General-Purpose Models on Financial Tasks}
 \label{sec:ch08-limitations-general-purpose}
 
-[Placeholder]
+The empirical case for domain specialisation is best made through specific failure
+modes, because the aggregate benchmark numbers---discussed at length in
+Section~\ref{sec:ch08-benchmark-comparisons}---can be misleading.
 
+\textit{Sentiment polarity inversion.}  As documented by \citet{loughran2011liability},
+words like ``unprecedented,'' ``strong,'' and ``leverage'' carry very different
+connotations in financial versus general text.  A general-purpose model fine-tuned
+on the Financial PhraseBank dataset \cite{malo2014phrasebank} achieves lower
+accuracy than FinBERT \cite{araci2019finbert} on the same task, even when the
+general model has more parameters, because its pre-trained representations encode
+the wrong prior over these lexical items.
+
+\textit{Numerical hallucination.}  Large general-purpose models frequently
+hallucinate specific financial figures.  When asked to reproduce earnings per
+share from a given 10-K passage, GPT-class models produce plausible-looking
+numbers that diverge from the source text at rates that make them unreliable for
+any workflow requiring numerical precision \cite{kang2023hallucination}.
+
+\textit{Table parsing failures.}  On the FinQA benchmark \cite{chen2021finqa},
+which requires chaining arithmetic operations over financial tables, general-purpose
+models in the GPT-3 class (175B parameters) achieve accuracy below 60\%, while
+fine-tuned specialist systems exceed 80\%.  The gap cannot be closed by prompting
+alone; the model must have seen enough financial table structures during training
+to internalise the mapping from table position to semantic role.
+
+\textit{Regulatory language ambiguity.}  Documents like SEC comment letters, ISDA
+master agreements, and Basel III regulatory technical standards use a legally
+precise sub-dialect that differs from both standard English and casual financial
+commentary.  Models trained on SEC EDGAR filings---as in SEC-BERT
+\cite{loukas2022secbert}---systematically outperform general models on entity
+recognition and clause classification tasks over regulatory text.
+
+These failure modes share a common root: the gap between the distribution of
+financial text and the distribution of text that dominates general pre-training
+corpora.  The remedy is to shift the model's prior toward the financial distribution,
+either by pre-training from scratch on financial data, by continued pre-training on
+financial corpora, or by targeted fine-tuning.
+
+% ---------------------------------------------------------------
 \section{A Taxonomy of Financial LLMs}
 \label{sec:ch08-taxonomy}
 
-[Placeholder]
+The landscape of financial language models can be organised along two axes:
+architecture (encoder-only versus decoder-only) and training strategy
+(from-scratch versus domain-adaptive continuation versus fine-tuning only).
+Each combination of choices implies different computational cost, different
+capability profile, and different deployment constraints.
 
+\begin{definition}[Financial LLM Taxonomy]
+\label{def:ch08-taxonomy}
+Let $\mathcal{M}$ denote the space of language models.  A \emph{financial LLM}
+is any $m \in \mathcal{M}$ for which at least one of the following holds:
+\begin{enumerate}
+  \item The pre-training corpus includes a significant fraction of financial text
+        (news, filings, analyst reports, or financial reference data).
+  \item The model has been fine-tuned or instruction-tuned on financial NLP tasks
+        (sentiment, NER, summarisation, numerical QA).
+  \item The model's tokeniser has been trained on or extended for financial vocabulary.
+\end{enumerate}
+Financial LLMs are further classified by architecture as \emph{encoder-only}
+(bidirectional, suited to classification and extraction) or \emph{decoder-only}
+(autoregressive, suited to generation and multi-step reasoning).
+\end{definition}
+
+% ---------------------------------------------------------------
 \subsection{BERT-Family: FinBERT, SEC-BERT, FinBERT-tone}
 \label{sec:ch08-bert-family}
 
-[Placeholder]
+The earliest and most widely used financial LLMs are BERT-based
+\cite{devlin2019} encoder models adapted to the financial domain.  Their small
+size (110--340M parameters), open weights, and well-understood fine-tuning
+behaviour make them the default choice for classification and extraction tasks
+in research and production environments.
 
+\textit{FinBERT (Araci 2019).}  The first model to carry the FinBERT name was
+introduced by \citet{araci2019finbert}.  The model is BERT-base continued on a
+corpus of approximately 1.8~billion words drawn from Reuters TRC2 news,
+Bloomberg news, and Financial PhraseBank.  Its primary task is financial
+sentiment classification---positive, negative, or neutral---over financial news
+headlines and short articles.  On the Financial PhraseBank benchmark
+\cite{malo2014phrasebank}, FinBERT improved F1 by roughly 15 percentage points
+over the baseline BERT-base model, establishing that domain-specific pre-training
+adds measurable value even for a relatively straightforward classification task.
+
+\textit{FinBERT (Yang, Uy, and Huang 2020).}  A second model also called
+FinBERT \cite{yang2020finbert} was published independently by
+\citet{huang2023finbert}.  This version continues BERT-large on a corpus of
+financial communication text---earnings call transcripts, analyst reports, and
+SEC filings---and introduces a \emph{tone} classification variant
+(FinBERT-tone) fine-tuned to distinguish the rhetorical tone of corporate
+communications: optimistic, pessimistic, litigious, uncertain, and constraining,
+following the Loughran--McDonald taxonomy \cite{loughran2011liability}.  The
+tone classification task is particularly demanding because it requires the model
+to integrate a sentence's lexical content with discourse-level context: the phrase
+``subject to regulatory approval'' carries very different tone depending on whether
+it appears in a merger announcement or a quarterly guidance withdrawal.
+
+\textit{SEC-BERT.}  \citet{loukas2022secbert} pre-train a BERT-base model
+exclusively on SEC EDGAR filings: 10-K annual reports, 10-Q quarterly reports,
+8-K current reports, and proxy statements, totalling approximately 3~billion
+tokens.  The resulting model outperforms general BERT and domain-adapted FinBERT
+on named entity recognition over financial entities (companies, instruments,
+persons, dates, monetary amounts) and on clause-level classification tasks over
+regulatory language.  The key insight is that EDGAR text constitutes a coherent
+and legally precise sub-dialect; a model pre-trained on news and analyst reports
+does not fully transfer to it.
+
+\begin{example}[FinBERT for earnings call sentiment]
+\label{ex:ch08-finbert-earnings}
+Consider the following excerpt from an earnings call transcript:
+
+\begin{quote}
+``While we are cautiously optimistic about the trajectory of our core business,
+we want to flag meaningful headwinds in the European segment, driven by
+continued softness in consumer demand and heightened competitive pressure.''
+\end{quote}
+
+A general-purpose sentiment classifier---trained on product reviews or social
+media---will likely label this passage \textit{positive} because ``optimistic''
+and ``optimistic about'' are strongly positive signals in general text.
+FinBERT-tone, by contrast, correctly assigns \textit{uncertain/pessimistic}
+because it has learned that ``cautiously optimistic'' is a hedging qualifier
+in corporate earnings language, and that ``headwinds,'' ``softness,'' and
+``competitive pressure'' are near-universally negative in this register.
+The tone assigned to this passage has real downstream consequences: it feeds
+directly into analyst sentiment indices that drive systematic trading strategies
+\cite{tetlock2007giving}.
+\end{example}
+
+% ---------------------------------------------------------------
 \subsection{Decoder-Family: BloombergGPT, FinGPT, FinMA, InvestLM}
 \label{sec:ch08-decoder-family}
 
-[Placeholder]
+The decoder-only (autoregressive) family of financial LLMs emerged from 2022
+onward, driven by the success of GPT-style models at generation and multi-step
+reasoning tasks.  These models are substantially larger than the encoder-only
+family and are capable of open-ended financial question answering, report
+generation, and numerical reasoning.
 
+\textit{BloombergGPT.}  The landmark paper in this family is
+\citet{wu2023bloomberggpt}, which describes a 50-billion-parameter autoregressive
+decoder model trained on a 363-billion-token corpus.  The corpus blends a
+proprietary Bloomberg dataset (363B tokens: news, filings, earnings transcripts,
+web text, and Bloomberg-specific data) with 345B tokens from standard general
+corpora (The Pile \cite{gao2020pile}, Wikipedia, books).  The roughly 50/50
+split between financial and general text is deliberate: the authors argue that
+a model trained \emph{exclusively} on financial text would sacrifice the general
+reasoning and commonsense capabilities that make an LLM useful for financial
+tasks requiring world knowledge.  On financial NLP benchmarks (FinQA, NER,
+headline classification, and others), BloombergGPT outperformed all existing
+models of comparable size, and also matched or exceeded GPT-NeoX-20B on several
+general language benchmarks, demonstrating that domain-specific pre-training need
+not degrade general capability.
+
+\textit{FinGPT.}  In contrast to the closed, proprietary BloombergGPT,
+\citet{yang2023fingpt} introduced FinGPT as an open-source framework for
+building financial LLMs.  Rather than training from scratch, FinGPT applies
+low-rank adaptation (LoRA \cite{hu2022lora}) to open foundation models
+(LLaMA, ChatGLM, Falcon) using continuously updated financial news data fetched
+via APIs.  The design philosophy prioritises \emph{democratisation}: a practitioner
+with access to a single A100 GPU can fine-tune a capable financial model using
+FinGPT's pipeline, whereas replicating BloombergGPT would require a cluster-scale
+compute budget.  Benchmark performance lags BloombergGPT on tasks requiring deep
+financial knowledge encoded in the pre-training corpus, but FinGPT's modular,
+data-efficient approach makes it the natural choice for teams without the resources
+for pre-training at scale.
+
+\textit{FinMA (via PIXIU).}  \citet{xie2023finma} introduce FinMA as part of
+the PIXIU suite: a 7-billion-parameter LLaMA model instruction-tuned on a
+curated dataset of 136,000 financial instruction--response pairs spanning
+sentiment analysis, named entity recognition, news headline classification,
+financial question answering, and stock movement prediction.  FinMA achieves
+strong performance on tasks covered by its instruction dataset but, as the
+authors document, generalises less reliably to tasks and data formats not seen
+during instruction tuning---a common limitation of instruction-tuned models
+when deployed outside their training distribution.
+
+\textit{InvestLM.}  \citet{yang2023investlm} take a complementary approach:
+they instruction-tune LLaMA-65B on a smaller but highly curated set of financial
+instructions derived from CFA exam questions, investment research reports, and
+earnings call analyses.  The resulting model is evaluated on practical investment
+tasks including portfolio commentary generation, risk factor identification, and
+earnings analysis, where its larger base model capacity allows it to outperform
+7B instruction-tuned models despite seeing fewer fine-tuning examples.
+
+\begin{remark}[The encoder--decoder choice in practice]
+The selection between encoder-only and decoder-only models is not merely a
+theoretical design decision; it has immediate operational implications.
+Encoder-only models (FinBERT, SEC-BERT) are compact, fast to fine-tune, and
+well-understood for classification tasks.  Decoder-only models (BloombergGPT,
+FinGPT) are an order of magnitude larger, require more memory at inference time,
+and are harder to calibrate for structured prediction.  A useful heuristic: if
+the task has a fixed label space (positive/negative/neutral, default/no-default),
+start with an encoder model.  If the task requires open-ended output
+(draft a risk section, answer a question from a 10-K), a decoder model is necessary.
+Hybrid retrieval-augmented generation architectures---discussed in
+Chapter~\ref{ch:llm-agents}---can sometimes substitute for a larger model by
+connecting a smaller decoder to a well-indexed financial document store.
+\end{remark}
+
+% ---------------------------------------------------------------
 \section{Pre-training Strategies for Finance}
 \label{sec:ch08-pretraining-strategies}
 
-[Placeholder]
+\begin{context}
+When Bloomberg decided to build BloombergGPT, they faced a choice every
+team contemplating a domain-specific model must confront: train a new model
+from scratch on a mixed general-and-financial corpus, or start from an existing
+general-purpose model and continue pre-training on financial text?  The from-scratch
+option offers the cleanest architectural control---tokeniser, positional encoding,
+and corpus weights can all be optimised jointly for the financial domain---but it
+requires compute and data resources that very few organisations possess.  The
+continued pre-training option, known as domain-adaptive pre-training (DAPT),
+leverages the already-learned representations of a general foundation model and
+extends them toward the target domain at a fraction of the computational cost.
+Understanding both strategies, and the conditions under which each is preferable,
+is essential for any team designing a financial NLP system.
+\end{context}
 
+% ---------------------------------------------------------------
 \subsection{Domain-Adaptive Pre-training (DAPT)}
 \label{sec:ch08-dapt}
 
-[Placeholder]
+The systematic study of domain-adaptive pre-training was formalised by
+\citet{gururangan2020dont}, who trained RoBERTa on four domains---biomedicine,
+computer science, news, and reviews---and demonstrated consistent downstream
+improvement when the pre-training corpus was restricted to the target domain,
+even when the base model had already seen some domain text during its initial
+pre-training.  The effect was largest when the target domain was most dissimilar
+from the original training distribution.  Finance, with its specialised lexicon
+and numeric density, constitutes a domain that is substantially out-of-distribution
+for models trained on general web text, suggesting that DAPT should yield
+particularly large gains in this context.
 
+DAPT operates by continuing the original pre-training objective---masked language
+modelling for encoder models, causal language modelling for decoders---on the
+domain corpus, using the pre-trained weights as initialisation.  The training
+budget is typically a small fraction of the original pre-training budget: it is
+common to process 1--10~billion tokens of domain text, compared to hundreds of
+billions for the initial pre-training.  The learning rate is usually set lower
+than the original pre-training rate (a factor of 10 is typical) to prevent
+catastrophic forgetting of the general representations.
+
+\begin{definition}[Domain-Adaptive Pre-training]
+\label{def:ch08-dapt}
+Let $\theta_0$ denote the parameters of a pre-trained language model $M_0$, and
+let $\mathcal{D}_\mathrm{domain}$ denote an unlabelled corpus from the target domain.
+\emph{Domain-adaptive pre-training} (DAPT) produces updated parameters
+\begin{equation}
+  \theta^\star = \arg\min_\theta \, \mathcal{L}_\mathrm{PT}(\theta;\, \mathcal{D}_\mathrm{domain}),
+  \label{eq:ch08-dapt}
+\end{equation}
+where $\mathcal{L}_\mathrm{PT}$ is the pre-training loss (MLM or CLM) and the
+optimisation is initialised at $\theta_0$ with a reduced learning rate to
+mitigate catastrophic forgetting of the original model's representations.
+The resulting model $M^\star(\theta^\star)$ is then fine-tuned on labelled task
+data for downstream evaluation.
+\end{definition}
+
+The practical question in DAPT is how much domain data is enough.  Empirically,
+the gain from DAPT exhibits diminishing returns: the largest improvements occur
+in the first billion tokens of domain text, with smaller incremental gains
+thereafter.  For encoder models (BERT-scale, 110--340M parameters),
+1--5~billion domain tokens is generally sufficient to capture the domain's lexical
+distribution.  For decoder models at the 7--70B parameter scale, larger domain
+corpora are needed to update a proportionally larger parameter set.
+
+\textit{Task-adaptive pre-training (TAPT).}  A variant introduced in the same
+paper \cite{gururangan2020dont} further fine-tunes the DAPT model on unlabelled
+examples drawn from the specific task distribution (e.g., the unlabelled portion
+of the sentiment dataset) before the final supervised fine-tuning step.  TAPT
+consistently improves performance but requires task-specific unlabelled data,
+which may not be available in all financial applications.
+
+\textit{Catastrophic forgetting.}  A recurring concern with DAPT is that
+continued pre-training on a narrow domain corpus may degrade performance on
+general language tasks.  In practice, the degradation is modest when the
+learning rate is appropriately reduced and the domain corpus is sufficiently
+large relative to the total tokens processed.  Replay strategies---mixing a
+small fraction of general pre-training data into the domain corpus---can further
+reduce forgetting at modest additional cost \cite{gururangan2020dont}.
+
+% ---------------------------------------------------------------
 \subsection{Corpus Composition: Bloomberg Archives, EDGAR, Financial News}
 \label{sec:ch08-corpus-composition}
 
-[Placeholder]
+The quality of a domain-specific financial LLM depends critically on the
+composition, quality, and diversity of its training corpus.  A poorly composed
+corpus---too narrow, too noisy, or with systematic gaps---will produce a model
+that is brittle outside the narrow distribution it was trained on.
 
+\textit{Bloomberg archives.}  The Bloomberg News archive is the gold standard
+for financial news pre-training.  It contains decades of professionally edited
+financial news articles with consistent terminology, calibrated tone, and high
+factual density.  BloombergGPT's FinPile dataset \cite{wu2023bloomberggpt} draws
+on Bloomberg news as one of its major components.  The archive is proprietary,
+however, which is a significant barrier for academic and open-source projects.
+
+\textit{SEC EDGAR.}  The SEC's Electronic Data Gathering, Analysis, and Retrieval
+system provides free public access to all US public company filings since 1996:
+10-K annual reports, 10-Q quarterly reports, 8-K current reports, proxy statements,
+and registration statements \cite{sec2009xbrl}.  EDGAR constitutes perhaps the most
+valuable open financial corpus: it covers the full universe of US public companies,
+it is updated continuously, and its formal regulatory language represents a domain
+that is highly distinctive and practically important.  A significant limitation is
+that EDGAR text quality is uneven---filings from small companies often contain
+boilerplate legal text that is informationally redundant---and the XML structure
+requires careful parsing to extract prose sections from financial tables and
+metadata.
+
+\textit{Financial news aggregators.}  Open sources such as Reuters, Associated
+Press financial feeds, Seeking Alpha, and financial subreddits provide broader
+topical coverage but lower editorial quality than Bloomberg archives.  The
+Reuters TRC2 corpus \cite{araci2019finbert} is a standard benchmark source.
+
+\textit{Analyst reports.}  Buy-side and sell-side research reports are among the
+richest and most technically precise financial texts available, but they are
+almost entirely proprietary.  Licensing them at pre-training scale is cost-prohibitive
+for all but the largest institutions.
+
+\begin{example}[Corpus composition for a central bank communication model]
+\label{ex:ch08-corpus-composition}
+Suppose a research team at a central bank wishes to build a model specialised
+in monetary policy communication analysis.  Their goal is to classify FOMC
+statement paragraphs by their hawkish or dovish orientation---a task that
+requires the model to understand the precise vocabulary of monetary policy:
+``accommodation,'' ``balance sheet normalisation,'' ``inflation expectations,''
+``neutral rate.''
+
+A well-composed pre-training corpus for this application would include:
+\begin{enumerate}
+  \item All FOMC statements and minutes from 1994 to present (approximately
+        50M tokens): the primary target distribution.
+  \item All other major central bank publications---ECB introductory statements,
+        Bank of England Inflation Reports, Fed Beige Books
+        (approximately 200M tokens): broadens the monetary policy register.
+  \item Academic papers on monetary policy from SSRN and the NBER working paper
+        series (approximately 500M tokens): provides precise economic terminology
+        in expository prose.
+  \item Financial news articles mentioning monetary policy keywords (1--2B tokens):
+        provides context about how policy is discussed and interpreted in practice.
+\end{enumerate}
+This corpus is deliberately narrow.  The model would not be competitive on general
+financial tasks like earnings sentiment or credit scoring.  But for the specific
+task of monetary policy communication analysis \cite{hansen2018transparency}, a
+model pre-trained on this corpus and fine-tuned on a labelled set of hawkish/dovish
+paragraphs will substantially outperform a general-purpose model fine-tuned on the
+same labels, because the pre-training corpus aligns closely with both the domain
+vocabulary and the pragmatic conventions of central bank language.
+\end{example}
+
+Table~\ref{tab:ch08-corpus-summary} summarises the major corpus sources available
+for financial LLM pre-training, with approximate scale, quality, and accessibility.
+
+\begin{table}[htbp]
+\caption{Summary of major corpus sources for financial LLM pre-training.}
+\label{tab:ch08-corpus-summary}
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lllll}
+\toprule
+\textbf{Source} & \textbf{Scale (tokens)} & \textbf{Quality} & \textbf{Access} & \textbf{Coverage} \\
+\midrule
+Bloomberg News      & $\sim$300B    & Very high & Proprietary & News, markets \\
+SEC EDGAR           & $\sim$50B     & High      & Open        & Regulatory, corporate \\
+Reuters TRC2        & $\sim$2B      & High      & Licensed    & Financial news \\
+Financial PhraseBank & $\sim$5M     & High      & Open        & Sentiment-labelled \\
+Seeking Alpha       & $\sim$10B     & Medium    & Open/API    & Retail analysis \\
+Earnings transcripts & $\sim$5B     & High      & Commercial  & Corporate comms \\
+SSRN / arXiv finance & $\sim$2B    & High      & Open        & Academic research \\
+General web (Pile)  & $\sim$800B    & Mixed     & Open        & Broad coverage \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
 \section{Benchmark Comparisons}
 \label{sec:ch08-benchmark-comparisons}
 
-[Placeholder]
+Rigorous evaluation of financial LLMs requires benchmarks that test the
+capabilities most relevant to financial practice: numerical reasoning,
+domain-specific sentiment, information extraction from regulatory text, and
+multi-step question answering over financial documents.  The field has converged
+on a set of standard benchmarks, though their limitations---narrow task scope,
+label quality, and susceptibility to overfitting---must be understood alongside
+the numbers they report.
 
-\subsection{Financial NLP Benchmarks: FinQA, FLUE, BBH-Finance}
+% ---------------------------------------------------------------
+\subsection{Financial NLP Benchmarks: FinQA, FLUE, FinBen}
 \label{sec:ch08-benchmarks}
 
-[Placeholder]
+\textit{FinQA.}  Introduced by \citet{chen2021finqa}, FinQA is a dataset of
+8,281 question-answer pairs grounded in 10-K and 10-Q filings from S\&P~500
+companies.  Each question requires a chain of arithmetic operations over one or
+more tables and prose passages from the source document.  A representative question
+might ask: ``What was the percentage change in operating income from 2018 to 2019,
+given the following income statement?''  The answer requires locating the relevant
+rows, extracting the numeric values, and performing the division, all without
+arithmetic errors.  FinQA is widely considered the most challenging standard
+benchmark for financial NLP because it simultaneously tests reading comprehension,
+table parsing, and numerical reasoning.  On the public leaderboard, the best
+fine-tuned specialist systems achieve execution accuracy around 68--72\%, while
+general-purpose zero-shot GPT-4 class models achieve approximately 55--60\%.
 
+\textit{FLUE.}  The Financial Language Understanding Evaluation benchmark
+\cite{shah2022flue} is a multi-task suite designed to mirror GLUE/SuperGLUE for
+the financial domain.  It includes five tasks: financial sentiment analysis (over
+Financial PhraseBank), news headline classification (whether a news headline is
+bearish, bullish, or neutral for a named company), named entity recognition over
+financial text, question answering (FiQA), and semantic textual similarity of
+financial sentences.  FLUE allows direct comparison of models across a range of
+NLU tasks without the complexity of multi-step reasoning, making it well suited
+to evaluating encoder-only models.  FinBERT and its variants consistently
+outperform general BERT and RoBERTa on the FLUE tasks, with the largest margins
+on the sentiment and NER sub-tasks.
+
+\textit{FinBen.}  The most comprehensive recent benchmark is FinBen
+\cite{xie2024finben}, which assembles 36 datasets spanning 24 financial
+tasks across five capability categories: information extraction, text analysis,
+question answering, text generation, and risk management.  FinBen is
+specifically designed to evaluate the open-ended generation capabilities of
+decoder-only models in addition to the classification capabilities tested by FLUE.
+It includes stress-test tasks such as credit scoring from textual loan descriptions,
+financial forecasting from annual report narratives, and multi-document
+summarisation of earnings call transcripts---tasks that require a model to
+integrate information across multiple sources and produce coherent structured output.
+
+\begin{definition}[Execution Accuracy]
+\label{def:ch08-execution-accuracy}
+For a numerical reasoning benchmark such as FinQA, \emph{execution accuracy}
+is defined as the fraction of questions for which the model's predicted numerical
+answer matches the gold answer within a tolerance $\epsilon$:
+\begin{equation}
+  \mathrm{EA} = \frac{1}{|\mathcal{Q}|} \sum_{q \in \mathcal{Q}}
+  \mathbf{1}\!\left[\,\left|\hat{a}_q - a_q\right| \leq \epsilon\right],
+  \label{eq:ch08-execution-accuracy}
+\end{equation}
+where $\hat{a}_q$ is the model's predicted answer and $a_q$ is the gold answer
+for question $q$.  The tolerance $\epsilon$ is typically set to zero for
+exact-match evaluation or to a small relative threshold (e.g., $1\%$) to allow
+for rounding differences.
+\end{definition}
+
+% ---------------------------------------------------------------
 \subsection{When Do FinLLMs Outperform General Models? When Do They Lose?}
 \label{sec:ch08-finllm-vs-general}
 
-[Placeholder]
+The empirical record from FLUE, FinQA, and FinBen reveals a nuanced pattern:
+domain-specific financial LLMs reliably outperform general models on tasks that
+are deeply tied to domain vocabulary and syntax, but general models---particularly
+at the frontier of scale---are competitive or superior on tasks requiring
+broad world knowledge, multi-step reasoning, and instruction following.
 
+\textit{Where FinLLMs win.}  The performance gap is largest on tasks that require
+correct handling of domain-specific lexical semantics.  On Financial PhraseBank
+sentiment classification, FinBERT \cite{araci2019finbert} achieves F1 scores
+of approximately 0.88 compared to 0.72 for general BERT-base and 0.80 for
+RoBERTa-base---a gap that persists even when the general models are fine-tuned
+on the same training set.  The explanation is straightforward: sentiment labels
+in financial text depend on domain vocabulary whose correct representation was
+only learned during financial domain pre-training.  Similarly, on EDGAR named
+entity recognition, SEC-BERT \cite{loukas2022secbert} substantially outperforms
+general BERT because the distribution of entities and their surface forms in
+legal-regulatory text differs substantially from news or web text.
+
+\textit{Where general models win or are competitive.}  On tasks requiring broad
+world knowledge---such as answering questions about macroeconomic events, regulatory
+history, or geopolitical risk factors that appear in financial text---frontier
+general models (GPT-4, Claude 3, Llama-3 70B) are competitive with domain-specific
+models.  More strikingly, on multi-step numerical reasoning tasks like FinQA,
+chain-of-thought prompting \cite{wei2022chain} applied to a large general model
+often matches or exceeds the performance of a smaller domain-specific model,
+because the reasoning capability at this level of complexity is more a function
+of model scale than of domain-specific pre-training.
+
+\textit{The scaling crossover.}  One of the clearest findings to emerge from the
+literature is that the performance advantage of domain-specific models is
+\emph{inversely proportional to model scale at a fixed task difficulty}.  For small
+models (7B parameters and below), DAPT on financial text provides large, consistent
+gains across most financial NLP tasks.  For models at the 70B+ scale, the gains
+are narrower and task-specific: they persist for lexically sensitive tasks
+(sentiment, tone, NER) but largely disappear for tasks whose difficulty is
+primarily about reasoning over long documents.  The implication for practitioners
+is that the correct architecture choice depends on the available compute budget:
+a team constrained to a small model should invest in domain-specific pre-training;
+a team with access to large-scale inference should evaluate whether prompting a
+frontier general model already meets their accuracy threshold.
+
+\begin{remark}[The contamination problem]
+A persistent methodological concern in financial LLM evaluation is \emph{data
+contamination}: the possibility that a benchmark dataset has appeared in the
+model's pre-training corpus.  Several large general models trained on internet-scale
+corpora are suspected to have seen the Financial PhraseBank or FinQA training
+splits as part of their pre-training data, inflating their apparent performance.
+Rigorous evaluation requires held-out test sets with temporal cutoffs ensuring
+that the test data postdates the model's knowledge cutoff, a condition that most
+published benchmarks do not currently enforce.
+\end{remark}
+
+\begin{remark}[Hallucination in financial contexts]
+Domain-specific pre-training does not eliminate hallucination and may in some
+cases worsen it by training the model to generate plausible-sounding but
+unverified financial statistics.  \citet{kang2023hallucination} document
+systematic hallucination in financial LLMs, finding that models trained on
+financial news are more likely to fabricate specific numerical claims (earnings
+figures, price changes, percentages) than general models given the same prompt.
+The mitigation strategies discussed in Chapter~\ref{ch:applications-future}---
+retrieval augmentation, constrained generation, and automated factual
+verification---are therefore as important for domain-specific models as for
+general ones.
+\end{remark}
+
+% ---------------------------------------------------------------
 \section{Practical Deployment Considerations}
 \label{sec:ch08-deployment}
 
-[Placeholder]
+The decision to deploy a domain-specific financial LLM in a production environment
+raises a set of practical considerations that are orthogonal to the model's
+benchmark performance.  A model that achieves state-of-the-art accuracy on FinQA
+but cannot be licensed for commercial use, requires a compute budget that the
+organisation cannot sustain, or generates outputs that cannot be traced to source
+documents for audit purposes, is not a deployable model.  This section addresses
+the three most consequential practical dimensions: licensing and data governance,
+hosting strategy, and the cost-versus-performance trade-off that motivates hybrid
+deployment architectures.
 
+% ---------------------------------------------------------------
 \subsection{Licensing, Hosting, and Data Governance}
 \label{sec:ch08-licensing-hosting}
 
-[Placeholder]
+\textit{Model licensing.}  Financial LLMs span a wide range of licensing regimes.
+BloombergGPT is proprietary and not publicly released; access is restricted to
+Bloomberg terminal subscribers.  FinBERT \cite{araci2019finbert} and the
+Yang--Huang FinBERT \cite{yang2020finbert} are released under the Apache 2.0
+license, permitting commercial use and modification.  FinGPT \cite{yang2023fingpt}
+is released under MIT.  InvestLM \cite{yang2023investlm} and FinMA
+\cite{xie2023finma} are released under licenses that permit research use but
+restrict commercial deployment (following the LLaMA-1 and LLaMA-2 license
+structures respectively).  Any deployment decision must begin with a license audit:
+does the intended use case fall within the permitted uses of the base model license,
+the fine-tuning dataset license, and any third-party libraries used in training?
 
+\textit{Data governance.}  Financial institutions operate under data governance
+frameworks---GDPR in Europe, GLBA and CCPA in the United States, and sector-specific
+regulations---that constrain how customer data may be used to train or fine-tune
+models.  Customer financial data (account balances, transaction histories, credit
+scores) may not, in most jurisdictions, be used to train models deployed for other
+customers without explicit consent and appropriate data protection agreements.
+This constraint is particularly acute when the desired fine-tuning task requires
+actual customer data: a model fine-tuned on real loan application text to predict
+default probability may not be trainable if the training data was not collected
+with model training as a declared purpose.  Synthetic data generation---using a
+general model to produce realistic but fictitious financial training examples---is
+an increasingly common workaround, though it introduces its own distributional
+shift concerns.
+
+\textit{Hosting strategy.}  The choice between cloud-hosted API access and
+on-premises deployment is driven by cost, latency, data residency, and the
+organisation's risk appetite for vendor dependency.  For encoder-only models
+like FinBERT (110M--340M parameters), on-premises deployment on commodity GPU
+hardware is straightforward: inference on a single A10G or equivalent GPU provides
+sub-50ms latency for classification tasks, and the full model fits comfortably in
+memory.  For decoder-only models at the 7--50B parameter scale, on-premises
+deployment requires multi-GPU or specialised inference hardware.  Quantisation
+techniques---GPTQ \cite{frantar2022gptq}, AWQ \cite{lin2023awq}, and
+QLoRA \cite{dettmers2023qlora}---can reduce memory requirements by 2--4$\times$
+at modest accuracy cost, making on-premises deployment of 13B--30B parameter
+models feasible on a single high-memory GPU server.  For BloombergGPT-class
+models (50B+ parameters), on-premises deployment at production throughput
+typically requires a cluster-scale investment that is beyond all but the largest
+financial institutions.
+
+% ---------------------------------------------------------------
 \subsection{Cost vs.\ Performance Trade-offs: Hybrid Strategies}
 \label{sec:ch08-cost-performance}
 
-[Placeholder]
+The cost of operating a financial LLM at production scale is a function of three
+factors: inference compute (measured in tokens per second per dollar), model
+accuracy (the fraction of tasks for which the model produces an acceptable output),
+and the cost of human review for cases where the model's confidence falls below
+a threshold.  These factors interact in a way that makes simple benchmark
+comparisons insufficient: a model that achieves 5\% higher accuracy but costs
+10$\times$ more per inference may be inferior to a cheaper model supplemented
+by human review for the small fraction of hard cases.
+
+\begin{definition}[Effective cost per correct output]
+\label{def:ch08-effective-cost}
+Let $c_m$ denote the per-query inference cost of model $m$, $c_h$ the cost
+of a human review, $p_m$ the model's probability of producing a correct output
+without human review, and $\rho$ the fraction of queries routed to human review.
+The \emph{effective cost per correct output} is:
+\begin{equation}
+  C_{\mathrm{eff}}(m, \rho) = \frac{c_m + \rho \, c_h}{p_m + \rho(1 - p_m)},
+  \label{eq:ch08-effective-cost}
+\end{equation}
+where we assume human review recovers all incorrectly classified queries.
+An optimal deployment minimises $C_{\mathrm{eff}}$ subject to a minimum accuracy
+constraint $p_m + \rho(1-p_m) \geq p^\star$.
+\end{definition}
+
+\textit{The hybrid routing pattern.}  The most cost-effective deployment pattern
+for many financial applications is a two-stage system: a small, fast, domain-specific
+model handles the majority of queries; a subset of queries deemed hard (by low
+confidence score or explicit classifier) is routed to either a larger model or
+a human reviewer.  This pattern is particularly effective when the task difficulty
+distribution is skewed: most financial text classification tasks have a large
+``easy'' majority that a FinBERT-scale model handles accurately, and a small
+``hard'' tail that requires deeper reasoning.
+
+\textit{Retrieval-augmented generation as a complement.}  For tasks requiring
+factual precision---such as extracting specific figures from a 10-K or answering
+questions about a company's disclosed risk factors---retrieval-augmented generation
+(RAG) \cite{lewis2020rag} can substitute for a larger domain-specific model.
+A compact decoder model (7--13B parameters, potentially a fine-tuned general model
+rather than a dedicated FinLLM) grounded in a well-indexed EDGAR document store
+can match the accuracy of a larger ungrounded model on document-specific tasks
+while operating at a fraction of the inference cost and with full traceability
+to source documents---a regulatory requirement in many financial AI deployments
+\cite{federalreserve2011sr117}.
+
+\begin{example}[Cost-optimal architecture for a regulatory filing classifier]
+\label{ex:ch08-deployment}
+A compliance team at an asset manager needs to classify the ``risk factor'' sections
+of 10-K filings into a taxonomy of 15 risk categories (market risk, credit risk,
+regulatory risk, litigation risk, etc.) for a portfolio of 2,000 companies updated
+annually.  Each filing contains 3--10 risk factor paragraphs.
+
+At a naive per-token pricing of \$0.002 per 1K tokens, using a 70B general model
+via API for all 20,000--60,000 paragraphs costs approximately \$200--\$600 per
+annual update cycle.  A fine-tuned FinBERT-base classifier ($\sim$110M parameters)
+deployed on a single T4 GPU can classify 1,000 paragraphs per second at a monthly
+server cost of approximately \$400, amortised over the full year of operation.
+
+If the FinBERT classifier achieves 88\% accuracy and the 70B model achieves 93\%,
+the hybrid strategy---use FinBERT for all paragraphs, route the 12\% with
+confidence below a threshold to the large model---achieves 92\%+ accuracy at
+a blended cost of approximately \$250 per annual update cycle, lower than either
+model alone.  The break-even accuracy-cost point is highly sensitive to the shape
+of the confidence distribution, which must be measured empirically on a held-out
+validation set.
+\end{example}
+
+% ---------------------------------------------------------------
+\section{Summary}
+\label{sec:ch08-summary}
+
+This chapter has developed a systematic account of domain-specific financial LLMs
+from the motivation through deployment.  The key takeaways are as follows.
+
+Financial language constitutes a distinct register characterised by specialised
+vocabulary, high numeric density, and tabular structure.  These features create
+a systematic performance gap between general-purpose models and the financial
+distribution.  The LM financial dictionary \cite{loughran2011liability} provides
+perhaps the starkest quantification of this gap: hundreds of common English words
+have inverted or neutralised polarity in financial text, and any model that has not
+learned this inversion will misclassify financial sentiment at a rate that makes
+it unsuitable for production use.
+
+The financial LLM landscape divides into two families.  Encoder-only models
+(FinBERT, SEC-BERT, FinBERT-tone) are compact, well-understood, and highly
+effective for classification and extraction tasks where the output space is fixed.
+Decoder-only models (BloombergGPT, FinGPT, FinMA, InvestLM) are substantially
+larger but capable of open-ended generation, multi-step numerical reasoning, and
+instruction following---capabilities that encoder models cannot support.
+
+Domain-adaptive pre-training \cite{gururangan2020dont} is the most broadly
+applicable strategy for building financial LLMs.  By continuing a general model's
+pre-training objective on a financial corpus, DAPT shifts the model's representations
+toward the financial distribution at a fraction of the cost of training from scratch.
+The optimal corpus blends high-quality financial sources (EDGAR, Bloomberg-class
+news, earnings transcripts) with enough general text to preserve broad reasoning
+capabilities.
+
+Benchmark evaluation reveals that FinLLMs reliably outperform general models on
+lexically sensitive tasks (sentiment, tone, NER) but lose their advantage on
+large-scale reasoning tasks at sufficient model size.  The FLUE, FinQA, and FinBen
+benchmarks provide a useful but imperfect proxy for real-world performance; data
+contamination and distributional mismatch between benchmark and deployment data
+are persistent concerns.
+
+Production deployment decisions must account for licensing, data governance, hosting
+cost, and the accuracy-cost trade-off.  Hybrid architectures that route easy
+queries to compact domain-specific models and hard queries to larger models or
+human reviewers dominate simple single-model deployments on the Pareto frontier
+of accuracy and cost.
+
+% ---------------------------------------------------------------
+\section{Further Reading}
+\label{sec:ch08-further-reading}
+
+The foundational paper for domain-adaptive pre-training is
+\citet{gururangan2020dont}, which should be read in conjunction with the
+original BERT paper \cite{devlin2019} and the RoBERTa pretraining improvements
+\cite{liu2018} to understand what the domain-adaptive stage modifies and what
+it inherits.  The BloombergGPT technical report \cite{wu2023bloomberggpt} is
+the most detailed public account of what pre-training a 50B-scale financial model
+involves, including corpus design, tokeniser construction, and benchmark evaluation.
+For the open-source counterpart, \citet{yang2023fingpt} describe the FinGPT
+framework and the LoRA-based fine-tuning pipeline in detail accessible to practitioners
+without cluster-scale resources.
+
+For benchmarking, \citet{chen2021finqa} remains the canonical reference for
+numerical reasoning evaluation; the FinBen paper \cite{xie2024finben} provides
+the most comprehensive recent overview of the full task landscape.  On the
+evaluation methodology side, \citet{shah2022flue} discuss the design principles
+behind FLUE and the limitations of each sub-task as a proxy for real-world performance.
+
+The Loughran--McDonald dictionary paper \cite{loughran2011liability} and the
+subsequent review \cite{loughran2020textual} are essential reading for understanding
+the lexical properties of financial language that motivate domain-specific
+pre-training.  \citet{huang2023finbert} provide the most thorough accounting
+research perspective on FinBERT's capabilities and limitations.
+
+For deployment and governance, the SR~11-7 model risk management guidance
+\cite{federalreserve2011sr117} remains the authoritative framework for deploying
+models in regulated financial contexts.  Chapter~\ref{ch:applications-future}
+of this book extends the discussion to the EU AI Act and MiFID~II obligations
+arising from LLM-based financial products.  Readers interested in the broader
+landscape of financial LLM applications should consult the survey by
+\citet{li2023llmfinsurvey}.

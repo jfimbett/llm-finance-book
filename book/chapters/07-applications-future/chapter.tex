@@ -655,6 +655,38 @@ Incident response for LLM systems follows a pattern analogous to software securi
 
 \end{context}
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.90\textwidth]{figures/fig_illustration}
+  \caption{Performance of five LLM families on three financial NLP benchmarks.
+           FinQA (Chen et al., 2021) tests numerical reasoning over tables
+           and text (exact-match accuracy);
+           FPB (Malo et al., 2014) tests three-class sentiment classification;
+           FiQA-SA (Maia et al., 2018) tests aspect-based sentiment (F1).
+           Scores are taken from the original papers and from the FinBench
+           survey~\citep{xie2023pixiu}.
+           GPT-4 leads on numerical reasoning; FinBERT and BloombergGPT---both
+           domain-adapted---lead BERT-base on sentiment but are surpassed by
+           the larger general-purpose models.}
+  \label{fig:ch07-illustration}
+\end{figure}
+
+\begin{exercise}[Illustration: LLM Benchmark Comparison]
+\label{ex:ch07-illustration}
+Reproduce Figure~\ref{fig:ch07-illustration} using the hardcoded benchmark
+scores from published papers.
+(\textit{a})~Add a sixth model (e.g.\ Llama-3 70B or Mistral-7B) from its
+technical report and update the bar chart.
+(\textit{b})~Write two sentences interpreting the pattern: which model family
+performs best on numerical reasoning vs.\ sentiment, and what structural
+difference might explain the gap?
+(\textit{c})~Compute the mean rank of each model across all three benchmarks
+and identify the Pareto-optimal model (highest average rank with no benchmark
+below the median).
+See \texttt{code/notebooks/07-applications-future/exercises.ipynb}, Illustration
+Exercise.
+\end{exercise}
+
 % --- Section: Future Trends and Open Research Problems ---
 
 \section{Future Trends and Open Research Problems}
@@ -687,13 +719,13 @@ The governance of autonomous agents in finance requires a principle that does no
 
 The applications in this book have solved real problems, but they have also exposed limitations that define the frontier of productive research. Five open problems stand out as both theoretically interesting and practically important.
 
-\emph{Calibrated uncertainty quantification for LLM-generated forecasts.} The models in Chapters~\ref{ch:business-valuation} and~\ref{ch:credit-risk} produce point estimates or distributions over financial quantities. The uncertainty associated with those estimates---arising from model uncertainty, input noise, and irreducible forecast variance---is not well characterised by existing methods. Conformal prediction provides distribution-free coverage guarantees for any model, but its application to the autoregressive outputs of LLMs requires careful handling of the sequential nature of token generation and the structured output format. A promising approach uses the conditional output probabilities of the model itself as calibrated uncertainty signals: \citet{ChenDidisheim2024uncertainty} show that the distribution an LLM assigns over its plausible completions, measured from token-level log-probabilities, provides a principled and tractable uncertainty estimate that outperforms post-hoc sampling methods on financial question-answering tasks. Well-calibrated uncertainty estimates are essential for risk-adjusted decision-making and for satisfying regulatory documentation requirements.
+\emph{Calibrated uncertainty quantification for LLM-generated forecasts.} The models in Chapters~\ref{ch:business-valuation} and~\ref{ch:credit-risk} produce point estimates or distributions over financial quantities. The uncertainty associated with those estimates---arising from model uncertainty, input noise, and irreducible forecast variance---is not well characterised by existing methods. Conformal prediction provides distribution-free coverage guarantees for any model, but its application to the autoregressive outputs of LLMs requires careful handling of the sequential nature of token generation and the structured output format. A promising approach uses the conditional output probabilities of the model itself as calibrated uncertainty signals: \citet{chen2024uncertainty} show that the distribution an LLM assigns over its plausible completions, measured from token-level log-probabilities, provides a principled and tractable uncertainty estimate that outperforms post-hoc sampling methods on financial question-answering tasks. Well-calibrated uncertainty estimates are essential for risk-adjusted decision-making and for satisfying regulatory documentation requirements.
 
 \emph{Robust comparable company selection in thin markets.} Chapter~\ref{ch:business-valuation} addressed comparables selection in liquid US public markets. For private companies, international markets with thin coverage, and sectors with few public peers, the comparables problem is harder: the embedding-based similarity measures trained on US financial text are systematically biased toward US market characteristics. Cross-market comparables selection requires embedding spaces that are invariant to market-level characteristics while remaining sensitive to firm-level fundamental differences---a representation learning challenge that has not been satisfactorily solved.
 
 \emph{Cross-lingual finance LLMs for non-English regulatory filings.} Regulatory filings in Japan, Germany, France, Brazil, and China are not simply English filings translated: they reflect different accounting standards (IFRS versus J-GAAP versus local GAAP variants), different disclosure norms, and different regulatory philosophies. Current LLMs, even multilingual ones, perform substantially worse on these filings than on equivalent English-language materials. Building or adapting finance LLMs for non-English regulatory environments requires corpora that are not currently publicly available and evaluation frameworks that do not yet exist.
 
-\emph{Detecting and mitigating feedback loops and memorisation in LLM-influenced markets.} The feedback loop bias discussed in Section~\ref{sec:af-ethics} is not merely a fairness concern; it is a market stability concern. When LLM-generated signals are reflected in prices, the informational efficiency of prices changes in ways that are not well understood. A related and equally underappreciated problem is look-ahead bias arising from an LLM's training corpus: a model whose pretraining data includes post-hoc financial analyses and news coverage may appear to ``predict'' market outcomes it has, in fact, already encountered. \citet{DidisheimSomoza2025memory} formalise this phenomenon---what they call the LLM's predictable memory---and show that look-ahead bias is most severe at low frequencies and for large models trained on broad corpora, providing a practical methodology to quantify and adjust for this inflation in apparent forecast performance. Empirical identification of LLM-driven feedback loops requires distinguishing LLM-influenced price formation from price formation driven by other correlated factors---a causal inference problem complicated by the simultaneity of model deployment and market activity. Developing credible identification strategies and theoretical models of feedback dynamics is an important open problem.
+\emph{Detecting and mitigating feedback loops and memorisation in LLM-influenced markets.} The feedback loop bias discussed in Section~\ref{sec:af-ethics} is not merely a fairness concern; it is a market stability concern. When LLM-generated signals are reflected in prices, the informational efficiency of prices changes in ways that are not well understood. A related and equally underappreciated problem is look-ahead bias arising from an LLM's training corpus: a model whose pretraining data includes post-hoc financial analyses and news coverage may appear to ``predict'' market outcomes it has, in fact, already encountered. \citet{didisheim2025memory} formalise this phenomenon---what they call the LLM's predictable memory---and show that look-ahead bias is most severe at low frequencies and for large models trained on broad corpora, providing a practical methodology to quantify and adjust for this inflation in apparent forecast performance. Empirical identification of LLM-driven feedback loops requires distinguishing LLM-influenced price formation from price formation driven by other correlated factors---a causal inference problem complicated by the simultaneity of model deployment and market activity. Developing credible identification strategies and theoretical models of feedback dynamics is an important open problem.
 
 \emph{Formal verification of chain-of-thought financial reasoning.} Chain-of-thought outputs provide a trace of the model's reasoning, but there is no guarantee that the stated reasoning is the actual computation that produced the output---a phenomenon sometimes called \emph{unfaithful reasoning}. For financial decisions where the reasoning trace must be defensible to regulators, the gap between stated and actual reasoning is a legal and operational risk. Developing methods to verify the consistency between a model's chain-of-thought and its output, and to detect when the stated reasoning could not have produced the stated conclusion, is an open technical problem with direct regulatory relevance.
 

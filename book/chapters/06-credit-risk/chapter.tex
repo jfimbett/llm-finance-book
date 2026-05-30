@@ -181,7 +181,7 @@ For tabular credit data, gradient-boosted trees (XGBoost, LightGBM) handle missi
 
 \begin{context}
 
-Every credit decision is, at its core, a probability estimate: given everything we know about this applicant at this moment, what is the probability that they will not repay? For fifty years, that estimate has been produced by a linear model applied to a handful of engineered features. In 1968, Edward Altman showed that a linear combination of five financial ratios could predict corporate bankruptcy with striking accuracy \cite{altman1968financial}. The Z-score model he derived --- on a dataset of sixty-six manufacturing firms --- remained the state of the art for two decades and is still used as a benchmark today.
+Every credit decision is, at its core, a probability estimate: given everything we know about this applicant at this moment, what is the probability that they will not repay? For fifty years, that estimate has been produced by a linear model applied to a handful of engineered features. In 1968, \citet{altman1968financial} showed that a linear combination of five financial ratios could predict corporate bankruptcy with striking accuracy. The Z-score model he derived --- on a dataset of sixty-six manufacturing firms --- remained the state of the art for two decades and is still used as a benchmark today.
 
 The arrival of LLMs does not make the Z-score obsolete. It adds a new instrument to the modeller's toolkit, one particularly powerful when the signal is latent in text, when the feature space is high-dimensional and sparse, or when the decision requires reasoning about heterogeneous information that resists tabularisation. Understanding when to use which instrument, and how to combine them, is the practical skill this section develops.
 
@@ -201,7 +201,7 @@ Firms with $Z < 1.81$ are classified as distressed, those with $Z > 2.99$ as hea
 
 \subsubsection*{Structural Models: Merton (1974)}
 
-Merton's insight \cite{merton1974pricing} is that equity can be viewed as a European call option on the firm's assets. Let $V_t$ denote the asset value, $D$ the face value of a single zero-coupon debt obligation maturing at $T$, and $r$ the risk-free rate. Equity value is:
+\citet{merton1974pricing} shows that equity can be viewed as a European call option on the firm's assets. Let $V_t$ denote the asset value, $D$ the face value of a single zero-coupon debt obligation maturing at $T$, and $r$ the risk-free rate. Equity value is:
 \begin{equation}
   E_t = V_t \Phi(d_1) - D e^{-r(T-t)} \Phi(d_2),
   \label{eq:merton-equity}
@@ -421,7 +421,7 @@ Platt scaling is preferred when the training set for calibration is small (hundr
 
 In 2018, the Consumer Financial Protection Bureau published a study documenting that roughly one-third of mortgage borrowers in the United States did not shop for their mortgage before accepting the first offer they received. Among low-income borrowers the fraction was closer to one-half. The CFPB estimated that the average borrower who did not shop paid approximately \$300 per year more in interest than a comparable borrower who compared at least three offers --- a cost that compounds into tens of thousands of dollars over the life of a thirty-year loan.
 
-The finding is puzzling from the perspective of standard economic theory. The expected benefit of comparison shopping is substantial, the information is publicly available, and the decision is large enough that even a small percentage improvement is financially meaningful. Yet many households do not shop. The explanation lies not in irrationality but in the cognitive and informational limits that Herbert Simon called \emph{bounded rationality} \cite{simon1955behavioral}: households satisfice rather than optimise, relying on heuristics, social norms, and trusted intermediaries rather than exhaustive search.
+The finding is puzzling from the perspective of standard economic theory. The expected benefit of comparison shopping is substantial, the information is publicly available, and the decision is large enough that even a small percentage improvement is financially meaningful. Yet many households do not shop. The explanation lies not in irrationality but in the cognitive and informational limits that \citet{simon1955behavioral} called \emph{bounded rationality}: households satisfice rather than optimise, relying on heuristics, social norms, and trusted intermediaries rather than exhaustive search.
 
 LLMs, properly designed, can extend the cognitive frontier of the household. This section develops the theoretical and practical basis for LLMs as decision-support agents in household finance.
 
@@ -433,7 +433,7 @@ The neoclassical household solves an intertemporal optimisation problem: choose 
 \begin{enumerate}
   \item \textbf{Computational complexity}. The full household problem is a high-dimensional stochastic control problem. Even professional economists with computational tools struggle to solve it precisely; households solve approximations through rules of thumb.
   \item \textbf{Information asymmetry}. Credit terms, tax implications, and insurance structures involve specialised knowledge that most households lack. Acquiring this knowledge takes time and generates cognitive load.
-  \item \textbf{Dual-process cognition}. Kahneman's System 1 / System 2 framework \cite{kahneman2011thinking} identifies that high-stakes financial decisions are often made in System 1 mode --- fast, affective, and heuristic-driven --- even when they warrant careful System 2 deliberation.
+  \item \textbf{Dual-process cognition}. The System 1 / System 2 framework of \citet{kahneman2011thinking} identifies that high-stakes financial decisions are often made in System 1 mode --- fast, affective, and heuristic-driven --- even when they warrant careful System 2 deliberation.
   \item \textbf{Preference inconsistency}. Hyperbolic discounting, loss aversion, and framing effects cause households to make choices inconsistent with their stated long-run preferences.
 \end{enumerate}
 
@@ -515,7 +515,7 @@ The quality of the preference elicitation depends critically on the LLM's abilit
 
 A mortgage lender launching a new product in a new market faces a question that is expensive to answer empirically: who will take up the product, at what price point, and through which channel? Traditional market research relies on focus groups and surveys, which are slow, costly, and subject to social desirability bias. Agent-based simulation can generate synthetic take-up curves quickly, but it requires specifying agent preferences and decision rules that are difficult to calibrate without observed data.
 
-Argyle and colleagues \cite{argyle2023out} showed that a large language model conditioned on a detailed demographic backstory reproduces the survey response distributions of the corresponding demographic group with striking fidelity. Their ``silicon sampling'' method treats the LLM as a statistical model of human opinion conditioned on demographic attributes. The method is not a claim that LLMs are sentient or that they have genuine preferences; it is an empirical observation that LLMs trained on vast human-generated text encode distributional information about how different types of people tend to reason and respond.
+\citet{argyle2023out} showed that a large language model conditioned on a detailed demographic backstory reproduces the survey response distributions of the corresponding demographic group with striking fidelity. Their ``silicon sampling'' method treats the LLM as a statistical model of human opinion conditioned on demographic attributes. The method is not a claim that LLMs are sentient or that they have genuine preferences; it is an empirical observation that LLMs trained on vast human-generated text encode distributional information about how different types of people tend to reason and respond.
 
 This section develops the operational framework for persona agents in credit and household finance applications.
 
@@ -622,7 +622,7 @@ As illustrated in Example~\ref{ex:personas}, mortgage choice is sensitive to inc
 
 \subsubsection*{Retirement Planning}
 
-The retirement planning decision involves a long time horizon, uncertain longevity, investment returns, and healthcare costs. Persona agents can simulate how different households respond to different default enrolment and auto-escalation schemes in defined-contribution plans. Research using survey data has documented the importance of default rules: Campbell \cite{campbell2006household} notes that participation rates in savings plans are dramatically higher when enrolment is the default than when opt-in is required. Persona simulation can assess whether LLM-based retirement planning assistants successfully explain the benefits of auto-escalation to low-financial-literacy households.
+The retirement planning decision involves a long time horizon, uncertain longevity, investment returns, and healthcare costs. Persona agents can simulate how different households respond to different default enrolment and auto-escalation schemes in defined-contribution plans. Research using survey data has documented the importance of default rules: \citet{campbell2006household} notes that participation rates in savings plans are dramatically higher when enrolment is the default than when opt-in is required. Persona simulation can assess whether LLM-based retirement planning assistants successfully explain the benefits of auto-escalation to low-financial-literacy households.
 
 % ---------------------------------------------------------------
 \subsection{Calibrating Simulated Behaviour Against Survey Data}

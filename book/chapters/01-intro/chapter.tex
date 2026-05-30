@@ -77,7 +77,7 @@ trading volume.  He interprets the return predictability as consistent with inve
 sentiment temporarily depressing prices below fundamental value, and the mean reversion
 as the subsequent correction.
 
-A companion study by Tetlock, Saar-Tsechansky, and Macskassy \cite{tetlock2008words}
+A companion study by \citet{tetlock2008words}
 extended this approach to firm-level news: they showed that the fraction of negative
 words in firm-specific stories from the Dow Jones Newswires predicts both short-run
 stock returns and subsequent quarterly earnings, with the earnings predictability
@@ -114,7 +114,7 @@ abnormal returns, among other outcomes.
 
 The LM dictionary remains a standard benchmark in financial NLP.  Most subsequent
 studies report results using both the Harvard IV-4 and LM lists to allow comparability.
-Loughran and McDonald's 2020 review \cite{loughran2020textual} surveys the subsequent
+\citet{loughran2020textual} surveys the subsequent
 decade of textual analysis research, cataloguing how the field has extended beyond
 sentiment to readability, complexity, political bias, and fraud detection, while
 cautioning that many readability measures lack a clear theoretical foundation.
@@ -127,8 +127,7 @@ The sentence ``earnings did \emph{not} decline'' receives the same score as ``ea
 negation-aware heuristics remain fragile.
 
 Before leaving the dictionary era, it is worth noting that scholars also developed
-\emph{readability} measures applied to corporate disclosures.  Li (2008)
-\cite{li2008annual} % [CITE: Li, F. (2008). Annual Report Readability, Current Earnings, and Earnings Persistence. Journal of Accounting and Economics, 45(2–3), 221–247.]
+\emph{readability} measures applied to corporate disclosures.  \citet{li2008annual} % [CITE: Li, F. (2008). Annual Report Readability, Current Earnings, and Earnings Persistence. Journal of Accounting and Economics, 45(2–3), 221–247.]
 showed that annual reports that are more difficult to read (as measured by the
 Fog Index, a formula based on average sentence length and the fraction of polysyllabic
 words) are associated with lower future earnings, suggesting that complexity may serve as
@@ -154,8 +153,8 @@ advantage over dictionary methods is that topics are discovered from the corpus 
 than pre-specified.  Earnings calls, for instance, might reveal latent topics
 corresponding to supply-chain concerns, margin pressure, new product introductions, and
 macroeconomic commentary, each represented by a characteristic cluster of co-occurring
-words.  Researchers such as Boudoukh et al.\ \cite{boudoukh2013news} % [CITE: Boudoukh, J., Feldman, R., Kogan, S. & Richardson, M.P. (2013). Which News Moves Stock Prices? A Textual Analysis. NBER Working Paper 18725.]
-and Hansen, McMahon, and Prat \cite{hansen2018transparency} % [CITE: Hansen, S., McMahon, M. & Prat, A. (2018). Transparency and Deliberation within the FOMC: A Computational Linguistics Approach. Quarterly Journal of Economics, 133(2), 801–870.]
+words.  Researchers such as \citet{boudoukh2013news} % [CITE: Boudoukh, J., Feldman, R., Kogan, S. & Richardson, M.P. (2013). Which News Moves Stock Prices? A Textual Analysis. NBER Working Paper 18725.]
+and \citet{hansen2018transparency} % [CITE: Hansen, S., McMahon, M. & Prat, A. (2018). Transparency and Deliberation within the FOMC: A Computational Linguistics Approach. Quarterly Journal of Economics, 133(2), 801–870.]
 used topic models to analyse, respectively, firm-level news and Federal Open Market
 Committee transcripts, demonstrating that data-driven topic discovery can reveal
 structure invisible to dictionary counting.
@@ -181,11 +180,11 @@ For finance, word embeddings offered the prospect of capturing semantic similari
 without hand-crafted dictionaries.  Researchers trained word2vec on large corpora of
 earnings call transcripts, news articles, and 10-K filings and used the resulting
 embeddings as features for downstream tasks such as sentiment classification and return
-prediction.  Ke, Kelly, and Xiu \cite{ke2019predicting} introduced a supervised
+prediction.  \citet{ke2019predicting} introduced a supervised
 text-mining framework that learns which words in financial news articles are most
 predictive of subsequent asset returns, combining a sentiment-term screening step with
 topic-model weighting; their method substantially outperforms bag-of-words baselines
-on out-of-sample return prediction.  Manela and Moreira \cite{manela2017news} % [CITE: Manela, A. & Moreira, A. (2017). News Implied Volatility and Disaster Concerns. Journal of Financial Economics, 123(1), 137–162.]
+on out-of-sample return prediction.  \citet{manela2017news} % [CITE: Manela, A. & Moreira, A. (2017). News Implied Volatility and Disaster Concerns. Journal of Financial Economics, 123(1), 137–162.]
 used text-based features including embedding-based similarities to construct a news-based
 measure of disaster risk.  Simultaneously, GloVe (Global Vectors for Word
 Representation) \cite{pennington2014glove} % [CITE: Pennington, J., Socher, R. & Manning, C.D. (2014). GloVe: Global Vectors for Word Representation. EMNLP 2014.]
@@ -202,9 +201,8 @@ principle, handle negation and long-range dependencies that defeat bag-of-words
 approaches.  They achieved state-of-the-art performance on financial sentiment
 benchmarks such as FiQA and Financial Phrase Bank throughout 2016--2018.
 
-The attention mechanism introduced by Bahdanau et al.\ \cite{bahdanau2015neural} % [CITE: Bahdanau, D., Cho, K. & Bengio, Y. (2015). Neural Machine Translation by Jointly Learning to Align and Translate. ICLR 2015.]
-and then generalised to the \emph{Transformer} architecture by Vaswani et al.\
-\cite{vaswani2017attention} % [CITE: Vaswani, A., Shazeer, N., Parmar, N., et al. (2017). Attention Is All You Need. NeurIPS 2017.]
+The attention mechanism introduced by \citet{bahdanau2015neural} % [CITE: Bahdanau, D., Cho, K. & Bengio, Y. (2015). Neural Machine Translation by Jointly Learning to Align and Translate. ICLR 2015.]
+and then generalised to the \emph{Transformer} architecture by \citet{vaswani2017attention} % [CITE: Vaswani, A., Shazeer, N., Parmar, N., et al. (2017). Attention Is All You Need. NeurIPS 2017.]
 changed the landscape completely.  The Transformer processes all tokens in a sequence in
 parallel via \emph{self-attention}, computing for each token a weighted average of all
 other tokens' representations, where the weights are learned and reflect relevance.
@@ -269,8 +267,7 @@ non-mutually-exclusive explanations are consistent with market efficiency:
     requires substantial effort, and if only a small fraction of market participants
     perform that analysis, prices may not immediately reflect all the information the
     filing contains.  Once cheap NLP tools make processing feasible at scale, the
-    anomaly should attenuate---and indeed Li, Lundholm, and Minnis
-    \cite{li2013measuring} % [CITE: Li, F., Lundholm, R. & Minnis, M. (2013). A Measure of Competition Based on 10-K Filings. Journal of Accounting Research, 51(2), 399–436.]
+    anomaly should attenuate---and indeed \citet{li2013measuring} % [CITE: Li, F., Lundholm, R. & Minnis, M. (2013). A Measure of Competition Based on 10-K Filings. Journal of Accounting Research, 51(2), 399–436.]
     and others document that textual signals are most powerful precisely for documents
     that are longest, most complex, and hence most costly to process.
 
@@ -307,7 +304,7 @@ with its own characteristics, frequency, regulatory environment, and information
     are produced by services such as Refinitiv or Bloomberg and are widely studied.  The
     call has two parts: a scripted management presentation and an unscripted Q\&A.  The
     Q\&A is particularly informative because responses are spontaneous and harder to
-    rehearse.  Davis, Ge, Matsumoto, and Zhang \cite{davis2015effect} % [CITE: Davis, A.K., Ge, W., Matsumoto, D. & Zhang, J.L. (2015). The Effect of Manager-Specific Optimism on the Tone of Earnings Conference Calls. Review of Accounting Studies, 20(2), 639–673.]
+    rehearse.  \citet{davis2015effect} % [CITE: Davis, A.K., Ge, W., Matsumoto, D. & Zhang, J.L. (2015). The Effect of Manager-Specific Optimism on the Tone of Earnings Conference Calls. Review of Accounting Studies, 20(2), 639–673.]
     and a large subsequent literature show that sentiment extracted from transcripts
     predicts abnormal returns and subsequent earnings surprises.
 
@@ -329,7 +326,7 @@ with its own characteristics, frequency, regulatory environment, and information
   \item[Analyst reports.] Sell-side research reports combine quantitative analysis with
     extensive narrative commentary.  They are produced by financial analysts who have
     specialised knowledge of the companies they cover, making the text informationally
-    dense.  Lehavy, Li, and Merkley \cite{lehavy2011benefit} % [CITE: Lehavy, R., Li, F. & Merkley, K. (2011). The Benefit of Investment Bank Analyst Monitoring. Journal of Finance, 66(4), 1223–1260.]
+    dense.  \citet{lehavy2011benefit} % [CITE: Lehavy, R., Li, F. & Merkley, K. (2011). The Benefit of Investment Bank Analyst Monitoring. Journal of Finance, 66(4), 1223–1260.]
     show that the textual complexity of analyst reports is associated with greater investor
     uncertainty and higher information asymmetry.
 
@@ -341,7 +338,7 @@ with its own characteristics, frequency, regulatory environment, and information
 
   \item[Social media and alternative data.] Twitter (now X), Reddit (especially
     r/wallstreetbets), StockTwits, and similar platforms provide high-frequency, noisy,
-    unstructured text.  Bollen, Mao, and Zeng \cite{bollen2011twitter} % [CITE: Bollen, J., Mao, H. & Zeng, X. (2011). Twitter Mood Predicts the Stock Market. Journal of Computational Science, 2(1), 1–8.]
+    unstructured text.  \citet{bollen2011twitter} % [CITE: Bollen, J., Mao, H. & Zeng, X. (2011). Twitter Mood Predicts the Stock Market. Journal of Computational Science, 2(1), 1–8.]
     showed that aggregate Twitter mood states predict DJIA returns in a time-series
     regression, though subsequent work has questioned the robustness of this finding.
     Social media data is particularly challenging due to bot activity, sarcasm, slang,
@@ -368,7 +365,7 @@ the theory must explain.  The key stylised facts from the literature are:
     confirming that domain specificity matters.
 
   \item \textbf{Earnings call tone predicts future earnings surprises.}  Multiple
-    studies, including Larcker and Zakolyukina \cite{larcker2012detecting}, % [CITE: Larcker, D.F. & Zakolyukina, A.A. (2012). Detecting Deceptive Discussions in Conference Calls. Journal of Accounting Research, 50(2), 495–540.]
+    studies, including \citet{larcker2012detecting}, % [CITE: Larcker, D.F. & Zakolyukina, A.A. (2012). Detecting Deceptive Discussions in Conference Calls. Journal of Accounting Research, 50(2), 495–540.]
     find that the linguistic characteristics of CEO and CFO speech on earnings calls
     contain information about the accuracy of disclosed earnings, and that deceptive
     speech has distinct linguistic markers.
@@ -376,7 +373,7 @@ the theory must explain.  The key stylised facts from the literature are:
   \item \textbf{LLM-based signals show incremental predictive power.}  More recent work
     has found that prompt-based or fine-tuned LLMs generate sentiment signals with
     higher out-of-sample predictive accuracy than dictionary or classical ML methods on
-    the same financial text datasets.  Lopez-Lira and Tang \cite{LopezLiraTang2023}
+    the same financial text datasets.  \citet{LopezLiraTang2023}
     demonstrate that ChatGPT-generated sentiment scores for news headlines predict
     next-day stock returns with a positive-coefficient pattern, and that this return
     predictability is absent for smaller, less capable predecessors such as GPT-1 and
@@ -1338,22 +1335,20 @@ and structured decoding, how to ground model outputs in retrieved documents, how
 compress large models into deployable ones, and how to measure and mitigate the
 hallucinations that remain the central reliability challenge for LLMs in finance.
 
-The landscape of financial LLMs has expanded rapidly.  Li et al.\
-\cite{li2023llmfinsurvey} survey the full range of LLM applications in finance---from
+The landscape of financial LLMs has expanded rapidly.  \citet{li2023llmfinsurvey} survey the full range of LLM applications in finance---from
 sentiment analysis and question answering to algorithmic trading and regulatory
 compliance---providing a systematic taxonomy of tasks, models, and benchmark datasets.
-On the open-source side, Yang, Liu, and Wang \cite{Yang2023} propose FinGPT, a
+On the open-source side, \citet{Yang2023} propose FinGPT, a
 data-centric open-source framework for training and fine-tuning financial LLMs via
 low-rank adaptation, making domain-specific model development accessible to academic
 researchers without proprietary data access.
 
 Alongside the promise, recent research has uncovered important failure modes specific
-to financial applications.  Didisheim, Fraschini, and Somoza \cite{didisheim2025memory}
+to financial applications.  \citet{didisheim2025memory}
 show that LLMs carry \emph{predictable memorised knowledge} about historical asset
 returns into zero-shot forecasting tasks, raising concerns about data contamination
 and the validity of out-of-sample tests when models have been pre-trained on the very
-time series they are asked to predict.  Chen, Didisheim, and Somoza
-\cite{chen2024uncertainty} demonstrate that the conditional probabilities produced by
+time series they are asked to predict.  \citet{chen2024uncertainty} demonstrate that the conditional probabilities produced by
 LLMs encode economically meaningful uncertainty estimates, offering a principled way
 to quantify model confidence in financial classification tasks without access to
 internal model weights.  Together these results motivate the careful evaluation

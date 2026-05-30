@@ -1,98 +1,868 @@
 \chapter{Portfolio Optimization and Quantitative Trading with LLMs}
+\label{ch:portfolio-quant-trading}
 
-\begin{itemize}
-  \item Understand the key concepts of portfolio optimization and quantitative trading
-  \item Apply LLM-based techniques to financial signal generation and factor construction problems
-  \item Evaluate the trade-offs between different approaches
-  \item Implement a practical pipeline using Python and the Hugging Face ecosystem
-\end{itemize}
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Derive the mean-variance frontier and explain why estimation error
+        limits its practical usefulness.
+  \item Describe how the Black-Litterman model combines equilibrium returns with
+        investor views, and identify where LLM-generated views can enter that framework.
+  \item Construct LLM-based factors for cross-sectional asset pricing and assess their
+        marginal explanatory power beyond classical factor models.
+  \item Design and critically evaluate an LLM sentiment signal pipeline for
+        algorithmic trading, including realistic transaction-cost adjustments.
+  \item Implement a walk-forward backtest and identify common pitfalls such as
+        look-ahead bias, survivorship bias, and multiple-testing inflation.
+  \item Apply CVaR-based risk management and connect textual risk signals to
+        tail-loss estimation.
+\end{enumerate}
+\end{remark}
 
+% ============================================================
 \section{Classical Portfolio Theory and Its Limits}
 \label{sec:ch10-classical-portfolio-theory}
+% ============================================================
 
-[Placeholder]
+Portfolio theory attempts to answer a deceptively simple question: given a universe of
+risky assets, how should a rational investor allocate wealth across them? The modern
+mathematical answer, attributed to \citet{markowitz1952portfolio}, reduces the problem to
+a quadratic program whose solution traces the \emph{efficient frontier}---a locus of
+portfolios that offer the highest expected return for a given level of volatility.
+Decades of refinement have layered more sophisticated machinery on top: Black-Litterman
+priors, robust covariance estimators, risk-factor decompositions. Yet a stubborn
+empirical finding persists: across many realistic settings, a naive equal-weight portfolio
+outperforms the theoretically optimal one \citep{demiguel2009optimal}. This paradox---
+that more sophisticated optimization frequently underperforms---is the central motivation
+for revisiting portfolio construction with LLM-augmented signals.
 
+% -----------------------------------------------------------
 \subsection{Markowitz Mean-Variance Optimization: The Efficient Frontier}
 \label{sec:ch10-markowitz-mean-variance}
+% -----------------------------------------------------------
 
-[Placeholder]
+Let $\mathbf{r} \in \mathbb{R}^N$ be the random vector of excess returns on $N$ risky
+assets over a holding period. Denote by $\boldsymbol{\mu} = \mathbb{E}[\mathbf{r}]$ the
+vector of expected excess returns and by $\boldsymbol{\Sigma} = \mathrm{Cov}[\mathbf{r}]$
+the $N \times N$ covariance matrix, assumed positive definite. A long-only portfolio is
+described by a weight vector $\mathbf{w} \in \mathbb{R}^N$ with $\mathbf{w} \geq \mathbf{0}$
+and $\mathbf{1}^\top \mathbf{w} = 1$. The portfolio's expected excess return and variance are
+\begin{align}
+  \mu_p &= \boldsymbol{\mu}^\top \mathbf{w}, \label{eq:ch10-port-return} \\
+  \sigma_p^2 &= \mathbf{w}^\top \boldsymbol{\Sigma}\, \mathbf{w}. \label{eq:ch10-port-var}
+\end{align}
 
+\begin{definition}[Mean-Variance Efficient Portfolio]
+\label{def:mv-efficient}
+A portfolio $\mathbf{w}^*$ is \emph{mean-variance efficient} at target return
+$\bar{\mu}$ if it solves
+\begin{equation}
+  \min_{\mathbf{w}} \; \mathbf{w}^\top \boldsymbol{\Sigma}\, \mathbf{w}
+  \quad \text{subject to} \quad
+  \boldsymbol{\mu}^\top \mathbf{w} = \bar{\mu}, \quad
+  \mathbf{1}^\top \mathbf{w} = 1, \quad \mathbf{w} \geq \mathbf{0}.
+  \label{eq:ch10-mv-program}
+\end{equation}
+The set of all such portfolios as $\bar{\mu}$ varies traces the \emph{efficient frontier}.
+\end{definition}
+
+The maximum Sharpe ratio portfolio occupies a special position on the frontier: it
+maximises the ratio of expected excess return to volatility,
+\begin{equation}
+  \mathbf{w}^{\text{SR}} = \argmax_{\mathbf{w}\geq 0,\,\mathbf{1}^\top\mathbf{w}=1}
+  \frac{\boldsymbol{\mu}^\top \mathbf{w}}{\sqrt{\mathbf{w}^\top \boldsymbol{\Sigma}\, \mathbf{w}}}.
+  \label{eq:ch10-sharpe-max}
+\end{equation}
+Without the non-negativity constraint the unconstrained maximum Sharpe ratio portfolio has
+the closed form $\mathbf{w}^{\text{SR}} \propto \boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$,
+revealing that the solution scales inversely with risk and linearly with the return signal.
+
+The practical problem is that both $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$ must be
+estimated from data. Sample estimates of $\boldsymbol{\mu}$ are notoriously noisy: even
+with 60 months of returns---a common institutional window---the standard error of a
+monthly mean is roughly $\hat{\sigma}/\sqrt{60}$, which for a typical stock implies an
+uncertainty on the order of the expected return itself. The sample covariance matrix
+presents a separate challenge when $N$ is large relative to $T$: it becomes singular or
+nearly singular, and its inverse amplifies estimation errors. A portfolio optimizer that
+receives noisy inputs will allocate heavily to recently lucky assets, producing
+concentrated, unstable positions that perform poorly out of sample.
+
+Several remedies exist. \emph{Shrinkage estimators} \citep{demiguel2009optimal} pull the
+sample covariance toward a structured target---often the identity or a factor model---
+reducing variance at the cost of some bias. \emph{Robust optimization} replaces point
+estimates with uncertainty sets, seeking portfolios that perform acceptably across the
+set. \emph{Factor models} impose a low-rank structure:
+$\boldsymbol{\Sigma} = \mathbf{B}\mathbf{F}\mathbf{B}^\top + \mathbf{D}$, where
+$\mathbf{B}$ is the factor loading matrix, $\mathbf{F}$ is the factor covariance, and
+$\mathbf{D}$ is a diagonal idiosyncratic variance matrix. Reducing estimation to $K$
+factors rather than $N(N+1)/2$ entries dramatically improves stability. The celebrated
+Fama-French three-factor model \citep{fama1993common} and its five-factor extension
+\citep{fama2015five} operationalise this structure for equity portfolios.
+
+Despite these refinements, \citet{demiguel2009optimal} showed in an influential comparison
+across 14 empirical datasets that the $1/N$ equal-weight benchmark outperforms sophisticated
+optimisers on out-of-sample Sharpe ratios. The intuition is that estimation error in
+$\boldsymbol{\mu}$ dominates the gains from covariance-aware weighting unless the signal
+is very precise. This finding directly motivates the research agenda of using LLMs:
+if a model can extract more precise estimates of $\boldsymbol{\mu}$ from text---earnings
+calls, news, analyst reports---the optimization gains that have been theoretically
+available but practically elusive may finally materialise.
+
+% -----------------------------------------------------------
 \subsection{Black-Litterman Model: Incorporating Views and Priors}
 \label{sec:ch10-black-litterman}
+% -----------------------------------------------------------
 
-[Placeholder]
+The \emph{Black-Litterman model} \citep{blacklitterman1992} resolves the estimation
+problem by Bayesian reasoning: rather than using sample means directly, it starts from a
+prior that reflects market equilibrium and updates that prior with investor views.
 
+The equilibrium prior is derived by reverse-engineering implied returns from the market
+portfolio. Let $\mathbf{w}^{\text{mkt}}$ denote the market-capitalisation weights and
+$\delta$ the risk-aversion coefficient. The implied equilibrium excess-return vector is
+\begin{equation}
+  \boldsymbol{\Pi} = \delta\, \boldsymbol{\Sigma}\, \mathbf{w}^{\text{mkt}}.
+  \label{eq:ch10-bl-pi}
+\end{equation}
+These equilibrium returns serve as the prior mean: $\boldsymbol{\mu} \sim
+\mathcal{N}(\boldsymbol{\Pi}, \tau\boldsymbol{\Sigma})$, where $\tau$ is a small scalar
+reflecting uncertainty in the prior.
+
+An investor holds $K$ views on linear combinations of asset returns, expressed as
+\begin{equation}
+  \mathbf{P}\boldsymbol{\mu} = \mathbf{q} + \boldsymbol{\varepsilon},
+  \quad \boldsymbol{\varepsilon} \sim \mathcal{N}(\mathbf{0}, \boldsymbol{\Omega}),
+  \label{eq:ch10-bl-views}
+\end{equation}
+where $\mathbf{P} \in \mathbb{R}^{K \times N}$ picks out assets, $\mathbf{q} \in
+\mathbb{R}^K$ states the view values, and $\boldsymbol{\Omega}$ captures view uncertainty.
+Applying Bayes' rule yields a posterior mean
+\begin{equation}
+  \hat{\boldsymbol{\mu}} =
+  \bigl[(\tau\boldsymbol{\Sigma})^{-1} + \mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{P}\bigr]^{-1}
+  \bigl[(\tau\boldsymbol{\Sigma})^{-1}\boldsymbol{\Pi} + \mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{q}\bigr].
+  \label{eq:ch10-bl-posterior}
+\end{equation}
+The posterior mean $\hat{\boldsymbol{\mu}}$ then replaces $\boldsymbol{\mu}$ in the
+mean-variance programme~\eqref{eq:ch10-mv-program}. When no views are held,
+$\hat{\boldsymbol{\mu}} \to \boldsymbol{\Pi}$ and the optimal portfolio reduces to the
+market portfolio---a useful sanity check.
+
+The key virtue of Black-Litterman is that it decouples \emph{where} views are held from
+\emph{what} the views are. An investor who has a view on three sectors out of thirty need
+only specify those three rows of $\mathbf{P}$; the optimizer handles the rest
+consistently. This modularity maps naturally onto LLM-generated signals: an LLM that
+processes earnings calls can produce a view $q_k$ for each company it covers, together
+with a confidence score that informs $\Omega_{kk}$. Sections~\ref{sec:ch10-analyst-views-extraction}
+and~\ref{sec:ch10-llm-factors-fama-french} detail how to operationalise this pipeline.
+
+\begin{example}[A Single Absolute View in Black-Litterman]
+\label{ex:ch10-bl-single-view}
+Suppose an LLM processes Apple's quarterly earnings call and outputs a probability of
+$0.72$ that Apple will beat consensus EPS estimates next quarter. We translate this into
+an \emph{absolute view}: $\mathbf{P} = \mathbf{e}_{\text{AAPL}}^\top$ (a row vector
+selecting Apple), $q = 1\%$ (an expected monthly excess return), and $\Omega_{11} =
+(0.5\%)^2$ (reflecting moderate confidence).
+
+Before this view, the equilibrium implied return for Apple might be $\Pi_{\text{AAPL}} =
+0.3\%$ per month. After applying equation~\eqref{eq:ch10-bl-posterior}, the posterior
+return shifts upward, with the magnitude of the shift proportional to the distance
+$q - \mathbf{P}\boldsymbol{\Pi}$ relative to the total uncertainty
+$\tau \mathbf{P}\boldsymbol{\Sigma}\mathbf{P}^\top + \boldsymbol{\Omega}$. If the view
+confidence is high ($\Omega_{11}$ small), the posterior closely matches $q = 1\%$; if
+the view confidence is low, the posterior barely deviates from $\Pi_{\text{AAPL}}$.
+Intuitively, the BL framework prevents any single noisy signal from dominating the
+portfolio.
+\end{example}
+
+% -----------------------------------------------------------
 \subsection{Where LLMs Can and Cannot Add Value}
 \label{sec:ch10-llm-limits}
+% -----------------------------------------------------------
 
-[Placeholder]
+The case for using LLMs in portfolio construction rests on a specific hypothesis: that
+financial text contains information about future returns that is not yet fully impounded
+in prices, and that LLMs can extract that information more accurately than legacy NLP
+methods. Both conjuncts deserve scrutiny.
 
+The \emph{information hypothesis} is grounded in the Grossman-Stiglitz paradox
+\citep{grossman1980im}: perfectly efficient markets cannot exist because no one would
+then have an incentive to collect information. In equilibrium, some amount of
+informationally-sensitive trading must earn a return that compensates for research costs.
+The empirical question is whether LLM-extracted signals constitute such information. Early
+evidence is mixed. \citet{lopezlira2023chatgpt} found that GPT-based sentiment scores for
+firm-specific news predict short-horizon returns with statistically significant
+coefficients, but the magnitudes are small and the evidence of economic significance---
+after transaction costs---is limited. \citet{tetlock2007giving} showed more than a decade
+ago that simple dictionary sentiment from newspaper columns predicts excess returns, so
+the incremental value of LLMs over dictionaries is the relevant comparison.
+
+The \emph{extraction hypothesis} is more unambiguous: LLMs understand financial language
+better than term-frequency or rule-based methods. They handle negation, hedging, sarcasm,
+and domain-specific idiom. A line such as ``while we remain cautiously optimistic about
+the macro backdrop, we are managing expenses prudently to protect margins'' contains
+nuanced signals that a bag-of-words classifier would misread, whereas a fine-tuned LLM
+would correctly identify the defensive tone \citep{araci2019finbert}.
+
+Where LLMs add clear value:
+\begin{itemize}
+  \item \textbf{Alternative data structuring.} Converting unstructured earnings calls,
+    analyst reports, and regulatory filings into structured factors or views at scale.
+  \item \textbf{Risk monitoring.} Flagging emerging risks---supply-chain disruptions,
+    geopolitical events, management credibility concerns---before they appear in financial
+    statements.
+  \item \textbf{Analyst view aggregation.} Synthesising heterogeneous analyst
+    reports into a single posterior view with calibrated uncertainty.
+\end{itemize}
+
+Where LLMs do \emph{not} add clear value:
+\begin{itemize}
+  \item \textbf{Return prediction at horizons beyond a few days.} At weekly or monthly
+    horizons, macroeconomic and factor risks dominate idiosyncratic news signals.
+  \item \textbf{Replacing quantitative factor models.} A Fama-French factor model
+    captures covariance structure efficiently; LLMs are not designed to estimate
+    covariance matrices.
+  \item \textbf{Timing decisions in isolation.} LLMs have no privileged access to
+    order-flow, price-impact, or microstructure data---all of which are essential for
+    execution timing.
+\end{itemize}
+
+The most productive framing is that LLMs are \emph{information extraction engines}, not
+portfolio optimizers. They produce signals; classical theory dictates how those signals
+should be combined into weights.
+
+% ============================================================
 \section{LLMs as Alternative Data Processors}
 \label{sec:ch10-llms-alternative-data}
+% ============================================================
 
-[Placeholder]
+Alternative data---any data source beyond traditional price and accounting series---has
+become a defining feature of quantitative investing. Satellite imagery, credit-card
+transaction flows, web scraping, and social media all provide informational edges that
+erode quickly once widely adopted. Text remains the most abundant and least saturated
+category: earnings call transcripts, analyst reports, SEC filings, news articles, and
+central-bank communications collectively generate terabytes of structured natural language
+each year. LLMs can process this at scale, converting prose into numerical signals suitable
+for factor models and portfolio construction.
 
+% -----------------------------------------------------------
 \subsection{Extracting Analyst Views and Market Expectations from Text}
 \label{sec:ch10-analyst-views-extraction}
+% -----------------------------------------------------------
 
-[Placeholder]
+Analyst reports occupy an unusual informational position: they aggregate expert
+judgment, proprietary channel checks, and management guidance into a single narrative.
+Research has long documented that the \emph{tone} of an analyst report---independent of
+the explicit rating upgrade or target-price revision---contains incremental information
+about future returns \citep{lehavy2011benefit}. LLMs can extract this tone more reliably
+than rule-based systems.
 
+A practical extraction pipeline proceeds in four stages. First, the raw document is
+retrieved (from a proprietary feed or from SEC EDGAR for public filings) and split into
+semantically coherent chunks. Second, an LLM---typically a fine-tuned variant of a general
+model or a specialist such as FinBERT \citep{araci2019finbert}---assigns a sentiment score
+to each chunk. Third, the chunk-level scores are aggregated (e.g., weighted by sentence
+position, since forward-looking paragraphs near the summary carry more weight) into a
+document-level signal $s_i \in [-1, 1]$. Fourth, the signal is normalised within
+industry and time period to remove sector-level trends.
+
+For the Black-Litterman framework, the mapping from signal to view is
+\begin{equation}
+  q_i = \alpha \cdot s_i + \Pi_i,
+  \quad \Omega_{ii} = \sigma_q^2 \cdot (1 - |s_i|),
+  \label{eq:ch10-signal-to-view}
+\end{equation}
+where $\alpha$ is a calibrated scaling constant (estimated by regressing past signals
+against realized excess returns), and the uncertainty $\Omega_{ii}$ is inversely
+proportional to signal magnitude: a strong, unambiguous signal ($|s_i| \approx 1$)
+warrants low view uncertainty; a neutral signal ($|s_i| \approx 0$) warrants high
+uncertainty, effectively allowing the equilibrium prior to dominate.
+
+A practical concern is \emph{information staleness}: an analyst report may be published
+after the market has already reacted to management guidance on an earnings call.
+Timestamp management is therefore critical. The signal should use only text available
+before the close of the trading day on which the portfolio is rebalanced. Systems that
+accidentally include after-hours summaries in next-day decisions introduce look-ahead
+bias---a topic we return to in Section~\ref{sec:ch10-backtesting-pitfalls}.
+
+\begin{example}[Extracting BL Views from Earnings Call Transcripts]
+\label{ex:ch10-earnings-call-bl}
+Consider a universe of 100 S\&P 500 companies. Each quarter, earnings calls are
+transcribed and chunked by speaker turn. An LLM is prompted as follows:
+
+\begin{quote}
+\textit{You are a sell-side equity analyst. Given the following excerpt from an earnings
+call, assign a return sentiment score from $-1$ (strongly bearish) to $+1$ (strongly
+bullish) for the stock over the next month. Output only the numeric score.}
+\end{quote}
+
+For a company whose CFO states ``we are raising our full-year revenue guidance by 5\%
+and see no signs of demand softening'', the LLM reliably returns scores in $[0.6, 0.9]$.
+For a company whose CEO states ``we are cautious about the macro environment and are
+taking steps to right-size our cost structure'', scores cluster in $[-0.6, -0.3]$.
+
+After calibrating $\alpha$ on two years of held-out data, the correlation between
+the extracted signal and one-month-ahead excess returns is found to be approximately
+$0.08$---statistically significant in a $T = 800$ observation sample, but implying a
+modest information ratio of about 0.25. When inserted into a BL optimizer with
+$\delta = 3$ and $\tau = 0.05$, the resulting portfolio achieves a Sharpe ratio 15\%
+above the equal-weight benchmark before transaction costs.
+\end{example}
+
+% -----------------------------------------------------------
 \subsection{Constructing LLM-Based Factors for Fama-French Models}
 \label{sec:ch10-llm-factors-fama-french}
+% -----------------------------------------------------------
 
-[Placeholder]
+Factor models decompose the return of any asset into a systematic component explained by
+a small number of common factors and an idiosyncratic residual:
+\begin{equation}
+  r_{i,t} = \alpha_i + \sum_{k=1}^{K} \beta_{ik} f_{k,t} + \varepsilon_{i,t},
+  \label{eq:ch10-factor-model}
+\end{equation}
+where $f_{k,t}$ are the factor returns and $\beta_{ik}$ are the loadings. Fama and
+French \citep{fama1993common} identified three economically motivated factors---market
+($\text{MKT}$), size ($\text{SMB}$), and value ($\text{HML}$)---later extended to
+five by adding profitability ($\text{RMW}$) and investment ($\text{CMA}$)
+\citep{fama2015five}.
 
+LLMs enable the construction of \emph{text-based factors}---long-short portfolios
+formed on signals derived from unstructured text. The construction mirrors classical
+accounting factors. Define the LLM sentiment score for firm $i$ at time $t$ as $s_{i,t}
+\in \mathbb{R}$. A \emph{language factor} (LF) is constructed as follows:
+
+\begin{definition}[Language Factor]
+\label{def:language-factor}
+Let $s_{i,t}$ denote the cross-sectionally demeaned LLM sentiment score for firm $i$
+at rebalancing date $t$. Sort firms into quintiles based on $s_{i,t}$.
+The \emph{language factor} is
+\begin{equation}
+  \text{LF}_t = R_t^{\text{top quintile}} - R_t^{\text{bottom quintile}},
+  \label{eq:ch10-language-factor}
+\end{equation}
+where $R_t^{\text{quintile}}$ denotes the equal-weighted portfolio return in that quintile
+over the subsequent holding period.
+\end{definition}
+
+The key empirical question is whether LF earns a significant alpha after controlling
+for classical factors. If the regression
+\begin{equation}
+  \text{LF}_t = \alpha + \beta_{\text{MKT}} \text{MKT}_t + \beta_{\text{SMB}} \text{SMB}_t
+  + \beta_{\text{HML}} \text{HML}_t + \beta_{\text{RMW}} \text{RMW}_t
+  + \beta_{\text{CMA}} \text{CMA}_t + \varepsilon_t
+  \label{eq:ch10-lf-alpha-regression}
+\end{equation}
+yields a statistically significant $\hat{\alpha} > 0$, then LF captures information
+orthogonal to the classical factors. Early evidence from earnings-call sentiment suggests
+this alpha exists in the short run---up to five trading days after the call---but decays
+rapidly as market participants process the same text \citep{tetlock2007giving,
+lopezlira2023chatgpt}.
+
+An important methodological caveat: \citet{harvey2016cross} documented that with hundreds
+of proposed factors tested against the same dataset, conventional significance thresholds
+($t > 2$) produce many false discoveries. A language factor that survives a Bonferroni
+correction or a Sharpe ratio test accounting for multiple comparisons provides much stronger
+evidence than a raw $p$-value below 0.05. This concern interacts directly with the backtest
+pitfalls discussed in Section~\ref{sec:ch10-backtesting-pitfalls}.
+
+% ============================================================
 \section{LLM-Guided Algorithmic Trading}
 \label{sec:ch10-llm-algorithmic-trading}
+% ============================================================
 
-[Placeholder]
+Algorithmic trading applies computational methods to generate, transmit, and execute
+orders with minimal human intervention. The space ranges from \emph{high-frequency
+trading} (holding periods of microseconds to seconds, driven by microstructure signals)
+to \emph{systematic macro} (holding periods of weeks to months, driven by fundamental
+signals). LLMs are relevant primarily in the latter regime, where information latency is
+measured in hours rather than milliseconds and where the quality of the signal---rather
+than the speed of its delivery---determines performance.
 
+% -----------------------------------------------------------
 \subsection{LLMs as Sentiment-Driven Signal Generators}
 \label{sec:ch10-sentiment-signals}
+% -----------------------------------------------------------
 
-[Placeholder]
+A trading signal $s_t \in \mathbb{R}$ drives a position $w_t = f(s_t)$, where $f$
+is a mapping from signal to portfolio weight. The signal-to-weight mapping must satisfy
+several practical constraints: the position should scale with signal strength, be bounded
+to prevent excessive concentration, and decay as the signal ages.
 
+A standard approach uses a \emph{z-score normalisation} of the raw LLM output followed
+by a position-sizing rule. If the raw sentiment score for asset $i$ at time $t$ is
+$\tilde{s}_{i,t}$, the normalised signal is
+\begin{equation}
+  z_{i,t} = \frac{\tilde{s}_{i,t} - \hat{\mu}_s}{\hat{\sigma}_s},
+  \label{eq:ch10-zscore}
+\end{equation}
+where $\hat{\mu}_s$ and $\hat{\sigma}_s$ are computed over a rolling backward window
+(e.g., 252 trading days). The position in asset $i$ is then
+\begin{equation}
+  w_{i,t} = \frac{z_{i,t}}{\sum_j |z_{j,t}|} \cdot W_{\max},
+  \label{eq:ch10-position-sizing}
+\end{equation}
+with $W_{\max}$ a maximum gross exposure parameter. Equation~\eqref{eq:ch10-position-sizing}
+produces a dollar-neutral portfolio when positive and negative signals are balanced across
+the universe---desirable for a long-short strategy that seeks to be insulated from
+broad market moves.
+
+The dynamics of news sentiment decay must be modelled explicitly. A sentiment signal
+derived from a news article at time $t_0$ carries diminishing predictive content as the
+market digests the news. A common functional form is exponential decay:
+\begin{equation}
+  s_{i,t} = \sum_{\tau \leq t} \tilde{s}_{i,\tau} \cdot e^{-\lambda(t - \tau)},
+  \label{eq:ch10-ewma-sentiment}
+\end{equation}
+where $\lambda > 0$ controls the half-life of the signal. Calibrating $\lambda$ is an
+empirical matter: short-horizon price impact suggests $\lambda$ around $0.1$--$0.5$
+day$^{-1}$ (half-lives of one to seven trading days) for most equity news events.
+
+% -----------------------------------------------------------
 \subsection{LLM-Guided Reinforcement Learning for Order Execution}
 \label{sec:ch10-rl-order-execution}
+% -----------------------------------------------------------
 
-[Placeholder]
+Order execution is the problem of slicing a large parent order into child orders that are
+dispatched to the exchange over a specified horizon, minimising total market impact and
+shortfall relative to a benchmark price (typically the arrival price or VWAP). Classical
+approaches, such as the Almgren-Chriss model \citep{almgren2001optimal}, derive optimal
+execution schedules under a quadratic impact model:
+\begin{equation}
+  \text{Cost}(\mathbf{x}) = \sum_{k=1}^{T} \left[\eta x_k^2 + \gamma \sigma^2 x_k
+    \left(X - \sum_{j=1}^{k} x_j\right) \right],
+  \label{eq:ch10-ac-cost}
+\end{equation}
+where $x_k$ is the volume executed in period $k$, $X$ is the total order size, $\eta$
+is the temporary impact coefficient, and $\gamma$ is the risk-aversion coefficient.
+The Almgren-Chriss solution is a closed-form time-varying schedule that front-loads
+execution when risk-aversion is high and spreads it uniformly when it is low.
 
+Reinforcement learning (RL) extends this framework by learning state-dependent execution
+policies directly from market data \citep{mnih2015human, liu2022finrl}. The RL agent
+observes a state $s_t$ comprising the residual inventory $X_t$, time remaining $T - t$,
+current bid-ask spread, and recent price momentum. It selects an action $a_t \in [0, X_t]$
+(the volume to execute in the current period) and receives a reward $r_t = -\text{cost}(a_t)$.
+
+The role of LLMs in this pipeline is \emph{state augmentation}: the raw market-microstructure
+state is enriched with a textual signal summarising breaking news about the stock or the
+broader market. When a negative earnings surprise appears in the news feed, an LLM can
+rapidly classify the event and trigger an accelerated execution schedule, reducing
+adverse selection risk by completing the order before the full price impact is realised.
+The LLM acts as a real-time alert system that modifies the RL agent's state representation
+rather than replacing the execution logic.
+
+Concretely, the augmented state is $\tilde{s}_t = [s_t^{\text{micro}},
+\text{LLM-alert}_t]$, where $\text{LLM-alert}_t \in \{-1, 0, 1\}$ represents a negative,
+neutral, or positive news event in the previous five minutes. In simulations based on the
+FinRL framework \citep{liu2022finrl}, adding news-alert features reduces implementation
+shortfall by approximately 8--12\% relative to a baseline RL agent without text
+augmentation, though results are highly sensitive to the quality of the event-detection
+classifier and the latency of the LLM inference pipeline.
+
+% -----------------------------------------------------------
 \subsection{Why LLMs Are Not Stock Pickers: Market Efficiency Arguments}
 \label{sec:ch10-llm-not-stock-pickers}
+% -----------------------------------------------------------
 
-[Placeholder]
+A recurring claim in the popular press and some academic papers is that LLMs can
+``predict the stock market''. This claim deserves careful scrutiny, because it conflates
+statistically significant predictability with economically profitable trading---a
+distinction that the market-efficiency literature has drawn for decades.
 
+The weak form of the efficient market hypothesis states that all past price information
+is reflected in current prices \citep{fama1970efficient}. The semi-strong form further
+incorporates all publicly available information. An LLM that reads public news articles
+to generate trading signals is, by definition, attempting to exploit publicly available
+information. For large-cap equities with extensive analyst coverage, prices adjust to
+news within minutes of publication. By the time an LLM has processed a news article---
+even with a low-latency API---the price impact of that news has already been absorbed by
+algorithmic traders with faster pipelines.
+
+The Grossman-Stiglitz equilibrium \citep{grossman1980im} provides a more nuanced lens.
+Some positive return must accrue to informed trading, otherwise no one would bear the
+cost of information collection. LLMs reduce the cost of processing text, potentially
+expanding the set of investors who can act on textual signals. But if every large
+investor subscribes to the same LLM API, the signal becomes crowded: many traders act
+on the same information simultaneously, accelerating price discovery and compressing the
+available alpha. This dynamic is already observable in the equity sentiment literature:
+signals based on broad newspaper coverage have largely decayed over time as the market
+has become more sophisticated at processing news \citep{tetlock2007giving}.
+
+There is also a \emph{calibration problem}. LLMs generate probabilities that are not
+inherently calibrated to financial outcomes. A model that assigns a 70\% probability to
+a ``positive earnings outcome'' is not making a claim that the stock will rise 70\% of
+the time---the mapping from textual prediction to price movement depends on the current
+market expectation, the volatility of the stock, and countless other factors. Proper
+calibration requires out-of-sample evaluation against realized returns, not in-sample
+training accuracy.
+
+The appropriate conclusion is not that LLMs are useless for trading, but that their
+value lies in specific niches: processing \emph{heterogeneous, low-coverage, or novel}
+information sources (small-cap filings, emerging-market news, niche regulatory
+disclosures) where human analyst coverage is thin and price discovery is slower. In
+these markets, the Grossman-Stiglitz equilibrium implies that the LLM-derived signal
+can still earn a return commensurate with the cost of collecting and processing the
+information.
+
+% ============================================================
 \section{Backtesting with LLM Signals}
 \label{sec:ch10-backtesting}
+% ============================================================
 
-[Placeholder]
+Backtesting is the empirical backbone of quantitative finance: it evaluates whether a
+proposed strategy would have been profitable on historical data. A well-designed backtest
+is a necessary (though not sufficient) condition for deploying a strategy with real
+capital. The central challenge is producing a \emph{realistic} simulation that accounts
+for market frictions, data limitations, and the multiple-comparison problem.
 
+% -----------------------------------------------------------
 \subsection{Walk-Forward Evaluation and Out-of-Sample Tests}
 \label{sec:ch10-walk-forward}
+% -----------------------------------------------------------
 
-[Placeholder]
+The standard backtesting protocol exposes a strategy to a single contiguous historical
+period, uses the full-period data to estimate parameters, then reports in-sample
+performance. This protocol is nearly useless for evaluating predictive strategies: the
+model has implicitly seen the future when its parameters are calibrated, and the
+in-sample Sharpe ratio substantially overstates live performance.
 
+\emph{Walk-forward validation} is the time-series analogue of cross-validation. The
+history is partitioned into an initial training window of length $T_{\text{train}}$, a
+validation window of length $T_{\text{val}}$, and a succession of out-of-sample test
+windows of length $T_{\text{test}}$:
+
+\begin{definition}[Walk-Forward Evaluation Protocol]
+\label{def:walk-forward}
+Fix a training length $T_{\text{train}}$, a validation length $T_{\text{val}}$, and a
+step size $\Delta$. For fold $m = 0, 1, 2, \ldots$, define:
+\begin{itemize}
+  \item \emph{Training set}: observations $[m\Delta,\; m\Delta + T_{\text{train}})$.
+  \item \emph{Validation set}: observations $[m\Delta + T_{\text{train}},\;
+        m\Delta + T_{\text{train}} + T_{\text{val}})$.
+  \item \emph{Test window}: observations $[m\Delta + T_{\text{train}} + T_{\text{val}},\;
+        m\Delta + T_{\text{train}} + T_{\text{val}} + \Delta)$.
+\end{itemize}
+Model parameters are estimated on the training set, hyperparameters are selected on
+the validation set, and performance is reported only on the concatenation of all
+test windows.
+\end{definition}
+
+For LLM-based signals, the ``parameters'' being estimated include the calibration
+constant $\alpha$ in equation~\eqref{eq:ch10-signal-to-view}, the decay parameter
+$\lambda$ in equation~\eqref{eq:ch10-ewma-sentiment}, and the position-sizing
+scale $W_{\max}$. These should never be optimised using knowledge of the test period.
+
+The \emph{out-of-sample Sharpe ratio} is the primary performance metric:
+\begin{equation}
+  \text{SR}^{\text{OOS}} = \frac{\bar{r}_p^{\text{OOS}}}{\hat{\sigma}_p^{\text{OOS}}}
+  \cdot \sqrt{252},
+  \label{eq:ch10-oos-sharpe}
+\end{equation}
+where $\bar{r}_p^{\text{OOS}}$ and $\hat{\sigma}_p^{\text{OOS}}$ are the mean and
+standard deviation of daily portfolio returns over the concatenated out-of-sample windows.
+A rule of thumb used in practice: a backtest Sharpe ratio above $1.5$ on at least three
+years of out-of-sample data is a reasonable threshold for proceeding to paper trading.
+
+% -----------------------------------------------------------
 \subsection{Transaction Costs, Slippage, and Capacity Analysis}
 \label{sec:ch10-transaction-costs}
+% -----------------------------------------------------------
 
-[Placeholder]
+A strategy that looks profitable before costs may be unprofitable after them. Transaction
+costs for a systematic equity strategy include:
+\begin{itemize}
+  \item \textbf{Bid-ask spread:} Half the spread is paid on each trade. For US large-cap
+    equities, this is on the order of 1--3 basis points per trade; for small-caps, 10--50
+    basis points is common.
+  \item \textbf{Market impact:} Large orders move prices against the trader. The
+    Almgren-Chriss model \citep{almgren2001optimal} parameterises this as a temporary
+    impact $\eta x^2$ and a permanent impact $\gamma x$, where $x$ is the fraction of
+    daily volume traded.
+  \item \textbf{Financing costs:} Short positions require borrowing securities, at a cost
+    that varies with stock supply (``borrow rate''). For hard-to-borrow stocks, this can
+    exceed 5\% per annum.
+\end{itemize}
 
+Let $\Delta w_{i,t} = w_{i,t} - w_{i,t-1}$ be the weight change in asset $i$ at
+rebalancing date $t$. A simple linear cost model charges a constant $c$ per unit of
+turnover:
+\begin{equation}
+  \text{TC}_t = c \sum_{i} |\Delta w_{i,t}|,
+  \label{eq:ch10-transaction-cost}
+\end{equation}
+with $c$ expressed in percentage points per unit of portfolio value rebalanced. For a
+daily-rebalanced LLM sentiment strategy with average one-way turnover of 15\%, a cost
+of $c = 0.05\%$ per trade implies annualised costs of approximately $0.15 \times 252
+\times 0.05\% \approx 1.89\%$---substantial enough to erase the alpha of a marginal
+signal.
+
+\emph{Capacity analysis} asks: how much capital can the strategy absorb before market
+impact erodes profitability? A common rule of thumb is that a strategy should not trade
+more than 5--10\% of average daily volume in any single stock. If the strategy requires
+position sizes of $\$10$M in a stock with $\$50$M daily volume, the 20\% participation
+rate will meaningfully move the price. Strategies based on LLM signals derived from
+earnings calls face a particularly acute capacity constraint: many funds process the same
+text simultaneously, creating crowded trades in the first hours after a call.
+
+% -----------------------------------------------------------
 \subsection{Common Backtesting Pitfalls: Look-Ahead Bias, Survivorship}
 \label{sec:ch10-backtesting-pitfalls}
+% -----------------------------------------------------------
 
-[Placeholder]
+\emph{Look-ahead bias} occurs when a backtest uses data that was not available at the
+time of the simulated trade. For LLM-based strategies, look-ahead bias can arise in
+several subtle forms:
 
+\begin{enumerate}
+  \item \textbf{Embedding leakage.} If the LLM was fine-tuned on data that includes
+    the evaluation period, its representations encode future information. A model
+    fine-tuned on all available earnings-call transcripts as of the backtest date is
+    contaminated if those transcripts post-date the simulated trading date.
+  \item \textbf{Model selection leakage.} Choosing the best-performing LLM variant
+    by looking at full-period performance, then backtesting on the same period, overfits
+    the model to that period. Hyperparameter selection must use only data predating the
+    evaluation window.
+  \item \textbf{Timestamp errors.} Earnings calls are typically released after market
+    close. If the backtest data assigns a release date of $t$ but the strategy trades
+    at the open on day $t$ rather than day $t+1$, the strategy is trading on information
+    not yet available at the open.
+\end{enumerate}
+
+\emph{Survivorship bias} affects any study that uses a historical universe of assets
+without accounting for delistings, bankruptcies, and mergers. A database of S\&P 500
+constituents as of today excludes all companies that were removed from the index due to
+financial distress---precisely the companies on which a risk-signal strategy would have
+suffered its worst drawdowns. Using a point-in-time constituent database (available from
+vendors such as Compustat or FactSet) is mandatory for a credible backtest.
+
+\citet{bailey2014probability} formalize the multiple-comparison problem through the
+\emph{Probability of Backtest Overfitting} (PBO), which estimates the probability that
+the strategy selected as best in-sample will underperform the median out-of-sample. When
+many parameter combinations are tried, PBO approaches one even for strategies with no
+genuine predictive power. \citet{prado2018advances} recommends reporting the \emph{minimum
+track record length} needed to confirm a given Sharpe ratio at a specified confidence
+level:
+\begin{equation}
+  T^* = 1 + \hat{\sigma}^2\left(1 - \gamma_1 \text{SR}^* + \frac{\gamma_2 - 1}{4}
+    (\text{SR}^*)^2 \right) \cdot \frac{Z_{1-\alpha}^2}{(\text{SR}^*)^2},
+  \label{eq:ch10-min-track}
+\end{equation}
+where $\gamma_1$ and $\gamma_2$ are the skewness and kurtosis of the return distribution
+and $Z_{1-\alpha}$ is the standard normal quantile. For non-normal strategy returns
+(typical of LLM sentiment strategies, which exhibit fat tails), $T^*$ can be several
+years, underlining why short backtests are insufficient.
+
+% ============================================================
 \section{Risk Management Applications}
 \label{sec:ch10-risk-management}
+% ============================================================
 
-[Placeholder]
+Risk management in quantitative finance concerns the identification, measurement, and
+control of potential losses. Classical tools---Value at Risk (VaR), Expected Shortfall
+(CVaR), stress testing---rely primarily on historical return distributions or
+parametric models. LLMs extend this toolkit by processing the enormous volume of
+qualitative information that precedes financial stress: management warnings, regulatory
+disclosures, macroeconomic commentary, and geopolitical developments that shift the
+tail of the return distribution before they appear in historical prices.
 
+% -----------------------------------------------------------
 \subsection{Tail Risk Estimation from Textual Signals}
 \label{sec:ch10-tail-risk}
+% -----------------------------------------------------------
 
-[Placeholder]
+\emph{Conditional Value at Risk} (CVaR, also called Expected Shortfall) at confidence
+level $\alpha$ is defined as the expected loss in the worst $\alpha$-fraction of outcomes:
+\begin{equation}
+  \text{CVaR}_\alpha(R) = -\mathbb{E}\bigl[R \mid R \leq q_\alpha(R)\bigr],
+  \label{eq:ch10-cvar}
+\end{equation}
+where $q_\alpha(R)$ is the $\alpha$-quantile of the return distribution $R$.
+\citet{rockafellar2000optimization} showed that CVaR is a coherent risk measure and can be
+minimised via a linear program, making it attractive for portfolio construction. The
+textual risk management question is: can LLM-based signals improve the estimation of
+$\text{CVaR}_\alpha$ in real time?
 
+The mechanism is as follows. Let $v_t$ denote a \emph{textual volatility signal}---a
+scalar derived from LLM processing of news at time $t$ that captures the intensity of
+risk-relevant language (references to uncertainty, litigation, credit deterioration,
+sovereign risk, etc.). A conditionally heteroskedastic return model augmented with the
+textual signal is:
+\begin{equation}
+  r_t = \mu + \varepsilon_t, \quad \varepsilon_t = \sigma_t z_t, \quad z_t \sim F(0, 1),
+  \label{eq:ch10-risk-model-1}
+\end{equation}
+\begin{equation}
+  \sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2
+               + \kappa v_{t-1},
+  \label{eq:ch10-risk-model-2}
+\end{equation}
+where equations~\eqref{eq:ch10-risk-model-1}--\eqref{eq:ch10-risk-model-2} define a
+GARCH(1,1) model augmented by the textual signal through the coefficient $\kappa$.
+Positive $\kappa$ means that elevated textual risk language forecasts higher return
+variance---and thus fatter tails---in the next period.
+
+Empirically, this specification connects to the News Implied Volatility (NVIX) of
+\citet{manela2017news}, who constructed a text-based measure of disaster risk from
+newspaper archives and showed it predicted stock-market variance and crash risk.
+LLMs can update this estimate in near real time at the individual-firm level rather
+than the aggregate market level, enabling position-specific tail-risk monitoring.
+
+For portfolio construction, CVaR-constrained optimization becomes:
+\begin{equation}
+  \min_{\mathbf{w}} \; \mathbf{w}^\top \boldsymbol{\Sigma}_t \mathbf{w}
+  \quad \text{subject to} \quad \text{CVaR}_\alpha(\mathbf{w}^\top \mathbf{r}_t)
+  \leq \bar{C},
+  \label{eq:ch10-cvar-constrained}
+\end{equation}
+where $\boldsymbol{\Sigma}_t$ is the time-varying covariance matrix (estimated via DCC
+\citep{engle2002dynamic} or a similar model) and $\bar{C}$ is the tail-risk budget.
+When $v_{t-1}$ is high for a particular sector, $\sigma_{i,t}^2$ rises for firms in
+that sector, reducing their contribution to $\text{CVaR}$ tolerance and triggering
+automatic de-risking.
+
+% -----------------------------------------------------------
 \subsection{Real-Time Portfolio Monitoring and Alert Systems}
 \label{sec:ch10-portfolio-monitoring}
+% -----------------------------------------------------------
 
-[Placeholder]
+Portfolio monitoring transforms the one-shot portfolio construction problem into a
+continuous surveillance task. The goal is to detect material risks before they trigger
+large losses, not after. LLMs are well suited to this role because they can process
+streams of unstructured data---regulatory filings, corporate announcements, earnings
+pre-announcements, news wires---and flag events that warrant human review or automated
+rebalancing.
+
+An alert system built on LLMs operates as a pipeline with three layers. The
+\emph{ingestion layer} polls data feeds (EDGAR, Reuters/Bloomberg news APIs, social
+media) at a configurable frequency and collects new text documents. The
+\emph{classification layer} applies an LLM to each document with a prompt designed to
+elicit a structured assessment of material risk:
+
+\begin{quote}
+\textit{You are a portfolio risk analyst. Read the following SEC filing excerpt and output
+a JSON object with fields: \texttt{risk\_level} (low/medium/high/critical), \texttt{risk\_type}
+(legal/financial/operational/macro/ESG), and \texttt{affected\_positions} (a list of
+ticker symbols mentioned in the context that may be directly affected). Be concise and
+specific.}
+\end{quote}
+
+The \emph{action layer} routes high-severity alerts to a risk officer for review, or
+directly to the execution system if the firm operates under a pre-approved automated
+response protocol. For example, a \texttt{critical} legal-risk alert for a position
+exceeding 2\% of portfolio value might automatically reduce the position to 1\% pending
+human review.
+
+Several calibration challenges arise in practice. First, the LLM must be calibrated to
+the firm's specific portfolio and risk tolerance---a ``high'' risk event for a sovereign
+bond portfolio is not the same as for an equity long-short fund. Fine-tuning on
+historical alert data labelled by the risk team significantly improves precision.
+Second, alert fatigue is real: a system that generates 200 alerts per day will be
+ignored. Precision-recall trade-offs should be tuned to produce a manageable number of
+actionable alerts (typically fewer than 20 per day for a 100-position portfolio). Third,
+the LLM inference pipeline must be fast enough to be useful: for end-of-day monitoring,
+minutes of latency are acceptable; for intraday risk, seconds matter.
+
+\begin{example}[An LLM Alert Triggered by an 8-K Filing]
+\label{ex:ch10-8k-alert}
+At 4:17 PM Eastern time on a Tuesday, a company in the portfolio files a Form 8-K with
+the SEC announcing an SEC investigation into its revenue recognition practices. Within
+30 seconds, the ingestion layer retrieves the filing. The classification layer invokes
+an LLM with the excerpt and receives the response:
+
+\begin{verbatim}
+{
+  "risk_level": "critical",
+  "risk_type": "legal",
+  "affected_positions": ["TICKER_X"],
+  "summary": "SEC formal order of investigation into revenue recognition.
+              Historical precedent suggests 20--40% downside risk."
+}
+\end{verbatim}
+
+The action layer flags the alert and, under the firm's protocol, executes a partial
+position reduction from 2.1\% to 1.0\% of the portfolio at the next opening. The next
+morning, the stock opens down 28\% on the news. The automated response, triggered within
+seconds of the filing, protected the portfolio from roughly half of the maximum loss
+that a slow-response system would have sustained.
+\end{example}
+
+The example illustrates both the promise and the limitation of LLM-based risk monitoring.
+The system acted faster than a human analyst could have. But it could not foresee the
+exact magnitude of the market reaction, nor could it distinguish between an investigation
+that will be closed with no action and one that will lead to a restatement. The system
+reduces tail exposure but cannot eliminate it; human judgment remains essential for
+calibrating the automated response thresholds.
+
+% ============================================================
+\section{Summary}
+\label{sec:ch10-summary}
+% ============================================================
+
+This chapter developed the intersection of large language models with classical portfolio
+theory, algorithmic trading, and risk management. Five key takeaways deserve emphasis.
+
+\textbf{LLMs as information extractors, not optimizers.} The efficient frontier
+\citep{markowitz1952portfolio} and Black-Litterman framework \citep{blacklitterman1992}
+remain the correct tools for translating return signals into portfolio weights. LLMs
+contribute by generating better estimates of $\boldsymbol{\mu}$---the expected return
+vector---from unstructured text, not by replacing the optimization machinery.
+
+\textbf{Factor construction is the most defensible channel.} Building long-short
+portfolios based on LLM-derived sentiment scores and testing their alpha against
+Fama-French factors \citep{fama1993common, fama2015five} provides a principled evaluation
+framework. Statistical rigour demands adjustment for multiple comparisons
+\citep{harvey2016cross} and out-of-sample validation.
+
+\textbf{Market efficiency limits but does not eliminate LLM alpha.} The Grossman-Stiglitz
+paradox \citep{grossman1980im} implies that some informed return must exist, but it also
+implies that LLM signals will be most valuable in low-coverage markets where price
+discovery is slowest. Large-cap, heavily covered equities are the hardest target.
+
+\textbf{Backtesting discipline is non-negotiable.} Walk-forward evaluation, realistic
+transaction cost modelling, point-in-time data, and correction for backtest overfitting
+\citep{bailey2014probability, prado2018advances} are not optional refinements---they are
+the difference between a research artefact and a deployable strategy.
+
+\textbf{Real-time risk monitoring is a high-value, lower-competition application.}
+Extracting structured risk signals from regulatory filings and news wires, augmenting
+GARCH-family volatility models \citep{engle2002dynamic}, and maintaining continuous
+portfolio surveillance represent applications where LLMs deliver tangible, auditable
+value with less exposure to the market-efficiency critique.
+
+% ============================================================
+\section{Further Reading}
+\label{sec:ch10-further-reading}
+% ============================================================
+
+Readers seeking deeper treatment of classical portfolio theory should consult
+\citet{markowitz1952portfolio} for the original mean-variance framework and
+\citet{blacklitterman1992} for the Bayesian extension. The empirical limits of portfolio
+optimization are surveyed comprehensively by \citet{demiguel2009optimal}.
+
+For the factor-model foundation of portfolio construction, \citet{fama1993common} and
+\citet{fama2015five} are essential primary sources. \citet{carhart1997persistence}
+documents the momentum factor that the original three-factor model omits.
+\citet{harvey2016cross} provides a sobering assessment of multiple-comparison problems
+in the factor-zoo literature.
+
+On LLM applications to return prediction and sentiment, \citet{lopezlira2023chatgpt}
+and \citet{tetlock2007giving} bracket the evidence from primitive to modern methods.
+\citet{kim2023llm} extends this to corporate risk disclosure.
+
+For reinforcement learning in trading, \citet{liu2022finrl} provides the most complete
+open-source framework, while \citet{almgren2001optimal} remains the canonical reference
+for optimal execution. \citet{mnih2015human} and \citet{schulman2017proximal} are the
+foundational RL papers.
+
+Backtesting methodology is treated at book length by \citet{prado2018advances}, which
+provides Python implementations of the minimum track record length, deflated Sharpe
+ratio, and combinatorially symmetric cross-validation. \citet{bailey2014probability}
+develops the theoretical foundations for backtest overfitting. For risk measurement,
+\citet{rockafellar2000optimization} derives the CVaR linear programme, and
+\citet{engle2002dynamic} introduces DCC-GARCH.
+
+Readers interested in the regulatory and institutional context of LLM deployment in
+risk management should consult Chapter~7 on regulatory compliance and the Federal
+Reserve's model risk management guidance \citep{federalreserve2011sr117}, which requires
+that all model outputs be explainable, validated, and auditable---challenges that apply
+directly to LLM-based risk signals.

@@ -195,11 +195,11 @@ in prices, and that LLMs can extract that information more accurately than legac
 methods. Both conjuncts deserve scrutiny.
 
 The \emph{information hypothesis} is grounded in the Grossman-Stiglitz paradox
-\citep{grossman1980im}: perfectly efficient markets cannot exist because no one would
+\citep{grossman1980impossibility}: perfectly efficient markets cannot exist because no one would
 then have an incentive to collect information. In equilibrium, some amount of
 informationally-sensitive trading must earn a return that compensates for research costs.
 The empirical question is whether LLM-extracted signals constitute such information. Early
-evidence is mixed. \citet{lopezlira2023chatgpt} found that GPT-based sentiment scores for
+evidence is mixed. \citet{LopezLiraTang2023} found that GPT-based sentiment scores for
 firm-specific news predict short-horizon returns with statistically significant
 coefficients, but the magnitudes are small and the evidence of economic significance---
 after transaction costs---is limited. \citet{tetlock2007giving} showed more than a decade
@@ -375,7 +375,7 @@ yields a statistically significant $\hat{\alpha} > 0$, then LF captures informat
 orthogonal to the classical factors. Early evidence from earnings-call sentiment suggests
 this alpha exists in the short run---up to five trading days after the call---but decays
 rapidly as market participants process the same text \citep{tetlock2007giving,
-lopezlira2023chatgpt}.
+LopezLiraTang2023}.
 
 The process of constructing new quantitative factors can itself be automated by LLMs.
 \citet{YukselAlphaQuant2025} present AlphaQuant, an LLM-evolutionary loop that
@@ -517,7 +517,7 @@ news within minutes of publication. By the time an LLM has processed a news arti
 even with a low-latency API---the price impact of that news has already been absorbed by
 algorithmic traders with faster pipelines.
 
-The Grossman-Stiglitz equilibrium \citep{grossman1980im} provides a more nuanced lens.
+The Grossman-Stiglitz equilibrium \citep{grossman1980impossibility} provides a more nuanced lens.
 Some positive return must accrue to informed trading, otherwise no one would bear the
 cost of information collection. LLMs reduce the cost of processing text, potentially
 expanding the set of investors who can act on textual signals. But if every large
@@ -678,7 +678,7 @@ vendors such as Compustat or FactSet) is mandatory for a credible backtest.
 \emph{Probability of Backtest Overfitting} (PBO), which estimates the probability that
 the strategy selected as best in-sample will underperform the median out-of-sample. When
 many parameter combinations are tried, PBO approaches one even for strategies with no
-genuine predictive power. \citet{prado2018advances} recommends reporting the \emph{minimum
+genuine predictive power. \citet{lopezdeprado2018advances} recommends reporting the \emph{minimum
 track record length} needed to confirm a given Sharpe ratio at a specified confidence
 level:
 \begin{equation}
@@ -853,13 +853,13 @@ framework. Statistical rigour demands adjustment for multiple comparisons
 \citep{harvey2016cross} and out-of-sample validation.
 
 \textbf{Market efficiency limits but does not eliminate LLM alpha.} The Grossman-Stiglitz
-paradox \citep{grossman1980im} implies that some informed return must exist, but it also
+paradox \citep{grossman1980impossibility} implies that some informed return must exist, but it also
 implies that LLM signals will be most valuable in low-coverage markets where price
 discovery is slowest. Large-cap, heavily covered equities are the hardest target.
 
 \textbf{Backtesting discipline is non-negotiable.} Walk-forward evaluation, realistic
 transaction cost modelling, point-in-time data, and correction for backtest overfitting
-\citep{bailey2014probability, prado2018advances} are not optional refinements---they are
+\citep{bailey2014probability, lopezdeprado2018advances} are not optional refinements---they are
 the difference between a research artefact and a deployable strategy.
 
 \textbf{Real-time risk monitoring is a high-value, lower-competition application.}
@@ -884,7 +884,7 @@ documents the momentum factor that the original three-factor model omits.
 \citet{harvey2016cross} provides a sobering assessment of multiple-comparison problems
 in the factor-zoo literature.
 
-On LLM applications to return prediction and sentiment, \citet{lopezlira2023chatgpt}
+On LLM applications to return prediction and sentiment, \citet{LopezLiraTang2023}
 and \citet{tetlock2007giving} bracket the evidence from primitive to modern methods.
 \citet{kim2023llm} extends this to corporate risk disclosure.
 
@@ -893,7 +893,7 @@ open-source framework, while \citet{almgren2001optimal} remains the canonical re
 for optimal execution. \citet{mnih2015human} and \citet{schulman2017proximal} are the
 foundational RL papers.
 
-Backtesting methodology is treated at book length by \citet{prado2018advances}, which
+Backtesting methodology is treated at book length by \citet{lopezdeprado2018advances}, which
 provides Python implementations of the minimum track record length, deflated Sharpe
 ratio, and combinatorially symmetric cross-validation. \citet{bailey2014probability}
 develops the theoretical foundations for backtest overfitting. For risk measurement,
@@ -912,6 +912,6 @@ Black-Litterman integration and hierarchical RL sentiment fusion.
 
 Readers interested in the regulatory and institutional context of LLM deployment in
 risk management should consult Chapter~7 on regulatory compliance and the Federal
-Reserve's model risk management guidance \citep{federalreserve2011sr117}, which requires
+Reserve's model risk management guidance \citep{sr117}, which requires
 that all model outputs be explainable, validated, and auditable---challenges that apply
 directly to LLM-based risk signals.

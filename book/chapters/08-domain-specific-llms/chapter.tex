@@ -278,7 +278,7 @@ a useful secondary account of the model's capabilities for practitioners who lac
 access to the full technical report.
 
 \textit{FinGPT.}  In contrast to the closed, proprietary BloombergGPT,
-\citet{yang2023fingpt} introduced FinGPT as an open-source framework for
+\citet{Yang2023} introduced FinGPT as an open-source framework for
 building financial LLMs.  Rather than training from scratch, FinGPT applies
 low-rank adaptation (LoRA \cite{hu2022lora}) to open foundation models
 (LLaMA, ChatGLM, Falcon) using continuously updated financial news data fetched
@@ -294,7 +294,7 @@ financial knowledge encoded in the pre-training corpus, but FinGPT's modular,
 data-efficient approach makes it the natural choice for teams without the resources
 for pre-training at scale.
 
-\textit{FinMA (via PIXIU).}  \citet{xie2023finma} introduce FinMA as part of
+\textit{FinMA (via PIXIU).}  \citet{xie2023pixiu} introduce FinMA as part of
 the PIXIU suite: a 7-billion-parameter LLaMA model instruction-tuned on a
 curated dataset of 136,000 financial instruction--response pairs spanning
 sentiment analysis, named entity recognition, news headline classification,
@@ -568,7 +568,7 @@ It includes stress-test tasks such as credit scoring from textual loan descripti
 financial forecasting from annual report narratives, and multi-document
 summarisation of earnings call transcripts---tasks that require a model to
 integrate information across multiple sources and produce coherent structured output.
-A complementary benchmarking methodology is demonstrated by \citet{Cook2023},
+A complementary benchmarking methodology is demonstrated by \citet{CookKazinnik2023},
 who evaluate local (domain-specific) LLMs on financial and economic text using
 bank earnings calls as the evaluation domain; their framework is notable for
 its practical orientation, covering tasks that matter to central bank researchers
@@ -630,7 +630,7 @@ models (7B parameters and below), DAPT on financial text provides large, consist
 gains across most financial NLP tasks.  For models at the 70B+ scale, the gains
 are narrower and task-specific: they persist for lexically sensitive tasks
 (sentiment, tone, NER) but largely disappear for tasks whose difficulty is
-primarily about reasoning over long documents.  \citet{Rahimikia2024} sharpen this
+primarily about reasoning over long documents.  \citet{RahimikiaDrinkall2024} sharpen this
 picture by demonstrating that year-specific, domain-pre-trained financial LLMs
 outperform general-purpose models up to 50 times their parameter count in return
 prediction tasks---a particularly striking result because it controls for the
@@ -689,9 +689,9 @@ deployment architectures.
 BloombergGPT is proprietary and not publicly released; access is restricted to
 Bloomberg terminal subscribers.  FinBERT \cite{araci2019finbert} and the
 Yang--Huang FinBERT \cite{yang2020finbert} are released under the Apache 2.0
-license, permitting commercial use and modification.  FinGPT \cite{yang2023fingpt}
+license, permitting commercial use and modification.  FinGPT \cite{Yang2023}
 is released under MIT.  InvestLM \cite{yang2023investlm} and FinMA
-\cite{xie2023finma} are released under licenses that permit research use but
+\cite{xie2023pixiu} are released under licenses that permit research use but
 restrict commercial deployment (following the LLaMA-1 and LLaMA-2 license
 structures respectively).  Any deployment decision must begin with a license audit:
 does the intended use case fall within the permitted uses of the base model license,
@@ -773,7 +773,7 @@ rather than a dedicated FinLLM) grounded in a well-indexed EDGAR document store
 can match the accuracy of a larger ungrounded model on document-specific tasks
 while operating at a fraction of the inference cost and with full traceability
 to source documents---a regulatory requirement in many financial AI deployments
-\cite{federalreserve2011sr117}.  The modular approach is taken further by
+\cite{sr117}.  The modular approach is taken further by
 \citet{Liu2024}, who extend the FinGPT framework to retrieval-augmented search
 agents tailored separately for individual and institutional users, demonstrating
 how domain-specific financial LLMs can be customised for real-world deployment
@@ -857,7 +857,7 @@ original BERT paper \cite{devlin2019} and the RoBERTa pretraining improvements
 it inherits.  The BloombergGPT technical report \cite{wu2023bloomberggpt} is
 the most detailed public account of what pre-training a 50B-scale financial model
 involves, including corpus design, tokeniser construction, and benchmark evaluation.
-For the open-source counterpart, \citet{yang2023fingpt} describe the FinGPT
+For the open-source counterpart, \citet{Yang2023} describe the FinGPT
 framework and the LoRA-based fine-tuning pipeline in detail accessible to practitioners
 without cluster-scale resources.
 
@@ -874,7 +874,7 @@ pre-training.  \citet{huang2023finbert} provide the most thorough accounting
 research perspective on FinBERT's capabilities and limitations.
 
 For deployment and governance, the SR~11-7 model risk management guidance
-\cite{federalreserve2011sr117} remains the authoritative framework for deploying
+\cite{sr117} remains the authoritative framework for deploying
 models in regulated financial contexts.  Chapter~\ref{ch:applications-future}
 of this book extends the discussion to the EU AI Act and MiFID~II obligations
 arising from LLM-based financial products.  Readers interested in the broader

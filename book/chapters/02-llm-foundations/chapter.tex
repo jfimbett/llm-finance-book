@@ -775,6 +775,31 @@ This motivated relative positional encodings \cite{shaw2018relative} % [CITE: Sh
 and Rotary Position Embeddings (RoPE) \cite{su2024rope}, % [CITE: Su et al. 2024, RoFormer: Enhanced Transformer with Rotary Position Embedding]
 which embed the rotation directly into query--key dot products.
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/fig_illustration}
+  \caption{Sinusoidal positional encoding matrix for $d_{\mathrm{model}} = 64$
+           and sequence length 50 (Definition~\ref{def:positional-encoding}).
+           Each row is a token position; each column is an encoding dimension.
+           Low-indexed dimensions oscillate rapidly (short period, high frequency);
+           high-indexed dimensions change slowly (long period, low frequency).
+           Any fixed positional offset $\Delta$ can be expressed as a linear
+           function of the encoding, giving the model access to relative position.}
+  \label{fig:ch02-illustration}
+\end{figure}
+
+\begin{exercise}[Illustration: Sinusoidal Positional Encoding]
+\label{ex:ch02-illustration}
+Reproduce Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$
+and sequence length 50.
+(\textit{a})~Extract the encoding vectors for positions 5 and 10 and compute
+their cosine similarity; repeat for positions 5 and 45. Interpret the difference.
+(\textit{b})~Regenerate the heatmap for $d_{\mathrm{model}} \in \{32, 128\}$
+and describe how the frequency pattern changes with model dimension.
+See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb},
+Illustration Exercise.
+\end{exercise}
+
 % ---
 \subsection{Encoder--Decoder Structure}
 \label{sec:transformer-encdec}

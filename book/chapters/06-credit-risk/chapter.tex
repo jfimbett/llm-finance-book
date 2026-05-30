@@ -739,34 +739,6 @@ The last equality uses $\pi_+ + \pi_- = 1$, so $1 - \pi_+ = \pi_-$. The identity
 
 For a random model, AUROC = 0.5 and Gini = 0; for a perfect model, AUROC = 1 and Gini = 1. In practice, retail credit models typically achieve Gini coefficients in the range of 0.40--0.70.
 
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.70\textwidth]{figures/fig_illustration}
-  \caption{ROC curve for a logistic regression trained on the UCI German Credit
-           dataset (1{,}000 applicants, 30\% held-out test set).
-           Six numeric features are used: loan duration, credit amount,
-           instalment rate, age, number of existing credits, and number of
-           liable persons.
-           The double-headed arrow marks the KS statistic---the maximum
-           vertical separation between the ROC curve and the diagonal---at the
-           threshold where discrimination is sharpest.}
-  \label{fig:ch06-illustration}
-\end{figure}
-
-\begin{exercise}[Illustration: ROC Curve and KS Statistic]
-\label{ex:ch06-illustration}
-Download the UCI German Credit dataset and train a logistic regression on the
-six numeric features to reproduce Figure~\ref{fig:ch06-illustration}.
-(\textit{a})~Report AUROC, KS statistic, and Gini coefficient and verify the
-identity $\mathrm{Gini} = 2 \times \mathrm{AUROC} - 1$.
-(\textit{b})~One-hot encode all 20 features (including categoricals), retrain,
-and compare the new AUROC and KS to the baseline.
-(\textit{c})~Identify the feature with the largest absolute logistic regression
-coefficient and discuss its credit-risk interpretation.
-See \texttt{code/notebooks/06-credit-risk/exercises.ipynb},
-Illustration Exercise.
-\end{exercise}
-
 % ---------------------------------------------------------------
 \subsection{SR~11-7 Model Risk Framework Applied to LLM Governance}
 \label{subsec:sr117}
@@ -879,6 +851,34 @@ Final predicted PD & & $0.102$ \\
 The SHAP waterfall directly maps to the adverse action reason codes required by FCRA. The top positive contributors (bureau score, delinquencies, loan purpose) become the adverse action reasons; the top negative contributors (stable employment, income) are the factors that partially offset the risk. This correspondence allows a compliant adverse action notice to be generated automatically from the SHAP output.
 
 \end{context}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.70\textwidth]{chapters/06-credit-risk/figures/fig_illustration}
+  \caption{ROC curve for a logistic regression trained on the UCI German Credit
+           dataset (1{,}000 applicants, 30\% held-out test set).
+           Six numeric features are used: loan duration, credit amount,
+           instalment rate, age, number of existing credits, and number of
+           liable persons.
+           The double-headed arrow marks the KS statistic---the maximum
+           vertical separation between the ROC curve and the diagonal---at the
+           threshold where discrimination is sharpest.}
+  \label{fig:ch06-illustration}
+\end{figure}
+
+\begin{exercise}[Illustration: ROC Curve and KS Statistic]
+\label{ex:ch06-illustration}
+Download the UCI German Credit dataset and train a logistic regression on the
+six numeric features to reproduce Figure~\ref{fig:ch06-illustration}.
+(\textit{a})~Report AUROC, KS statistic, and Gini coefficient and verify the
+identity $\mathrm{Gini} = 2 \times \mathrm{AUROC} - 1$.
+(\textit{b})~One-hot encode all 20 features (including categoricals), retrain,
+and compare the new AUROC and KS to the baseline.
+(\textit{c})~Identify the feature with the largest absolute logistic regression
+coefficient and discuss its credit-risk interpretation.
+See \texttt{code/notebooks/06-credit-risk/exercises.ipynb},
+Illustration Exercise.
+\end{exercise}
 
 % ---------------------------------------------------------------
 \section{Deployment of a Credit Risk Application}

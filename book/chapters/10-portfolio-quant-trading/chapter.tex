@@ -155,6 +155,15 @@ consistently. This modularity maps naturally onto LLM-generated signals: an LLM 
 processes earnings calls can produce a view $q_k$ for each company it covers, together
 with a confidence score that informs $\Omega_{kk}$. Sections~\ref{sec:ch10-analyst-views-extraction}
 and~\ref{sec:ch10-llm-factors-fama-french} detail how to operationalise this pipeline.
+\citet{MantshimuliMwamba2025} provide direct empirical validation of this architecture:
+they aggregate sentiment views from multiple fine-tuned LLMs via an LSTM and feed the
+resulting view vector into the Black-Litterman framework, finding that the multi-LLM
+approach significantly improves both the Sharpe ratio and annualised return over
+single-LLM and market-capitalisation benchmarks. More broadly, \citet{Yuksel2025alpha}
+show that an LLM-guided evolutionary tournament can select portfolios from large asset
+universes by generating and testing candidate allocation strategies in a closed loop,
+offering an empirical baseline for treating LLMs as portfolio optimizers rather than
+merely view providers.
 
 \begin{example}[A Single Absolute View in Black-Litterman]
 \label{ex:ch10-bl-single-view}
@@ -229,7 +238,10 @@ Where LLMs do \emph{not} add clear value:
 
 The most productive framing is that LLMs are \emph{information extraction engines}, not
 portfolio optimizers. They produce signals; classical theory dictates how those signals
-should be combined into weights.
+should be combined into weights. \citet{Mann2024} surveys this landscape in practitioner
+terms, documenting how LLMs are transforming quantitative workflows from signal generation
+through execution and arguing that the most durable value lies precisely in the
+information-extraction layer rather than in the decision layer.
 
 % ============================================================
 \section{LLMs as Alternative Data Processors}
@@ -277,6 +289,13 @@ against realized excess returns), and the uncertainty $\Omega_{ii}$ is inversely
 proportional to signal magnitude: a strong, unambiguous signal ($|s_i| \approx 1$)
 warrants low view uncertainty; a neutral signal ($|s_i| \approx 0$) warrants high
 uncertainty, effectively allowing the equilibrium prior to dominate.
+
+Beyond earnings calls, LLMs can be applied to longer-horizon strategic documents.
+\citet{MeskovskisKenyon2024} introduce a SWOT-based portfolio construction methodology
+in which an LLM analyses company strategic filings to generate views for investment
+horizons where statistical backtesting power is too limited to validate purely
+price-based signals---demonstrating a fundamentally different pathway for generating
+LLM views that complements the sentiment pipeline described above.
 
 A practical concern is \emph{information staleness}: an analyst report may be published
 after the market has already reacted to management guidance on an earnings call.
@@ -358,6 +377,13 @@ this alpha exists in the short run---up to five trading days after the call---bu
 rapidly as market participants process the same text \citep{tetlock2007giving,
 lopezlira2023chatgpt}.
 
+The process of constructing new quantitative factors can itself be automated by LLMs.
+\citet{YukselAlphaQuant2025} present AlphaQuant, an LLM-evolutionary loop that
+iteratively proposes, evaluates, and refines alpha features for systematic strategies,
+replacing manual feature engineering with a guided search over the space of potential
+factor definitions and offering a concrete methodology for factor discovery beyond the
+earnings-call sentiment pathway described above.
+
 An important methodological caveat: \citet{harvey2016cross} documented that with hundreds
 of proposed factors tested against the same dataset, conventional significance thresholds
 ($t > 2$) produce many false discoveries. A language factor that survives a Bonferroni
@@ -405,6 +431,13 @@ with $W_{\max}$ a maximum gross exposure parameter. Equation~\eqref{eq:ch10-posi
 produces a dollar-neutral portfolio when positive and negative signals are balanced across
 the universe---desirable for a long-short strategy that seeks to be insulated from
 broad market moves.
+
+The scale of predictive power available from LLM sentiment is illustrated by
+\citet{KirtacGermano2024}, who score 965,375 news articles with a GPT-3-class model
+and find that the resulting sentiment scores predict next-day stock returns with 74.4\%
+directional accuracy; a long-short strategy exploiting these scores earns a Sharpe ratio
+of 3.05 after transaction costs on their evaluation sample, providing a large-scale
+empirical baseline for the magnitude of LLM sentiment alpha before crowding erodes it.
 
 The dynamics of news sentiment decay must be modelled explicitly. A sentiment signal
 derived from a news article at time $t_0$ carries diminishing predictive content as the
@@ -457,7 +490,13 @@ neutral, or positive news event in the previous five minutes. In simulations bas
 FinRL framework \citep{liu2022finrl}, adding news-alert features reduces implementation
 shortfall by approximately 8--12\% relative to a baseline RL agent without text
 augmentation, though results are highly sensitive to the quality of the event-detection
-classifier and the latency of the LLM inference pipeline.
+classifier and the latency of the LLM inference pipeline. A more ambitious integration
+is proposed by \citet{CoriatBenhamou2025}, who develop HARLF, a three-tier hierarchical
+RL architecture in which lightweight LLMs inject news sentiment into base RL agents at
+each level of the hierarchy; tested on 2018--2024 data, the system achieves a 26\%
+annualised return with a Sharpe ratio of 1.2, illustrating the gains available when LLM
+sentiment signals are woven into the reward structure rather than merely appended to
+the state vector.
 
 % -----------------------------------------------------------
 \subsection{Why LLMs Are Not Stock Pickers: Market Efficiency Arguments}
@@ -860,6 +899,16 @@ ratio, and combinatorially symmetric cross-validation. \citet{bailey2014probabil
 develops the theoretical foundations for backtest overfitting. For risk measurement,
 \citet{rockafellar2000optimization} derives the CVaR linear programme, and
 \citet{engle2002dynamic} introduces DCC-GARCH.
+
+The emerging literature on autonomous LLM agents for portfolio management is surveyed
+by \citet{SahaLyuEtAl2025}, who provide a structured taxonomy of agent architectures---
+including multi-agent, reflection-based, and tool-augmented designs---and identify open
+benchmarks and research frontiers in agentic trading system design. For the LLM-as-optimizer
+strand of this literature, \citet{Yuksel2025alpha} and \citet{YukselAlphaQuant2025}
+offer complementary entry points into portfolio selection via evolutionary search and
+automated feature engineering, respectively. \citet{MantshimuliMwamba2025} and
+\citet{CoriatBenhamou2025} provide the most recent empirical results on multi-LLM
+Black-Litterman integration and hierarchical RL sentiment fusion.
 
 Readers interested in the regulatory and institutional context of LLM deployment in
 risk management should consult Chapter~7 on regulatory compliance and the Federal

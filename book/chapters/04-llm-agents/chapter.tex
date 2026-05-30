@@ -148,7 +148,7 @@ intermediate results can be synthesised before a final answer is committed.
 \label{subsec:react}
 
 The most influential architectural pattern for LLM-based agents in the current
-literature is the \emph{ReAct} framework, introduced by \citet{yao2023react}. ReAct
+literature is the \emph{ReAct} framework, introduced by \citet{yao2022react}. ReAct
 interleaves two types of tokens in the model's output: \emph{reasoning traces} (denoted
 \textsc{Thought}) and \emph{actions} (denoted \textsc{Action} with an associated
 \textsc{Observation}). This interleaving allows the model to reason about the
@@ -170,7 +170,7 @@ The trajectory terminates when $A_n = \textsc{Finish}(answer)$.
 The key insight of ReAct is that explicit reasoning steps (the thoughts $T_i$) improve
 action selection reliability compared to either pure reasoning (chain-of-thought
 prompting with no actions) or pure acting (tool-call-only approaches with no
-intermediate reasoning). \citet{yao2023react} demonstrate this on multi-hop question
+intermediate reasoning). \citet{yao2022react} demonstrate this on multi-hop question
 answering and interactive decision-making tasks, showing that the interleaved format
 reduces hallucination by grounding each reasoning step in tool-call observations.
 
@@ -786,7 +786,7 @@ parametric memory.
 
 \begin{deepdive}
 
-Retrieval-augmented generation was formalised by \citet{lewis2020retrieval} as a
+Retrieval-augmented generation was formalised by \citet{lewis2020rag} as a
 framework that conditions language model generation on documents retrieved from a
 non-parametric memory. The original RAG paper demonstrated that this approach
 outperforms pure parametric models on knowledge-intensive question answering tasks,
@@ -1042,6 +1042,33 @@ omitting material disclosures.
 
 \end{deepdive}
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.88\textwidth]{figures/fig_illustration}
+  \caption{TF-IDF cosine similarity between a natural-language risk query and
+           ten document chunks drawn from recent news headlines for five
+           financial firms (AAPL, MSFT, JPM, GS, BAC).
+           Chunks are ranked by descending similarity---the output that a RAG
+           system would present to the language model as retrieved context.
+           Colour encodes relative similarity (green = most relevant).
+           The dashed line marks the mean similarity across the corpus.}
+  \label{fig:ch04-illustration}
+\end{figure}
+
+\begin{exercise}[Illustration: RAG Retrieval Ranking]
+\label{ex:ch04-illustration}
+Reproduce Figure~\ref{fig:ch04-illustration} using TF-IDF cosine similarity
+between the query \emph{``What are the main risk factors and competitive threats
+facing the company?''} and a corpus of recent financial news headlines.
+(\textit{a})~Identify the top-3 retrieved chunks and explain why TF-IDF ranked
+them highest.
+(\textit{b})~Replace TF-IDF with dense embeddings from
+\texttt{sentence-transformers} (\texttt{all-MiniLM-L6-v2}) and compare the
+ranking. Does dense retrieval surface qualitatively different chunks?
+See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Illustration
+Exercise.
+\end{exercise}
+
 % ---------------------------------------------------------------
 
 \section{Finance-Specific Agent Applications}
@@ -1076,9 +1103,9 @@ The finance literature on earnings calls is extensive. \citet{larcker2012detecti
 showed that linguistic features of conference calls (deception indicators, topic shifts,
 hedging language) predict abnormal returns. \citet{kogan2009predicting} demonstrated
 that textual features of financial reports predict risk. More recently, \citet{ko2024can}
-and \citet{lopez2023large} have shown that LLMs can produce nuanced sentiment
+and \citet{lopezlira2023chatgpt} have shown that LLMs can produce nuanced sentiment
 assessments that predict stock price movements around earnings announcements.
-\citet{kim2024financialstatement} take a complementary approach, showing that GPT-4
+\citet{kim2024financial} take a complementary approach, showing that GPT-4
 fed anonymised financial statements---without any narrative or industry identifiers---
 predicts the direction of future earnings with 60\% accuracy, outperforming human analysts
 (53\%) and matching a narrowly trained state-of-the-art ML model; trading strategies
@@ -1257,7 +1284,7 @@ failures. The verifier model can be a smaller, faster model than the generator (
 a 7B-parameter model) since its task is purely verification rather than generation.
 This architecture is used in the RAGAS evaluation framework \cite{es2023ragas} and
 can be adapted for production citation enforcement. The practical difficulty of filing
-Q\&A at enterprise scale is documented by \citet{islam2023financebench}, who introduce
+Q\&A at enterprise scale is documented by \citet{zhang2024financebench}, who introduce
 the FinanceBench benchmark of 10{,}231 questions over publicly traded company filings
 and find that even GPT-4-Turbo with retrieval incorrectly answers or refuses 81\% of
 questions, highlighting the gap between research prototypes and production-grade
@@ -1296,7 +1323,7 @@ Where a dictionary-based sentiment score assigns a single number to a document, 
 agent can produce structured signals: sector-specific sentiment, management confidence
 score, guidance revision direction, and novelty relative to prior disclosures.
 
-\citet{lopez2023large} demonstrate that zero-shot GPT-4 sentiment assessments of news
+\citet{lopezlira2023chatgpt} demonstrate that zero-shot GPT-4 sentiment assessments of news
 headlines predict short-term stock returns with higher accuracy than dictionary-based
 methods. \citet{yang2023fingpt} show that fine-tuned open-source models achieve
 comparable performance at lower inference cost. These results motivate a practitioner

@@ -110,3 +110,4 @@
 | 2026-05-30 | 12 files | chore: session log 2026-05-30;fix: correct includegraphics paths and fix float placement outside tcolorbox environments;chore: add run_illustrations.sh master script for all 7 chapters; | — |
 | 2026-05-30 | 11 files | chore: session log 2026-05-30;chore: session log 2026-05-30;fix: correct includegraphics paths and fix float placement outside tcolorbox environments; | — |
 | 2026-05-30 | 10 files | chore: session log 2026-05-30;chore: session log 2026-05-30;chore: session log 2026-05-30; | — |
+| 2026-05-30 | 8 files | chore: reorder chapters in main.tex to include 7 new topics;feat(ch14): draft financial text summarization and information extraction chapter;feat(ch09): draft financial nlp and sentiment analysis chapter; | — |

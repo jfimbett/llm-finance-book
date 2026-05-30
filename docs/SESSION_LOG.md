@@ -114,3 +114,4 @@
 | 2026-05-30 | 8 files | chore: session log 2026-05-30;chore: reorder chapters in main.tex to include 7 new topics;feat(ch14): draft financial text summarization and information extraction chapter; | — |
 | 2026-05-30 | 5 files | fix: remove % comment inside bib note field that broke biber→pdflatex pipeline;chore: session log 2026-05-30;chore: session log 2026-05-30; | — |
 | 2026-05-30 | 3 files | chore: session log 2026-05-30;fix: remove % comment inside bib note field that broke biber→pdflatex pipeline;chore: session log 2026-05-30; | — |
+| 2026-05-30 | 6 files | fix: remove duplicate bib entries introduced by parallel weave agents;feat(ch10): enrich with SSRN working papers;feat(ch09): enrich with SSRN working papers; | — |

@@ -214,7 +214,7 @@ predict masked words or the next sentence, learning rich contextual representati
 and then \emph{fine-tuned} on a small labelled dataset for a specific downstream task.
 
 BERT (Bidirectional Encoder Representations from Transformers)
-\cite{devlin2019bert} % [CITE: Devlin, J., Chang, M.-W., Lee, K. & Toutanova, K. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. NAACL-HLT 2019.]
+\cite{devlin2019} % [CITE: Devlin, J., Chang, M.-W., Lee, K. & Toutanova, K. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. NAACL-HLT 2019.]
 exemplified this paradigm.  Fine-tuned BERT models rapidly surpassed prior state of the
 art on nearly every NLP benchmark.  The finance community responded quickly.
 FinBERT \cite{araci2019finbert} % [CITE: Araci, D. (2019). FinBERT: Financial Sentiment Analysis with Pre-trained Language Models. ArXiv:1908.10063.]
@@ -941,8 +941,8 @@ corpus one observes analogies such as $\varphi(\text{call option}) -
 \subsection{Word2Vec and GloVe}
 \label{sec:embeddings-word2vec}
 
-Two landmark algorithms — Word2Vec \cite{mikolov2013} % [CITE: Mikolov et al. (2013). Distributed Representations of Words and Phrases and their Compositionality. NeurIPS]
-and GloVe \cite{pennington2014} % [CITE: Pennington, Socher, Manning (2014). GloVe: Global Vectors for Word Representation. EMNLP]
+Two landmark algorithms — Word2Vec \cite{mikolov2013efficient} % [CITE: Mikolov et al. (2013). Distributed Representations of Words and Phrases and their Compositionality. NeurIPS]
+and GloVe \cite{pennington2014glove} % [CITE: Pennington, Socher, Manning (2014). GloVe: Global Vectors for Word Representation. EMNLP]
 — remain the canonical dense embedding methods.  We treat each in turn,
 then discuss finance-specific adaptations.
 
@@ -1059,7 +1059,7 @@ difference captures a gender direction.
 \subsubsection{GloVe: Global Vectors for Word Representation}
 
 Whereas Word2Vec processes one context window at a time,
-\emph{Global Vectors} (GloVe) \cite{pennington2014} % [CITE: Pennington et al. (2014) EMNLP]
+\emph{Global Vectors} (GloVe) \cite{pennington2014glove} % [CITE: Pennington et al. (2014) EMNLP]
 directly factorises the global word--word co-occurrence matrix,
 explicitly encoding corpus-level statistics.
 
@@ -1150,7 +1150,7 @@ Domain adaptation strategies include:
         Word2Vec model \cite{liu2018} % [CITE: Liu et al. (2018). Efficient low-rank multimodal fusion with modality-specific factors. ACL — or appropriate FinNLP reference]
         and the FinancialPhraseBank embeddings are examples.
   \item \textbf{Fine-tuned transformer embeddings.}  FinBERT
-        \cite{yang2020} % [CITE: Yang et al. (2020). FinBERT: A Pretrained Language Model for Financial Communications. arXiv:2006.08097]
+        \cite{yang2020finbert} % [CITE: Yang et al. (2020). FinBERT: A Pretrained Language Model for Financial Communications. arXiv:2006.08097]
         is a BERT model \cite{devlin2019} % [CITE: Devlin et al. (2019). BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. NAACL]
         further pre-trained on Reuters news, 10-K filings, and earnings
         calls.  Its token embeddings capture the financial sense of
@@ -1292,6 +1292,31 @@ for an overview in the transformer setting.
 
 
 \end{deepdive}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/fig_illustration}
+  \caption{Mean TF-IDF scores across recent news headlines for Apple (AAPL),
+           Microsoft (MSFT), and JPMorgan Chase (JPM).
+           Each cell shows the average weight of a term within that company's
+           coverage; high values identify company-specific vocabulary.
+           The heatmap illustrates how TF-IDF converts a raw corpus into a
+           discriminating, sparse representation---the classical baseline for
+           financial text analysis (Section~\ref{sec:intro-classical}).}
+  \label{fig:ch01-illustration}
+\end{figure}
+
+\begin{exercise}[Illustration: TF-IDF on Financial News]
+\label{ex:ch01-illustration}
+Using recent news headlines retrieved via the \texttt{yfinance} API for
+\textsc{aapl}, \textsc{msft}, and \textsc{jpm}, reproduce
+Figure~\ref{fig:ch01-illustration}.
+(\textit{a})~Identify the three terms with the highest TF-IDF weight for each
+ticker and explain intuitively why they are company-specific.
+(\textit{b})~Add a fourth ticker of your choice, regenerate the heatmap, and
+describe how the new column alters the discriminating vocabulary.
+See \texttt{code/notebooks/01-intro/exercises.ipynb}, Illustration Exercise.
+\end{exercise}
 
 % ---------------------------------------------------------------
 \section{Looking Ahead}

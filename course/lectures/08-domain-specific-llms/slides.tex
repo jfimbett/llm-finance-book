@@ -1,0 +1,70 @@
+\documentclass{beamer}
+\usetheme{metropolis}
+
+\title{Domain-Specific Financial LLMs}
+\author{Juan F. Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\section{Why Domain-Specific LLMs?}
+
+\begin{frame}{Why Domain-Specific LLMs?}
+  \begin{itemize}
+    \item Financial text is dense with domain-specific jargon, numerical tables, and regulatory language
+    \item General-purpose models lack grounding in financial concepts and conventions
+    \item Errors in financial NLP tasks can have significant economic consequences
+    \item Domain-specific pre-training substantially improves performance on financial benchmarks
+  \end{itemize}
+\end{frame}
+
+\section{A Taxonomy of Financial LLMs}
+
+\begin{frame}{A Taxonomy of Financial LLMs}
+  \begin{itemize}
+    \item BERT-family: FinBERT (sentiment), SEC-BERT (filings), FinBERT-tone (tone analysis)
+    \item Decoder-family: BloombergGPT, FinGPT, FinMA, InvestLM
+    \item Models differ in training data, architecture size, and target tasks
+    \item Open-weight vs.\ proprietary models present different deployment trade-offs
+  \end{itemize}
+\end{frame}
+
+\section{Pre-training Strategies for Finance}
+
+\begin{frame}{Pre-training Strategies for Finance}
+  \begin{itemize}
+    \item Domain-Adaptive Pre-training (DAPT): continue pre-training a general model on financial corpora
+    \item Corpus composition critically affects downstream task performance
+    \item Key sources: Bloomberg terminal archives, SEC EDGAR filings, financial news wires
+    \item Tokenizer adaptation may be needed to handle financial notation and table structures
+  \end{itemize}
+\end{frame}
+
+\section{Benchmark Comparisons}
+
+\begin{frame}{Benchmark Comparisons}
+  \begin{itemize}
+    \item FinQA tests numerical reasoning over financial reports
+    \item FLUE (Financial Language Understanding Evaluation) covers sentiment, NER, and classification
+    \item BBH-Finance probes broader financial reasoning in large models
+    \item FinLLMs outperform on narrow extraction tasks; general models remain competitive on reasoning
+  \end{itemize}
+\end{frame}
+
+\section{Practical Deployment Considerations}
+
+\begin{frame}{Practical Deployment Considerations}
+  \begin{itemize}
+    \item Licensing constraints vary widely: open-weight, commercial, and restricted models
+    \item Data governance requirements (GDPR, MiFID II) affect hosting and inference choices
+    \item Hybrid strategies combine a cheap general model with a specialized FinLLM for complex queries
+    \item Cost-performance trade-offs must be evaluated per use-case at deployment time
+  \end{itemize}
+\end{frame}
+
+\end{document}

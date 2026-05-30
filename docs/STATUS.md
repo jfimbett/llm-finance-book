@@ -11,6 +11,7 @@
 | 05 | Business Valuation | Yes | Yes | ? | ? | ? | ? | ? | No |
 | 06 | Credit Risk | Yes | No | - | - | - | - | - | No |
 | 07 | Applications Future | Yes | Yes | ? | ? | ? | ? | ? | No |
+| 08 | Domain-Specific Financial LLMs | No | No | - | - | - | - | - | No |
 
 ## Appendices
 

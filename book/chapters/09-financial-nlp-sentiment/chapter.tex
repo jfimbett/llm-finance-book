@@ -1,113 +1,606 @@
 \chapter{Financial NLP and Sentiment Analysis}
+\label{ch:financial-nlp-sentiment}
 
-\begin{itemize}
-  \item Understand the key concepts of financial natural language processing
-  \item Apply LLM-based techniques to sentiment analysis and text classification problems
-  \item Evaluate the trade-offs between different approaches
-  \item Implement a practical pipeline using Python and the Hugging Face ecosystem
-\end{itemize}
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Identify and characterise the major sources of financial text data, understand
+        their structural properties, and apply appropriate preprocessing pipelines to
+        each source type.
+  \item Explain the Loughran--McDonald lexicon and the assumptions that make it more
+        appropriate for financial text than general-purpose sentiment dictionaries.
+  \item Fine-tune a pre-trained language model (FinBERT, SEC-BERT) for financial
+        sentiment classification, and benchmark its performance against lexicon-based
+        and LLM zero-shot baselines.
+  \item Extract and aggregate sentiment signals from social media, news feeds, earnings
+        call transcripts, SEC filings, and central bank communications.
+  \item Construct a clean sentiment time series from raw scores and apply it in an
+        event-study or predictive-regression framework.
+  \item Design a production-grade inference pipeline that handles batch and streaming
+        inputs at financial data scale.
+  \item Evaluate annotation quality using Krippendorff's alpha and classifier performance
+        using precision, recall, and F1, and understand when these metrics can mislead.
+\end{enumerate}
+\end{remark}
 
+% ---------------------------------------------------------------
 \section{Text as Financial Data}
 \label{sec:ch09-text-as-financial-data}
 
-[Placeholder]
+\begin{context}
 
-\subsection{Sources: social media, news, filings, transcripts, policy documents}
+Language has always been part of financial markets. Long before electronic data feeds, traders read newspapers, brokers talked to management, and analysts combed through printed annual reports. What has changed is the scale, the speed, and the toolbox available to process language systematically. A single trading day now generates hundreds of thousands of news articles, social media posts, regulatory filings, and analyst reports. Processing that torrent in real time, extracting the signal that moves prices, and building it into a repeatable investment or risk management process is one of the defining problems of quantitative finance in the current decade.
+
+This chapter treats language as a data source with its own measurement challenges, just as price data has bid--ask bounce and volume data has reporting lags. Understanding where financial text comes from, how it is structured, and what can go wrong in processing it is the necessary precondition for any analysis.
+
+\end{context}
+
+% ---------------------------------------------------------------
+\subsection{Sources: Social Media, News, Filings, Transcripts, Policy Documents}
 \label{sec:ch09-text-sources}
 
-[Placeholder]
+Financial text data is heterogeneous. Different sources differ along at least four dimensions that matter for analysis: the temporal frequency of publication, the level of editorial curation, the expected audience, and the degree of regulatory oversight. Each dimension shapes both the type of information the text contains and the appropriate methodology for extracting it.
 
-\subsection{Preprocessing: tokenization, normalization, deduplication}
+\subsubsection*{Social Media}
+
+Twitter/X, Reddit (in particular the WallStreetBets and investing subreddits), StockTwits, and similar platforms represent the least curated stratum of financial text. Posts are generated continuously, often pseudonymously, and without editorial review. The audience is diffuse and the authors range from credentialed analysts to retail speculators with no relevant expertise. Noise levels are high: a substantial fraction of posts contain sarcasm, humour, or deliberately misleading content.
+
+Despite the noise, social media text contains information about retail investor attention and sentiment that is orthogonal to institutional sources \cite{antweiler2004talking}. The key insight is that aggregate measures over large corpora can be informative even when individual posts are not. Bollen, Mao, and Zeng demonstrated that aggregate Twitter mood, extracted using a psychometric tool applied to millions of daily tweets, contained information about subsequent Dow Jones Industrial Average movements with a lead time of up to four days \cite{bollen2011twitter}. Da, Engelberg, and Gao showed that abnormal search volume on Google Trends (a different but structurally related measure of retail attention) predicts short-run stock price increases followed by reversals, consistent with the hypothesis that retail attention creates temporary price pressure \cite{da2015sum}.
+
+Social media text presents specific preprocessing challenges. Posts are short (often under 280 characters), heavily abbreviated, and laden with platform-specific conventions such as cashtags (e.g., \$AAPL), hashtags, URLs, and emoji. Deduplication is critical because retweets and cross-posted content inflate apparent volume without adding information. User credibility weighting is a contested design choice: giving more weight to accounts with verified professional affiliations may reduce noise but introduces selection bias.
+
+\subsubsection*{News and Wire Services}
+
+Newswire services --- Reuters, Bloomberg, Dow Jones Newswires, PR Newswire --- represent the most time-critical segment of the curated financial press. An algorithmic trading desk treats a Reuters headline as a structured data event: the latency from publication to price impact is measured in milliseconds, and the textual content is parsed for entity names, numerical magnitudes, and sentiment polarity within tens of microseconds of arrival.
+
+A step below the wires, financial newspapers and online outlets (the Financial Times, the Wall Street Journal, Bloomberg, CNBC) produce longer articles with more context but with correspondingly longer lags between an event and its publication. Tetlock, Saar-Tsechansky, and Macskassy showed that the fraction of negative words in Wall Street Journal articles about firms predicts earnings, analyst forecast errors, and stock returns in subsequent quarters, suggesting that news language captures fundamental information beyond what is already in prices \cite{tetlock2008words}. Manela and Moreira constructed a News-Implied Volatility measure (NVIX) from Wall Street Journal front-page text dating to 1890, showing that it captures disaster risk premia not spanned by VIX \cite{manela2017news}.
+
+The key limitation of news data is selection: journalists write about firms and events that are already newsworthy. There is a systematic absence of articles about ordinary firms in ordinary times. Any model trained on news must account for this censoring.
+
+\subsubsection*{Earnings Call Transcripts}
+
+Quarterly earnings calls are the most structured form of voluntary corporate communication. A typical call follows a predictable format: prepared remarks from the CEO and CFO covering the quarter's results and guidance, followed by a question-and-answer session with sell-side analysts. Transcripts are available through services such as FactSet, Refinitiv, and Seeking Alpha, and increasingly through direct SEC filings.
+
+Earnings call text is valued for two reasons. First, the prepared remarks contain the management's own framing of performance, and the choice of language --- what to emphasise, what to hedge, what to omit --- provides a soft-information signal on top of the hard numbers \cite{larcker2012detecting}. Second, the Q\&A session reveals the questions analysts consider most important and the precision and candour with which management responds, which Feldman et al.\ showed to be predictive of post-announcement drift \cite{feldman2010management}. Chapter~\ref{sec:ch09-earnings-call-transcripts} returns to this source in detail.
+
+\subsubsection*{SEC Filings}
+
+The Securities and Exchange Commission's EDGAR database archives every public filing by US-listed issuers. For financial NLP the most important document types are:
+
+\begin{description}
+  \item[10-K (Annual Report).] Filed within 60--90 days of fiscal year-end. The Risk Factors section (Item 1A) and the Management Discussion and Analysis (MD\&A, Item 7) are the primary text targets. These sections are long (the MD\&A of a large-cap firm may exceed 15,000 words), dense, and reviewed by lawyers before filing.
+
+  \item[10-Q (Quarterly Report).] Filed within 40--45 days of each of the first three fiscal quarters. Shorter than 10-K but follows the same general structure.
+
+  \item[8-K (Current Report).] Filed within four business days of a material event. Includes press releases (Exhibit 99.1) and the associated full text of disclosed events such as earnings releases, merger announcements, and executive changes.
+
+  \item[DEF 14A (Proxy Statement).] Contains CEO and executive compensation narratives, descriptions of governance arrangements, and shareholder proposal rationales.
+\end{description}
+
+SEC filings differ from news and social media in a crucial way: they are subject to disclosure laws and securities fraud liability. Issuers have powerful incentives to be truthful but also powerful incentives to be vague, to front-load risk disclosures in boilerplate language, and to frame performance optimistically. Cohen, Malloy, and Nguyen showed that the year-over-year change in 10-K language --- how much firms copy from their prior filing versus rewrite --- is a strong predictor of subsequent returns, with firms that change little in their language subsequently underperforming \cite{cohen2020lazy}. Loughran and McDonald demonstrated that their financial-domain sentiment dictionary produces forecasts of subsequent trading volume and returns on the filing date that are stronger than those produced by the Harvard General Inquirer \cite{loughran2011liability}.
+
+\subsubsection*{Central Bank and Regulatory Communications}
+
+Central bank language has asset-pricing consequences. The Federal Open Market Committee (FOMC) releases minutes, policy statements, and meeting transcripts; the European Central Bank (ECB) publishes policy decisions, press conference transcripts, and economic bulletins; other major central banks have analogous communication cadences. Schmeling and Wagner showed that the tone of ECB and Federal Reserve policy communications --- measured by the net positivity of language relative to a baseline --- has significant effects on equity returns and risk premia on announcement days \cite{schmeling2019does}. Hansen, McMahon, and Prat applied topic modelling to FOMC transcripts to show that greater deliberation (more words on economics, fewer on procedure) is associated with better subsequent inflation forecasts, suggesting that the internal language of a committee reflects its information processing quality \cite{hansen2018transparency}.
+
+The analytical challenge with central bank text is that meaning is often conveyed through carefully calibrated deviations from standard language. The difference between ``the Committee remains attentive to inflation risks'' and ``the Committee is highly attentive to inflation risks'' may be small in syntactic terms but large in terms of the implied trajectory of monetary policy. Models that treat these sentences as nearly equivalent will miss the market-moving signal.
+
+% ---------------------------------------------------------------
+\subsection{Preprocessing: Tokenization, Normalization, Deduplication}
 \label{sec:ch09-text-preprocessing}
 
-[Placeholder]
+Raw financial text must pass through a preprocessing pipeline before any modelling. The specific steps depend on the source and the downstream task, but the following elements are common to almost all pipelines.
 
+\subsubsection*{Tokenization and Normalization}
+
+Tokenization divides a character stream into meaningful units (tokens). For the models in this book the relevant tokenizers are subword tokenizers --- Byte-Pair Encoding for GPT-family models, WordPiece for BERT-family models --- which are detailed in Chapter~\ref{ch:llm-foundations}. The key normalisation decisions for financial text are:
+
+\begin{itemize}
+  \item \textbf{Case folding.} Converting to lowercase is standard for bag-of-words models and lexicon lookups, but transformer models trained with case information should preserve original capitalisation.
+
+  \item \textbf{Number handling.} Replacing all numerical strings with a generic \texttt{[NUM]} token reduces vocabulary size and mitigates sparsity in lexicon-based models. However, specific numbers (EPS of \$2.40 versus \$0.24) can carry genuine information; a careful approach replaces numbers only in contexts where the specific value is irrelevant to the sentiment task.
+
+  \item \textbf{Cashtag and ticker normalisation.} In social media text, stock references appear as cashtags (\$AAPL, \$TSLA). In news and filings they appear as company names, ticker symbols, or both. Harmonising these representations --- or explicitly preserving them --- is important when building entity-level sentiment aggregates.
+
+  \item \textbf{Boilerplate removal.} SEC filings contain large quantities of legal boilerplate (signature pages, exhibits, XBRL tags) that adds noise without adding sentiment signal. Regular expression filters matched against known boilerplate patterns, or section-header parsing that isolates MD\&A from the balance sheet, are standard practice.
+\end{itemize}
+
+\subsubsection*{Deduplication}
+
+In news and social media corpora, deduplication is among the most important preprocessing steps and among the most frequently neglected. Near-duplicate content arises in several ways: wire services distribute the same story to multiple outlets that publish it verbatim or with minor edits; press releases are reproduced across aggregator sites; retweets and shares propagate identical text across social platforms. Including duplicates in a corpus biases any sentiment measure in the direction of whatever content was duplicated, and inflates the effective sample size, producing spuriously narrow confidence intervals.
+
+Exact deduplication (checking for identical strings) is computationally cheap but misses near-duplicates. Approximate deduplication using locality-sensitive hashing or MinHash is standard for large corpora. A common threshold in practice is to mark as duplicates any two documents whose Jaccard similarity of character trigrams exceeds 0.7, though the optimal threshold is corpus-dependent.
+
+\subsubsection*{Temporal Alignment}
+
+Event-driven financial analysis requires that each text observation be assigned a precise timestamp and that this timestamp be aligned correctly with price data. Two pitfalls are common. First, look-ahead bias: using a news article published after a market close to predict that day's return rather than the next day's open. Second, stale timestamps: some aggregator platforms republish old articles with the current date, creating phantom freshness. A robust pipeline stores the original publication timestamp and the retrieval timestamp separately, and constructs event windows that explicitly account for market hours.
+
+\begin{definition}[Event Window]
+\label{def:event-window}
+Let $t_0$ denote the publication timestamp of a text document. The event return $r_{[a,b]}$ is the cumulative stock return from $t_0 + a$ trading periods to $t_0 + b$ trading periods. A pre-announcement window $[a,0]$ with $a < 0$ tests whether text anticipated a price move; a post-announcement window $[0,b]$ with $b > 0$ tests whether text caused a price move or was followed by drift.
+\end{definition}
+
+% ---------------------------------------------------------------
 \section{Sentiment Analysis Methods}
 \label{sec:ch09-sentiment-analysis-methods}
 
-[Placeholder]
+\begin{context}
 
-\subsection{Lexicon-based: Loughran-McDonald wordlist}
+Sentiment analysis in finance began with simple word counts and has evolved through lexicon-based approaches, supervised machine learning classifiers, domain-specific pre-trained transformers, and now zero-shot and few-shot prompting of large language models. Each generation of methods has expanded the range of texts that can be processed and the granularity of the labels that can be produced. No single approach dominates: lexicons are fast and interpretable; fine-tuned classifiers offer strong performance on in-domain data; LLMs offer flexibility and require no labelled training set. A competent practitioner uses all three and knows when each is appropriate.
+
+\end{context}
+
+% ---------------------------------------------------------------
+\subsection{Lexicon-Based Methods: The Loughran--McDonald Wordlist}
 \label{sec:ch09-lexicon-based}
 
-[Placeholder]
+A lexicon-based sentiment classifier assigns a polarity score to a document by counting the occurrences of words from a pre-defined dictionary of positive and negative terms. The score is typically expressed as a net sentiment ratio:
 
-\subsection{Fine-tuned classifiers: FinBERT sentiment, SEC-BERT}
+\begin{equation}
+  \label{eq:lm-sentiment}
+  S_{\text{LM}}(d) = \frac{N_{\text{pos}}(d) - N_{\text{neg}}(d)}{N_{\text{words}}(d)}
+\end{equation}
+
+where $N_{\text{pos}}(d)$ and $N_{\text{neg}}(d)$ are the counts of positive and negative words in document $d$, and $N_{\text{words}}(d)$ is the total word count.
+
+The choice of dictionary is consequential. The Harvard General Inquirer (GI), a general-purpose sentiment lexicon developed in the 1960s \cite{stone1966general}, classifies many words as negative that carry no negative connotation in a financial context. Loughran and McDonald demonstrated this problem empirically: words such as ``tax'', ``liability'', ``cost'', ``foreign'', ``crude'', and ``cancer'' appear in the GI's negative list but are neutral or positively informative in 10-K filings \cite{loughran2011liability}. Using GI on 10-Ks, the negative-word fraction is positively correlated with the fraction of legal boilerplate, not with firm performance or investor expectations.
+
+\begin{definition}[Loughran--McDonald Finance Dictionary]
+\label{def:lm-dictionary}
+The Loughran--McDonald (LM) dictionary \cite{loughran2011liability} is a set of word lists constructed from the vocabulary of SEC 10-K filings. The primary lists classify words as: \textit{negative} (2,355 words), \textit{positive} (354 words), \textit{uncertainty} (297 words), \textit{litigious} (903 words), \textit{strong modal} (19 words), and \textit{weak modal} (27 words). The dictionaries are based on manual review of the most common non-trivial words in a large 10-K corpus.
+\end{definition}
+
+The LM dictionary's negative list avoids the false positives of GI by excluding words that are semantically negative in everyday English but neutral in financial contracts (``liability'', ``expense'', ``tax''). The uncertainty list captures hedging language (``approximately'', ``could'', ``uncertain'') that financial economists interpret as a signal of managerial ambiguity rather than negative sentiment per se. Li showed that forward-looking statements with more uncertain language are associated with lower earnings persistence, consistent with uncertainty language capturing genuine economic ambiguity \cite{li2010information}.
+
+\begin{example}[Applying the LM Lexicon to an MD\&A Excerpt]
+\label{ex:lm-example}
+Consider the following excerpt from a hypothetical 10-K Management Discussion:
+
+\begin{quote}
+\textit{``Revenue declined 12\% year-over-year, reflecting challenging macroeconomic conditions and increased competitive pressure. The Company remains cautious about the near-term outlook but is confident in its long-term strategic position.''}
+\end{quote}
+
+Applying the LM lexicon:
+\begin{itemize}
+  \item LM negative words: \textit{declined}, \textit{challenging}, \textit{pressure}, \textit{cautious} (4 hits)
+  \item LM positive words: \textit{confident} (1 hit)
+  \item LM uncertainty words: \textit{remains}, \textit{cautious}, \textit{near-term} (3 hits, noting some overlap with negative)
+  \item Total non-trivial words: approximately 35
+\end{itemize}
+
+Net LM sentiment: $(1 - 4) / 35 \approx -0.086$. A score of $-0.086$ places this excerpt in the bottom quartile of MD\&A text by sentiment, consistent with the qualitative reading of a company reporting deteriorating results while trying to soften the tone.
+
+A GI-based classifier would additionally flag \textit{competitive} and possibly \textit{macroeconomic} as negative, producing a score of approximately $-0.17$ — a substantial distortion.
+\end{example}
+
+The limitations of lexicon-based methods are well understood. Negation is not handled: ``not confident'' will be scored as positive. Sentences that are grammatically neutral but contextually negative are missed. Domain shift is a persistent problem: the LM dictionary was calibrated on 10-K filings from a specific era and may misclassify newer terminology (e.g., ``headwinds'', ``softness''). Despite these limitations, lexicon methods remain widely used because they are transparent, computationally cheap, and produce outputs that are easy to audit.
+
+% ---------------------------------------------------------------
+\subsection{Fine-Tuned Classifiers: FinBERT and SEC-BERT}
 \label{sec:ch09-finetuned-classifiers}
 
-[Placeholder]
+Transformer-based classifiers overcame the principal limitations of lexicons by learning context-sensitive representations. The standard approach is to take a pre-trained language model, add a classification head, and fine-tune the combined model on labelled financial sentiment data.
 
-\subsection{LLM zero-shot and few-shot sentiment classification}
+\subsubsection*{FinBERT}
+
+FinBERT (Araci, 2019) was among the first papers to demonstrate that further pre-training BERT on a financial corpus improves sentiment classification accuracy \cite{araci2019finbert}. The model was further developed by Huang, Wang, and Yang, who pre-trained on a corpus of financial news and SEC filings before fine-tuning on three labelled datasets (the Financial PhraseBank, analyst report excerpts, and earnings call sentences) to produce a model that substantially outperforms both GI lexicon, LM lexicon, and generic BERT across all three tasks \cite{huang2023finbert}.
+
+The FinBERT fine-tuning objective is standard: for a three-class problem (positive/neutral/negative), the model minimises cross-entropy loss over labelled examples. Given a document $d$ represented by its \texttt{[CLS]} embedding $\mathbf{h} \in \mathbb{R}^d$, the classifier computes:
+
+\begin{equation}
+  \label{eq:finbert-classifier}
+  P(y = c \mid d) = \text{softmax}(\mathbf{W}_c \mathbf{h} + \mathbf{b}_c), \quad c \in \{\text{pos}, \text{neu}, \text{neg}\}
+\end{equation}
+
+where $\mathbf{W}_c \in \mathbb{R}^{3 \times d}$ and $\mathbf{b}_c \in \mathbb{R}^3$ are learned classification parameters. The predicted label is $\hat{y} = \arg\max_c P(y = c \mid d)$.
+
+The key advantage over lexicons is context-sensitivity: the embedding $\mathbf{h}$ is computed from the full sequence, so negation (``not confident''), rhetorical hedging (``while challenges persist, we remain confident''), and entity-specific qualifications (``Apple's earnings were strong but guidance disappointed'') are handled implicitly.
+
+\subsubsection*{SEC-BERT}
+
+% [CITE: describe needed source -- SEC-BERT Loukas et al. 2022, arXiv:2207.12167]
+SEC-BERT is a domain-specific model pre-trained on the EDGAR corpus of SEC filings, including 10-K, 10-Q, and 8-K documents. Unlike FinBERT, which mixes news and filings in pre-training, SEC-BERT is trained exclusively on regulatory text, giving it a vocabulary and token representation optimised for legal-financial language including accounting terminology, boilerplate legalese, and structured data references. Benchmarks on SEC-specific tasks (risk factor classification, material event detection) show SEC-BERT outperforming both FinBERT and RoBERTa in in-domain settings.
+
+\subsubsection*{The Financial PhraseBank}
+
+The standard labelled dataset for financial sentiment is the Financial PhraseBank \cite{malo2014phrasebank}, which contains 4,840 sentences extracted from English-language financial news, each labelled as positive, neutral, or negative by a pool of 16 annotators with finance expertise. The majority-agreement label is used for training and evaluation. At a 75\% annotator agreement threshold, the dataset contains approximately 3,400 sentences with high-confidence labels and inter-annotator agreement of around 75--80\%.
+
+One limitation of the Financial PhraseBank is that news sentences differ in style from SEC filings and earnings call language. Models fine-tuned on it may not transfer as well to longer documents with more complex syntax. Practitioners constructing domain-specific classifiers should supplement the PhraseBank with domain-matched labelled examples.
+
+% ---------------------------------------------------------------
+\subsection{LLM Zero-Shot and Few-Shot Sentiment Classification}
 \label{sec:ch09-llm-zeroshot-fewshot}
 
-[Placeholder]
+Large language models such as GPT-4, Claude, and LLaMA-3 can classify financial sentiment without any fine-tuning, using only a natural-language description of the task. This capability, known as zero-shot classification, opens the possibility of rapid prototyping on new domains without labelled data \cite{brown2020language}.
 
+A standard zero-shot prompt for financial sentiment might read:
+
+\begin{quote}
+\textit{System: You are a financial analyst. Classify the sentiment of the following sentence as positive, neutral, or negative from the perspective of a stock investor.\\
+User: ``Revenue grew 8\% year-over-year, driven by strong demand in cloud services, though margins contracted due to elevated infrastructure investment.''}
+\end{quote}
+
+An instruction-following model will typically respond with ``Neutral'' or ``Mixed'' and an explanation citing the revenue growth offset by margin compression. This is already more nuanced than a lexicon would produce.
+
+Ko et al.\ benchmarked GPT-4 zero-shot against FinBERT and several other baselines on the Financial PhraseBank, the FiQA opinion task \cite{maia2018fiqa}, and a proprietary earnings call dataset, finding that GPT-4 zero-shot matched or exceeded FinBERT on all three tasks despite using no labelled financial training data \cite{ko2024can}. Lopez-Lira and Tang reached a related conclusion for news headlines: GPT-based sentiment scores are positively correlated with next-day stock returns, with predictive power higher than that of standard lexicons \cite{lopezlira2023chatgpt}.
+
+Few-shot classification extends zero-shot by including labelled examples in the prompt:
+
+\begin{equation}
+  \label{eq:few-shot-template}
+  \text{Prompt} = \underbrace{[\text{Task description}]}_{\text{system}}
+  + \underbrace{[\text{example}_1, \ldots, \text{example}_k]}_{\text{few-shot examples}}
+  + \underbrace{[\text{query sentence}]}_{\text{user turn}}
+\end{equation}
+
+Including 4--8 examples drawn from the target domain generally improves calibration: the model learns the labelling convention and vocabulary from the in-context examples without any gradient update. The optimal number of examples trades off between richer context (more examples) and reduced throughput due to longer prompts.
+
+The primary limitation of LLM-based classification is cost and latency at scale. Classifying one million short sentences at \$0.01 per thousand tokens (a rough order of magnitude for frontier models in 2024) costs approximately \$100--\$500 depending on sentence length --- feasible for research but potentially prohibitive for production systems processing tens of millions of documents daily. Distillation into a smaller fine-tuned model is the standard solution when throughput matters.
+
+% ---------------------------------------------------------------
 \section{Applications by Text Source}
 \label{sec:ch09-applications-by-text-source}
 
-[Placeholder]
+\begin{context}
 
-\subsection{Social media: Twitter/X, Reddit WallStreetBets, StockTwits}
+Each financial text source has a natural research question associated with it: social media asks whether retail investor attention and mood drive short-run price movements; news asks whether textual sentiment carries incremental information beyond price and accounting data; earnings calls ask whether management tone reveals private information; SEC filings ask whether regulatory disclosure language predicts future performance or risk; and central bank communications ask whether linguistic cues in policy statements move asset prices. The five subsections below examine each application in turn, surveying key findings and implementation considerations.
+
+\end{context}
+
+% ---------------------------------------------------------------
+\subsection{Social Media: Twitter/X, Reddit WallStreetBets, StockTwits}
 \label{sec:ch09-social-media}
 
-[Placeholder]
+The finance and investing communities on social media are large and active. As of the early 2020s, StockTwits processed several million posts per month focused explicitly on individual securities; WallStreetBets reached several million subscribers with a culture of speculative trading in derivatives; and financial discussion on Twitter/X encompassed millions of cashtag-mentioning posts per day. This volume, combined with the real-time nature of social media, makes it an attractive data source for capturing the diffusion of information and sentiment among retail market participants.
 
-\subsection{News and wire services}
+\subsubsection*{Empirical Evidence}
+
+Bollen, Mao, and Zeng's 2011 paper \cite{bollen2011twitter} was among the first to use a systematic sentiment measure derived from Twitter to forecast stock market movements. They extracted six-dimensional mood states (calm, alert, sure, vital, kind, happy) using a psychometric tool (GPOMS) applied to around 9.7 million tweets collected over a ten-week period in late 2008. Using a self-organising fuzzy neural network to incorporate mood states into a return prediction model, they found that calm mood specifically Granger-caused DJIA returns 3--4 days later, achieving an 86.7\% directional accuracy in out-of-sample testing. This result was striking and widely cited, though subsequent replication attempts have produced mixed results, and the original ten-week sample is too short to draw strong statistical conclusions.
+
+Cookson and Niessner studied disagreement among investors on StockTwits --- a platform where users explicitly tag posts as bullish or bearish --- and found that the dispersion of opinions across users predicts subsequent trading volume and bid-ask spreads, consistent with models where heterogeneous beliefs drive trading \cite{cookson2020echo}.
+
+\subsubsection*{The WallStreetBets (WSB) Phenomenon}
+
+The January 2021 GameStop episode brought WSB into mainstream financial discourse. Academic work on the event confirmed that coordinated retail sentiment expressed on WSB preceded the dramatic price movements in GME, AMC, and other ``meme stocks'' by one to two days, and that the mechanism operated partly through options markets --- positive WSB sentiment was associated with elevated call option demand, which in turn induced gamma-hedging by market makers, amplifying price moves \cite{da2015sum}.
+
+\subsubsection*{Methodological Issues}
+
+Several methodological problems complicate social media sentiment research. First, bot accounts and coordinated inauthentic behaviour can manufacture fake sentiment signals; without bot filtering, measured sentiment may be noise or deliberate manipulation. Second, selection effects are severe: the population of users who post about stocks differs markedly from the population of stock market participants. Third, the relationship between sentiment and returns is likely two-way: positive returns attract more positive posting, creating reverse causality that confounds predictive regressions.
+
+% ---------------------------------------------------------------
+\subsection{News and Wire Services}
 \label{sec:ch09-news-wire-services}
 
-[Placeholder]
+Systematic financial news sentiment analysis dates to at least Tetlock (2007), who regressed daily market returns on the fraction of negative words in Wall Street Journal ``Abreast of the Market'' columns, finding that high media pessimism predicts downward pressure on market prices followed by reversion \cite{tetlock2007giving}. Tetlock, Saar-Tsechansky, and Macskassy extended this analysis to the firm level, showing that the quantitative earnings surprise implied by news language predicts future earnings surprises and that stale negative language (already in prices) does not add forecasting power \cite{tetlock2008words}.
 
-\subsection{Earnings call transcripts: management tone, analyst Q\&A}
+\subsubsection*{News Implied Volatility (NVIX)}
+
+Manela and Moreira's NVIX \cite{manela2017news} is constructed by projecting Wall Street Journal front-page text onto realized VIX variations using a regression model estimated on overlapping text-VIX pairs. The resulting measure extends back to 1890 --- far beyond the VIX's 1990 starting date --- and captures disaster risk periods (the Great Depression, World War II, the 2008--09 financial crisis) with high fidelity, suggesting that newspaper language carries genuine forward-looking information about aggregate economic uncertainty.
+
+\subsubsection*{News Text in Factor Models}
+
+The predictive literature has asked whether news sentiment, combined with price momentum and fundamental factors, improves cross-sectional return predictions. Ke, Kelly, and Xiu used a supervised learning approach to extract price-relevant news features, finding that NLP-based signals offer distinct predictive content relative to standard return predictors, particularly at short horizons \cite{ke2019predicting_text}. The challenge in live implementation is that the highest-value signals (intraday price reactions to headlines) are captured almost entirely by high-frequency traders with sub-millisecond response times; longer-horizon signals (weekly or monthly news sentiment) are more accessible but carry lower Sharpe ratios.
+
+\subsubsection*{Climate and ESG News}
+
+Engle, Giglio, Kelly, Lee, and Stroebel constructed a climate-change news index from media text and used it to build a hedge portfolio for climate risk exposure \cite{engle2020hedging}. Firms that are more exposed to climate-change news tend to have lower subsequent returns on high-news days, consistent with a risk premium that fluctuates with the salience of climate concerns. This approach is generalizable: any thematic risk (pandemic risk, geopolitical risk, supply-chain disruption) can in principle be tracked through domain-specific news indices.
+
+% ---------------------------------------------------------------
+\subsection{Earnings Call Transcripts: Management Tone and Analyst Q\&A}
 \label{sec:ch09-earnings-call-transcripts}
 
-[Placeholder]
+Earnings conference calls are among the most information-rich financial text sources because they combine scripted disclosure (prepared remarks) with real-time interaction (Q\&A). Researchers and practitioners have studied both components.
 
-\subsection{SEC filings: 10-K/10-Q risk factor language, MD\&A readability}
+\subsubsection*{Management Tone}
+
+Larcker and Zakolyukina's influential paper examined whether the language used by CEOs and CFOs in conference calls could discriminate between calls that were subsequently associated with financial restatements (a proxy for deceptive disclosure) and those that were not \cite{larcker2012detecting}. Using a battery of linguistic deception cues derived from psychological deception detection research --- fewer first-person singular pronouns, more general positive emotion words, fewer extreme negative emotion words --- they built a classifier that predicted accounting misstatements with out-of-sample accuracy materially above base rates.
+
+Price, Doran, Peterson, and Bliss examined a broader sample of calls and showed that the management tone component of a call (the sentiment of prepared remarks, adjusted for the news already in EPS surprises) predicts abnormal returns in the window immediately following the call \cite{price2012earnings}. Davis, Ge, Matsumoto, and Zhang decomposed management tone into a ``manager-specific'' component that reflects individual optimism or pessimism, and found that this idiosyncratic component predicts future earnings performance \cite{davis2015effect}.
+
+\subsubsection*{Analyst Q\&A}
+
+The analyst Q\&A segment provides a different signal. Analyst questions that focus on risk factors, that press for clarification, or that are phrased with more negative language indicate that sophisticated sell-side analysts are concerned about something not fully explained in the prepared remarks. Models that score the sentiment of questions and the ``responsiveness'' of management answers --- whether answers are direct and concrete or evasive and vague --- have shown predictive power for subsequent earnings surprises.
+
+\begin{example}[Fine-Tuning FinBERT on Earnings Call Sentences]
+\label{ex:finbert-finetuning}
+Suppose a practitioner wishes to build a classifier that labels each sentence of an earnings call transcript as \textit{positive}, \textit{negative}, or \textit{neutral} from the perspective of the equity investor. The pipeline proceeds as follows:
+
+\begin{enumerate}
+  \item \textbf{Data preparation.} Download 10,000 earnings call transcripts from a vendor API. Segment each transcript into sentences using a sentence splitter trained on financial text (vanilla spaCy works reasonably well; punkt tokenizer requires customization for financial abbreviations such as ``Q3'' or ``FY2024'').
+
+  \item \textbf{Labelling.} Draw a stratified random sample of 3,000 sentences. Have three annotators with finance training label each sentence. Retain the 75\%-agreement subset (approximately 2,200 sentences). Measure inter-annotator agreement using Krippendorff's alpha (defined in Section~\ref{sec:ch09-evaluation}).
+
+  \item \textbf{Model initialisation.} Load \texttt{yiyanghkust/finbert-tone} (Huang et al.'s FinBERT checkpoint) from the Hugging Face Hub. Attach a fresh three-way classification head.
+
+  \item \textbf{Fine-tuning.} Train for 3--5 epochs with a cosine-decayed learning rate ($\eta_0 = 2 \times 10^{-5}$), batch size 32, weight decay 0.01. Use a 90/10 train/validation split; monitor validation F1 for early stopping.
+
+  \item \textbf{Inference.} Apply the model to all sentences in a held-out set of 2,000 calls. Aggregate sentence-level scores to a call-level net positivity score per speaker role (CEO, CFO, analyst). Correlate call-level scores with 5-day buy-and-hold abnormal returns (Section~\ref{sec:ch09-event-studies}).
+\end{enumerate}
+
+A model trained this way consistently achieves macro-averaged F1 of 0.72--0.78 on held-out earnings call sentences, compared with 0.60--0.65 for the LM lexicon on the same data, and the fine-tuned model correctly handles negated phrases (``did not disappoint'') and comparative constructions (``margins improved relative to the prior-year period'') that the lexicon counts as ambiguous.
+\end{example}
+
+% ---------------------------------------------------------------
+\subsection{SEC Filings: 10-K/10-Q Risk Factor Language and MD\&A Readability}
 \label{sec:ch09-sec-filings}
 
-[Placeholder]
+The MD\&A section of a 10-K is legally significant: it is the management's own narrative explanation of the company's financial condition, operating results, and prospects. The SEC explicitly requires it to be written in plain English, but in practice lawyers draft it with an eye toward litigation defence, leading to a characteristic style that is simultaneously verbose and non-committal.
 
-\subsection{Central bank communications: FOMC minutes, ECB decisions}
+\subsubsection*{Loughran--McDonald and 10-K Returns}
+
+The foundational empirical result is Loughran and McDonald (2011) \cite{loughran2011liability}: on the 10-K filing date, the fraction of LM negative words in the full filing is negatively correlated with same-day abnormal returns and positively correlated with same-day trading volume, consistent with negative filings conveying adverse information that surprises investors. The effect is economically meaningful: moving from the 25th to the 75th percentile of LM negativity is associated with a roughly 0.5 percentage point reduction in same-day abnormal returns. The LM dictionary outperforms the Harvard GI on these outcomes, confirming that financial domain specificity matters.
+
+\subsubsection*{Risk Factor Boilerplate and Informativeness}
+
+A growing literature documents the increasing boilerplate nature of Risk Factor disclosures. Cohen, Malloy, and Nguyen's ``Lazy Prices'' paper showed that the fraction of a 10-K that is copied verbatim from the prior year's filing is inversely related to the information content of the filing, with high-copy firms subsequently underperforming \cite{cohen2020lazy}. This suggests that year-over-year change scores --- textual similarity metrics rather than raw sentiment scores --- can be more informative than level sentiment for identifying firms facing genuine deterioration.
+
+\subsubsection*{MD\&A Readability}
+
+Li showed that the Fog Index (a measure of reading difficulty based on sentence length and syllable count) of the MD\&A is negatively correlated with current earnings and positively correlated with earnings volatility, suggesting that managers write more opaquely when performance is poor and future uncertainty is high \cite{li2008annual}. Lehavy, Li, and Merkley found that firms with less readable 10-Ks attract fewer analysts, and those analysts' forecasts are less accurate, consistent with readability reducing information transfer from firm to market \cite{lehavy2011benefit}.
+
+\begin{definition}[Fog Index]
+\label{def:fog-index}
+The Gunning Fog Index for a text passage is defined as:
+\begin{equation}
+  \label{eq:fog-index}
+  \text{Fog} = 0.4 \left( \frac{N_{\text{words}}}{N_{\text{sentences}}} + 100 \cdot \frac{N_{\text{complex}}}{N_{\text{words}}} \right)
+\end{equation}
+where $N_{\text{complex}}$ counts words with three or more syllables, excluding proper nouns, compound modifiers, and two-syllable verbs formed by adding ``-es'' or ``-ed''. A Fog Index of 12 corresponds to US high-school reading level; 10-K MD\&A sections typically score between 18 and 22.
+\end{definition}
+
+% ---------------------------------------------------------------
+\subsection{Central Bank Communications: FOMC Minutes and ECB Decisions}
 \label{sec:ch09-central-bank-communications}
 
-[Placeholder]
+Central banks have among the most carefully crafted communications of any institution. A single word change in an FOMC statement --- from ``patient'' to ``cautious'', from ``transitory'' to ``persistent'' --- can move Treasury yields by several basis points within seconds of release. The study of central bank text has therefore attracted substantial research attention.
 
+\subsubsection*{Asset Price Effects of Tone}
+
+Schmeling and Wagner's study of the tone of ECB and Fed communications found that more positive policy statements (measured by net positive minus negative words) are associated with higher equity returns and lower credit spreads on announcement days, after controlling for the hard news content (rate changes, growth forecasts) released at the same time \cite{schmeling2019does}. The effect is stronger for monetary policy surprises --- statements that deviate from market expectations --- and for statements by more powerful policymakers (the Fed Chair relative to regional presidents).
+
+\subsubsection*{Deliberation Quality in FOMC Transcripts}
+
+Hansen, McMahon, and Prat analysed the full text of FOMC transcripts (which are released with a five-year lag) using topic modelling \cite{hansen2018transparency}. They found that transcripts with more discussion of economic fundamentals (as opposed to procedural matters) were associated with subsequent monetary policy decisions that produced better inflation outcomes, providing evidence that the quality of deliberation within the Committee is reflected in transcript language and has real economic consequences.
+
+\subsubsection*{Information Effect vs. Policy Effect}
+
+A challenge in central bank text analysis is separating the ``information effect'' from the ``policy surprise effect''. Nakamura and Steinsson showed that high-frequency monetary policy surprises (identified from changes in futures prices in a tight window around FOMC announcements) contain a significant information effect component: surprisingly dovish policy often increases rather than decreases equity prices because it signals that the Fed has private information that the economy is weaker than markets believed \cite{nakamura2018high}. Any NLP model applied to FOMC text must grapple with this confound: positive sentiment in a dovish statement may signal bad economic news, not good.
+
+% ---------------------------------------------------------------
 \section{From Sentiment to Tradeable Signal}
 \label{sec:ch09-sentiment-to-signal}
 
-[Placeholder]
+\begin{context}
 
-\subsection{Aggregation, standardization, and stationarity}
+Raw sentiment scores from any of the methods above are rarely directly tradeable. They require aggregation, denoising, and statistical transformation before they can be used in investment or risk management decisions. This section describes the standard steps from raw scores to a clean signal, and the two main empirical frameworks for evaluating whether sentiment has economic content: event studies and predictive regressions.
+
+\end{context}
+
+% ---------------------------------------------------------------
+\subsection{Aggregation, Standardization, and Stationarity}
 \label{sec:ch09-aggregation-standardization}
 
-[Placeholder]
+A typical pipeline produces one sentiment score per document. The practitioner must aggregate these to the desired level of analysis, which might be: a single firm on a single trading day; a market sector on a weekly basis; or a macroeconomic sentiment index at monthly frequency.
 
-\subsection{Event studies: earnings surprises, FOMC shocks}
+\subsubsection*{Document-to-Entity Aggregation}
+
+For firm-level analysis, all documents mentioning a given firm (identified by ticker, ISIN, or entity recognition) on a given trading day are aggregated into a composite score. Common aggregation schemes are:
+
+\begin{itemize}
+  \item \textbf{Simple mean}: $\bar{S}_t = \frac{1}{n_t} \sum_{i=1}^{n_t} S_i$
+  \item \textbf{Volume-weighted mean}: weight each document by its coverage reach (page views, retweet count, outlet circulation)
+  \item \textbf{Recency-weighted mean}: apply exponential decay to documents further from the market close
+\end{itemize}
+
+The choice matters for noisy sources like social media; for curated sources like SEC filings, simple averaging is usually adequate.
+
+\subsubsection*{Cross-Sectional Standardization}
+
+Raw scores from different models are not comparable across firms or periods. A firm operating in a notoriously negative-language sector (chemicals, defence) will show persistently lower LM scores than a software firm, even if both are in equally healthy condition. Cross-sectional standardisation --- converting raw scores to z-scores within industry-year groups --- removes these fixed effects:
+
+\begin{equation}
+  \label{eq:zscore-sentiment}
+  \tilde{S}_{i,t} = \frac{S_{i,t} - \mu_{j(i),t}}{\sigma_{j(i),t}}
+\end{equation}
+
+where $j(i)$ denotes the industry group of firm $i$, and $\mu_{j(i),t}$, $\sigma_{j(i),t}$ are the within-group mean and standard deviation at time $t$.
+
+\subsubsection*{Stationarity and the Trend Problem}
+
+Aggregate sentiment indices over long periods often exhibit trends driven by changes in writing style, changes in the universe of covered texts, or genuine economic regime shifts. Before using any long-run sentiment series in a predictive regression, standard unit-root tests (ADF, KPSS) should be applied, and non-stationary series should be first-differenced or detrended.
+
+A related problem is \emph{sentiment inflation}: as language models improve, the measured sentiment of old news articles processed by modern models can differ from what would have been measured at the time of publication. Constructing sentiment series requires consistent use of the same model across all time periods, or at minimum documenting the model vintages used.
+
+% ---------------------------------------------------------------
+\subsection{Event Studies: Earnings Surprises and FOMC Shocks}
 \label{sec:ch09-event-studies}
 
-[Placeholder]
+The event study framework \cite{fama1970efficient} tests whether a class of events contains information by measuring the average abnormal return in a window around the event date. For text-based events, the event is typically defined as the release of a document with extreme sentiment, and the abnormal return is measured relative to the market model or a risk-factor benchmark.
 
-\subsection{Long-horizon vs. short-horizon predictability}
+\begin{definition}[Cumulative Abnormal Return (CAR)]
+\label{def:car}
+Let $R_{i,\tau}$ denote the return of firm $i$ on day $\tau$ relative to event date $\tau=0$, and $\hat{R}_{i,\tau}$ the expected return from a benchmark model (e.g., CAPM). The abnormal return is $AR_{i,\tau} = R_{i,\tau} - \hat{R}_{i,\tau}$. The cumulative abnormal return over a window $[a,b]$ is:
+\begin{equation}
+  \label{eq:car}
+  \mathrm{CAR}_{i}[a,b] = \sum_{\tau=a}^{b} AR_{i,\tau}
+\end{equation}
+The average CAR across $N$ events is $\overline{\mathrm{CAR}}[a,b] = \frac{1}{N} \sum_{i=1}^{N} \mathrm{CAR}_i[a,b]$. Statistical significance is assessed using a cross-sectional $t$-test or a bootstrapped confidence interval.
+\end{definition}
+
+For earnings call text, a standard event study conditions on the standardised unexpected earnings (SUE) and examines whether the residual text sentiment --- the sentiment component orthogonal to the quantitative earnings surprise --- predicts the drift in the $[+1, +60]$ day window post-announcement. If text sentiment carries incremental information beyond the EPS number, the regression:
+
+\begin{equation}
+  \label{eq:sentiment-predictive-regression}
+  \mathrm{CAR}_{i}[1,60] = \alpha + \beta_1 \cdot \mathrm{SUE}_{i,0} + \beta_2 \cdot \tilde{S}_{i,0} + \varepsilon_{i,0}
+\end{equation}
+
+should yield a statistically significant $\hat{\beta}_2 > 0$.
+
+\subsubsection*{High-Frequency FOMC Studies}
+
+For central bank text, the event study is tighter. Nakamura and Steinsson identify monetary policy surprises using the 30-minute window around FOMC announcements, measuring the change in federal funds futures prices \cite{nakamura2018high}. Text-based analysis in this setting requires sentence-level scores computed and applied within the 30-minute window, demanding low-latency inference architectures (Section~\ref{sec:ch09-inference-at-scale}).
+
+% ---------------------------------------------------------------
+\subsection{Long-Horizon vs.\ Short-Horizon Predictability}
 \label{sec:ch09-horizon-predictability}
 
-[Placeholder]
+The empirical literature distinguishes between short-horizon predictability (minutes to days) and long-horizon predictability (weeks to months). The two operate through different mechanisms and demand different modelling choices.
 
+\subsubsection*{Short-Horizon: Attention and Price Pressure}
+
+At short horizons, text sentiment primarily operates through retail investor attention and price pressure. A positive news article or viral social media post draws attention to a stock, increasing demand from retail investors who respond to narrative rather than to fundamentals. Da, Engelberg, and Gao showed that attention-driven demand creates temporary price increases that reverse over the subsequent four weeks, producing predictable return reversals \cite{da2015sum}. Strategies that short stocks with extreme positive attention and buy stocks with extreme negative attention (after filtering for genuine fundamental news) exploit this reversal.
+
+\subsubsection*{Long-Horizon: Fundamental Information}
+
+At longer horizons, text sentiment carries information about fundamentals that the market has not yet fully priced. Tetlock, Saar-Tsechansky, and Macskassy's evidence that news language predicts future earnings suggests that journalists and analysts process public information about firm conditions more quickly than the stock market \cite{tetlock2008words}. Cohen, Malloy, and Nguyen's lazy prices result operates at an annual horizon: the lack of change in a 10-K signals that management has nothing new to say, and the market does not fully impound this signal immediately \cite{cohen2020lazy}.
+
+\begin{remark}
+The difference between short-horizon and long-horizon predictability has practical implications. Short-horizon strategies require real-time data feeds, low-latency classifiers, and execution algorithms that can act on sentiment within minutes. Long-horizon strategies can use daily or even weekly data processing, benefit from more computationally intensive models, and are accessible to investors without high-frequency infrastructure. Most academic research focuses on the long horizon because data and execution costs are lower; industry applications often target the short horizon where alpha is larger before costs.
+\end{remark}
+
+% ---------------------------------------------------------------
 \section{Practical Pipeline}
 \label{sec:ch09-practical-pipeline}
 
-[Placeholder]
+\begin{context}
 
-\subsection{Data collection: EDGAR, Twitter API, news vendors}
+The preceding sections described what to extract and why. This section addresses how: the engineering decisions involved in collecting financial text at scale, running sentiment inference in production, and evaluating classifier quality with appropriate metrics.
+
+\end{context}
+
+% ---------------------------------------------------------------
+\subsection{Data Collection: EDGAR, Twitter API, and News Vendors}
 \label{sec:ch09-data-collection}
 
-[Placeholder]
+\subsubsection*{EDGAR Full-Text Search}
 
-\subsection{Inference at scale: batch vs. streaming}
+The SEC's EDGAR system (\url{https://efts.sec.gov/LATEST/search-index}) provides a full-text search API and bulk download capabilities. The \texttt{edgar} Python package and the \texttt{python-edgar} library wrap the API for programmatic access. A typical collection workflow is:
+
+\begin{enumerate}
+  \item Query the EDGAR full-text index for the desired form types (e.g., \texttt{10-K}, \texttt{8-K}) and date range.
+  \item Download the filing index pages to extract links to individual documents.
+  \item Parse the primary document (usually an HTML or SGML file) using \texttt{BeautifulSoup} or the \texttt{sec-edgar-downloader} package.
+  \item Extract the target sections (MD\&A, Risk Factors) using section header pattern matching.
+  \item Store in a structured format (Parquet, indexed by CIK, period of report, and filing date).
+\end{enumerate}
+
+\subsubsection*{Twitter/X Academic API}
+
+Access to Twitter data for research has become more restrictive since the platform's change of ownership in 2022. The Academic Research API (now requiring paid access) provides filtered stream endpoints and full-archive search for up to ten years of historical tweets. For financial research, the key filters are:
+\begin{itemize}
+  \item Cashtag filter: \texttt{has:cashtags} returns only tweets mentioning at least one \texttt{\$TICKER} symbol.
+  \item Language filter: \texttt{lang:en} for English-only posts.
+  \item Verified author filter: reduces bot-originated content.
+\end{itemize}
+
+Historical datasets such as the StockTwits API (accessible via the \url{https://api.stocktwits.com} endpoint) and the Reddit Pushshift archive (now restricted) provide alternative sources. Commercial vendors (Refinitiv, Bloomberg, Quandl/Nasdaq Data Link) offer cleaned social media sentiment feeds at premium pricing.
+
+\subsubsection*{News Vendors}
+
+For production applications, the dominant approach is a commercial news feed: Bloomberg News, Dow Jones DNA, Refinitiv News Analytics, or RavenPack. These products deliver machine-readable event records with entity tags, sentiment scores, and event category codes. For academic research, the GDELT Project provides a free (though noisier) global news database updated every 15 minutes. The Eventful News dataset and the Signal newsfeeds provide alternatives at varying cost and coverage.
+
+% ---------------------------------------------------------------
+\subsection{Inference at Scale: Batch vs.\ Streaming}
 \label{sec:ch09-inference-at-scale}
 
-[Placeholder]
+A production sentiment pipeline must handle two modes: batch processing of historical archives and streaming processing of incoming documents.
 
-\subsection{Evaluation: Krippendorff alpha, precision, recall, F1}
+\subsubsection*{Batch Inference}
+
+Batch inference processes a fixed corpus offline. The bottleneck is GPU throughput. For a FinBERT-scale model (110M parameters) processing 512-token documents on a single A100 GPU, throughput is approximately 500--1,000 documents per second. For a 10M-document archive this implies 3--6 hours of GPU time per full pass.
+
+Efficiency optimisations include:
+\begin{itemize}
+  \item \textbf{Dynamic padding and batching}: group documents by approximate length to minimize padding overhead.
+  \item \textbf{Mixed-precision inference}: use FP16 or BF16 to halve memory consumption and increase throughput.
+  \item \textbf{Model distillation}: replace a 110M-parameter model with a 33M-parameter distilled version with $<$5\% accuracy loss.
+  \item \textbf{Parallelism}: distribute across multiple GPUs using data-parallel inference, or across CPU cores for lexicon-based scoring.
+\end{itemize}
+
+\subsubsection*{Streaming Inference}
+
+Streaming inference processes documents as they arrive, with a latency requirement. For FOMC statement analysis, the target latency is under 100 milliseconds from publication to scored output. For earnings call transcripts, near-real-time scoring of the live audio transcription is desirable.
+
+The standard architecture is an event-driven pipeline: a Kafka or Kinesis stream receives raw documents; a pool of inference workers (running ONNX-exported models for maximum throughput) score each document within a time budget; the scored events are published to a downstream stream for aggregation and signal computation. In Python, the \texttt{onnxruntime} library with quantised model weights can achieve single-sentence latencies of 5--10 milliseconds on modern CPUs, sufficient for most event-driven applications.
+
+% ---------------------------------------------------------------
+\subsection{Evaluation: Krippendorff's Alpha, Precision, Recall, and F1}
 \label{sec:ch09-evaluation}
 
-[Placeholder]
+Evaluating a financial sentiment classifier requires both measuring inter-annotator agreement (to assess the quality of the gold-standard labels) and measuring classifier performance against those labels.
+
+\subsubsection*{Inter-Annotator Agreement: Krippendorff's Alpha}
+
+When constructing a labelled dataset, multiple annotators assign labels to the same documents. Krippendorff's alpha \cite{krippendorff1970estimating} measures the degree of agreement beyond what would be expected by chance, accounting for the measurement scale (nominal, ordinal, interval, or ratio):
+
+\begin{equation}
+  \label{eq:krippendorff-alpha}
+  \alpha = 1 - \frac{D_o}{D_e}
+\end{equation}
+
+where $D_o$ is the observed disagreement and $D_e$ is the expected disagreement under the null hypothesis of random annotation. For nominal categories with $k$ labels, $D_o = \frac{1}{n(n-1)} \sum_{i \neq j} \mathbb{1}[y_i \neq y_j]$ and $D_e = 1 - \sum_c \left(\frac{n_c}{n}\right)^2$, where $n_c$ is the number of annotations in category $c$.
+
+An alpha of 0 indicates agreement at chance level; 1 indicates perfect agreement. Krippendorff suggested $\alpha \geq 0.667$ as the minimum threshold for reliable data, and $\alpha \geq 0.800$ for high confidence. Published financial sentiment benchmarks typically report alphas between 0.65 and 0.78, reflecting the genuine ambiguity of many financial sentences.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Inter-annotator agreement on sentiment labels for financial text. Values are Krippendorff's alpha. Source: selected published benchmarks.}
+  \label{tab:krippendorff-benchmarks}
+  \begin{tabular}{lcc}
+    \toprule
+    Dataset & Classes & Alpha \\
+    \midrule
+    Financial PhraseBank (100\% agreement) & 3 & 1.00 \\
+    Financial PhraseBank (66\% agreement) & 3 & $\approx 0.72$ \\
+    Earnings call sentences (practitioner) & 3 & 0.68--0.75 \\
+    FOMC statement sentences & 3 & 0.70--0.78 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection*{Classifier Metrics: Precision, Recall, and F1}
+
+For a $k$-class classifier, the standard metrics are computed per class and then averaged. For class $c$:
+
+\begin{align}
+  \label{eq:precision-recall}
+  \text{Precision}_c &= \frac{TP_c}{TP_c + FP_c} \\
+  \text{Recall}_c    &= \frac{TP_c}{TP_c + FN_c} \\
+  F1_c               &= \frac{2 \cdot \text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}
+\end{align}
+
+where $TP_c$, $FP_c$, $FN_c$ are true positives, false positives, and false negatives for class $c$ respectively. Macro-averaged F1 (unweighted mean across classes) is the standard reporting metric for financial sentiment, as it treats each class equally regardless of its frequency. This matters because the ``neutral'' class often comprises 50--60\% of financial sentences; an accuracy-maximising model that over-predicts neutral can achieve high accuracy while failing systematically on the economically important positive and negative classes.
+
+\subsubsection*{Economic Validity}
+
+Statistical metrics on a held-out test set do not guarantee economic value. A model with macro F1 of 0.75 may produce signals with no predictive power if the test set is unrepresentative of the deployment distribution, or if the labels themselves are misaligned with the economic outcome of interest. Best practice requires an additional out-of-sample evaluation: regress the model's aggregate sentiment output on forward returns or earnings surprises in a strictly held-out period not used for training or hyperparameter tuning.
+
+% ---------------------------------------------------------------
+\section{Summary}
+\label{sec:ch09-summary}
+
+This chapter developed the methodology for treating financial language as a data source and extracting economically meaningful signals from it.
+
+\begin{itemize}
+  \item Financial text spans a wide spectrum from unmediated social media to legally scrutinised SEC filings. The structural properties of each source --- temporal frequency, curation level, author incentives --- determine the appropriate preprocessing and modelling approach.
+
+  \item Three generations of sentiment methods coexist in practice: lexicon-based approaches (of which Loughran--McDonald is the domain-standard for corporate filings), fine-tuned transformer classifiers (FinBERT being the canonical benchmark), and LLM zero-shot and few-shot classification. LLMs match or exceed fine-tuned classifiers on standard benchmarks without labelled training data, but at substantially higher inference cost.
+
+  \item Each text source supports a distinct set of financial applications: retail attention and price pressure from social media; incremental fundamental information from news; soft-information disclosure from earnings calls; risk assessment from SEC filings; and monetary policy signal from central bank communications.
+
+  \item Converting raw sentiment scores into tradeable signals requires cross-sectional standardisation, temporal aggregation, and stationarity testing. The event-study framework and predictive regression are the two standard empirical frameworks for assessing economic content.
+
+  \item Production pipelines must handle both batch and streaming inference at scale, and evaluation should combine statistical measures (macro F1, Krippendorff's alpha) with economic validity tests in strictly held-out samples.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Further Reading}
+\label{sec:ch09-further-reading}
+
+The two surveys that best cover this field are Kearney and Liu (2014) \cite{kearney2014textual}, which reviews both the lexicon-based and early machine-learning literature systematically, and Loughran and McDonald (2020) \cite{loughran2020textual}, which provides an authoritative account of textual analysis in corporate finance with emphasis on the issues specific to SEC filings. Tetlock (2007) \cite{tetlock2007giving} and Loughran and McDonald (2011) \cite{loughran2011liability} are the founding empirical papers for their respective methodologies and remain essential reading.
+
+On the NLP side, Araci (2019) \cite{araci2019finbert} and Huang, Wang, and Yang (2023) \cite{huang2023finbert} document the FinBERT line of models with careful ablation studies. Ko et al.\ (2024) \cite{ko2024can} provide the most systematic comparison of LLM zero-shot performance against fine-tuned baselines.
+
+For event-driven asset pricing applications, Manela and Moreira (2017) \cite{manela2017news} is the methodological benchmark for long-horizon news sentiment indices. Schmeling and Wagner (2019) \cite{schmeling2019does} is the reference for central bank text analysis. Larcker and Zakolyukina (2012) \cite{larcker2012detecting} remains the key paper on deception detection in earnings calls.
+
+Chapter~\ref{ch:domain-specific-llms} of this book covers the pre-training and adaptation of domain-specific models including FinBERT's successors. Chapter~\ref{ch:financial-text-summarization} extends the NLP toolkit to abstractive summarisation of financial documents, including earnings call and research report summarisation. Chapter~\ref{ch:llm-limitations-evaluation} addresses the evaluation of LLM outputs more broadly, including calibration, hallucination, and benchmark construction.

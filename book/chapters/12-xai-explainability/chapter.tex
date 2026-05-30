@@ -1,108 +1,867 @@
 \chapter{Explainability and Interpretability of LLMs in Finance}
+\label{ch:xai-explainability}
 
-\begin{itemize}
-  \item Understand the key concepts of explainability and interpretability in regulated financial contexts
-  \item Apply LLM-based techniques to credit, lending, and investment decision problems
-  \item Evaluate the trade-offs between different XAI approaches
-  \item Implement a practical pipeline using Python and the Hugging Face ecosystem
-\end{itemize}
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Articulate the legal and regulatory requirements for model explainability under
+        the EU AI Act, SR 11-7, ECOA, and MiFID II, and explain why LLMs create novel
+        compliance challenges.
+  \item Apply SHAP and LIME to language model predictions, derive the Shapley value
+        formula from cooperative game theory, and interpret feature attribution maps in a
+        financial credit context.
+  \item Critically evaluate the role of attention weights as explanations and distinguish
+        between interpretable and faithful explanations.
+  \item Design chain-of-thought prompts that function as auditable reasoning traces and
+        generate counterfactual explanations for automated financial decisions.
+  \item Draft ECOA-compliant adverse action notices and MiFID II suitability disclosures
+        using LLM-assisted generation.
+  \item Measure explanation quality using faithfulness, completeness, and plausibility
+        metrics, and design human-subject evaluation studies with financial domain experts.
+\end{enumerate}
+\end{remark}
 
+% ---------------------------------------------------------------
 \section{Why Explainability Matters in Regulated Finance}
 \label{sec:ch12-why-explainability}
 
-[Placeholder]
+\begin{context}
+Consider a small business owner who applies for a working-capital loan at a mid-sized
+regional bank. The bank's credit decision system---a transformer-based model trained on
+millions of historical applications---returns a rejection within seconds. The loan officer
+is asked to convey the decision. Under the Equal Credit Opportunity Act, the officer
+must provide the applicant with specific reasons for the denial. The model, however, has
+no explanations to offer: it produces a probability, not a rationale. The loan officer is
+left to reverse-engineer a justification from features she may not even know the model
+used. This everyday scenario, replicated thousands of times daily across the financial
+system, is the practical heart of the explainability problem.
+\end{context}
+
+Explainability in machine learning refers to the degree to which a human can understand
+the cause of a model's decision \cite{miller2019explanation}. In most industries, a lack
+of explainability is an inconvenience. In finance, it is a legal, fiduciary, and
+reputational problem of the first order. Financial institutions are not free to deploy
+opaque models simply because those models are accurate; they must demonstrate that model
+outputs are appropriate, non-discriminatory, and auditable \cite{sr117}.
+
+The challenge has grown sharper as the industry has adopted large language models. Earlier
+generations of credit and fraud models---logistic regression, gradient-boosted trees---
+could at least be interrogated with classical XAI techniques. LLMs add new layers of
+opacity: billions of parameters, uninterpretable intermediate activations, and outputs
+that depend on the precise formulation of a prompt in ways that are difficult to
+characterise \cite{arrieta2020explainable}. This chapter develops the conceptual and
+technical toolkit for addressing that challenge.
 
 \subsection{Legal Requirements: EU AI Act, SR 11-7, ECOA}
 \label{sec:ch12-legal-requirements}
 
-[Placeholder]
+Three regulatory frameworks are particularly consequential for practitioners deploying
+LLMs in financial decision-making.
+
+The \emph{EU AI Act} \cite{euaiact2024}, which entered into force in August 2024,
+categorises AI systems according to risk level. Credit scoring, insurance pricing, and
+financial eligibility assessments for individuals are classified as \emph{high-risk}
+applications (Annex III). For systems in this category the Act mandates transparency
+measures that allow users to interpret and override outputs, logging of inputs and outputs
+for post-hoc audit, and human oversight provisions that prevent the system from being
+deployed without a qualified human in the loop for consequential decisions. The Act
+defines ``transparency'' operationally: it is not sufficient to state that a model exists;
+the deployer must be able to explain what factors drove any specific decision in terms
+meaningful to the affected person.
+
+\emph{SR 11-7}, the Federal Reserve's supervisory guidance on model risk management
+\cite{sr117}, predates modern machine learning but remains the principal framework used
+by U.S.\ bank examiners when assessing AI models. It requires that model developers
+document the conceptual soundness of a model---why does this model work?---and that
+validators conduct adversarial testing. Critically, it requires that model outputs be
+explainable to risk managers and executives who must take accountability for them. The
+guidance has been interpreted to require that complex models, including neural networks,
+be accompanied by sensitivity analyses and post-hoc attribution methods that can satisfy
+a non-technical examiner.
+
+The \emph{Equal Credit Opportunity Act} (ECOA) and its implementing regulation, Regulation
+B \cite{cfpb2013ecoa}, require creditors to notify applicants of the specific reasons for
+adverse credit actions. The regulatory text specifies that reasons must be the
+``principal reasons'' and must be stated in plain language that the applicant can
+understand. A generic statement such as ``our model determined you were not creditworthy''
+does not satisfy this requirement. The creditor must identify the four to five factors
+that most negatively affected the decision. When the underlying model is a gradient-
+boosted tree this is tractable; when it is a fine-tuned language model processing free-
+text business descriptions and financial narrative, producing these reasons becomes
+technically non-trivial.
+
+Similar requirements exist under the Fair Credit Reporting Act (FCRA) for decisions that
+rely on consumer reports, and in the European context under the General Data Protection
+Regulation (GDPR) Article 22, which confers on data subjects a right not to be subject
+to solely automated decisions that significantly affect them, along with a right to
+obtain a ``meaningful explanation'' of the logic involved.
+
+\begin{definition}[Explanation vs.\ Interpretation]
+\label{def:explanation-vs-interpretation}
+Following the framework of \citet{doshi2017accountability}, we distinguish two related
+concepts. An \emph{interpretation} is a mapping from an abstract model representation
+to a domain intelligible to humans---it answers the question ``how does this model
+work in general?'' An \emph{explanation} is a local object that justifies a specific
+prediction---it answers the question ``why did this model produce this output for this
+input?'' Regulatory requirements are primarily explanatory: they require that specific
+decisions be justified to specific persons.
+\end{definition}
 
 \subsection{Stakeholder Expectations: Clients, Regulators, Auditors}
 \label{sec:ch12-stakeholder-expectations}
 
-[Placeholder]
+Explainability in finance serves at least three distinct audiences, each with different
+requirements and tolerances for technical complexity.
+
+\emph{Clients} and applicants---the natural persons whose financial lives are affected
+by model decisions---require explanations that are actionable and comprehensible without
+specialist knowledge. An explanation that says ``your debt-to-income ratio of 52\% was
+10 percentage points above our threshold'' is more useful than one that says ``feature
+$x_{17}$ had a SHAP value of $-0.43$.'' Research in human-computer interaction
+consistently finds that users prefer causal, contrastive explanations---``you were
+rejected because your income was insufficient; a \$15,000 increase in annual income
+would likely have resulted in approval''---over purely statistical ones
+\cite{miller2019explanation}.
+
+\emph{Regulators and examiners} require explanations at a higher level of technical
+rigour. A Federal Reserve examiner reviewing a mortgage origination model will ask not
+only whether individual decisions can be explained but whether the model, taken as a whole,
+exhibits systematic disparate impact along protected-class lines. This requires
+interpretations of global model behaviour---which features does the model rely on most
+heavily?---as well as the ability to audit specific cases when complaints are filed. The
+CFA Institute's 2025 report on AI in investment management \cite{cfainstitute2025xai}
+found that institutional investors increasingly require explainability assurances before
+deploying third-party AI systems for portfolio construction.
+
+\emph{Internal auditors and model validators} occupy an intermediate position. They need
+both global interpretations, to assess whether the model makes conceptual sense given the
+problem domain, and local explanations, to perform targeted testing. Crucially, they must
+be able to reproduce explanations---an XAI method that produces different explanations on
+repeated runs from the same input is not suitable for audit purposes.
+
+The mismatch between these audiences poses a genuine design challenge. Methods that
+satisfy regulators may overwhelm retail clients; methods that are accessible to clients
+may be too simplified to satisfy auditors. A comprehensive explainability strategy
+typically requires multiple explanation types deployed in parallel.
 
 \subsection{The Black-Box Problem for LLMs}
 \label{sec:ch12-black-box-problem}
 
-[Placeholder]
+Classical machine learning models such as logistic regression and decision trees are
+\emph{intrinsically interpretable}: their structure directly reveals the prediction
+function. A logistic regression score is a weighted sum of inputs; the weights are the
+interpretation. A decision tree produces a sequence of binary splits that can be read
+as a set of human-intelligible rules. These models have a long track record in regulated
+finance precisely because their interpretability is straightforward to document.
 
+LLMs are not interpretable in this sense. A transformer with billions of parameters
+encodes knowledge in distributed representations spread across all its layers. No single
+parameter or small set of parameters corresponds to a human concept. The attention
+mechanism, often invoked as a window into the model's reasoning, does not straightforwardly
+indicate which input tokens caused an output---a point we examine in detail in
+Section~\ref{sec:ch12-attention-visualization}.
+
+The challenge is compounded by the nature of LLM inputs. Classical credit models consume
+a fixed-length vector of structured numerical features. LLMs can consume free text: a
+business plan, a financial statement narrative, a news article about a company's
+counterparty. The high dimensionality of the input space---the set of possible sentences
+is effectively infinite---makes exhaustive sensitivity analysis impossible.
+
+\begin{remark}
+\citet{rudin2019stop} argues forcefully that for high-stakes decisions, the correct
+response to the black-box problem is not better post-hoc explanations but the deployment
+of intrinsically interpretable models in the first place. This is a legitimate position
+where it is technically feasible. The rejoinder in the financial LLM context is that
+structured and unstructured inputs often cannot be disentangled: a language model that
+simultaneously processes a borrower's financial ratios and the qualitative text of their
+business description may extract signal from the text that a purely numerical model
+cannot recover. The question of whether that extra signal justifies the cost in
+interpretability is ultimately a business and regulatory judgement, not a technical one.
+\end{remark}
+
+% ---------------------------------------------------------------
 \section{Classical XAI Methods Applied to LLMs}
 \label{sec:ch12-classical-xai}
 
-[Placeholder]
+Before examining methods designed specifically for language models, it is instructive to
+understand how classical post-hoc XAI methods can be adapted to the LLM setting. Three
+methods have been most widely applied: SHAP, LIME, and attention visualisation. Each has
+clear strengths and non-trivial limitations when applied to text-based models.
 
 \subsection{SHAP Values: From Tree Models to Language Models}
 \label{sec:ch12-shap-values}
 
-[Placeholder]
+Shapley values originate in cooperative game theory \cite{shapley1953value}. In that
+context a game involves a set of players $N = \{1, \ldots, n\}$ who cooperate to produce
+a value $v(S)$ for every coalition $S \subseteq N$. The Shapley value $\phi_i$ assigns
+each player a fair share of the total value, defined as the average marginal contribution
+of player $i$ across all possible orderings of players joining the coalition.
+
+\begin{definition}[Shapley Value]
+\label{def:shapley-value}
+For a cooperative game $(N, v)$ where $N$ is the set of players and $v: 2^N \to \mathbb{R}$
+is the characteristic function satisfying $v(\emptyset) = 0$, the Shapley value of
+player $i$ is
+\begin{equation}
+\label{eq:shapley-value}
+\phi_i(v) \;=\; \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!\,(n - |S| - 1)!}{n!}
+\bigl[v(S \cup \{i\}) - v(S)\bigr],
+\end{equation}
+where the sum is over all coalitions $S$ that do not contain $i$, the factor
+$|S|!\,(n - |S| - 1)!/n!$ is the probability that $i$ joins the coalition at this
+position in a uniform random ordering, and $v(S \cup \{i\}) - v(S)$ is $i$'s marginal
+contribution.
+\end{definition}
+
+The SHAP framework of \citet{lundberg2017unified} reinterprets equation~\eqref{eq:shapley-value}
+as a feature attribution problem. The players are the features $x_1, \ldots, x_n$ of an
+input instance; the value function is the model's expected prediction when only the
+features in coalition $S$ are ``known'' and the remainder are marginalised out. The SHAP
+value $\phi_i$ then measures how much feature $i$ pushes the model's prediction above
+or below the baseline (the expected prediction over the data distribution).
+
+Three properties make Shapley values particularly appealing for financial explainability:
+
+\begin{enumerate}
+  \item \emph{Efficiency}: $\sum_{i=1}^n \phi_i = f(x) - \mathbb{E}[f(X)]$. The SHAP
+        values sum to the prediction gap from the baseline, so the explanation accounts
+        for the entire prediction.
+  \item \emph{Symmetry}: if two features contribute identically in all coalitions, they
+        receive equal SHAP values.
+  \item \emph{Dummy}: features that never affect the prediction receive zero SHAP value.
+\end{enumerate}
+
+For tree-based models, TreeSHAP \cite{lundberg2020local} computes exact Shapley values
+in polynomial time. For neural networks---including LLMs---the computation requires
+approximation because exact Shapley values have exponential complexity in the number of
+features.
+
+Applying SHAP to LLMs requires defining what a ``feature'' is. The natural choice is the
+token: each position in the input sequence is treated as a player, and its SHAP value
+measures its contribution to the output logit or predicted probability. The challenge is
+that marginalising out a token---replacing it with its expected value---is not
+straightforward for discrete text: the expectation must be taken over the marginal
+distribution of tokens given the context, which requires a language model itself. In
+practice, the token is either replaced by a mask token, by a randomly sampled token from
+the vocabulary, or by sampling from a smaller reference language model.
+
+\begin{example}[SHAP Attribution for a Credit Decision]
+\label{ex:shap-credit}
+Consider a fine-tuned BERT model that classifies short business descriptions as
+``creditworthy'' or ``not creditworthy.'' The input is:
+\begin{quote}
+``Our restaurant operates in a highly competitive market and has struggled with declining
+footfall since the pandemic. Revenue is down 30\% year-on-year.''
+\end{quote}
+The model assigns probability 0.14 to the creditworthy class (baseline: 0.50 from the
+training data balance). Running a KernelSHAP approximation with 500 samples identifies
+the following top attributions:
+
+\begin{center}
+\begin{tabular}{lr}
+\hline
+Token & SHAP value \\
+\hline
+``struggled'' & $-0.089$ \\
+``declining'' & $-0.073$ \\
+``down 30\%'' & $-0.061$ \\
+``competitive'' & $-0.047$ \\
+``restaurant'' & $-0.038$ \\
+``operates'' & $+0.012$ \\
+``pandemic'' & $-0.029$ \\
+\hline
+\end{tabular}
+\end{center}
+
+The negative tokens account for most of the $0.50 - 0.14 = 0.36$ prediction gap. This
+attribution can be translated into a partial ECOA adverse action statement: ``Your
+application was primarily affected by language indicating declining revenue, operational
+struggle, and market difficulties.'' An auditor can verify that the identified tokens
+are conceptually consistent with creditworthiness concerns. The numerical attribution
+values provide evidence that the model is reasoning from economically relevant signals
+rather than from protected-class proxies.
+\end{example}
+
+One important limitation deserves mention. SHAP values, even when computed exactly,
+measure correlational feature importance within the model's computation---they do not
+identify causal relationships between features and the real-world outcome. If the model
+has learned a spurious correlation (e.g., certain industry-specific jargon is correlated
+with protected-class membership in the training data), SHAP will faithfully report that
+correlation as a driver of predictions, without flagging it as problematic. Fairness
+auditing requires a separate step beyond attribution \cite{mehrabi2021survey}.
 
 \subsection{LIME for Local, Model-Agnostic Explanations}
 \label{sec:ch12-lime}
 
-[Placeholder]
+LIME (Local Interpretable Model-Agnostic Explanations) takes a different approach to the
+same problem \cite{ribeiro2016lime}. Rather than decomposing the model's prediction into
+additive feature contributions, LIME fits a simple interpretable surrogate model---
+typically a sparse linear model---in the neighbourhood of the instance being explained.
+
+The key intuition is that while a complex model $f$ may be globally non-linear, it is
+locally approximately linear in a small region around any given input $x$. LIME exploits
+this by:
+\begin{enumerate}
+  \item Generating a set of perturbed inputs $z_1, \ldots, z_K$ in the neighbourhood of
+        $x$ by randomly removing or masking features.
+  \item Evaluating the model $f(z_k)$ on each perturbation.
+  \item Fitting a sparse linear model $g$ on the perturbations $(z_k, f(z_k))$, weighted
+        by proximity to $x$ according to a kernel function $\pi_x(z)$.
+\end{enumerate}
+
+\begin{definition}[LIME Objective]
+\label{def:lime-objective}
+The LIME explanation for input $x$ is
+\begin{equation}
+\label{eq:lime-objective}
+\xi(x) \;=\; \arg\min_{g \in \mathcal{G}} \;
+\mathcal{L}(f, g, \pi_x) + \Omega(g),
+\end{equation}
+where $\mathcal{G}$ is a class of interpretable models (e.g., sparse linear classifiers),
+$\mathcal{L}(f, g, \pi_x) = \sum_k \pi_x(z_k)\bigl(f(z_k) - g(z_k)\bigr)^2$ is a
+locality-weighted fidelity loss, and $\Omega(g)$ is a regularisation term penalising
+model complexity (typically the $\ell_0$ norm of the coefficient vector, controlling
+sparsity).
+\end{definition}
+
+For text inputs, LIME treats contiguous segments (words or short phrases) as the
+interpretable features. A segment is either ``present'' (the original text) or ``absent''
+(replaced by the empty string or a padding token). The perturbation space is the set of
+binary vectors indicating which segments are present.
+
+LIME has practical advantages over SHAP in the LLM setting. It is truly model-agnostic:
+it requires only the ability to query $f$ on new inputs, with no access to gradients or
+internal representations. This makes it applicable to closed-source API-based models
+such as GPT-4 or Claude, where internal activations are inaccessible. The main
+disadvantage is instability: the stochastic sampling of perturbations means that running
+LIME twice on the same input may produce meaningfully different explanations
+\cite{arrieta2020explainable}. For audit purposes, this instability is problematic; a
+deterministic seed should be fixed for reproducibility.
 
 \subsection{Attention Visualization: Promise and Limitations}
 \label{sec:ch12-attention-visualization}
 
-[Placeholder]
+The attention mechanism \cite{vaswani2017attention} assigns, for each query position $i$
+and key position $j$, a weight $\alpha_{ij}$ that determines how much representation $j$
+contributes to the output at position $i$. These weights are normalised to sum to one
+and are therefore tempting to read as a kind of explanation: position $j$ is ``attended
+to'' by position $i$ with weight $\alpha_{ij}$. Early work on BERT interpretability
+explored this idea systematically \cite{clark2019bert}, identifying heads that
+appeared to attend to syntactic relations such as subject-verb agreement.
 
+The financial practitioner community has also adopted attention visualisation as a quick
+explainability tool, often colouring input tokens by their attention weight to indicate
+which parts of a document ``drove'' a classification. Unfortunately, the theoretical
+and empirical underpinnings for this interpretation are weak.
+
+\citet{jain2019attention} showed that, across a range of NLP classification tasks,
+alternative attention distributions that produce identical predictions can be constructed
+by adversarial perturbation. This means the attention weights are not a unique
+explanation: different attention patterns may yield the same output, so knowing the
+pattern does not tell you what caused the output. \citet{wiegreffe2019attention}
+countered that attention can function as explanation in a weaker, diagnostic sense---it
+does not causally explain model behaviour, but it correlates with explanations obtained
+by other means and can be a useful diagnostic.
+
+The resolution, formalised by \citet{jacovi2020towards}, draws on a distinction between
+two desiderata for explanations:
+
+\begin{definition}[Faithfulness and Plausibility]
+\label{def:faithfulness-plausibility}
+An explanation is \emph{faithful} if it accurately reflects the causal process by which
+the model produced its output---that is, if highlighting a feature as important correctly
+identifies that feature as having caused (in a manipulationist sense) the output.
+An explanation is \emph{plausible} if it looks convincing to human evaluators as a
+reasonable justification for the prediction, regardless of whether it reflects the actual
+computation.
+\end{definition}
+
+Attention visualisations can be plausible---they often highlight tokens that a human
+expert would agree are relevant---while failing faithfulness. The consequence for finance
+is severe: a plausible but unfaithful explanation can mislead a human auditor into
+certifying a model decision as well-reasoned when the actual drivers of the prediction
+are different from those highlighted.
+
+Gradient-based attribution methods, such as Integrated Gradients \cite{sundararajan2020shapley},
+provide stronger faithfulness guarantees by measuring how much the output changes as a
+function of infinitesimal changes to each input. While they require access to model
+gradients (ruling out closed-source APIs), they are generally preferred over attention
+weights for audit-grade explanation.
+
+% ---------------------------------------------------------------
 \section{LLM-Native Explainability Mechanisms}
 \label{sec:ch12-llm-native}
 
-[Placeholder]
+The methods discussed in Section~\ref{sec:ch12-classical-xai} treat the LLM as a black
+box and apply post-hoc explanations. A complementary approach exploits the generative
+capabilities of LLMs themselves to produce natural language explanations. These
+\emph{LLM-native} mechanisms are arguably better suited to the regulatory requirement
+for plain-language justifications, though they carry their own faithfulness risks.
 
 \subsection{Chain-of-Thought Reasoning as an Explanation Trace}
 \label{sec:ch12-chain-of-thought}
 
-[Placeholder]
+Chain-of-thought (CoT) prompting \cite{wei2022chain} elicits an explicit reasoning trace
+from the model before it produces a final answer. Instead of asking the model to classify
+a credit application directly, one appends to the prompt instructions such as ``think
+step by step'' or a few-shot example that demonstrates a desirable reasoning pattern. The
+model then generates a series of intermediate statements---premises, inferences,
+conclusions---before outputting the decision.
+
+In a financial explainability context, CoT serves a dual function. First, it can improve
+decision quality: models that reason through intermediate steps tend to produce more
+accurate outputs on tasks requiring multi-step inference, such as evaluating whether a
+debt restructuring covenant has been breached. Second, the reasoning trace itself
+constitutes a natural language explanation that can be delivered to the applicant,
+reviewed by the loan officer, and archived for regulatory audit.
+
+The key limitation is faithfulness. A language model generating a chain of thought may
+produce a sequence of plausible-sounding reasoning steps that do not reflect the actual
+computation---recall that the model's underlying inference is not sequential reasoning
+but parallel matrix computation over learned representations. Empirical studies
+\cite{wang2022selfconsistency} have found that CoT explanations become more reliable when
+self-consistency is enforced: one samples multiple independent CoT traces and identifies
+the reasoning pattern that leads to the majority answer, which has been shown to produce
+more accurate outputs and more consistent reasoning patterns.
+
+\begin{definition}[Explanation Trace]
+\label{def:explanation-trace}
+An \emph{explanation trace} is a sequence of natural language statements
+$r_1, r_2, \ldots, r_T$ generated by the model prior to its final output $\hat{y}$,
+such that each $r_t$ is a logical step that follows from previous steps and the input
+$x$, and together $r_1, \ldots, r_T$ entail $\hat{y}$. A trace is \emph{faithful} if
+replacing any $r_t$ with its negation causes the model to change $\hat{y}$ accordingly.
+\end{definition}
+
+Checking the faithfulness of explanation traces in practice is non-trivial. One approach,
+proposed for the self-consistency method \cite{wang2022selfconsistency}, is to generate
+multiple traces independently and check whether the traces that lead to different final
+answers are detectable by their structure, thus identifying cases where the explanation
+and decision are decoupled.
 
 \subsection{Counterfactual Explanations: What Would Change the Decision?}
 \label{sec:ch12-counterfactual}
 
-[Placeholder]
+Counterfactual explanations answer a fundamentally different question from feature
+attributions: not ``what drove the current decision?'' but ``what would have to change
+for the decision to be different?'' \cite{wachter2017counterfactual}. In a credit context
+the question becomes: what is the closest possible state of affairs, in terms of
+applicant characteristics, in which the application would have been approved?
+
+Counterfactual explanations are actionable by construction. Telling an applicant that
+their debt-to-income ratio of 54\% was a key negative factor is informative, but telling
+them that a ratio below 45\% would likely lead to approval under otherwise identical
+conditions gives them a concrete path to an improved outcome. This actionability aligns
+closely with what regulators and consumer advocates consider a genuinely useful adverse
+action notification.
+
+\begin{definition}[Counterfactual Explanation]
+\label{def:counterfactual-explanation}
+Given a model $f: \mathcal{X} \to \mathcal{Y}$, an input $x \in \mathcal{X}$, and a
+desired output class $c \ne f(x)$, a counterfactual explanation is an input
+$x' \in \mathcal{X}$ such that:
+\begin{align}
+\label{eq:counterfactual}
+x' &= \arg\min_{z \in \mathcal{X}} d(x, z) \quad \text{subject to} \quad f(z) = c,
+\end{align}
+where $d$ is a distance metric on the input space that reflects the practical cost of
+the change. For structured numerical inputs, $d$ is typically a weighted $\ell_1$ or
+$\ell_2$ norm; for text, it may be the minimum number of token substitutions required.
+\end{definition}
+
+For LLMs processing text inputs, generating counterfactual explanations is challenging
+because the input space is discrete. Gradient-based optimisation cannot directly minimise
+\eqref{eq:counterfactual}; instead, one typically uses a two-stage approach: first
+identify the feature dimensions (token positions, or semantic dimensions in embedding
+space) along which small perturbations change the prediction; then articulate those
+perturbations in natural language. LLMs themselves can be used as generators of
+counterfactuals---prompted to describe a minimally different version of the applicant's
+situation that would receive the opposite decision.
+
+\begin{remark}
+The proximity constraint in Definition~\ref{def:counterfactual-explanation} requires
+careful calibration. A counterfactual that is technically closest in input space may be
+practically impossible (e.g., ``your application would have been approved if your age
+were different'') or legally impermissible (since age is a protected characteristic
+under ECOA). Practitioners must augment the optimisation with feasibility and
+non-discrimination constraints.
+\end{remark}
 
 \subsection{Natural Language Justifications for Automated Decisions}
 \label{sec:ch12-nl-justifications}
 
-[Placeholder]
+Beyond reasoning traces and counterfactuals, LLMs can be used as a post-processing layer
+that synthesises attributions and counterfactuals into a polished natural language
+justification. The pipeline is as follows: (1) a primary model---possibly an LLM,
+possibly a traditional model---makes the decision; (2) an attribution method such as SHAP
+identifies the top contributing features; (3) an LLM is prompted to translate those
+attributions into a coherent, plain-language explanation suitable for the target audience.
 
+This separation of concerns is important. The primary model is evaluated for predictive
+accuracy; the attribution method is evaluated for faithfulness to that model; and the
+LLM generator is evaluated for clarity, completeness, and regulatory compliance. Each
+component can be independently tested and replaced.
+
+A critical consideration is that the generating LLM must not be allowed to hallucinate
+attributions. If the primary model indicated that ``revenue decline'' was the key factor,
+the generating LLM must not spontaneously add ``poor personal credit history'' to the
+explanation, even if such a statement would sound plausible. Architecturally, this
+requires that the generator receive the attribution scores as a structured input and be
+constrained---through prompt engineering or constrained decoding---to refer only to the
+attributions provided.
+
+% ---------------------------------------------------------------
 \section{Case Studies in Financial Explainability}
 \label{sec:ch12-case-studies}
 
-[Placeholder]
+The preceding sections developed the theoretical foundations. We now examine three applied
+case studies that illustrate how explainability requirements manifest in concrete financial
+workflows and how LLM-based pipelines can be designed to satisfy them.
 
 \subsection{Credit Scoring: Explaining Rejection to Applicants}
 \label{sec:ch12-credit-scoring}
 
-[Placeholder]
+Credit scoring is the canonical application domain for financial XAI. The prediction
+problem is binary: will this borrower default within a specified horizon? The input is
+typically a mix of structured financial variables---income, debt levels, payment history,
+credit utilisation---and, increasingly, unstructured text such as the stated purpose of
+the loan, supporting documentation, and social media signals (where legally permissible).
+
+When an LLM contributes to this decision---for instance, by encoding a free-text business
+description to supplement a traditional scorecard---the explainability challenge involves
+explaining the contribution of the unstructured component. The practitioner must
+communicate, in four to five phrases, the key reasons for rejection, drawing on evidence
+from both the structured features and the text.
+
+\begin{example}[Hybrid Credit Scoring Explanation Pipeline]
+\label{ex:hybrid-credit-pipeline}
+A fintech lender uses the following three-stage pipeline for SME loan decisions:
+
+\textbf{Stage 1 (Structured Features):} A gradient-boosted tree scores the application
+on 42 structured financial variables. TreeSHAP produces exact Shapley values for each
+variable.
+
+\textbf{Stage 2 (Unstructured Text):} A fine-tuned DistilBERT model encodes the
+applicant's business description. KernelSHAP with 1,000 perturbation samples produces
+token-level attributions. The top five negative tokens are extracted.
+
+\textbf{Stage 3 (Adverse Action Generation):} A GPT-4o model is prompted with the
+following structured input:
+
+\begin{verbatim}
+You are a credit officer drafting a regulatory-compliant adverse
+action notice. The application was declined. The primary reasons,
+in order of importance, are:
+
+1. Debt-to-income ratio: 54% (threshold: 45%) — SHAP: -0.18
+2. Revenue trend: -28% year-on-year — SHAP: -0.12
+3. Business description mentions "struggling", "declining",
+   "competitive pressure" — text SHAP: -0.09
+4. Cash reserve: 0.8 months operating expenses (threshold: 3) — SHAP: -0.07
+5. Industry: Hospitality (elevated default rate sector) — SHAP: -0.05
+
+Draft an adverse action notice that explains these reasons in
+plain English. Do not introduce any factors not listed above.
+Do not mention the applicant's protected characteristics.
+Limit to 150 words.
+\end{verbatim}
+
+The output is a compliant adverse action notice suitable for delivery to the applicant.
+The pipeline is auditable at every stage: the tree's SHAP values are deterministic,
+the text SHAP is reproducible given the random seed, and the LLM output is prompted in
+a way that constrains it to the provided attributions.
+\end{example}
+
+This pipeline illustrates a general principle: LLMs are most safely deployed in the
+explanation layer when their inputs are tightly constrained by upstream attribution
+methods. The LLM adds value by transforming structured attributions into natural
+language; it should not be permitted to exercise substantive credit judgement at this
+stage.
 
 \subsection{Loan Denial Letters Compliant with ECOA/FCRA}
 \label{sec:ch12-loan-denial-letters}
 
-[Placeholder]
+Regulation B, implementing ECOA, specifies that adverse action notices must be provided
+to applicants within 30 days of a credit decision and must include: (1) the specific
+reasons for the adverse action, (2) the applicant's right to a statement of reasons, and
+(3) notice of the applicant's right to a free copy of their consumer report if the
+decision was based on it \cite{cfpb2013ecoa}. The reasons must be ``the principal reasons
+for the adverse action''---typically interpreted as four to five reasons, stated
+specifically rather than generally.
+
+There are two distinct failure modes that LLM-generated denial letters must avoid.
+
+The first is \emph{vagueness}. Regulators have sanctioned lenders for denial letters
+that state reasons in overly general terms---``your credit profile did not meet our
+criteria'' is not a specific reason. An LLM generation step must produce concrete,
+quantified reasons: ``your debt-to-income ratio of 54\% exceeded our maximum of 45\%''
+is compliant; ``your financial situation presented concerns'' is not.
+
+The second is \emph{impermissible factor exposure}. ECOA prohibits credit decisions based
+on race, colour, religion, national origin, sex, marital status, or age. An LLM generation
+step that has access to demographic signals in the text may inadvertently construct
+explanations that reference, or could be construed as referencing, these protected
+characteristics. Robust pipelines should include a post-generation filtering step that
+scans the output for protected-characteristic language and flags any output that contains
+such language for human review before dispatch.
+
+A practical implementation requires:
+\begin{enumerate}
+  \item A \emph{structured attribution feed} containing only non-protected variables and
+        their associated attribution scores.
+  \item A \emph{system prompt} that explicitly prohibits the LLM from introducing any
+        factors not in the feed and from referencing protected characteristics.
+  \item A \emph{post-generation compliance check} using a classifier or keyword filter
+        trained on adverse-action compliance requirements.
+  \item A \emph{human review queue} for any letter flagged by the compliance check.
+\end{enumerate}
 
 \subsection{Investment Recommendation Disclosures under MiFID II}
 \label{sec:ch12-mifid-disclosures}
 
-[Placeholder]
+MiFID II (Markets in Financial Instruments Directive II) and its delegated regulation
+require that investment firms provide retail clients with a suitability assessment
+explaining why a recommended product is appropriate for that client's investment
+objectives, risk tolerance, financial situation, and knowledge and experience
+\cite{esma2018mifid2}. This suitability report must be provided before the transaction
+is executed and must be sufficiently detailed that the client can understand the
+rationale.
 
+LLMs are being explored as engines for automated suitability report generation. The
+challenge is that a MiFID II suitability report must reflect the specific
+characteristics of both the client and the product---it cannot be a generic template.
+The relevant explainability question is: given a client profile and a recommended product,
+can an LLM generate a personalised suitability narrative that is accurate,
+non-misleading, and grounded in the disclosed client characteristics?
+
+The CFA Institute's analysis of AI in investment management \cite{cfainstitute2025xai}
+identified three key requirements for compliant AI-generated suitability disclosures:
+(1) the reasoning must be traceable to the underlying client data on file; (2) the
+language must not overstate expected returns or understate risks; and (3) the document
+must be auditable in the sense that, given the client data and the model configuration,
+a third party could reproduce a materially equivalent document.
+
+\begin{example}[MiFID II Suitability Disclosure Generation]
+\label{ex:mifid-disclosure}
+A robo-adviser platform needs to generate personalised suitability disclosures for
+$n = 12{,}000$ clients at the point of annual portfolio review. Each client has a
+structured profile including risk questionnaire responses, investment horizon, liquidity
+needs, and existing portfolio composition. The recommended portfolio is a risk-adjusted
+mix of equity and fixed-income ETFs.
+
+The generation pipeline:
+\begin{itemize}
+  \item Structured client features are passed to a scoring model that produces a risk
+        tier and a suitability score for the recommended portfolio.
+  \item Integrated Gradients are computed to identify which client-profile features most
+        strongly support the recommendation.
+  \item An LLM is prompted with the client tier, the product's risk profile, and the top
+        three attribution drivers. The prompt explicitly instructs the model to: use the
+        client's stated investment horizon and risk tolerance as the primary justification;
+        acknowledge relevant risks including capital loss; and not mention any expected
+        return figure not contained in the product's Key Information Document.
+  \item The output is passed through a regulatory compliance filter that checks for
+        prohibited language (guaranteed returns, excessive return projections, missing risk
+        disclosures).
+\end{itemize}
+
+A compliance officer reviews a random 2\% sample of generated disclosures each quarter.
+Over the first year of operation, the review identified a 0.3\% rate of outputs requiring
+revision, all attributable to edge cases in the prompt where the client's stated
+objective and the recommended product's objectives were in mild tension.
+\end{example}
+
+% ---------------------------------------------------------------
 \section{Evaluating the Quality of Explanations}
 \label{sec:ch12-evaluating-quality}
 
-[Placeholder]
+Having constructed explanations, practitioners must evaluate whether those explanations
+are good. This is non-trivial: unlike predictions, where one can simply compare the
+model's output to a ground truth label, there is no ground-truth explanation against
+which to benchmark. The evaluation literature has developed three complementary
+evaluation paradigms: faithfulness metrics, completeness and plausibility metrics, and
+human-subject studies \cite{nauta2023anecdotal}.
 
 \subsection{Faithfulness: Does the Explanation Reflect the Model?}
 \label{sec:ch12-faithfulness}
 
-[Placeholder]
+Faithfulness measures whether the explanation accurately describes the model's actual
+computation. The most common operationalisation is the \emph{sufficiency test}: if the
+explanation claims that features $S$ are responsible for the prediction, then a model
+given only features $S$ should produce approximately the same prediction.
+
+Formally, let $e(x)$ be the set of features identified as important by the explanation
+for input $x$, with complement $\bar{e}(x)$. The sufficiency of the explanation is
+\begin{equation}
+\label{eq:sufficiency}
+\text{Suff}(e, f, x) \;=\; 1 - |f(x) - f(x_{e(x)})|,
+\end{equation}
+where $x_{e(x)}$ denotes the input $x$ with all features not in $e(x)$ marginalised out.
+A sufficiency of 1 indicates perfect faithfulness; lower values indicate that the
+explanation omits features that are actually important to the prediction.
+
+A complementary measure is \emph{comprehensiveness}: if the explanation claims that
+features $S$ are important, then a model given all features \emph{except} $S$ should
+produce a substantially different prediction.
+\begin{equation}
+\label{eq:comprehensiveness}
+\text{Comp}(e, f, x) \;=\; |f(x) - f(x_{\bar{e}(x)})|.
+\end{equation}
+High comprehensiveness means that removing the explained features significantly degrades
+the prediction, confirming that those features genuinely drove the output.
+
+SHAP values, by construction, satisfy the efficiency property (equation~\eqref{eq:shapley-value}),
+which implies a form of sufficiency for the full feature set. LIME explanations are
+trained to maximise local fidelity but may fail sufficiency because the surrogate model
+is deliberately sparse---it may omit features that matter but are correlated with the
+included features. Attention-based explanations typically fail comprehensiveness: one can
+often ablate the attended tokens without changing the prediction, precisely because the
+model can route information through alternative paths.
 
 \subsection{Completeness and Plausibility Metrics}
 \label{sec:ch12-completeness-plausibility}
 
-[Placeholder]
+Beyond faithfulness, two further dimensions matter for financial explanations.
+
+\emph{Completeness} refers to whether the explanation accounts for all relevant drivers
+of the prediction, not only the single most important one. An ECOA adverse action notice
+that identifies only one reason when five significant reasons exist is technically
+incomplete, and a regulator might question whether the lender is obscuring relevant
+factors. Completeness can be measured as the fraction of the total prediction gap (from
+baseline to final prediction) attributable to the explanations provided; for SHAP, this
+is directly measurable as $\sum_{i \in e(x)} \phi_i / (f(x) - \mathbb{E}[f(X)])$.
+
+\emph{Plausibility} is the degree to which a domain expert would agree that the
+explanation makes sense given their knowledge of the domain. A credit model explanation
+that attributes a rejection to a high debt-to-income ratio is plausible; one that
+attributes it to the word ``the'' appearing in the application is implausible, even if
+technically accurate. Plausibility correlates with but is not identical to faithfulness:
+a plausible explanation may be faithful or unfaithful; an implausible explanation is
+likely, but not necessarily, unfaithful.
+
+Quantitative plausibility metrics include agreement with a ``ground truth'' explanation
+set annotated by domain experts, or correlation with the outputs of a reference XAI
+method known to be faithful on the domain. For text inputs, readability metrics can
+capture whether the explanation is sufficiently comprehensible for the target audience,
+which is relevant for ECOA compliance.
 
 \subsection{Human-Subject Studies with Financial Domain Experts}
 \label{sec:ch12-human-subject-studies}
 
-[Placeholder]
+The ultimate test of an explanation's quality, at least for regulatory purposes, is
+whether a qualified human expert can use it to make appropriate decisions. Human-subject
+evaluation has three standard designs for the explanation literature \cite{doshi2017accountability}:
+
+\emph{Forward simulation}: participants are given a model explanation and asked to predict
+what the model would output for a held-out input. If the explanation is faithful and
+complete, participants should be able to simulate the model accurately.
+
+\emph{Decision support}: participants perform a decision task---for example, approving or
+rejecting credit applications---first without model assistance, then with model
+predictions and explanations. The quality of the explanation is measured by the degree
+to which it helps participants catch model errors and override incorrect predictions.
+
+\emph{Trust calibration}: participants are asked to rate their trust in model predictions
+before and after seeing explanations. A good explanation should increase trust on correct
+predictions and decrease trust on incorrect ones, calibrating the human's reliance on
+the model.
+
+In the financial domain, human-subject studies face practical constraints. Qualified
+credit officers and compliance specialists are expensive participants; their time cannot
+easily be allocated to academic experiments. A practical alternative is the use of
+\emph{vignette studies} in which realistic but synthetic decision scenarios are constructed
+and submitted to practitioners recruited via professional networks. The CFA Institute's
+2025 research programme \cite{cfainstitute2025xai} used this design to assess how
+investment managers responded to AI-generated portfolio recommendations with and without
+accompanying explanations; the study found that explanations reduced overreliance on AI
+recommendations in high-uncertainty conditions.
+
+A persistent challenge is that human experts often find plausible-but-unfaithful
+explanations just as satisfying as faithful ones. This implies that human evaluation
+alone is not a reliable quality gate: it must be complemented by the quantitative
+faithfulness metrics discussed in Section~\ref{sec:ch12-faithfulness}.
+
+% ---------------------------------------------------------------
+\section{Summary}
+\label{sec:ch12-summary}
+
+This chapter has examined the explainability challenge that arises when large language
+models are deployed in regulated financial contexts. Five takeaways are worth
+highlighting.
+
+First, the demand for explainability in finance is not principally an ethical aspiration
+but a legal requirement encoded in multiple overlapping regulatory frameworks. The EU
+AI Act classifies financial applications as high-risk and mandates human oversight and
+interpretability; SR 11-7 requires that model outputs be explainable to non-technical
+risk managers; ECOA requires specific plain-language reasons for adverse credit actions;
+and MiFID II requires personalised suitability disclosures grounded in disclosed client
+characteristics.
+
+Second, classical XAI methods---SHAP and LIME in particular---can be adapted to LLMs,
+but adaptation is not trivial. SHAP requires that features be defined in the input space
+(tokens, phrases, or semantic segments) and that the marginalisation distribution be
+specified. LIME requires that the neighbourhood and perturbation scheme be calibrated for
+the text domain. Both methods are subject to instability, and their outputs should be
+tested for faithfulness before use in regulatory contexts.
+
+Third, attention visualisation, while intuitively appealing, does not in general provide
+faithful explanations. Alternative attention distributions can produce identical outputs,
+and ablating attended tokens often does not change predictions. Gradient-based attribution
+methods provide stronger guarantees at the cost of requiring access to model internals.
+
+Fourth, LLMs themselves can generate chain-of-thought reasoning traces, counterfactual
+explanations, and natural language justifications. These LLM-native mechanisms are
+well-suited to producing the plain-language output that regulators require, but their
+faithfulness cannot be taken for granted. Robust pipelines constrain the generating LLM
+to draw only from upstream attribution outputs and include compliance filters that screen
+for prohibited language and protected-characteristic references.
+
+Fifth, explanation quality should be evaluated on multiple dimensions: faithfulness,
+completeness, plausibility, and human utility. No single metric captures all dimensions,
+and no evaluation is fully satisfactory without complementary quantitative and
+human-subject components. The field is young; practitioners should expect both the
+metrics and the methods to continue evolving rapidly.
+
+% ---------------------------------------------------------------
+\section{Further Reading}
+\label{sec:ch12-further-reading}
+
+The theoretical foundations of feature attribution originate in cooperative game theory.
+\citet{shapley1953value} established the axiomatic uniqueness of the Shapley value, and
+\citet{lundberg2017unified} showed how this framework unifies existing feature importance
+methods under a single additive attribution formalism. For readers wishing to understand
+the approximation methods required to apply SHAP to neural networks, the survey in
+\citet{lundberg2020local} is the natural starting point.
+
+For LIME, the original paper by \citet{ribeiro2016lime} remains highly readable and
+includes worked examples across text, image, and tabular domains. The evaluation
+framework developed in \citet{doshi2017accountability} provides a principled vocabulary
+for comparing XAI methods and is essential reading before designing any human-subject
+evaluation.
+
+The counterfactual explanation literature was founded by \citet{wachter2017counterfactual},
+which also addresses the legal context of GDPR Article 22 in depth. \citet{miller2019explanation}
+places the technical XAI literature in the context of the social science literature on
+explanation and is particularly valuable for understanding what human users actually want
+from explanations.
+
+For the attention-as-explanation debate, both \citet{jain2019attention} and
+\citet{wiegreffe2019attention} should be read together. The resolution by
+\citet{jacovi2020towards} formalising the faithfulness-plausibility distinction provides
+the conceptual clarity that the debate was lacking.
+
+On the regulatory side, the EU AI Act \cite{euaiact2024} should be read alongside the
+ESMA guidelines on MiFID II suitability \cite{esma2018mifid2} and the Federal Reserve's
+SR 11-7 guidance \cite{sr117} for a complete picture of the compliance landscape. The
+CFA Institute report \cite{cfainstitute2025xai} is the most practically oriented survey
+of industry explainability practices in investment management. The comprehensive survey
+by \citet{arrieta2020explainable} covers the full taxonomy of XAI methods across all
+input modalities.
+
+Within this book, Chapter~\ref{ch:credit-risk} covers the credit scoring context in more
+depth, including probability calibration and model validation methods that are
+prerequisites for the SHAP pipelines described here. Chapter~\ref{ch:llm-agents} discusses
+chain-of-thought reasoning as an agent planning mechanism, which complements the
+explanation trace perspective developed in this chapter. Chapter~\ref{ch:responsible-llms}
+addresses fairness and bias issues that are closely related to the non-discrimination
+requirements of ECOA.

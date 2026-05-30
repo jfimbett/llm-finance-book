@@ -1,108 +1,934 @@
 \chapter{LLM Limitations and Rigorous Evaluation in Finance}
+\label{ch:llm-limitations-evaluation}
 
-\begin{itemize}
-  \item Understand the key concepts of LLM limitations and evaluation rigor in finance
-  \item Apply LLM-based techniques to financial prediction and analysis problems
-  \item Evaluate the trade-offs between different approaches
-  \item Implement a practical pipeline using Python and the Hugging Face ecosystem
-\end{itemize}
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Define probabilistic calibration, compute the Expected Calibration Error (ECE),
+        and interpret reliability diagrams for LLM outputs in financial settings.
+  \item Identify the mechanisms by which LLM pretraining creates temporal leakage,
+        and design point-in-time evaluation splits that are contamination-resistant.
+  \item Critically evaluate the empirical literature on LLM stock-movement prediction,
+        distinguishing statistical accuracy from economic value.
+  \item Select and compute evaluation metrics beyond classification accuracy, including
+        the Sharpe ratio, information ratio, and walk-forward validation protocols.
+  \item Characterise the types of hallucination that are most dangerous in financial
+        workflows and apply grounding strategies---RAG, retrieval verification, and
+        tool use---to reduce their incidence.
+\end{enumerate}
+\end{remark}
 
+% ---------------------------------------------------------------
 \section{Calibration and Overconfidence}
 \label{sec:ch13-calibration-overconfidence}
 
-[Placeholder]
+A language model that answers a financial question with apparent certainty is not
+necessarily correct. The model's expressed confidence---whether surfaced as a stated
+probability, a hedging phrase, or the structure of a chain-of-thought response---may
+diverge substantially from its actual empirical accuracy. This divergence is the
+calibration problem, and it has direct consequences in finance, where the downstream
+cost of a confidently wrong forecast can cascade through portfolios, loan books, and
+regulatory submissions.
+
+This section establishes the formal machinery of probabilistic calibration, explains
+why large pre-trained models are systematically overconfident, and surveys the practical
+tools for measuring and correcting miscalibration in financial applications.
 
 \subsection{What Calibration Means: Reliability Diagrams and ECE}
 \label{sec:ch13-calibration-reliability-diagrams}
 
-[Placeholder]
+A classifier is \emph{perfectly calibrated} if, among all predictions assigned
+confidence $p$, exactly a fraction $p$ of them are correct. Formally, let $\hat{p}$ be
+the predicted probability for the positive class and $Y \in \{0,1\}$ be the true label.
+
+\begin{definition}[Perfect Calibration]
+\label{def:ch13-perfect-calibration}
+A model is perfectly calibrated if
+\begin{equation}
+  \Pr(Y = 1 \mid \hat{p} = p) = p \quad \text{for all } p \in [0, 1].
+  \label{eq:ch13-perfect-calibration}
+\end{equation}
+\end{definition}
+
+The reliability diagram (also called a calibration curve) provides a graphical
+assessment of~\eqref{eq:ch13-perfect-calibration}. Predictions are binned by
+confidence into $M$ equal-width intervals $B_1, \ldots, B_M$ (typically $M = 10$).
+For each bin $B_m$, the average confidence $\overline{p}_m$ and the fraction of
+positives $\text{acc}(B_m)$ are plotted. A perfectly calibrated model produces points
+along the $45^\circ$ diagonal.
+
+The Expected Calibration Error (ECE) provides a scalar summary \cite{guo2017calibration}:
+
+\begin{equation}
+  \text{ECE} = \sum_{m=1}^{M} \frac{|B_m|}{n} \left|\, \text{acc}(B_m) -
+  \overline{p}(B_m) \,\right|,
+  \label{eq:ch13-ece}
+\end{equation}
+
+where $n = \sum_m |B_m|$ is the total number of predictions and $|B_m|$ is the count
+in bin $m$. The ECE is a weighted average of calibration gaps, with each bin's
+contribution proportional to the fraction of predictions it contains.
+
+A related measure, the Maximum Calibration Error (MCE), reports the worst-case bin gap:
+
+\begin{equation}
+  \text{MCE} = \max_{m \in \{1,\ldots,M\}} \left|\, \text{acc}(B_m) -
+  \overline{p}(B_m) \,\right|.
+  \label{eq:ch13-mce}
+\end{equation}
+
+MCE is more relevant in high-stakes financial contexts where a single catastrophically
+miscalibrated confidence region---say, 90--100\% confidence predictions that are only
+40\% accurate---is unacceptable even if the average calibration is reasonable.
+
+\begin{remark}
+The ECE as defined in~\eqref{eq:ch13-ece} is sensitive to the choice of bin boundaries.
+Adaptive binning---where bins are defined by equal mass rather than equal width---is
+more reliable when confidence scores are clustered near 0 or 1, as they typically are
+for overconfident models \cite{niculescu2005predicting}.
+\end{remark}
+
+\begin{example}[Computing ECE for an LLM Credit-Risk Classifier]
+\label{ex:ch13-ece-credit}
+An LLM is fine-tuned to predict whether a borrower will default within twelve months,
+and its output token probabilities are mapped to a default probability $\hat{p}$. On a
+hold-out set of 1{,}000 predictions, the model produces the following calibration
+statistics (using 5 equal-width bins of width 0.2):
+
+\begin{center}
+\begin{tabular}{ccrcc}
+\hline
+Bin & Confidence interval & $|B_m|$ & $\overline{p}(B_m)$ & $\text{acc}(B_m)$ \\
+\hline
+1 & [0.0, 0.2) & 120 & 0.08 & 0.11 \\
+2 & [0.2, 0.4) & 180 & 0.31 & 0.28 \\
+3 & [0.4, 0.6) & 200 & 0.50 & 0.47 \\
+4 & [0.6, 0.8) & 300 & 0.71 & 0.55 \\
+5 & [0.8, 1.0] & 200 & 0.88 & 0.62 \\
+\hline
+\end{tabular}
+\end{center}
+
+The ECE computes as:
+\begin{align}
+  \text{ECE} &= \frac{120}{1000}\cdot|0.08-0.11| + \frac{180}{1000}\cdot|0.31-0.28|
+               + \frac{200}{1000}\cdot|0.50-0.47| \notag \\
+             &\quad + \frac{300}{1000}\cdot|0.71-0.55| + \frac{200}{1000}\cdot|0.88-0.62|
+               \notag \\
+             &= 0.012 \cdot 0.03 + 0.18 \cdot 0.03 + 0.20 \cdot 0.03 + 0.30 \cdot 0.16
+               + 0.20 \cdot 0.26 \notag \\
+             &= 0.0036 + 0.0054 + 0.0060 + 0.0480 + 0.0520 = 0.115.
+\end{align}
+
+An ECE of $11.5\%$ is substantial. The model is well-calibrated at low confidence levels
+but severely overconfident in the high-confidence regime: predictions issued with
+80--100\% confidence are only correct 62\% of the time. A credit officer relying on
+the model's stated confidence to triage manual review would misallocate effort
+systematically toward cases where the model is least reliable.
+\end{example}
 
 \subsection{Overconfidence in LLM Financial Outputs}
 \label{sec:ch13-overconfidence-financial-outputs}
 
-[Placeholder]
+Neural networks have been known to be poorly calibrated since at least the work of
+\citet{niculescu2005predicting}, but the problem intensified with the shift to deep
+architectures. \citet{guo2017calibration} demonstrate that modern deep neural networks
+are systematically overconfident: their confidence distributions are right-skewed, with
+many predictions clustered near certainty even when accuracy is modest. This
+miscalibration is typically absent in the training data distribution but emerges on
+held-out data, and it worsens as model depth and width increase.
+
+Large language models inherit and amplify this pathology for several interconnected
+reasons.
+
+The first is \emph{RLHF-induced overconfidence}. Reinforcement Learning from Human
+Feedback (RLHF) trains models to produce responses that humans rate as high quality
+\cite{ouyang2022training}. Human raters consistently prefer confident, fluent responses
+to hedged, uncertain ones---even when the hedged response is more epistemically
+appropriate. The reward signal therefore pushes the model toward confident expression
+regardless of actual knowledge, a form of training-time miscalibration.
+
+The second is \emph{token-level versus claim-level confidence}. The probabilities
+produced by an autoregressive LLM are token-level quantities: the model assigns
+probability to the next token given the context. These are not directly equivalent to
+claim-level probabilities. Even a model that is perfectly calibrated at the token level
+can be profoundly miscalibrated at the level of the factual claim it is expressing,
+because a claim spans many tokens and the token-level probabilities compound
+multiplicatively.
+
+The third mechanism is specific to finance: \emph{distributional shift from
+training to deployment}. Financial data is non-stationary. A model trained on
+pre-2022 text has a knowledge boundary; applied to 2024 market conditions, its
+expressed confidence on topics that have structurally changed is not anchored by
+recent evidence. The model does not know that it does not know, so it continues to
+produce confident outputs on stale information \cite{zhao2025frontiers}.
+
+In practice, overconfidence manifests in financial LLM outputs as:
+\begin{itemize}
+  \item Earnings per share estimates stated to two decimal places without confidence
+        intervals, despite being based on qualitative analysis of management commentary.
+  \item Credit-worthiness assessments that read as definitive even when the underlying
+        borrower is near a classification boundary.
+  \item Market-direction forecasts accompanied by confident-sounding rationales that
+        cherry-pick supporting evidence from training data \cite{cfa2025llmguide}.
+  \item Regulatory compliance assessments that state a firm is ``in compliance'' or
+        ``not in compliance'' without flagging the jurisdictional ambiguities that make
+        the question genuinely hard.
+\end{itemize}
+
+\citet{bang2023multitask} conducted a systematic evaluation of ChatGPT on factual
+tasks and found that the model showed consistent overconfidence---asserting incorrect
+facts with high lexical confidence markers such as ``certainly'' and ``definitely.''
+In financial contexts this behaviour is particularly dangerous because the audience
+includes practitioners who may take model outputs at face value.
 
 \subsection{Measuring and Improving Calibration}
 \label{sec:ch13-measuring-improving-calibration}
 
-[Placeholder]
+Measuring calibration requires access to model confidence scores. For autoregressive
+LLMs accessed via API, this requires requesting log-probabilities from the completion
+endpoint and aggregating them appropriately. For models accessed only through text
+outputs, calibration must be inferred indirectly---either through self-consistency
+sampling (generating $k$ responses and computing the fraction that agree) or through
+verbalized confidence elicitation (prompting the model to express its confidence as a
+percentage).
 
+\citet{wang2023survey} show that verbalized confidence elicitation is unstable:
+the same model on the same question may report 70\% confidence under one prompt
+template and 95\% under a different one, undermining its utility as a calibration signal.
+
+Three post-hoc recalibration techniques are well-established in the broader machine
+learning literature and applicable to LLM outputs.
+
+\emph{Temperature scaling} is the simplest \cite{guo2017calibration}. Given a logit
+vector $\mathbf{z}$, the calibrated probability is $\sigma(\mathbf{z}/T)$, where $T > 1$
+spreads the softmax distribution (reducing overconfidence) and $T < 1$ sharpens it.
+The temperature $T$ is a single scalar learned on a held-out calibration set by
+minimising the negative log-likelihood. Temperature scaling preserves the ordering of
+predictions, so it does not alter discrimination (AUROC) while improving calibration.
+
+\emph{Isotonic regression} is a non-parametric post-hoc method that fits a
+non-decreasing step function mapping predicted probabilities to empirical frequencies
+\cite{zadrozny2002transforming}. It is more flexible than temperature scaling but
+requires a larger calibration set (typically several hundred to a few thousand
+examples) and can overfit on small sets.
+
+\emph{Platt scaling} fits a logistic regression on the model's raw scores to produce
+calibrated probabilities \cite{platt1999probabilistic}. It is slightly less flexible
+than isotonic regression but more robust on small calibration sets.
+
+For financial applications, a complementary approach to calibration is
+\emph{conformal prediction} \cite{angelopoulos2022gentle}, which produces prediction
+sets with guaranteed coverage under mild exchangeability assumptions. Rather than
+asserting a point estimate with a miscalibrated confidence, a conformal predictor
+outputs a set of possible outcomes $\mathcal{C}(\mathbf{x})$ such that
+$\Pr(Y \in \mathcal{C}(\mathbf{x})) \geq 1-\alpha$ with $\alpha$ chosen by the user
+(e.g.\ $\alpha = 0.1$ for 90\% coverage). In a credit context, the output might be
+``\{default, non-default\}'' (the uncertain region) rather than a single label, which
+is more informative than a miscalibrated probability.
+
+\begin{remark}
+Calibration is a property of model outputs on a specific distribution. A model
+recalibrated on data from 2020--2022 will not be calibrated on data from 2024 if the
+underlying distribution has shifted. Financial practitioners should re-estimate
+calibration parameters at least quarterly, treating them as part of the model monitoring
+workflow mandated by SR~11-7 guidance \cite{sr117}.
+\end{remark}
+
+% ---------------------------------------------------------------
 \section{Temporal Leakage and Look-Ahead Bias}
 \label{sec:ch13-temporal-leakage}
 
-[Placeholder]
+Evaluating an LLM on financial tasks is not simply a matter of asking it questions and
+measuring correctness. The model may have encountered the answers---or even the specific
+test instances---during pretraining. If the training corpus includes financial news
+articles, company filings, analyst reports, and web forum discussions, and if the
+evaluation benchmark draws from the same universe of documents, then the model's
+performance on the benchmark may reflect memorisation rather than generalisation. This
+is the temporal leakage problem, and it is arguably the most underappreciated
+methodological failure mode in current LLM finance research.
 
 \subsection{How Pretrained Models Can Memorize Future Events}
 \label{sec:ch13-memorize-future-events}
 
-[Placeholder]
+Consider a canonical financial prediction task: given a company's earnings call
+transcript from Q2 2021, predict whether the stock price rose or fell in the following
+month. An LLM trained on a corpus with a cutoff of January 2022 will have seen, in its
+training data, not only the transcript but also the news articles discussing the
+subsequent price movement, analyst reactions, and social media commentary on the
+earnings call. When the model is asked the prediction question, it is not reasoning
+about an unknown future from known past information---it is pattern-matching against
+memorised associations.
+
+This is not merely a theoretical concern. \citet{ziemke2024temporal} provide a
+systematic analysis of temporal leakage in LLM-based financial forecasting. They
+identify three distinct channels:
+
+\begin{enumerate}
+  \item \emph{Direct memorisation}: The model has seen the exact document or a near-verbatim
+        version in training. This is most common for widely-circulated news items and
+        SEC filings.
+  \item \emph{Indirect memorisation via outcome narratives}: The model has seen subsequent
+        commentary that frames past events through the lens of their outcomes. An LLM
+        trained on 2022 data evaluating a 2020 investment decision has seen the 2021
+        ``how the trade played out'' retrospectives.
+  \item \emph{Statistical bias via imbalanced corpora}: The training corpus
+        over-represents narratives about companies and assets that subsequently became
+        notable (a form of survivorship bias in textual data). The model's priors
+        implicitly favour the kinds of situations that attracted commentary---typically
+        extreme outcomes.
+\end{enumerate}
+
+The consequences are severe for empirical evaluation. A model that scores 65\% accuracy
+on a stock direction prediction task may appear to outperform chance, but if 10
+percentage points of that accuracy derive from temporal leakage, the true
+out-of-distribution performance may be barely above random.
 
 \subsection{Point-in-Time Data Requirements and Anonymization}
 \label{sec:ch13-point-in-time-data}
 
-[Placeholder]
+The concept of \emph{point-in-time} (PIT) data originates in quantitative finance,
+where it refers to the data that was actually available to a decision-maker at a
+specific historical moment, as opposed to the revised or restated values that would
+appear in a later database query. Compustat's CRSP/Compustat Merged database, for
+example, maintains historical snapshots of financial statements precisely because
+accounting restatements, benchmark revisions, and corrections introduce look-ahead
+bias if analysts use the most recent version of historical data.
+
+For LLM evaluation, the PIT requirement extends beyond structured data to text. A
+rigorous evaluation protocol demands:
+
+\begin{enumerate}
+  \item \emph{Hard temporal cutoffs}: All evaluation instances are drawn from a period
+        that post-dates the model's confirmed knowledge cutoff by a safety margin of at
+        least three months, to account for the lag between real-world events and their
+        appearance in training corpora.
+  \item \emph{Document-level timestamps}: Each evaluation document must carry a verified
+        publication timestamp. Documents with uncertain provenance or retroactive dating
+        are excluded.
+  \item \emph{Contextual anonymisation}: In tasks involving specific companies or
+        securities, company names, ticker symbols, and prominent executive names are
+        replaced with synthetic identifiers. This prevents the model from retrieving
+        memorised associations based on entity identity rather than genuine reasoning
+        over the provided text.
+\end{enumerate}
+
+Contextual anonymisation is a particularly important control because LLM performance on
+named entities can be driven entirely by memorised facts about those entities. An LLM
+asked ``Will Apple report revenue above \$100 billion in Q4 2022?'' is effectively
+being asked a factual recall question, not a forecasting question. Replacing ``Apple''
+with ``Company X, a consumer electronics firm with annual revenue of approximately \$380
+billion'' forces the model to reason from context rather than retrieve memorised outcomes.
 
 \subsection{Designing Contamination-Resistant Evaluation Splits}
 \label{sec:ch13-contamination-resistant-splits}
 
-[Placeholder]
+Standard train-test splits based on random sampling are inadequate for temporal data.
+The correct methodology is \emph{temporal splitting}: the training set ends at time
+$T_1$, the validation set spans $[T_1, T_2]$, and the test set begins at $T_2$, with
+a \emph{gap period} $[T_1 - \Delta, T_1]$ and $[T_2 - \Delta, T_2]$ excluded from
+both splits to prevent contamination through near-boundary examples.
 
+\begin{definition}[Contamination-Resistant Temporal Split]
+\label{def:ch13-temporal-split}
+Let $\mathcal{D} = \{(x_t, y_t)\}_{t=1}^T$ be a dataset ordered by event time $t$.
+Choose cutoff times $T_1 < T_2$ and gap $\Delta > 0$. Define:
+\begin{align}
+  \mathcal{D}_{\text{train}} &= \{(x_t, y_t) : t \leq T_1 - \Delta\}, \notag \\
+  \mathcal{D}_{\text{valid}} &= \{(x_t, y_t) : T_1 \leq t \leq T_2 - \Delta\}, \notag \\
+  \mathcal{D}_{\text{test}} &= \{(x_t, y_t) : t \geq T_2\}.
+  \label{eq:ch13-temporal-split}
+\end{align}
+The gap $\Delta$ should be chosen to be at least as long as the outcome window (e.g.\
+one month for monthly return prediction) plus an additional buffer for publication lag.
+\end{definition}
+
+Beyond temporal splits, three additional controls strengthen contamination resistance:
+
+\emph{N-gram deduplication} computes hash fingerprints of $n$-gram windows (e.g.\ 13-grams)
+from both the LLM's known training corpus and the evaluation set, then removes evaluation
+instances with high overlap. Tools such as the MinHash LSH algorithm can scale this to
+trillion-token corpora.
+
+\emph{Factual probing} tests whether the model can answer factual questions about the
+evaluation instances that a non-leaked model could not answer. If a model correctly
+states the quarterly earnings of a fictional company without being given that information,
+contamination is suspected.
+
+\emph{Date-blinding ablations} compare model performance on original instances versus
+versions with all temporal markers removed. A significant performance drop upon date
+blinding suggests that performance was partly driven by temporal pattern retrieval
+rather than semantic reasoning.
+
+\begin{example}[A Contamination Audit for an LLM Earnings-Surprise Predictor]
+\label{ex:ch13-contamination-audit}
+A research team constructs an evaluation dataset of 500 earnings calls from 2022--2023
+and asks an LLM (training cutoff: December 2023) to predict whether the reported EPS
+will beat or miss consensus. To audit for contamination:
+
+\begin{enumerate}
+  \item They extract the ten most distinctive 13-gram sequences from each transcript
+        and check membership in the Common Crawl dumps that constitute the model's
+        training data. 34 of 500 transcripts show $\geq$3 matching 13-grams: these are
+        flagged and removed.
+  \item They apply contextual anonymisation to the remaining 466 transcripts, replacing
+        company names, tickers, and executive names with synthetic tokens.
+  \item They compare the model's accuracy on original versus anonymised transcripts.
+        Accuracy falls from 62\% to 54\% upon anonymisation, suggesting that
+        approximately 8 percentage points of the original performance was driven by
+        entity-level memorisation.
+\end{enumerate}
+
+After contamination controls, the residual 54\% accuracy is still above the 50\%
+random baseline, but the magnitude of the apparent edge has shrunk substantially. The
+finding illustrates that contamination auditing is not cosmetic---it changes conclusions.
+\end{example}
+
+% ---------------------------------------------------------------
 \section{Stock Movement Prediction: A Cautionary Tale}
 \label{sec:ch13-stock-movement-prediction}
 
-[Placeholder]
+No application of LLMs to finance has attracted more optimistic claims---and more
+methodological scrutiny---than stock price movement prediction. The basic premise is
+appealing: financial markets are driven in part by information, and LLMs can process
+information at scale. If LLMs can extract sentiment, digest news, and reason about
+earnings calls faster and more comprehensively than human analysts, perhaps they can
+identify price-relevant signals that are not yet reflected in market prices.
+
+This section examines the theoretical limits imposed by market efficiency, the empirical
+evidence on LLM prediction accuracy, and the conditions under which simpler models
+can outperform LLMs.
 
 \subsection{The Theoretical Case: Efficient Markets and the Information Barrier}
 \label{sec:ch13-efficient-markets-information-barrier}
 
-[Placeholder]
+The Efficient Market Hypothesis (EMH) \cite{fama1970efficient, fama1991efficient}
+asserts that asset prices reflect all available information. Under the semi-strong form,
+prices adjust instantaneously and without bias to all publicly available information.
+Under the strong form, even private information is reflected.
+
+The EMH creates a fundamental challenge for any LLM-based forecasting strategy: if the
+model is trained on publicly available text (news, filings, earnings transcripts), and
+if markets are semi-strong efficient, then the information content of that text is
+already incorporated in prices before the model can act on it. The LLM is not extracting
+a novel signal; it is reconstructing information that arbitrageurs have already traded on.
+
+The Grossman-Stiglitz impossibility theorem \cite{grossman1980impossibility} sharpens
+this argument. If markets were perfectly informationally efficient, rational agents would
+have no incentive to acquire costly information, since they cannot profit from it.
+Markets therefore cannot be perfectly efficient: there must be enough mispricing to
+compensate informed traders for their information-acquisition costs. The relevant
+question is whether LLMs can access that residual informational edge before it
+is arbitraged away.
+
+For publicly available NLP signals, the evidence suggests the answer is increasingly
+no. The information from earnings call sentiment, news sentiment indices, and social
+media mood has been studied and traded systematically since at least 2010
+\cite{tetlock2007giving, bollen2011twitter}. The alpha from simple text-based signals
+has declined significantly as these strategies became more widely known and deployed.
+An LLM processing the same publicly available text is unlikely to extract signals that
+have not already been identified and traded by dedicated quant shops with faster
+execution infrastructure.
+
+The informational barrier is not absolute. Three channels remain where LLMs might
+contribute genuine value:
+\begin{enumerate}
+  \item \emph{Synthesis at scale}: LLMs can process and synthesise far more documents
+        than a human analyst team, potentially identifying diffuse signals spread across
+        thousands of low-attention documents.
+  \item \emph{Novel reasoning chains}: LLMs trained on diverse knowledge can make
+        cross-domain connections (e.g.\ linking supply chain dynamics to earnings risk)
+        that domain-specific factor models might miss.
+  \item \emph{Private or proprietary text}: If an institution has access to non-public
+        information (client data, proprietary research) that is not in the model's
+        training corpus and is not reflected in market prices, an LLM could extract
+        value from it---though this raises distinct regulatory questions.
+\end{enumerate}
 
 \subsection{Empirical Evidence: LLMs Achieve 51--65\% Accuracy on 250 Stocks}
 \label{sec:ch13-empirical-evidence-llm-accuracy}
 
-[Placeholder]
+A substantial empirical literature has tested whether LLMs can predict the direction
+of stock price movements. The results present a consistent pattern: LLMs achieve
+directional accuracy in the range of 51--65\% on daily or weekly prediction tasks,
+with average performance across studies clustering around 59\% \cite{xu2024stock}.
+
+\citet{lopezlira2023chatgpt} provided one of the first systematic evaluations, testing
+ChatGPT on headline sentiment and showing that a sentiment-based trading strategy
+generated positive returns out-of-sample, with the LLM achieving statistically
+significant directional accuracy on short-horizon price movements. However, their
+evaluation period coincided with a period of unusually high market volatility, and the
+returns were concentrated in specific news categories.
+
+A meta-analysis of 84 empirical studies \cite{zhao2025frontiers} finds that the 59\%
+average accuracy figure is ubiquitous across different LLMs, different markets, and
+different time periods, but that there is enormous heterogeneity around this mean.
+Studies that achieve accuracy above 62\% almost uniformly exhibit one or more of the
+following methodological vulnerabilities:
+\begin{itemize}
+  \item Insufficient temporal gap between LLM training cutoff and evaluation period.
+  \item No contextual anonymisation of company names and tickers.
+  \item Use of overlapping training and evaluation windows.
+  \item Reporting of gross accuracy without transaction cost adjustment.
+\end{itemize}
+
+After controlling for these biases, the residual predictive accuracy is close to 51--54\%---
+statistically above 50\% in some studies but economically negligible after trading costs.
+
+The CFA Institute practical guide on AI in investment management \cite{cfa2025llmguide}
+reaches a similarly cautious conclusion: LLM-based signals are unlikely to generate
+durable alpha in liquid, well-covered markets, but may provide value in less-efficient
+segments such as small-cap equities, emerging markets, or in the synthesis of
+idiosyncratic private information.
 
 \subsection{ARIMA, LSTM, and When Simpler Models Outperform LLMs}
 \label{sec:ch13-arima-lstm-simpler-models}
 
-[Placeholder]
+The discourse around LLMs in finance has sometimes implied a strict hierarchy: LLMs
+are more sophisticated than deep learning, which is more sophisticated than classical
+econometrics. This hierarchy does not translate into predictive accuracy.
 
+ARIMA models \cite{box1970distribution}, despite their vintage, impose a principled
+structure on time-series dynamics---autoregressive dependence, differencing for
+stationarity, and moving-average error terms---that is well-matched to the statistical
+properties of financial returns. Return series are typically covariance-stationary (after
+differencing), have limited autocorrelation, and exhibit variance clustering that
+GARCH extensions handle well. An ARIMA-GARCH model requires far fewer parameters than
+an LLM, is faster to fit, and does not require a training corpus that might be
+temporally contaminated.
+
+LSTM networks \cite{hochreiter1997long} occupy an intermediate position. They are
+capable of learning longer-horizon dependencies and have been extensively applied to
+financial time series. In studies that compare LSTMs with LLMs on pure price-sequence
+prediction (without text input), LSTMs frequently match or outperform LLMs
+\cite{zhao2025frontiers}. The advantage of LLMs in financial forecasting is therefore
+contingent on the value added by text processing---and as argued above, that value is
+limited in liquid markets where publicly available text signals are rapidly arbitraged.
+
+Three conditions systematically favour simpler models over LLMs in financial prediction:
+
+\begin{enumerate}
+  \item \emph{Text irrelevance}: When the prediction target is determined primarily by
+        price and volume dynamics with limited text-driven fundamentals, ARIMA and GARCH
+        models have lower parameter count, lower overfitting risk, and faster iteration.
+  \item \emph{Short evaluation history}: LLM fine-tuning requires substantial labelled
+        data. For instruments with limited trading history---newly issued bonds, recently
+        listed equities, ESG-rated securities with short track records---there is
+        insufficient data to justify fine-tuning, and in-context LLMs are outperformed
+        by parsimonious time-series models.
+  \item \emph{Regime changes}: Financial markets undergo structural breaks---
+        regime changes in volatility, liquidity, or correlation structure---that render
+        historical training data non-representative of the current environment. The
+        parameters of an ARIMA model can be re-estimated rapidly on a rolling basis;
+        re-training or re-fine-tuning an LLM on new data is an order of magnitude
+        more expensive.
+\end{enumerate}
+
+The broader lesson is methodological: evaluating LLMs against a random walk baseline
+is insufficient. Any proposed LLM application should be benchmarked against the best
+available classical alternative for that specific task, using the same evaluation
+period and the same information set.
+
+% ---------------------------------------------------------------
 \section{Evaluation Beyond Classification Accuracy}
 \label{sec:ch13-evaluation-beyond-accuracy}
 
-[Placeholder]
+Classification accuracy is a necessary but not sufficient metric for evaluating
+financial AI models. A model that achieves 53\% directional accuracy on a stock
+prediction task may be economically worthless if it incurs sufficient transaction costs,
+generates returns with a poor risk-adjusted profile, or cannot be implemented at scale.
+Conversely, a model that achieves only 51\% directional accuracy but with high
+confidence on the most extreme predictions can be highly valuable if those confident
+predictions are concentrated on large price moves. This section presents the evaluation
+framework appropriate for financial applications.
 
 \subsection{Economic Value Metrics: Sharpe Ratio, Alpha Generation, Information Ratio}
 \label{sec:ch13-economic-value-metrics}
 
-[Placeholder]
+The most fundamental transformation required in financial AI evaluation is from
+statistical metrics (accuracy, F1, AUROC) to economic metrics (returns, risk-adjusted
+performance, alpha).
+
+The \emph{Sharpe ratio} \cite{sharpe1994sharpe} is the canonical measure of
+risk-adjusted return:
+
+\begin{equation}
+  \text{SR} = \frac{\overline{R}_p - R_f}{\sigma_p},
+  \label{eq:ch13-sharpe-ratio}
+\end{equation}
+
+where $\overline{R}_p$ is the portfolio's average excess return over the evaluation
+period, $R_f$ is the risk-free rate, and $\sigma_p$ is the standard deviation of excess
+returns. A strategy with positive expected returns but high volatility is less valuable
+than one with similar returns and lower volatility. The Sharpe ratio is typically
+annualised by multiplying by $\sqrt{252}$ for daily returns or $\sqrt{12}$ for monthly.
+
+The \emph{information ratio} (IR) generalises the Sharpe ratio to active management
+\cite{grinold1999active}:
+
+\begin{equation}
+  \text{IR} = \frac{\alpha}{\text{TE}},
+  \label{eq:ch13-information-ratio}
+\end{equation}
+
+where $\alpha$ is the annualised active return (portfolio return minus benchmark return)
+and $\text{TE}$ is the tracking error (standard deviation of active returns). The IR
+measures how efficiently a strategy converts informational advantage into
+risk-adjusted alpha. Rules of thumb from active management hold that IR $> 0.5$
+represents strong skill and IR $> 1.0$ represents exceptional skill.
+
+The fundamental theorem of active management \cite{grinold1999active} relates the IR
+to the strategy's breadth and skill:
+
+\begin{equation}
+  \text{IR} \approx \text{IC} \cdot \sqrt{N},
+  \label{eq:ch13-fundamental-law}
+\end{equation}
+
+where IC is the Information Coefficient (the cross-sectional rank correlation between
+predicted and realised returns) and $N$ is the number of independent bets per year.
+This decomposition is particularly useful for evaluating LLM strategies because it
+makes explicit the two sources of value: the quality of the signal (IC) and its
+breadth (N, driven by the number of securities covered and the prediction frequency).
+
+For \emph{alpha} estimation, the standard approach regresses the strategy's daily
+excess returns $r_{p,t}$ on a factor model:
+
+\begin{equation}
+  r_{p,t} = \alpha + \beta_{\text{MKT}} r_{\text{MKT},t} + \beta_{\text{SMB}}
+            r_{\text{SMB},t} + \beta_{\text{HML}} r_{\text{HML},t} + \varepsilon_t,
+  \label{eq:ch13-factor-alpha}
+\end{equation}
+
+where $r_{\text{MKT}}, r_{\text{SMB}}, r_{\text{HML}}$ are the Fama-French
+\cite{fama1970efficient} market, size, and value factors. A statistically significant
+$\alpha$ indicates the strategy delivers returns not explained by passive factor
+exposures. Many LLM trading strategies, when subjected to factor regression, produce
+$\alpha$ that is statistically indistinguishable from zero.
 
 \subsection{Walk-Forward Tests and Expanding-Window Validation}
 \label{sec:ch13-walk-forward-tests}
 
-[Placeholder]
+Standard cross-validation is inappropriate for time-series data because future
+observations ``leak'' into training folds when instances are shuffled randomly. The
+two correct alternatives are walk-forward validation and expanding-window (purged
+cross-validation) methods.
+
+In \emph{walk-forward validation}, the model is trained on data up to time $t$,
+evaluated on the window $[t, t + h]$, and then the training window advances to
+$t + h$ for the next iteration. This procedure is repeated across the full evaluation
+horizon, producing a sequence of out-of-sample predictions. The final performance
+metric is computed by aggregating across all out-of-sample windows.
+
+\emph{Expanding-window validation} (also called anchored walk-forward) fixes the
+start of the training window and expands it through time, re-estimating model
+parameters at each step. This is appropriate when the model benefits from
+accumulating data (as with fine-tuning) and is the standard protocol in the
+financial machine learning literature \cite{lopezdeprado2018advances}.
+
+Both protocols require a \emph{purge period}: a gap between the end of the training
+window and the beginning of the evaluation window, equivalent to the embargo in
+Definition~\ref{def:ch13-temporal-split}. The purge period must be at least as long
+as the prediction horizon to prevent any individual observation from appearing in both
+training and evaluation windows through overlapping label windows.
+
+\begin{definition}[Walk-Forward Evaluation with Purge]
+\label{def:ch13-walk-forward}
+Let $h$ be the prediction horizon and $\Delta_{\text{purge}}$ be the purge gap.
+At iteration $k$, the training set is $\mathcal{D}_{\text{train}}^{(k)} =
+\{(x_t, y_t) : t \leq kh - \Delta_{\text{purge}}\}$ and the evaluation set is
+$\mathcal{D}_{\text{eval}}^{(k)} = \{(x_t, y_t) : kh \leq t \leq (k+1)h - 1\}$.
+The model is retrained from scratch (or adapted via PEFT) at each iteration $k$.
+\end{definition}
+
+The walk-forward protocol makes an implicit assumption about model persistence: the
+model fit on data through time $t$ is used to predict at time $t + \Delta$ to
+$t + h$. If model parameters are expensive to re-estimate (as for full LLM fine-tuning),
+practitioners may opt for longer evaluation windows $h$ to amortise the re-estimation
+cost, at the expense of evaluating a potentially stale model in the later part of
+the window.
 
 \subsection{Trading-Grade Evaluation: Transaction Costs, Capacity, Drawdown}
 \label{sec:ch13-trading-grade-evaluation}
 
-[Placeholder]
+A strategy that performs well in academic evaluation can fail to be tradeable in
+practice for three reasons: transaction costs erode returns, position sizing saturates
+available liquidity, and drawdown periods are psychologically and operationally
+intolerable.
 
+\emph{Transaction cost adjustment} is the minimum bar for any published trading
+strategy. For a strategy that turns over the portfolio at rate $\tau$ (fraction of
+portfolio replaced per period), the round-trip transaction cost per period is:
+
+\begin{equation}
+  c_{\text{round-trip}} = 2 \tau \cdot (\text{half-spread} + \text{market impact}),
+  \label{eq:ch13-transaction-cost}
+\end{equation}
+
+where the half-spread is the bid-ask spread divided by two and the market impact
+is the price movement caused by the strategy's own trading. For an LLM strategy
+trading liquid US large-cap equities, half-spreads are typically 1--3 basis points
+(bps), but market impact for meaningful position sizes can easily add 5--20 bps per
+trade. A strategy requiring daily rebalancing based on news sentiment can incur 10--50
+bps per day in transaction costs, eliminating any statistical edge.
+
+\emph{Capacity analysis} asks how much capital the strategy can absorb before market
+impact destroys its edge. The Almgren-Chriss framework provides a principled model:
+the linear temporary impact of trading $q$ shares in a stock with daily volume $V$
+and price $P$ is approximately $\eta \cdot (q / V)$ per share, where $\eta$ is a
+market-impact coefficient estimated empirically. A strategy that is profitable at
+\$10M in assets may be unprofitable at \$1B if it trades in less liquid securities.
+
+\emph{Drawdown analysis} measures the maximum cumulative loss from peak to trough.
+For financial institutions subject to value-at-risk constraints or regulatory capital
+requirements, a strategy's maximum drawdown is as important as its average return.
+The maximum drawdown (MDD) is:
+
+\begin{equation}
+  \text{MDD} = \max_{t_1 < t_2} \left( \frac{P_{t_1} - P_{t_2}}{P_{t_1}} \right),
+  \label{eq:ch13-max-drawdown}
+\end{equation}
+
+where $P_t$ is the portfolio value at time $t$. The Calmar ratio, defined as the
+annualised return divided by the MDD, is frequently used alongside the Sharpe ratio
+in practitioner evaluation.
+
+A complete trading-grade evaluation for an LLM signal should report:
+\begin{itemize}
+  \item Gross and net (after costs) Sharpe ratio.
+  \item Information ratio against a relevant benchmark.
+  \item Maximum drawdown and Calmar ratio.
+  \item Turnover rate and estimated capacity.
+  \item Performance decomposition by factor loadings (equation~\eqref{eq:ch13-factor-alpha}).
+  \item Statistical significance of alpha using heteroskedasticity-robust standard errors
+        and multiple-testing corrections.
+\end{itemize}
+
+% ---------------------------------------------------------------
 \section{Hallucination in Financial Contexts}
 \label{sec:ch13-hallucination-financial-contexts}
 
-[Placeholder]
+Hallucination---the generation of text that is fluent and confident but factually
+incorrect---is among the most consequential failure modes of LLMs deployed in finance.
+Unlike errors of imprecision or incompleteness, hallucinations are undetectable by a
+reader who lacks prior knowledge of the correct answer. A junior analyst receiving a
+hallucinated financial analysis has no automatic signal that the document contains
+fabricated facts; the prose reads as plausibly as accurate content.
 
 \subsection{Fabricated Citations, Incorrect Numerical Facts, Phantom Companies}
 \label{sec:ch13-fabricated-citations-phantom-companies}
 
-[Placeholder]
+Financial hallucinations appear in several distinct categories, each with its own
+profile of risk.
+
+\emph{Fabricated citations and sources.} LLMs asked to support financial claims with
+references frequently generate plausible-sounding but nonexistent citations: journals
+that do not publish the attributed paper, SSRN working papers with correct-looking
+identifiers but wrong titles or authors, and regulatory guidance documents with
+fabricated section numbers. \citet{bang2023multitask} document this systematically,
+finding that hallucinated citations are stylistically indistinguishable from real ones
+and can pass casual verification. In legal and compliance contexts, a fabricated
+regulatory citation used in a filing or advice document carries serious liability.
+
+\emph{Incorrect numerical facts.} Financial analysis is numerically intensive: balance
+sheet figures, interest rates, credit ratings, option Greeks, return histories. LLMs
+hallucinate numbers with disturbing frequency. \citet{kang2023hallucination} construct
+a dedicated benchmark of numerical queries (revenue, EPS, EBITDA, credit spreads) from
+public filings and find that GPT-4 class models answer incorrectly 15--30\% of the time
+on precise numerical questions, with no reliable indicator distinguishing correct from
+incorrect answers in the model's lexical output. The model does not say ``I am not
+sure''; it produces a number with the same fluency whether that number is correct or
+fabricated.
+
+\emph{Phantom companies and executives.} Asked to describe the competitive landscape
+of a niche financial sector, LLMs frequently generate companies, funds, and executives
+that do not exist. These phantom entities are constructed by analogy from real entities
+the model has encountered: they have plausible names, consistent histories, and realistic
+attributes---but they are not real. In due diligence, counterparty verification, and
+regulatory compliance workflows, acting on phantom entity information is a material
+operational risk.
+
+\emph{Anachronistic facts.} A model with a training cutoff of mid-2024 answering
+questions in 2026 may confidently state information that was accurate at training
+time but is now stale: interest rates, credit ratings, executive leadership, ownership
+structures, and regulatory status change. The model has no awareness of its own
+obsolescence and will not spontaneously flag uncertainty on time-sensitive facts
+\cite{ji2023survey}.
 
 \subsection{Grounding Strategies: RAG, Retrieval Verification, Tool Use}
 \label{sec:ch13-grounding-strategies}
 
-[Placeholder]
+The fundamental challenge of hallucination is that it arises from the model's
+parametric memory---its internal representation of facts encoded during pretraining.
+Grounding strategies mitigate hallucination by reducing the model's reliance on
+parametric memory and anchoring its responses to verified external sources.
+
+\emph{Retrieval-Augmented Generation (RAG)} \cite{lewis2020rag} is the most widely
+deployed grounding strategy. The model retrieves a set of relevant documents from a
+curated knowledge base, and these documents are included in the prompt context before
+generation. If the knowledge base consists of verified, current, and numerically
+accurate financial documents (current 10-K filings, real-time pricing feeds, verified
+regulatory guidance), the model can generate factually grounded responses without
+relying on its parametric memory.
+
+The effectiveness of RAG depends critically on retrieval quality. If the retriever
+returns documents that are topically relevant but factually tangential to the specific
+claim being made, the model may still hallucinate while appearing to cite the retrieved
+source. The model must be prompted to base its response exclusively on the retrieved
+context, and the retrieved context must contain the specific information needed.
+
+\emph{Retrieval verification} extends RAG by adding a post-generation step that checks
+whether each claim in the generated response can be directly grounded in a retrieved
+document. \citet{min2023factscore} introduce FActScore, which decomposes a generated
+text into atomic facts and verifies each against a retrieval system, reporting
+the fraction of facts that are grounded. In financial applications, retrieval
+verification can be implemented with a purpose-built claim checker that queries
+an authoritative data source (EDGAR for filings, Bloomberg for pricing, a regulatory
+database for compliance guidance) for each numerical or entity claim in the generated
+text.
+
+\emph{Tool use and function calling} \cite{schick2023toolformer} allows the model to
+invoke external APIs during generation, fetching current data rather than relying on
+potentially stale parametric memory. A financial LLM equipped with tools to query a
+live financial data API, execute database queries, and search regulatory filings can
+produce grounded numerical outputs with high accuracy. The model's role shifts from
+knowledge store to reasoning engine: it knows how to ask for information rather than
+needing to remember it.
+
+\emph{Self-consistency sampling} \cite{wang2022selfconsistency} generates multiple
+independent responses to the same query and uses majority vote or variance analysis
+as a hallucination signal. \citet{manakul2023selfcheckgpt} show that facts that appear
+consistently across independent samples are more likely to be correct, while facts that
+vary across samples are flagged for human review. In a financial workflow, self-consistency
+sampling can automatically triage responses that require verification before use.
+
+\begin{remark}
+Grounding strategies reduce but do not eliminate hallucination. RAG can fail if the
+retrieved documents themselves contain errors; tool use can return stale data if the
+underlying data source has a lag; self-consistency can consistently produce the same
+incorrect fact if it is strongly represented in the model's parametric memory. A
+complete anti-hallucination workflow combines grounding with human-in-the-loop review
+for high-stakes claims \cite{cfa2025llmguide}.
+\end{remark}
 
 \subsection{Hallucination Benchmarks for Financial Applications}
 \label{sec:ch13-hallucination-benchmarks}
 
-[Placeholder]
+Several benchmarks have been developed specifically to assess LLM factuality in
+financial settings.
+
+\emph{FinanceBench} \cite{zhang2024financebench} tests question answering over real
+SEC filings, with questions that require precise numerical extraction and multi-step
+calculation. It distinguishes between questions that can be answered by retrieval from
+the provided document and those that require synthesis across documents or external
+knowledge. Hallucination rates on FinanceBench are high even for frontier models: the
+benchmark's analysis reports that models hallucinate or compute incorrectly on 20--40\%
+of multi-step numerical questions.
+
+\emph{FinQA} \cite{chen2021finqa} requires numerical reasoning over financial tables
+and text, with evaluation via program execution rather than string match. This execution
+grounding catches numerical hallucinations that would pass a surface-level text match.
+
+\citet{kang2023hallucination} construct a dedicated hallucination benchmark drawing on
+public company filings from EDGAR, testing whether models correctly state revenue,
+earnings, and balance sheet figures. Their evaluation protocol includes controlled
+perturbations: the model is asked the same question about both real and fictitious
+companies, with the expectation that it should express uncertainty for the latter.
+Many models instead confidently answer questions about fictitious companies with
+invented but plausible figures.
+
+The gap between benchmark performance and real-world reliability is substantial. Models
+that perform well on structured benchmarks such as FinQA can still hallucinate in
+open-domain financial workflows where the information is not pre-retrieved. The benchmark
+ecosystem is developing rapidly, and practitioners evaluating a model for deployment
+should assess performance on the specific task type, information source, and output
+format relevant to their use case, rather than relying on aggregate benchmark scores.
+
+% ---------------------------------------------------------------
+\section{Summary}
+\label{sec:ch13-summary}
+
+This chapter has examined five interconnected sources of fragility in the application
+of LLMs to finance, each requiring a specific methodological response.
+
+\begin{enumerate}
+  \item \emph{Calibration}: LLMs are systematically overconfident, with ECE values
+        that can exceed 10\% on financial classification tasks. Confidence scores must
+        be post-processed with temperature scaling, isotonic regression, or Platt
+        scaling before they are used to drive decisions. Conformal prediction sets
+        provide coverage guarantees under mild assumptions and should be considered for
+        high-stakes outputs.
+
+  \item \emph{Temporal leakage}: Evaluating LLMs on financial tasks that fall within
+        or close to their training cutoff produces inflated performance estimates.
+        Robust evaluation requires hard temporal splits, purge periods, contextual
+        anonymisation, and n-gram deduplication against known training corpora. The
+        contamination audit in Example~\ref{ex:ch13-contamination-audit} illustrates
+        that published accuracy figures can be reduced by 8 percentage points or more
+        after contamination controls.
+
+  \item \emph{Stock prediction realism}: The preponderance of evidence places
+        LLM directional accuracy on stock price prediction in the 51--65\% range, with
+        the upper end driven by methodological artefacts. After controlling for temporal
+        leakage, transaction costs, and factor exposures, the residual alpha from
+        LLM-based signals in liquid markets is economically modest. Simpler models
+        (ARIMA, LSTM) frequently outperform LLMs when text is not the dominant
+        information source.
+
+  \item \emph{Economic evaluation}: Financial model evaluation must extend beyond
+        classification accuracy to economic metrics: Sharpe ratio, information ratio,
+        factor alpha, and trading-grade metrics including transaction costs, capacity,
+        and maximum drawdown. A complete evaluation protocol is defined in
+        Section~\ref{sec:ch13-trading-grade-evaluation}.
+
+  \item \emph{Hallucination}: LLMs fabricate citations, numerical facts, and entities
+        in financial contexts, with no reliable lexical signal distinguishing correct from
+        hallucinated content. Grounding strategies---RAG, retrieval verification, tool
+        use, and self-consistency sampling---reduce but do not eliminate hallucination.
+        Human review remains necessary for high-stakes financial outputs.
+\end{enumerate}
+
+Taken together, these limitations do not preclude the use of LLMs in finance, but they
+do require a disciplined evaluation framework that treats LLM outputs as inputs to a
+decision process, not as end products. The standards developed in this chapter---calibration
+measurement, contamination-resistant evaluation design, economic metrics, and grounding
+workflows---provide the methodological foundation for responsible LLM deployment in
+financial practice.
+
+% ---------------------------------------------------------------
+\section{Further Reading}
+\label{sec:ch13-further-reading}
+
+\emph{Calibration.} The canonical reference on calibration of modern neural networks
+is \citet{guo2017calibration}, which introduces temperature scaling and provides a
+comprehensive empirical analysis. \citet{niculescu2005predicting} covers Platt scaling
+and isotonic regression. \citet{angelopoulos2022gentle} provides an accessible
+introduction to conformal prediction and its financial applications are surveyed in
+\citet{chen2024uncertainty}.
+
+\emph{Temporal leakage and evaluation design.} \citet{ziemke2024temporal} is the
+primary reference on temporal leakage in LLM financial evaluation. \citet{lopezdeprado2018advances}
+covers purged cross-validation and walk-forward evaluation in the financial machine
+learning context. The importance of point-in-time data is treated extensively in the
+quantitative finance literature; see \citet{lewellen2010empirical} for the
+asset-pricing dimension.
+
+\emph{Stock prediction and market efficiency.} \citet{fama1970efficient} and
+\citet{fama1991efficient} are the foundational texts on market efficiency.
+\citet{grossman1980impossibility} provides the theoretical limit on informational
+efficiency. \citet{lopezlira2023chatgpt} and \citet{xu2024stock} are the primary
+empirical studies on LLM stock prediction accuracy. The meta-analysis in
+\citet{zhao2025frontiers} covers 84 studies.
+
+\emph{Economic evaluation.} \citet{sharpe1994sharpe} defines the Sharpe ratio.
+\citet{grinold1999active} develops the information ratio and the fundamental law of
+active management. Chapter~\ref{ch:portfolio-quant-trading} of this book covers the
+practical implementation of walk-forward backtesting and transaction cost modelling.
+
+\emph{Hallucination.} \citet{ji2023survey} provides a comprehensive survey of
+hallucination in NLG. \citet{kang2023hallucination} is the primary reference for
+LLM hallucination in financial contexts. \citet{min2023factscore} introduces the
+FActScore methodology for fine-grained factual evaluation. \citet{manakul2023selfcheckgpt}
+covers self-consistency as a hallucination detection method. For grounding via RAG,
+see \citet{lewis2020rag} and the applied financial RAG system described in
+\citet{wang2025finsage}.

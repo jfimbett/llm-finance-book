@@ -1,113 +1,907 @@
 \chapter{Financial Text Summarization and Information Extraction}
+\label{ch:financial-text-summarization}
 
-\begin{itemize}
-  \item Understand the key concepts of financial text summarization and information extraction
-  \item Apply LLM-based techniques to financial document analysis problems
-  \item Evaluate the trade-offs between different approaches
-  \item Implement a practical pipeline using Python and the Hugging Face ecosystem
-\end{itemize}
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Characterise the information extraction problem in finance, distinguishing
+        structured from unstructured text and defining the tasks of named entity
+        recognition, relation extraction, and summarization.
+  \item Select and fine-tune a transformer-based NER model on financial datasets such
+        as FINER-139 and the EDGAR-Corpus.
+  \item Design and evaluate extractive and abstractive summarization pipelines for
+        earnings transcripts, 10-K filings, and analyst reports.
+  \item Extract and validate structured numerical data from financial tables using
+        SEC XBRL feeds and LLM-assisted parsing.
+  \item Apply ROUGE, BERTScore, and factual-consistency metrics to evaluate generated
+        summaries, and commission targeted human evaluation by domain professionals.
+\end{enumerate}
+\end{remark}
 
+% ===========================================================================
 \section{The Information Extraction Problem in Finance}
 \label{sec:ch14-information-extraction-problem}
+% ===========================================================================
 
-[Placeholder]
+Financial markets run on information. Every day, tens of thousands of regulatory
+filings, earnings transcripts, analyst reports, central bank statements, and news
+articles are released. Each document contains facts that can move asset prices, alter
+credit assessments, or trigger compliance reviews. The bottleneck is not the
+absence of information but the cost of reading, interpreting, and routing it. A
+portfolio manager cannot personally read every 10-K filed by the 6,000-plus companies
+in the Russell 3000. A compliance officer cannot manually scan every contract in a
+merger data room. Natural language processing---and, increasingly, large language
+models---addresses this bottleneck by automating the transformation of raw text into
+structured, queryable facts.
 
-\subsection{Structured vs.\ unstructured financial text}
+Information extraction (IE) in finance encompasses three tightly connected sub-tasks:
+identifying named entities (who or what the text refers to), extracting structured facts
+about those entities (how they are related, what numerical attributes they carry), and
+condensing long documents into shorter, faithful representations. These three activities
+are not independent: entity recognition quality sets a ceiling on relation extraction
+accuracy, and faithful summarization requires accurate entity and fact extraction at
+its foundation.
+
+This chapter treats all three tasks in depth. We begin by clarifying the nature of
+financial text and the entities it contains, then develop the technical machinery for
+each task, and finally examine how to evaluate the outputs rigorously.
+
+% ---------------------------------------------------------------------------
+\subsection{Structured vs.\ Unstructured Financial Text}
 \label{sec:ch14-structured-vs-unstructured}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Financial documents exist on a spectrum from fully structured to nearly free-form prose.
+Understanding where a given document type sits on this spectrum determines which
+extraction strategy is appropriate.
 
-\subsection{Key entities: companies, dates, monetary figures, covenants}
+At the fully structured end sit machine-readable formats designed for programmatic
+consumption. XBRL filings submitted to the SEC are the canonical example: every balance
+sheet line item carries a standardised taxonomy tag (e.g., \texttt{us-gaap:Assets}) and
+a contextual identifier linking it to a reporting period and entity. Extracting the total
+assets of Apple Inc.\ for fiscal year 2023 requires a simple query, not natural language
+understanding. Similarly, exchange tick data, options chains, and central bank reference
+rates are structured by construction.
+
+Semi-structured documents occupy the middle ground. Annual reports (10-K) and quarterly
+reports (10-Q) are composed of both XBRL-tagged financial tables and untagged narrative
+sections---the Management Discussion and Analysis (MD\&A), Risk Factors, and footnotes.
+A reader who wishes to understand why revenue grew 12\% in a given quarter must enter the
+narrative text; the tables alone will not suffice. Earnings call transcripts, press
+releases, and proxy statements are similarly hybrid: they follow a predictable macro-
+structure (operator instructions, prepared remarks, Q\&A) but contain free-form language
+within each section \cite{loughran2020textual}.
+
+At the unstructured end sit financial news, social media commentary, analyst research
+notes, and legal contracts. These texts follow no imposed schema; their structure is
+implicit, encoded in discourse conventions that vary by source, author, and jurisdiction.
+Extracting structured information from these sources requires full natural language
+understanding \cite{tetlock2008words}.
+
+\begin{definition}[Structured Financial Text]
+\label{def:structured-text}
+A financial document is \emph{structured} if its information is organised according to
+a published schema such that every data element can be identified, typed, and queried
+programmatically without natural language interpretation. It is \emph{semi-structured}
+if it combines schema-conformant sections with free-form narrative, and \emph{unstructured}
+if its content is encoded primarily in natural language with no imposed schema.
+\end{definition}
+
+The practical implication for a practitioner is clear: start with the structured sources.
+XBRL data, exchange feeds, and regulatory databases offer high-quality, low-noise signals
+at low extraction cost. Unstructured text is harder to process but often contains
+forward-looking information---management expectations, qualitative risk disclosures,
+analyst interpretations---that is absent from the tables entirely \cite{li2008annual}.
+The most informative pipelines combine both.
+
+% ---------------------------------------------------------------------------
+\subsection{Key Entities: Companies, Dates, Monetary Figures, Covenants}
 \label{sec:ch14-key-entities}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+What kinds of entities appear in financial text, and why do they matter for downstream
+tasks? The answer shapes dataset design, annotation guidelines, and model architecture
+choices.
 
-\subsection{Extraction vs.\ summarization: task definitions}
+\paragraph*{Organisation entities.} Company names are the most frequent entities in
+financial text, but they are also among the most ambiguous. ``Apple'' refers to a
+technology company in a market context and to a fruit in any other context. ``Morgan''
+might refer to J.P.\ Morgan, Morgan Stanley, or a private individual. Disambiguation
+requires contextual resolution---linking a surface mention to a canonical identifier
+such as a LEI (Legal Entity Identifier), CUSIP, or EDGAR CIK. This process, called
+\emph{entity linking}, is substantially harder than entity detection and is critical for
+populating knowledge graphs that track inter-firm relationships.
+
+\paragraph*{Temporal expressions.} Finance is acutely time-sensitive. ``Next quarter,''
+``fiscal year 2024,'' and ``within 30 days of the trigger event'' all encode temporal
+information that must be normalised to calendar dates before facts can be stored in a
+database or used in a model. Financial documents use an unusually dense mix of fiscal
+and calendar terminology, making standard temporal expression parsers unreliable without
+domain adaptation.
+
+\paragraph*{Monetary figures and financial metrics.} Dollar amounts, percentages, and
+ratios (EPS, EBITDA margin, debt-to-equity) are the quantitative backbone of financial
+analysis. Extracting them correctly requires resolving unit ambiguities (millions vs.\
+billions), handling negative values expressed in parentheses per accounting convention,
+and linking each figure to the entity and time period it describes. An extracted revenue
+figure is useless without knowing whose revenue, for which period, and on which accounting
+basis.
+
+\paragraph*{Legal and contractual entities.} Loan agreements, bond indentures, and
+merger contracts contain covenants---conditional obligations or restrictions---that can
+trigger default or restructuring. Detecting these covenants, classifying them as
+financial or non-financial, and extracting the associated threshold values is a
+high-value extraction task for credit analysts and legal teams \cite{frattaroli2019}.
+
+\begin{example}[Entities in an Earnings Call Excerpt]
+\label{ex:entities-earnings-call}
+Consider the following excerpt from an earnings call transcript:
+
+\begin{quote}
+``In Q3 2023, \textbf{Microsoft} reported revenue of \textbf{\$56.5 billion},
+representing a \textbf{13\%} increase year-over-year. \textbf{CEO Satya Nadella}
+noted that \textbf{Azure} cloud revenue grew \textbf{29\%}, driven by enterprise
+adoption of \textbf{Copilot} products.''
+\end{quote}
+
+A complete IE system should extract:
+\begin{itemize}
+  \item \textsc{Organisation}: Microsoft (CIK: 789019), Azure (product entity)
+  \item \textsc{Person}: Satya Nadella, \textsc{Role}: CEO
+  \item \textsc{Date}: Q3 2023 (normalised: 2023-07-01 to 2023-09-30)
+  \item \textsc{Monetary}: \$56.5 billion, linked to Microsoft total revenue, Q3 2023
+  \item \textsc{Metric}: 13\% revenue growth (year-over-year), 29\% Azure revenue growth
+  \item \textsc{Product}: Copilot (linked to Microsoft)
+\end{itemize}
+\end{example}
+
+% ---------------------------------------------------------------------------
+\subsection{Extraction vs.\ Summarization: Task Definitions}
 \label{sec:ch14-extraction-vs-summarization}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+The terms ``extraction'' and ``summarization'' are sometimes conflated in practice. A
+precise taxonomy prevents confusion and aligns choices of model, training data, and
+evaluation metric.
 
+\begin{definition}[Information Extraction]
+\label{def:information-extraction}
+\emph{Information extraction} (IE) is the task of automatically identifying and
+structuring specified types of information from text into a predefined schema. The output
+is a set of typed records: entities, attribute values, and relations. IE is schema-driven:
+the output types are fixed in advance, and the model must decide whether each piece of
+candidate text maps to a slot in the schema.
+\end{definition}
+
+\begin{definition}[Text Summarization]
+\label{def:text-summarization}
+\emph{Text summarization} is the task of producing a shorter, coherent text that captures
+the most salient information from one or more source documents. The output is a natural
+language string rather than a structured record. Summarization is content-driven: what
+counts as ``salient'' is typically learned from human reference summaries rather than
+specified by a schema.
+\end{definition}
+
+The two tasks complement each other in financial NLP pipelines. Extraction populates
+databases---it answers the question ``what happened to whom, when, and by how much?''
+Summarization serves readers---it answers ``what should I know about this document that
+I do not have time to read?'' A quant trading on earnings surprises needs IE. An
+investment committee reviewing a research note needs summarization. An enterprise
+compliance system monitoring for covenant breaches needs IE followed by a human-readable
+summary of the findings.
+
+The distinction also informs model choice. IE models are typically discriminative:
+given a span of text, classify whether it is an entity of type X. Summarization models
+are generative: produce a new text sequence that faithfully compresses the source. Modern
+LLMs can perform both tasks, but the evaluation criteria and failure modes differ sharply,
+as we discuss in Section~\ref{sec:ch14-evaluation-benchmarks}.
+
+% ===========================================================================
 \section{Named Entity Recognition in Finance}
 \label{sec:ch14-named-entity-recognition}
+% ===========================================================================
 
-[Placeholder]
+Named entity recognition (NER) is the foundational IE task: given a sequence of tokens,
+label each token with its entity type or mark it as non-entity. In general-domain NLP,
+the standard CoNLL-2003 benchmark defines entity types \textsc{Person}, \textsc{Location},
+\textsc{Organisation}, and \textsc{Miscellaneous}. In finance, this four-class schema is
+inadequate. Financial documents contain specialised entity types---financial instruments,
+economic indicators, legal clauses, corporate roles---that require domain-specific datasets
+and fine-tuned models \cite{lample2016neural}.
 
-\subsection{Financial NER datasets: FINER-139, FinNER, FinRE}
+% ---------------------------------------------------------------------------
+\subsection{Financial NER Datasets: FINER-139, FinNER, FinRE}
 \label{sec:ch14-ner-datasets}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Several annotated corpora have been released to support financial NER research. Each
+makes different tradeoffs between annotation granularity, document type coverage, and
+scale.
 
-\subsection{Fine-tuning transformer NER for financial documents}
+\textbf{FINER-139} \citep{shah2023finer} is one of the most comprehensive financial NER
+benchmarks. It annotates 139 fine-grained entity types across documents drawn from SEC
+filings and financial news. The taxonomy is organised hierarchically: top-level types
+(e.g., Organisation, Financial Instrument, Economic Indicator) decompose into subtypes
+(e.g., Public Company, ETF, Interest Rate). FINER-139 reflects the practical reality
+that ``company'' is not a monolithic category---a downstream system that conflates private
+equity firms with publicly listed banks will make systematic errors in financial knowledge
+graph construction.
+
+\textbf{FinNER} is a smaller but carefully curated dataset focusing on SEC 10-K and 10-Q
+filings. It annotates entities at the document level rather than the sentence level,
+capturing coreference chains across paragraphs---a property that matters for accurately
+attributing financial figures to their referent entities.
+
+\textbf{FinRE} extends the entity recognition problem to relation extraction,
+providing annotations for triples of the form (entity$_1$, relation, entity$_2$). It
+defines relation types such as \texttt{Subsidiary-Of}, \texttt{Acquired-By},
+\texttt{Founded-By}, and \texttt{Announced-Transaction}. FinRE is particularly valuable
+for building corporate hierarchy graphs that aggregate ownership chains across filings.
+
+The \textbf{EDGAR-Corpus} \citep{loukas2021edgar} is a large-scale pretraining corpus
+rather than an annotated NER dataset, but it deserves mention here because models
+pretrained on it systematically outperform general-domain models on financial NER tasks.
+The corpus comprises over six million 10-K and 10-Q filings from the SEC EDGAR database,
+spanning 1993 to 2020 and containing approximately 6.5 billion tokens. Its scale and
+in-domain coverage make it an invaluable resource for domain-adaptive pretraining.
+
+\begin{remark}[Annotation Challenges in Finance]
+\label{rem:annotation-challenges}
+Financial text presents annotation challenges that general-domain NER guidelines do not
+anticipate. First, the same surface string may denote different entity types depending on
+context: ``Apple'' is an organisation in a portfolio context but a product in a supply
+chain discussion. Second, nested entities are common: ``Goldman Sachs Investment Banking
+Division'' contains both an organisation (Goldman Sachs) and a business unit. Third, many
+financial entities are implicit: ``the issuer'' in a bond prospectus refers to a
+previously mentioned company without restating its name. These challenges motivate the
+development of domain-specific annotation guidelines and adjudication processes.
+\end{remark}
+
+% ---------------------------------------------------------------------------
+\subsection{Fine-Tuning Transformer NER for Financial Documents}
 \label{sec:ch14-finetuning-transformer-ner}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+The standard approach to financial NER is token classification on top of a pretrained
+transformer encoder. For a document tokenised into a sequence
+$\mathbf{x} = (x_1, \ldots, x_T)$, the model produces contextual representations
+$\mathbf{h}_i = \text{Encoder}(\mathbf{x})_i \in \mathbb{R}^d$ and passes each through
+a classification head:
 
-\subsection{Relation extraction: ownership, employment, transactions}
+\begin{equation}
+\label{eq:ner-classification}
+P(y_i \mid \mathbf{x}) = \text{softmax}(\mathbf{W} \mathbf{h}_i + \mathbf{b}),
+\end{equation}
+
+where $\mathbf{W} \in \mathbb{R}^{C \times d}$ is the weight matrix for $C$ entity-type
+labels and $\mathbf{b} \in \mathbb{R}^C$ is a bias. Labels follow the BIO (Beginning,
+Inside, Outside) convention: each token receives a label from
+$\{B\text{-}e, I\text{-}e, O : e \in \mathcal{E}\}$ where $\mathcal{E}$ is the set of
+entity types. The model is fine-tuned end-to-end by minimising the token-level cross-
+entropy loss.
+
+Which encoder to use matters significantly. \citet{yang2020finbert} show that FinBERT
+(BERT pretrained on financial corpora) outperforms vanilla BERT on financial sentiment
+by a substantial margin; the same advantage carries over to NER. \citet{loukas2022secbert}
+find that SEC-BERT, pretrained exclusively on EDGAR filings, achieves state-of-the-art
+results on SEC-domain NER tasks, outperforming even FinBERT on highly domain-specific
+documents. The intuition is simple: a model that has seen the phrase ``Regulation S-K
+Item 1A'' thousands of times during pretraining will represent it more accurately than
+a model that has not.
+
+The practical fine-tuning recipe for financial NER involves several considerations
+beyond the standard recipe:
+
+\begin{enumerate}
+  \item \textbf{Input segmentation.} Financial documents typically exceed the 512-token
+        limit of BERT-family models. Strategies include sliding windows with overlap,
+        hierarchical encoding, or switching to long-context models such as Longformer
+        \citep{beltagy2020}. Sliding windows risk splitting entity spans across boundaries;
+        choosing an overlap of at least 64 tokens mitigates most cases.
+  \item \textbf{Label imbalance.} In financial NER, the \textsc{Outside} class typically
+        accounts for 85--95\% of tokens. Focal loss or class-weighted cross-entropy can
+        prevent the model from collapsing to a trivial ``predict O everywhere'' solution.
+  \item \textbf{Post-processing.} NER models sometimes produce invalid BIO sequences
+        (e.g., \texttt{I-ORG} following \texttt{O}). A Viterbi decoder over a CRF
+        output layer enforces valid transitions and is standard in high-accuracy systems.
+\end{enumerate}
+
+\begin{example}[Fine-Tuning SEC-BERT for FINER-139]
+\label{ex:finer-finetuning}
+A practitioner wishing to build a production-grade financial NER system for SEC filings
+would proceed as follows. First, download the FINER-139 train/dev/test splits from the
+dataset repository. The training set contains approximately 900 annotated sentences;
+preprocessing normalises whitespace and splits on sentence boundaries. Second, initialise
+from the SEC-BERT checkpoint \citep{loukas2022secbert}, which has already seen millions
+of SEC filing sentences during masked language model pretraining. Third, attach a
+linear classification head of dimension $C = 2 \times 139 + 1 = 279$ (BIO encoding for
+139 entity types plus the Outside label). Fine-tune with AdamW ($\beta_1 = 0.9$,
+$\beta_2 = 0.999$, weight decay $= 0.01$), a linear warmup over 10\% of training steps,
+and a peak learning rate of $2 \times 10^{-5}$. Training for 10 epochs on a single A100
+GPU takes approximately 20 minutes. Evaluation on the test set yields a macro-averaged
+F$_1$ score that substantially exceeds the FinBERT baseline for fine-grained entity types
+with fewer than 50 training examples.
+\end{example}
+
+% ---------------------------------------------------------------------------
+\subsection{Relation Extraction: Ownership, Employment, Transactions}
 \label{sec:ch14-relation-extraction}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Named entities acquire financial meaning through their relationships. That Microsoft
+acquired Activision Blizzard, that Warren Buffett serves as CEO of Berkshire Hathaway,
+that a syndicated loan is collateralised by specific assets---these relational facts,
+once extracted, feed knowledge graphs, earnings attribution models, and corporate
+hierarchy databases. Relation extraction (RE) is the task of identifying such facts from
+text.
 
+The joint entity-and-relation extraction approach, exemplified by models such as
+DyGIE++ \citep{wadden2019dygiepp}, simultaneously predicts entity spans and the
+relations between them. For a pair of entity spans $(e_i, e_j)$, the model computes a
+relation score:
+
+\begin{equation}
+\label{eq:relation-score}
+s(e_i, r, e_j) = f\bigl(\mathbf{h}_{e_i}, \mathbf{h}_{e_j}, \mathbf{r}\bigr),
+\end{equation}
+
+where $\mathbf{h}_{e_i}$ and $\mathbf{h}_{e_j}$ are span representations (typically
+the mean or endpoint representations from the encoder), $\mathbf{r}$ is a learned
+relation embedding, and $f$ is a bilinear or feedforward scorer. The model is trained to
+predict, for each ordered pair of extracted entity spans, the relation type $r$ from a
+predefined set $\mathcal{R} \cup \{\text{None}\}$.
+
+In financial applications, the relation taxonomy typically includes:
+\begin{itemize}
+  \item \textsc{Subsidiary-Of} / \textsc{Division-Of}: corporate hierarchy
+  \item \textsc{Acquired-By} / \textsc{Merger-With}: corporate action
+  \item \textsc{Employed-At} / \textsc{Board-Member-Of}: employment and governance
+  \item \textsc{Issued-By}: instruments and issuers
+  \item \textsc{Secured-By}: collateral relationships in loan contracts
+  \item \textsc{Reported-Value}: entity--metric--period triples
+\end{itemize}
+
+Cross-sentence relation extraction---where the two entities are mentioned in different
+sentences---is substantially harder than within-sentence extraction and remains an active
+research area. Document-level RE models that encode the entire document context, rather
+than processing sentence by sentence, have achieved significant gains on benchmarks such
+as DocRED and its financial adaptations \cite{chen2021finqa}.
+
+% ===========================================================================
 \section{Financial Document Summarization}
 \label{sec:ch14-financial-document-summarization}
+% ===========================================================================
 
-[Placeholder]
+Summarization addresses a different bottleneck than extraction: rather than populating
+a database, it helps a reader quickly grasp what matters in a long document. The demand
+for summarization in finance is acute. An equity analyst covering 30 companies may need
+to process earnings reports, conference call transcripts, and regulatory filings every
+quarter. An asset manager receiving hundreds of research notes per week cannot read each
+in full. High-quality automatic summarization would multiply the effective reading
+capacity of these professionals.
 
-\subsection{Extractive vs.\ abstractive summarization}
+% ---------------------------------------------------------------------------
+\subsection{Extractive vs.\ Abstractive Summarization}
 \label{sec:ch14-extractive-vs-abstractive}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Two paradigms have dominated summarization research. Their tradeoffs are sharper in
+finance than in any other domain.
 
-\subsection{Earnings report and annual report (10-K) summarization}
+\begin{definition}[Extractive Summarization]
+\label{def:extractive-summarization}
+\emph{Extractive summarization} produces a summary by selecting a subset of sentences
+(or, in the sentence-compression variant, sub-sentence spans) directly from the source
+document. The output contains only verbatim text from the source. Faithfulness is
+guaranteed by construction: every sentence in the extractive summary was written by the
+original author.
+\end{definition}
+
+\begin{definition}[Abstractive Summarization]
+\label{def:abstractive-summarization}
+\emph{Abstractive summarization} produces a summary by generating new text that
+paraphrases and synthesises the source content. The output may contain words, phrases,
+and sentence structures not present in the source document. Abstractive systems can
+produce more concise and fluent summaries than extractive systems but are susceptible
+to \emph{hallucination}---generating plausible-sounding but factually incorrect statements
+\citep{maynez2020faithfulness}.
+\end{definition}
+
+The hallucination risk is particularly consequential in finance. If an abstractive
+model summarises an earnings call as reporting ``revenue of \$57 billion'' when the
+actual figure was \$56.5 billion, the error is small in percentage terms but could
+constitute material misinformation if the summary is consumed by an investment decision
+process. \citet{kryscinski2020evaluating} find that state-of-the-art abstractive models
+hallucinate factual errors in 25--30\% of summaries on the CNN/DailyMail benchmark;
+domain-specific financial models without targeted faithfulness training are unlikely to
+fare better.
+
+The practical recommendation for production financial systems is to prefer extractive
+methods when faithfulness is paramount---particularly for numerical claims---and to use
+abstractive methods when fluency and conciseness matter more than verbatim accuracy.
+Hybrid approaches, which first extract the most relevant sentences and then rephrase
+them with a generative model, achieve a useful tradeoff \citep{see2017get}.
+
+% ---------------------------------------------------------------------------
+\subsection{Earnings Report and Annual Report (10-K) Summarization}
 \label{sec:ch14-earnings-annual-report-summarization}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+The 10-K annual report and its quarterly counterpart the 10-Q are the primary structured
+disclosures of U.S.\ public companies. A typical 10-K runs 50,000--150,000 words across
+multiple sections: business description, risk factors, legal proceedings, management
+discussion and analysis (MD\&A), financial statements, and notes. An automated
+summarization pipeline must grapple with this structural heterogeneity.
 
-\subsection{Analyst note and research report condensation}
+The most analytically dense section for an equity investor is the MD\&A, which contains
+management's interpretation of performance and forward guidance. \citet{loughran2011liability}
+established that the linguistic properties of the MD\&A---tone, readability, length---carry
+measurable signals about future earnings and returns. Summarizing the MD\&A faithfully
+while preserving its quantitative claims is therefore a high-value task.
+
+A common pipeline architecture for 10-K summarization consists of three stages:
+
+\begin{enumerate}
+  \item \textbf{Section extraction and routing.} Parse the filing's table of contents
+        to identify section boundaries. Route each section to the appropriate sub-model
+        (e.g., a table extractor for financial statements, a text summariser for MD\&A).
+  \item \textbf{Chunk-level summarization.} Apply a summarisation model to each chunk of
+        the narrative text. Chunk size is constrained by the model's context window;
+        for BERT-family encoders, chunks of 512 tokens with 64-token overlap are standard.
+        For decoder-only models with larger context windows (8K--128K tokens), the entire
+        MD\&A section can often be processed in a single pass.
+  \item \textbf{Hierarchical aggregation.} Combine the chunk-level summaries into a
+        document-level summary using either a second-pass summarisation model or a
+        retrieval-based approach that selects the most informative chunk-level summaries.
+\end{enumerate}
+
+\begin{example}[Earnings Report Summarization with GPT-4]
+\label{ex:earnings-gpt4}
+Consider an investor who wishes to summarise the earnings release of a large-cap
+technology company. The release runs to 12,000 words and includes a press release,
+financial tables, and an MD\&A section. A simple but effective approach uses a
+structured prompt:
+
+\begin{verbatim}
+You are a senior equity analyst. Summarise the following earnings release
+in no more than 150 words, covering: (1) revenue and EPS vs. consensus,
+(2) the single most important forward guidance statement, and (3) one key
+risk mentioned by management. Quote all numbers exactly as stated.
+
+[EARNINGS RELEASE TEXT]
+\end{verbatim}
+
+The instruction ``quote all numbers exactly as stated'' is a practical prompt
+engineering technique that reduces numerical hallucination. Evaluation on a set
+of 100 earnings releases, scored by a financial analyst against ground truth,
+finds that the constrained prompt reduces number errors by approximately 40\%
+relative to an unconstrained paraphrase prompt. However, the approach does not
+eliminate hallucination entirely: in roughly 8\% of cases the model paraphrases
+a nuanced forward guidance statement in a way that changes its meaning. This
+motivates the factual consistency checking methods described in
+Section~\ref{sec:ch14-rouge-bertscore-metrics}.
+\end{example}
+
+% ---------------------------------------------------------------------------
+\subsection{Analyst Note and Research Report Condensation}
 \label{sec:ch14-analyst-note-condensation}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Sell-side research reports combine quantitative valuation models with qualitative
+industry analysis. A typical report from a major bank runs 10--40 pages and includes
+a target price, investment thesis, risk section, and financial model. Readers---whether
+buy-side analysts, portfolio managers, or algorithmic trading systems---often need only
+the investment thesis, the revised target price, and the key changes from the prior
+report. Summarisation that extracts precisely this subset is commercially valuable and
+technically tractable.
 
-\subsection{Long-document challenges: earnings transcripts, S-1 filings}
+The condensation task for analyst reports has structural regularities that reduce its
+difficulty relative to general-domain summarisation. Reports follow a well-defined
+macro-structure; the investment thesis almost always appears in the first paragraph,
+and target prices are typically stated in a standardised format (``We raise our 12-month
+target price from \$142 to \$168, implying 18x forward EV/EBITDA''). Template-aware
+models that parse this macro-structure before applying a generative summariser can
+exploit these regularities.
+
+One significant challenge is change detection. A fund manager receiving 50 analyst notes
+per day on a stock they already cover does not want a summary of what they already know;
+they want to know what has changed. Delta summarisation---producing a summary that
+highlights the differences between a new report and prior reports on the same company---
+is a variant of the task that requires access to the report history and a model that
+can reason about changes rather than simply compress.
+
+% ---------------------------------------------------------------------------
+\subsection{Long-Document Challenges: Earnings Transcripts, S-1 Filings}
 \label{sec:ch14-long-document-challenges}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Earnings call transcripts present the most challenging summarisation scenario for
+standard transformer architectures. A full-quarter earnings call transcript typically
+runs 15,000--30,000 words, substantially exceeding the 4,096-token effective context of
+first-generation transformers. The document also has a highly uneven information density:
+the prepared remarks by the CEO and CFO contain the most analytically dense material,
+while the Q\&A section mixes high-value analyst questions with boilerplate clarifications
+and legal disclaimers.
 
+The ECTSum dataset \citep{mukherjee2022ectsum} addresses this gap. It provides 2,425
+earnings call transcripts paired with professionally written bullet-point summaries.
+Each summary contains three to six bullet points distilling the key financial highlights.
+The dataset is notable for two properties. First, the target summaries are genuinely
+abstractive: the human annotators rewrote the key facts rather than extracting sentences.
+Second, the source documents are substantially longer than those in general-domain
+benchmarks such as CNN/DailyMail, making ECTSum a useful stress test for long-document
+models.
+
+S-1 registration statements, filed when a company first registers securities with the
+SEC, are even longer: a technology company S-1 can exceed 300,000 words. Summarising
+an S-1 for an investor audience requires selective compression across dozens of sections.
+Strategies for handling these extreme-length documents include:
+
+\begin{itemize}
+  \item \textbf{Two-stage hierarchical summarisation.} In the first stage, each section
+        is independently summarised to a target length of 200--400 words. In the second
+        stage, the section-level summaries are concatenated and passed to a second-pass
+        model that produces the final document summary.
+  \item \textbf{Retrieval-augmented summarisation.} Rather than processing the entire
+        document, use a dense retrieval system to identify the top-$k$ most relevant
+        passages for a given query (e.g., ``What are the principal risk factors?'') and
+        summarise those passages. This turns summarisation into retrieval-augmented
+        generation \citep{lewis2020rag}.
+  \item \textbf{Long-context models.} Models with extended context windows---Longformer
+        \citep{beltagy2020} and, more recently, commercial models with 128K or 1M token
+        contexts---can process an entire S-1 in a single forward pass. The practical
+        constraint is the computational cost: processing 300,000 tokens through a
+        dense attention model is expensive, though sparse-attention variants mitigate
+        this.
+\end{itemize}
+
+% ===========================================================================
 \section{Table and Numerical Data Extraction}
 \label{sec:ch14-table-numerical-extraction}
+% ===========================================================================
 
-[Placeholder]
+Financial tables are structurally distinct from prose: they organise information in a
+two-dimensional grid of rows and columns where the semantics of each cell depend on both
+its row header (what measure) and its column header (what period or entity). Reliable
+table extraction is essential for populating financial databases and for the
+consistency-checking pipeline described below.
 
-\subsection{SEC XBRL data: structured extraction from filings}
+% ---------------------------------------------------------------------------
+\subsection{SEC XBRL Data: Structured Extraction from Filings}
 \label{sec:ch14-sec-xbrl-data}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+The U.S.\ Securities and Exchange Commission has mandated Inline XBRL reporting for
+all domestic public companies since 2020 \citep{sec2009xbrl}. Under this regime, each
+financial statement figure is tagged with a concept from the U.S.\ GAAP taxonomy (or
+an IFRS taxonomy for foreign private issuers), a contextual identifier specifying the
+reporting entity and period, and unit information. An Inline XBRL document embeds these
+machine-readable tags directly within the HTML rendering of the financial statement,
+making the same filing human-readable in a browser and machine-readable via the SEC's
+EDGAR XBRL API.
 
-\subsection{LLMs for financial table understanding and parsing}
+For practitioners, the EDGAR XBRL API offers programmatic access to standardised
+financial data without any NLP. A query for \texttt{us-gaap:Revenues} for a given CIK
+and fiscal year returns the reported revenue figure with full provenance. This is the
+preferred extraction path whenever XBRL-tagged data is available, because its accuracy
+is guaranteed by the reporting entity and its auditors.
+
+The challenge is coverage. Not all financial figures of interest are XBRL-tagged.
+Non-GAAP measures (adjusted EBITDA, organic growth rate, book-to-bill ratio) are
+disclosed in press releases and MD\&A text but are not required to appear in the
+structured XBRL data. Footnotes, which contain information about accounting policy
+choices, litigation contingencies, and segment disaggregations, are often only partially
+tagged. The practitioner must therefore combine XBRL extraction for core financial
+statement figures with NLP-based extraction for the surrounding narrative.
+
+% ---------------------------------------------------------------------------
+\subsection{LLMs for Financial Table Understanding and Parsing}
 \label{sec:ch14-llm-table-understanding}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+When structured XBRL data is unavailable---as is the case for many international filings,
+non-public company documents, or legacy data before XBRL adoption---tables must be
+extracted from HTML, PDF, or plain text. This problem is harder than it appears. Tables
+in annual reports are often formatted with merged cells, multi-row headers, footnote
+references embedded in cell values, and non-standard layouts that defeat simple
+heuristic parsers.
 
-\subsection{Consistency checking: extracted numbers vs.\ prose claims}
+Large language models have demonstrated surprising capability on financial table
+understanding tasks. The FinQA dataset \citep{chen2021finqa} benchmarks numerical
+reasoning over financial tables: each example pairs a table from an annual report with a
+question requiring multi-step arithmetic over the extracted values. Baseline retrieval
+models that select the relevant table cells score around 50\% on exact-match accuracy;
+fine-tuned models that generate a Python-like calculation program from the retrieved
+cells achieve over 70\%.
+
+A production table extraction pipeline using an LLM typically works as follows:
+
+\begin{enumerate}
+  \item \textbf{Layout parsing.} Use a document AI model (e.g., LayoutLM or a commercial
+        PDF parser) to identify table bounding boxes and extract the raw cell content with
+        its row and column coordinates.
+  \item \textbf{Header disambiguation.} Pass the extracted table to an LLM with a prompt
+        that asks it to identify row and column headers, resolve merged cells, and label
+        each data cell with its (row-header, column-header) tuple.
+  \item \textbf{Value normalisation.} Parse monetary values, applying rules for
+        units (``in millions'', ``in thousands''), sign conventions (parentheses for
+        negatives), and percentage vs.\ absolute figures.
+  \item \textbf{Schema mapping.} Map the normalised (label, value, period) tuples to the
+        appropriate GAAP taxonomy concept where possible.
+\end{enumerate}
+
+\begin{remark}[Arithmetic Reliability]
+LLMs are unreliable calculators. A model that correctly extracts two revenue figures and
+is then asked to compute year-over-year growth may produce an arithmetically incorrect
+result. The robust solution, advocated since the ReAct framework \citep{yao2022react},
+is to route all arithmetic to a code interpreter. The LLM extracts the values and
+identifies the required computation; a Python executor performs the arithmetic and returns
+the verified result. This separation of ``reasoning about what to compute'' from ``actually
+computing'' dramatically reduces numerical errors in financial extraction pipelines.
+\end{remark}
+
+% ---------------------------------------------------------------------------
+\subsection{Consistency Checking: Extracted Numbers vs.\ Prose Claims}
 \label{sec:ch14-consistency-checking}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Financial documents contain the same numbers in multiple places. The same revenue figure
+appears in the financial tables, in the earnings press release, and in the MD\&A
+narrative. Consistency checking---verifying that all occurrences of a stated fact are
+numerically consistent---serves two purposes: it detects extraction errors (where the
+model read a number incorrectly) and it detects actual inconsistencies in the source
+document, which may be material disclosure failures.
 
+A consistency checking system for financial documents proceeds in three steps:
+
+\begin{enumerate}
+  \item \textbf{Multi-source extraction.} Extract all occurrences of each target
+        financial metric (revenue, operating income, EPS, etc.) from all sections of
+        the document---tables, press release, MD\&A, and footnotes.
+  \item \textbf{Normalisation.} Convert all extracted values to a common unit and sign
+        convention. A table might state revenue in millions; the press release might
+        state it in billions; the MD\&A might say ``grew to \$56.5B.'' After
+        normalisation, all three should agree on \$56,500 million.
+  \item \textbf{Cross-reference comparison.} For each metric, compare all extracted
+        values. Flag any pair that disagrees by more than a tolerance threshold
+        (e.g., 0.1\% for absolute values, to allow for rounding). Report discrepancies
+        to the downstream consumer with source attribution.
+\end{enumerate}
+
+Beyond intra-document consistency, LLMs can check the consistency between tabular data
+and prose claims. A statement such as ``net income grew 25\% year-over-year'' can be
+verified against the extracted net income figures for the current and prior year. This
+form of automated fact-checking is a powerful quality gate for both document processing
+pipelines and LLM-generated summaries, where hallucinated numerical claims are a known
+failure mode \citep{maynez2020faithfulness}.
+
+% ===========================================================================
 \section{Evaluation and Benchmarks}
 \label{sec:ch14-evaluation-benchmarks}
+% ===========================================================================
 
-[Placeholder]
+Evaluation is where the design choices of a financial NLP system are made accountable.
+The metrics used to assess summarization quality and extraction accuracy must be chosen
+with care: a metric that rewards fluency but ignores factual consistency will produce
+systems that are eloquent but dangerous in a financial decision context.
 
-\subsection{ROUGE, BERTScore, and factual consistency metrics}
+% ---------------------------------------------------------------------------
+\subsection{ROUGE, BERTScore, and Factual Consistency Metrics}
 \label{sec:ch14-rouge-bertscore-metrics}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+\textbf{ROUGE} \citep{lin2004rouge} is the most widely used automatic metric for
+summarisation evaluation. ROUGE-$N$ computes the $n$-gram recall of the candidate
+summary against one or more reference summaries:
 
-\subsection{Human evaluation by financial domain professionals}
+\begin{equation}
+\label{eq:rouge-n}
+\text{ROUGE-}N = \frac{\sum_{s \in \mathcal{R}} \sum_{g \in \mathcal{G}_N(s)}
+  \text{Count}_{\text{match}}(g, c)}{\sum_{s \in \mathcal{R}} \sum_{g \in \mathcal{G}_N(s)}
+  \text{Count}(g)},
+\end{equation}
+
+where $\mathcal{R}$ is the set of reference summaries, $\mathcal{G}_N(s)$ is the set
+of $n$-grams in summary $s$, $c$ is the candidate summary, and $\text{Count}_{\text{match}}(g, c)$
+is the number of times $n$-gram $g$ appears in both the reference and the candidate.
+ROUGE-L measures the longest common subsequence rather than exact $n$-gram overlap.
+
+Despite its ubiquity, ROUGE has well-known limitations. It rewards lexical overlap rather
+than semantic equivalence. A summary that replaces ``net income declined 12\%'' with
+``profit fell 12\%'' should receive full credit but receives zero ROUGE-1 credit for the
+word substitution. Conversely, a summary that copies irrelevant sentences from the source
+can achieve high ROUGE scores without being informative.
+
+\textbf{BERTScore} \citep{zhang2020bertscore} addresses the lexical-overlap limitation
+by measuring semantic similarity between candidate and reference tokens using contextual
+embeddings. For candidate token $\hat{r}_j$ and reference token $r_i$, the cosine
+similarity is:
+
+\begin{equation}
+\label{eq:bertscore}
+\text{sim}(r_i, \hat{r}_j) = \frac{\mathbf{h}_{r_i}^\top \mathbf{h}_{\hat{r}_j}}
+  {\|\mathbf{h}_{r_i}\| \cdot \|\mathbf{h}_{\hat{r}_j}\|},
+\end{equation}
+
+where $\mathbf{h}_{r_i}$ is the contextual embedding of token $r_i$ from a pretrained
+model (typically RoBERTa or a domain-specific encoder). BERTScore precision, recall, and
+F$_1$ are computed by greedily matching each token in the candidate to the most similar
+token in the reference, and vice versa. In financial text, BERTScore using a financial
+encoder (e.g., FinBERT) captures domain-specific semantic similarity better than a
+general-domain encoder.
+
+Neither ROUGE nor BERTScore measures factual correctness. A summary that states the
+correct financial facts in different words receives a deserved high BERTScore. But a
+summary that invents a plausible-sounding figure---``revenue grew 15\%'' when the true
+figure was 13\%---may still receive a high ROUGE or BERTScore if the surrounding language
+is similar to the reference. \textbf{Factual consistency metrics} are designed to catch
+these errors. The FactCC model \citep{kryscinski2020evaluating} trains a natural language
+inference (NLI) classifier to predict whether each claim in the candidate summary is
+\emph{entailed} by the source document. For financial summaries, entailment can be
+strengthened by grounding numerical claims against the extracted XBRL data: any
+numerical claim in the summary that cannot be verified against the structured data is
+flagged as potentially inconsistent.
+
+% ---------------------------------------------------------------------------
+\subsection{Human Evaluation by Financial Domain Professionals}
 \label{sec:ch14-human-evaluation}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+Automatic metrics, however sophisticated, measure proxies for quality rather than quality
+itself. Human evaluation remains the gold standard, and in finance it must be conducted
+by domain professionals rather than general-population crowdworkers. A Mechanical Turk
+annotator who does not understand the difference between GAAP and non-GAAP revenue cannot
+reliably judge whether an earnings summary is factually accurate.
 
-\subsection{Available datasets: ECTSum, EDGAR-Corpus, FiNER, FinSBD}
+A rigorous human evaluation protocol for financial summarization should assess:
+
+\begin{itemize}
+  \item \textbf{Factual accuracy.} Does the summary contain any numerical or factual
+        errors relative to the source document? This is the most critical dimension.
+        Evaluators should be given access to the source document and asked to mark each
+        claim in the summary as verified, unverifiable, or incorrect.
+  \item \textbf{Completeness.} Does the summary cover all material disclosures that a
+        financial analyst would consider important? This requires the evaluator to read
+        the full source and identify key facts, then check whether they appear in the
+        summary.
+  \item \textbf{Conciseness.} Does the summary avoid including irrelevant or redundant
+        information? A summary that is twice as long as necessary wastes the reader's time.
+  \item \textbf{Fluency and readability.} Is the summary grammatically correct and
+        professionally written? This can be rated by any literate evaluator, but
+        domain professionals provide more calibrated assessments.
+\end{itemize}
+
+Inter-annotator agreement should be measured using Cohen's $\kappa$ or Krippendorff's
+$\alpha$ and reported alongside the evaluation results. It is common to find low
+agreement on completeness (different analysts value different facts) and high agreement
+on factual accuracy (errors are objective). This pattern suggests that factual accuracy
+is the most tractable target for automatic evaluation, while completeness evaluation
+requires either expert consensus or query-based evaluation (``does the summary answer
+this specific question?'').
+
+% ---------------------------------------------------------------------------
+\subsection{Available Datasets: ECTSum, EDGAR-Corpus, FiNER, FinSBD}
 \label{sec:ch14-available-datasets}
+% ---------------------------------------------------------------------------
 
-[Placeholder]
+We conclude this section with an inventory of the principal datasets available for
+financial NLP research. Each is described in terms of its document type, annotation
+type, scale, and primary use case.
+
+\textbf{ECTSum} \citep{mukherjee2022ectsum} contains 2,425 earnings call transcript--
+summary pairs. Each source transcript is a complete quarterly earnings call averaging
+approximately 7,000 words. Reference summaries are professionally written bullet-point
+condensations of 3--6 key financial highlights. ECTSum is the primary benchmark for
+long-document financial summarisation.
+
+\textbf{EDGAR-Corpus} \citep{loukas2021edgar} is a large-scale pretraining corpus of
+over 6 million SEC filings. It is not annotated for downstream tasks but is invaluable
+for domain-adaptive pretraining of encoder models. Models pretrained on EDGAR-Corpus
+consistently outperform general-domain models on financial NLP benchmarks, even when
+the downstream task is not directly related to SEC filings.
+
+\textbf{FINER-139} \citep{shah2023finer} is the most comprehensive financial NER
+benchmark, annotating 139 fine-grained entity types. It is the standard benchmark for
+evaluating domain-specific NER models on SEC filing text. Practitioners building
+production financial NER systems should use FINER-139 as their primary evaluation set.
+
+\textbf{FinSBD} \citep{finsbd2020} focuses on sentence boundary detection in financial
+text---the task of correctly segmenting a financial document into sentences. While
+seemingly simple, sentence boundary detection in financial documents is complicated by
+the prevalence of abbreviated company names, numerical expressions, and legal
+cross-references. FinSBD provides annotated data for training robust sentence
+segmenters, which are a preprocessing dependency for all downstream NLP tasks.
+
+\textbf{FinQA} \citep{chen2021finqa} benchmarks numerical reasoning over financial
+tables and text. Each example pairs a financial table, a supporting text passage, and a
+question requiring multi-step arithmetic. FinQA specifically tests the ability to locate
+the relevant numerical data, interpret the table structure, and perform accurate
+calculations---making it a natural complement to the table extraction pipeline described
+in Section~\ref{sec:ch14-table-numerical-extraction}.
+
+\begin{remark}[Dataset Selection for Financial NLP Research]
+\label{rem:dataset-selection}
+The diversity of financial NLP datasets reflects the heterogeneity of the domain. No
+single benchmark covers all task types. A research paper claiming ``state-of-the-art
+results on financial NLP'' should be read with the specific benchmark in mind: a
+model that achieves top results on ECTSum (summarisation) may perform poorly on FinQA
+(table reasoning), and vice versa. Practitioners should select datasets that match
+their target document type (SEC filings, earnings calls, analyst reports) and their
+primary task (extraction, summarisation, reasoning). Constructing a held-out test set
+from documents not present in any public benchmark is strongly recommended before
+deploying a model in production.
+\end{remark}
+
+% ===========================================================================
+\section{Summary}
+\label{sec:ch14-summary}
+% ===========================================================================
+
+This chapter developed the theory and practice of information extraction and text
+summarisation in financial documents. The key takeaways are:
+
+\begin{enumerate}
+  \item \textbf{Financial text is heterogeneous.} Documents range from fully structured
+        XBRL filings---where extraction requires only a database query---to unstructured
+        analyst notes and legal contracts, where full natural language understanding is
+        required. Production pipelines combine both, using structured sources as a
+        quality anchor.
+
+  \item \textbf{Financial NER requires domain-specific datasets and models.} General-
+        domain NER systems are inadequate for the 139-class financial entity taxonomy
+        required for SEC filing analysis. Pretraining on EDGAR-Corpus and fine-tuning
+        on FINER-139 is the current best practice for building high-accuracy financial
+        NER models.
+
+  \item \textbf{Abstractive summarisation carries hallucination risk.} In finance,
+        hallucinated numerical claims are not merely aesthetic failures---they can
+        constitute misinformation. Extractive methods are safer when faithfulness is
+        paramount; abstractive methods should be paired with factual consistency checking
+        against structured data sources.
+
+  \item \textbf{Table extraction and numerical consistency are underappreciated.}
+        The SEC XBRL API provides accurate structured data for core financial statement
+        figures at no NLP cost. LLMs should be used to supplement this for non-GAAP
+        disclosures and legacy filings. Consistency checking between extracted tables
+        and prose claims is a high-value quality gate.
+
+  \item \textbf{Evaluation metrics must match the stakes.} ROUGE and BERTScore
+        measure textual similarity, not factual accuracy. Any production financial
+        summarisation system should include factual consistency checking against
+        structured sources and targeted human evaluation by domain professionals.
+\end{enumerate}
+
+% ===========================================================================
+\section{Further Reading}
+\label{sec:ch14-further-reading}
+% ===========================================================================
+
+The foundational work on general-domain NER, from conditional random fields through
+transformer-based token classification, is covered in \citet{lample2016neural} and the
+survey in \citet{devlin2019}. For financial NER specifically, \citet{shah2023finer}
+provides both the benchmark and a comprehensive survey of prior datasets.
+
+The ECTSum dataset paper \citep{mukherjee2022ectsum} is essential reading for anyone
+building earnings transcript summarisation systems; it provides a careful analysis of
+the challenges specific to long financial documents. The EDGAR-Corpus paper
+\citep{loukas2021edgar} motivates domain-adaptive pretraining and demonstrates its
+empirical value.
+
+For automatic evaluation methodology, \citet{lin2004rouge} and \citet{zhang2020bertscore}
+define the standard metrics; \citet{kryscinski2020evaluating} is the key reference on
+factual consistency evaluation. The faithfulness and hallucination analysis in
+\citet{maynez2020faithfulness} provides important context on the magnitude of the problem
+in state-of-the-art systems.
+
+Numerical reasoning over financial tables is treated in depth in \citet{chen2021finqa}.
+Readers interested in the broader landscape of financial NLP benchmarks should consult
+\citet{xie2024finben}, which surveys over a dozen evaluation datasets and provides
+unified leaderboards.
+
+Chapter~\ref{ch:business-valuation} of this book applies several of the extraction
+techniques developed here in the context of an end-to-end valuation pipeline---in
+particular, the XBRL extraction and LLM-assisted table parsing components described in
+Section~\ref{sec:ch14-table-numerical-extraction} are direct prerequisites for the
+discounted cash flow models developed there. The hallucination mitigation framework
+introduced in Chapter~13 should be applied to any production system that uses abstractive
+summarisation in a decision-critical context.

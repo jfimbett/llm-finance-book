@@ -49,8 +49,12 @@ generations of credit and fraud models---logistic regression, gradient-boosted t
 could at least be interrogated with classical XAI techniques. LLMs add new layers of
 opacity: billions of parameters, uninterpretable intermediate activations, and outputs
 that depend on the precise formulation of a prompt in ways that are difficult to
-characterise \cite{arrieta2020explainable}. This chapter develops the conceptual and
-technical toolkit for addressing that challenge.
+characterise \cite{arrieta2020explainable}. Rane, Choudhary, and Rane
+\cite{RaneChoudharyRane2023} survey how XAI approaches have been developed to address
+the distinct transparency and accountability requirements of the financial domain,
+providing conceptual grounding for why regulators and practitioners demand interpretable
+models even when accuracy gains from opaque architectures are substantial. This chapter
+develops the conceptual and technical toolkit for addressing that challenge.
 
 \subsection{Legal Requirements: EU AI Act, SR 11-7, ECOA}
 \label{sec:ch12-legal-requirements}
@@ -186,7 +190,12 @@ interpretability is ultimately a business and regulatory judgement, not a techni
 Before examining methods designed specifically for language models, it is instructive to
 understand how classical post-hoc XAI methods can be adapted to the LLM setting. Three
 methods have been most widely applied: SHAP, LIME, and attention visualisation. Each has
-clear strengths and non-trivial limitations when applied to text-based models.
+clear strengths and non-trivial limitations when applied to text-based models. Mohsin and
+Nasim \cite{MohsinNasim2025} provide bibliometric evidence for this taxonomy: their
+systematic review of XAI in finance confirms that SHAP, attention mechanisms, and
+feature importance are the three dominant techniques across financial applications
+ranging from credit scoring to fraud detection, establishing these methods as the
+effective standard against which any new approach must be benchmarked.
 
 \subsection{SHAP Values: From Tree Models to Language Models}
 \label{sec:ch12-shap-values}
@@ -500,7 +509,17 @@ attributions into a coherent, plain-language explanation suitable for the target
 This separation of concerns is important. The primary model is evaluated for predictive
 accuracy; the attribution method is evaluated for faithfulness to that model; and the
 LLM generator is evaluated for clarity, completeness, and regulatory compliance. Each
-component can be independently tested and replaced.
+component can be independently tested and replaced. Tatsat and Shater
+\cite{TatsatShater2025} extend this picture by demonstrating how mechanistic
+interpretability techniques---specifically the analysis of attention heads and circuits
+within transformer architectures---can be applied directly to financial LLMs, making
+it possible to trace model behaviour in tasks ranging from sentiment analysis to
+regulatory compliance without relying solely on post-hoc attribution wrappers. Building
+on this, Cetintav et al.\ \cite{CetintavEtAl2024} demonstrate a complementary
+interface layer in which GPT-4o is used to translate complex SHAP outputs and XAI
+visualisations into natural-language explanations accessible to non-expert users,
+illustrating how the chain-of-thought generation step can simultaneously improve
+explanation fidelity and audience accessibility.
 
 A critical consideration is that the generating LLM must not be allowed to hallucinate
 attributions. If the primary model indicated that ``revenue decline'' was the key factor,
@@ -576,7 +595,12 @@ This pipeline illustrates a general principle: LLMs are most safely deployed in 
 explanation layer when their inputs are tightly constrained by upstream attribution
 methods. The LLM adds value by transforming structured attributions into natural
 language; it should not be permitted to exercise substantive credit judgement at this
-stage.
+stage. Schmitt \cite{Schmitt2024} provides empirical support for the complementarity of
+automated machine learning and SHAP in credit scoring, demonstrating that combining
+AutoML with post-hoc Shapley attribution improves both predictive accuracy and model
+transparency, and that the resulting explanations satisfy interpretability requirements
+under regulatory review without sacrificing performance relative to uninterpreted black-box
+baselines.
 
 \subsection{Loan Denial Letters Compliant with ECOA/FCRA}
 \label{sec:ch12-loan-denial-letters}
@@ -615,6 +639,17 @@ A practical implementation requires:
         trained on adverse-action compliance requirements.
   \item A \emph{human review queue} for any letter flagged by the compliance check.
 \end{enumerate}
+
+Desai \cite{Desai2024} offers a formal grounding for this architecture by developing a
+mathematical framework that quantifies explainability via Shapley values and
+information-theoretic measures as an optimisation constraint, applying it across five
+regulatory audit categories including BSA/AML and Consumer Compliance, and demonstrating
+that institutions can satisfy CAMELS-style examination requirements by embedding
+explainability as a design objective rather than a post-hoc annotation. Lakarasu
+\cite{Lakarasu2024} operationalises this further by proposing an XAI-prompted compliance
+platform for financial transactions that automatically generates data-analytic compliance
+documentation with feature attributions, directly addressing the EU AI Act's Article 13
+transparency obligations and AML reporting requirements.
 
 \subsection{Investment Recommendation Disclosures under MiFID II}
 \label{sec:ch12-mifid-disclosures}

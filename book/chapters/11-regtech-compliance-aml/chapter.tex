@@ -1,113 +1,444 @@
 \chapter{RegTech, Compliance, and Anti-Money Laundering}
+\label{ch:regtech-compliance-aml}
 
-\begin{itemize}
-  \item Understand the key concepts of RegTech and AI governance in financial services
-  \item Apply LLM-based techniques to anti-money laundering and compliance problems
-  \item Evaluate the trade-offs between different approaches
-  \item Implement a practical pipeline using Python and the Hugging Face ecosystem
-\end{itemize}
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Situate LLM-based compliance tools within the EU AI Act risk classification
+        framework and identify the corresponding obligations for high-risk financial
+        AI systems.
+  \item Explain why keyword-based AML screening produces high false-positive rates
+        and describe how LLMs can reduce operational burden without compromising
+        recall.
+  \item Design a retrieval-augmented generation pipeline for adverse media screening,
+        specifying the retrieval, ranking, and scoring components.
+  \item Construct an Adverse Media Index that maps textual evidence to a calibrated
+        numeric risk score.
+  \item Apply entity resolution and name disambiguation techniques to PEP and
+        sanctions screening, accounting for transliteration variance and
+        incomplete records.
+  \item Automate XBRL tagging, SAR drafting, and stress-test narrative generation
+        using structured LLM outputs and post-hoc validation.
+  \item Specify governance requirements for LLM-based compliance systems, including
+        explainability, human-in-the-loop workflows, and model risk management under
+        SR~11-7.
+\end{enumerate}
+\end{remark}
 
+% ---------------------------------------------------------------
 \section{The Regulatory Landscape for AI in Finance}
 \label{sec:ch11-regulatory-landscape}
 
-[Placeholder]
+\begin{context}
+Compliance is the oldest form of friction in financial services. Long before neural networks, banks employed armies of analysts to read news feeds, cross-reference sanction lists, and write suspicious activity reports. The digitalisation of these tasks has been gradual, opportunistic, and often poorly governed. When AI entered the picture, it entered an environment already saturated with rules --- and those rules were not written with AI in mind.
+
+The challenge facing financial institutions today is not a lack of regulatory guidance. It is a surfeit of guidance that is ambiguous, overlapping, and occasionally contradictory. An institution deploying an LLM for adverse media screening must simultaneously satisfy the EU AI Act's risk-classification requirements, MiFID~II's suitability documentation obligations, GDPR's constraints on automated processing, FATF's risk-based approach to AML, and its home regulator's model risk management expectations. Each of these frameworks uses different vocabulary, applies different standards of evidence, and assigns oversight responsibility to different parties.
+
+This section maps the principal regulatory frameworks that govern AI in financial compliance, identifies the points of friction, and establishes the conceptual vocabulary that subsequent sections build upon.
+\end{context}
 
 \subsection{EU AI Act: risk classification for financial AI systems}
 \label{sec:ch11-eu-ai-act}
 
-[Placeholder]
+The Regulation (EU) 2024/1689 on Artificial Intelligence --- the EU AI Act --- is the first comprehensive horizontal AI legislation in the world~\cite{euaiact2024}. It establishes a risk-based classification with four tiers: unacceptable-risk AI (prohibited outright), high-risk AI (permitted subject to mandatory requirements), limited-risk AI (subject to transparency obligations), and minimal-risk AI (essentially unregulated).
+
+\begin{definition}[EU AI Act Risk Tiers]
+\label{def:eu-ai-act-tiers}
+The EU AI Act classifies AI systems according to the risk they pose to health, safety, or fundamental rights:
+\begin{itemize}
+  \item \textbf{Unacceptable risk}: social scoring by public authorities, real-time remote biometric identification in public spaces, subliminal manipulation. Prohibited.
+  \item \textbf{High risk}: AI used as safety components in regulated products, or in eight specific application areas listed in Annex III, which includes creditworthiness assessment, life and health insurance, and access to essential public services. Subject to conformity assessment, technical documentation, logging, human oversight, and accuracy requirements.
+  \item \textbf{Limited risk}: systems with specific transparency obligations, such as chatbots (must disclose AI identity) and emotion recognition (must notify subjects).
+  \item \textbf{Minimal risk}: all other AI, including spam filters and recommendation engines.
+\end{itemize}
+\end{definition}
+
+For financial services, the critical question is whether a given AI system falls within Annex III. Creditworthiness assessment is explicitly listed. Adverse media screening used to determine credit eligibility, insurance underwriting decisions, or access to payment services can therefore trigger high-risk obligations. In contrast, an LLM used purely to summarise a news article for a human analyst, with no automated decision-making, is more likely to fall into the limited or minimal risk tiers.
+
+High-risk systems face seven categories of mandatory requirement:
+\begin{enumerate}
+  \item A risk management system covering the entire lifecycle.
+  \item Data governance policies ensuring training and validation data is relevant, sufficiently representative, and free from discriminatory proxies.
+  \item Technical documentation sufficient for ex-post regulatory review.
+  \item Automatic logging of operations, enabling traceability of each automated decision.
+  \item Transparency and provision of instructions for use to deployers.
+  \item Human oversight measures enabling human intervention or override.
+  \item Accuracy, robustness, and cybersecurity requirements.
+\end{enumerate}
+
+Each requirement maps onto specific engineering choices. Logging creates the need for audit-trail infrastructure. Human oversight requires interface design for analyst review queues. Accuracy requirements necessitate performance benchmarking and drift monitoring. Institutions that have already implemented SR~11-7 model risk management (discussed in Section~\ref{sec:ch11-mifid-basel}) will find many of these requirements familiar, though the EU AI Act adds obligations around transparency and fundamental rights impact assessments that go beyond US model risk guidance.
+
+\begin{remark}
+The EU AI Act distinguishes between \emph{providers} (those who develop or place AI systems on the market) and \emph{deployers} (those who use AI systems in a professional context). Banks that use third-party compliance AI are deployers, not providers, but they still bear obligations: they must use the system according to instructions, monitor performance, and ensure human oversight. Third-party reliance does not eliminate regulatory liability~\cite{euaiact2024}.
+\end{remark}
 
 \subsection{MiFID II, Basel III, and model risk management (SR 11-7)}
 \label{sec:ch11-mifid-basel}
 
-[Placeholder]
+While the EU AI Act establishes horizontal AI governance, financial services regulators have their own layer of requirements that apply to models and automated processes regardless of the AI classification. Three frameworks are central.
+
+\textbf{MiFID II and algorithmic trading.} The Markets in Financial Instruments Directive II requires investment firms to have adequate controls over algorithmic trading systems: kill switches, real-time monitoring of order flow, pre-trade and post-trade risk limits, and annual self-assessment of compliance. Although MiFID II was designed for trading algorithms rather than compliance AI, its governance principles --- pre-deployment testing, ongoing monitoring, documented change management --- are increasingly interpreted by national competent authorities as applying to any algorithm that affects investment decisions or client outcomes.
+
+\textbf{Basel III and model risk in credit.} Basel III's internal ratings-based (IRB) approach allows banks to use internal models to compute risk-weighted assets for credit exposure. These models are subject to supervisory validation, back-testing, and stress testing requirements set by the European Banking Authority (EBA) and the Basel Committee on Banking Supervision (BCBS). An LLM-based credit decision support tool deployed within an IRB institution cannot be treated as a mere productivity tool; it must be integrated into the model inventory and subjected to the bank's model risk management framework.
+
+\textbf{SR 11-7 and the model risk management framework.} The Federal Reserve's guidance document SR~11-7, issued jointly with the Office of the Comptroller of the Currency in 2011, defines a \emph{model} as ``a quantitative method, system, or approach that applies statistical, economic, financial, or mathematical theories, techniques, and assumptions to process input data into quantitative estimates''~\cite{sr117}. The guidance establishes three pillars: model development and implementation, model validation, and governance and controls.
+
+\begin{definition}[Model Risk under SR 11-7]
+\label{def:model-risk-sr117}
+\emph{Model risk} is the risk of adverse consequences --- financial loss, reputational damage, regulatory sanction, or poor business decisions --- arising from errors in model development, implementation, or use, or from the use of a model in a context outside its intended scope. Under SR~11-7, all models that are material to a firm's financial position or risk management must be inventoried, validated by a function independent of development, and subject to ongoing performance monitoring.
+\end{definition}
+
+The application of SR~11-7 to LLMs is genuinely novel. Language models are not quantitative models in the traditional sense: their outputs are probabilistic, their internal representations are not interpretable in the way that, say, a logistic regression coefficient is interpretable, and their behaviour can shift substantially with prompt reformulation. Regulators have begun issuing guidance on LLM governance. The Financial Stability Board's 2024 report on AI in financial services notes that the opacity of large models creates ``challenges for existing model risk management frameworks'' and recommends enhanced pre-deployment testing, ongoing performance monitoring against defined benchmarks, and explicit scenario analysis for adversarial prompt inputs~\cite{FSB2024stability}.
 
 \subsection{GDPR and data privacy constraints on LLM use}
 \label{sec:ch11-gdpr-privacy}
 
-[Placeholder]
+The General Data Protection Regulation (GDPR), applicable since May 2018, imposes significant constraints on the use of personal data in any automated processing system, including LLMs deployed in compliance workflows. Four provisions are especially consequential.
 
+\textbf{Article 5 --- Data minimisation.} Personal data must be adequate, relevant, and limited to what is necessary for the purpose of processing. An adverse media screening system that ingests full-text news articles and stores them alongside individual subject records must demonstrate that only the data necessary to assess AML risk is retained. This creates tension with RAG architectures that store large text chunks in vector databases alongside identifying metadata.
+
+\textbf{Article 9 --- Special category data.} Data revealing racial or ethnic origin, political opinions, religious beliefs, trade union membership, health, sexual orientation, or criminal convictions is subject to heightened protection. Adverse media screening routinely surfaces exactly this kind of data. The legal basis for processing must be explicitly identified --- typically Article 9(2)(g) for reasons of substantial public interest in the context of AML compliance.
+
+\textbf{Article 17 --- Right to erasure.} Data subjects have the right to request deletion of their personal data. For vector databases used in RAG pipelines, erasure is technically non-trivial: embedding vectors derived from personal data may need to be deleted, and the model's internal weights --- if fine-tuned on personal data --- cannot be selectively ``un-trained.'' This is an active area of regulatory and technical discussion.
+
+\textbf{Article 22 --- Automated individual decision-making.} Data subjects have the right not to be subject to decisions based solely on automated processing, including profiling, that produce legal or similarly significant effects. For AML systems that generate an automated risk score leading directly to account closure or transaction blocking, Article 22 requires either explicit consent, contractual necessity, or explicit legislative authorisation. Where Article 22 applies, the institution must provide meaningful information about the logic involved and the significance of the processing.
+
+\begin{example}[GDPR Article 22 and LLM Adverse Media Scoring]
+\label{ex:gdpr-article22}
+A neobank's compliance system uses an LLM to score incoming customers against an adverse media database. A customer named A.~Petrov returns a score of 0.87 (high risk) due to news articles about an individual with a phonetically similar name involved in a fraud case in Eastern Europe. The system automatically declines onboarding.
+
+Under Article 22, A.~Petrov has the right to: (1) request human review of the decision; (2) express his point of view; (3) contest the decision. The bank must provide him with meaningful information about the logic of the system. A response that says ``our AI determined you are high risk'' does not satisfy this requirement. The bank must be able to explain which articles were retrieved, which passages were scored, and what risk factors they correspond to. This requires the compliance pipeline to maintain a persistent audit log linking each decision to its retrieved evidence. Section~\ref{sec:ch11-rag-adverse-media} discusses the architectural implications.
+\end{example}
+
+% ---------------------------------------------------------------
 \section{Anti-Money Laundering with LLMs}
 \label{sec:ch11-aml-llms}
 
-[Placeholder]
+\begin{context}
+Money laundering is the process by which the proceeds of criminal activity are moved through financial systems to obscure their origin. The FATF estimates that between 2\% and 5\% of global GDP --- approximately \$800 billion to \$2 trillion --- is laundered annually, though by definition precise measurement is impossible~\cite{fatf2021aml}. Banks spend enormous sums on AML compliance: the global cost of financial crime compliance was estimated at over \$270 billion per year before the advent of widespread AI adoption, yet the effectiveness of these programmes has long been questioned. Less than 1\% of illicit financial flows are estimated to be seized and frozen globally.
+
+The adoption of LLMs in AML is not a luxury; it is increasingly a necessity. The explosion of data sources --- news feeds, regulatory watchlists, beneficial ownership registries, court filings, social media --- has outpaced human analytical capacity. At the same time, regulators expect institutions to monitor these sources comprehensively. The gap between obligation and capability is where LLMs create value.
+\end{context}
 
 \subsection{The false-positive crisis in keyword-based AML screening}
 \label{sec:ch11-false-positive-crisis}
 
-[Placeholder]
+The dominant paradigm in AML screening for most of the past two decades has been pattern matching: take a name, a date of birth, and a nationality; run them against a watchlist of known bad actors; flag any match above a similarity threshold. The simplest implementations use exact string matching. More sophisticated ones use fuzzy matching algorithms such as Jaro-Winkler distance or phonetic encodings such as Soundex.
+
+These systems have a structural problem: the false-positive rate. A large international bank onboarding millions of customers per year will encounter thousands of individuals whose names are similar to, but not identical with, names on sanctions lists. Common names in particular create massive alert volumes. The name ``Mohamed Ali'' appears on thousands of legitimate passports; it also appears on several sanctions lists. A screening system that flags every fuzzy match for human review generates alert volumes that overwhelm compliance teams.
+
+\begin{definition}[False Positive Rate in AML Screening]
+\label{def:fp-rate-aml}
+Let $P$ be the set of genuine positive cases (true matches to sanctions or watchlists) and $N$ the set of true negatives (non-matches). Let $\hat{P}$ be the set flagged by the screening system. The false positive rate (FPR) and the precision (positive predictive value, PPV) are:
+\begin{equation}
+\label{eq:fpr-aml}
+\mathrm{FPR} = \frac{|\hat{P} \cap N|}{|N|}, \qquad \mathrm{PPV} = \frac{|\hat{P} \cap P|}{|\hat{P}|}.
+\end{equation}
+In practice, AML screening systems operate with $\mathrm{FPR}$ values between 95\% and 99\%, meaning fewer than one in twenty --- and often fewer than one in a hundred --- flagged alerts correspond to genuine matches~\cite{fincen2020aml}. This alert noise is not merely inefficient; it trains compliance staff to treat alerts as noise, creating the risk that genuine matches are cleared without adequate scrutiny.
+\end{definition}
+
+The consequences cascade. Compliance teams spend their time clearing false positives. Genuinely suspicious activity is buried in the noise. Regulators, observing that most flagged alerts are cleared within minutes, begin to question whether the review process is substantive. Banks face fines both for failure to detect money laundering and, paradoxically, for generating so many low-quality SARs that regulators cannot process the useful information~\cite{fincen2020aml}.
+
+LLMs offer a path through this dilemma. The core insight is that a name match in isolation is not meaningful evidence of criminal affiliation. What matters is whether the contextual evidence --- the news articles, court records, and regulatory filings associated with a person --- is consistent with the risk profile of a money launderer. Language models can assess this contextual consistency in a way that keyword matching cannot.
 
 \subsection{Agentic LLM systems for adverse media screening}
 \label{sec:ch11-agentic-adverse-media}
 
-[Placeholder]
+Adverse media screening is the practice of searching news sources, regulatory databases, and other public records for information indicating that a subject is involved in financial crime, corruption, or other conduct incompatible with a financial institution's risk appetite. Traditionally performed by analysts using commercial data services, it is one of the highest-cost and highest-error-rate components of the AML compliance function.
+
+Agentic LLM systems change the architecture of adverse media screening fundamentally. Rather than an analyst querying a database and reading results, an agent is given a subject's identifying information and instructed to: (1) formulate search queries, (2) retrieve and read relevant documents, (3) assess their relevance and credibility, (4) extract structured risk evidence, and (5) produce a risk assessment with supporting citations.
+
+\begin{example}[Agentic Adverse Media Screening Workflow]
+\label{ex:agentic-adverse-media}
+Consider a compliance agent tasked with screening the individual ``Carlos Fernandez-Gutierrez, born 1971, Mexican national, director of Energia del Pacífico S.A.''. The agent might proceed as follows:
+
+\begin{enumerate}
+  \item \textbf{Query formulation.} The agent generates search queries: ``Carlos Fernandez-Gutierrez Mexico corruption'', ``Energia del Pacifico money laundering'', ``Carlos Fernandez director fraud Mexico 2020--2025''. It translates these into both English and Spanish to capture local-language sources.
+  \item \textbf{Document retrieval.} Using a news search API, the agent retrieves the top-$k$ articles for each query, filtered by date range and source credibility tier.
+  \item \textbf{Relevance assessment.} For each retrieved document, the agent determines whether it refers to the same individual (not a different person sharing the name), whether the alleged conduct is material to AML risk, and the credibility of the source.
+  \item \textbf{Evidence extraction.} For relevant documents, the agent extracts: the alleged offence type (corruption, embezzlement, sanctions violation, etc.); the geographic jurisdiction; the date of the alleged conduct; the legal status (alleged vs. convicted); and the source type (court document, government press release, investigative journalism, tabloid).
+  \item \textbf{Risk scoring.} The agent produces a structured output including a risk tier (low/medium/high/critical), a summary of findings, and cited evidence. The output is designed to be directly actionable by a human reviewer.
+\end{enumerate}
+The entire pipeline runs in minutes rather than hours, and the structured output facilitates consistent review and easy escalation~\cite{chen2025aml}.
+\end{example}
+
+The design of such an agent involves several non-trivial choices. Tool selection determines which data sources are available (news APIs, regulatory databases, beneficial ownership registries). Memory management determines how context from earlier search steps informs later queries --- a key challenge when the relevant information is spread across many documents. Error handling must address cases where the same name refers to multiple individuals, a systematic challenge for common names in large populations. Chapter~\ref{ch:llm-agents} discusses the ReAct framework~\cite{yao2022react} and multi-step reasoning patterns applicable here.
 
 \subsection{RAG-based adverse media pipelines: architecture and design}
 \label{sec:ch11-rag-adverse-media}
 
-[Placeholder]
+The adverse media agent described in Section~\ref{sec:ch11-agentic-adverse-media} can be grounded in a retrieval-augmented generation (RAG) architecture~\cite{lewis2020rag} that combines an updatable document corpus with an LLM reader. This section specifies the architecture in detail.
+
+A RAG-based adverse media pipeline has five components: an ingestion pipeline, a vector store, a retriever, a reader/ranker, and an output formatter. Figure~\ref{fig:ch11-rag-pipeline} describes the dataflow conceptually.
+
+\textbf{Ingestion pipeline.} News articles, court filings, regulatory press releases, and other source documents are collected continuously from subscribed feeds. Each document is chunked into passages of 200--400 tokens with overlap, embedded using a sentence encoder, and stored in a vector database alongside structured metadata (source URL, publication date, source credibility tier, named entities). The metadata fields are critical: they enable post-retrieval filtering that reduces the ranking burden on the LLM.
+
+\textbf{Vector store.} The vector store holds both dense embeddings (for semantic search) and the original text (for BM25 sparse retrieval). Hybrid retrieval, combining dense and sparse signals via reciprocal rank fusion~\cite{cormack2009reciprocal}, consistently outperforms either modality alone in legal and news document retrieval tasks. The store must support incremental updates (new articles arrive daily) and selective deletion (GDPR Article 17 compliance).
+
+\textbf{Retriever.} Given a subject query, the retriever performs hybrid search and returns the top-$k$ candidate passages. The retrieval query should be expanded: rather than searching for the exact input name, the system should generate multiple query variants covering name transliterations, associated companies, and known aliases.
+
+\begin{equation}
+\label{eq:rrf-fusion}
+\mathrm{RRF}(d) = \sum_{r \in R} \frac{1}{k + \mathrm{rank}_r(d)},
+\end{equation}
+where $R$ is the set of ranking functions (dense, sparse), $k$ is a smoothing constant (typically 60), and $\mathrm{rank}_r(d)$ is the rank of document $d$ under ranking function $r$. Documents not retrieved by a particular ranker are assigned rank $\infty$.
+
+\textbf{Reader/ranker.} The LLM reader receives the top-$k$ passages and the subject query, and performs two tasks: cross-passage entity disambiguation (is this passage about the same individual?) and relevance classification (does this passage contain material AML risk evidence?). Cross-encoder reranking~\cite{reimers2019} scores each passage against the query with full attention across the passage-query pair, providing higher-quality relevance estimates than the bi-encoder retriever at the cost of higher latency.
+
+\textbf{Output formatter.} The LLM produces a structured JSON output with fields for risk tier, evidence passages, offence categories, and a narrative summary. Structured generation via grammar-constrained decoding~\cite{willard2023efficient} ensures the output is always parse-able, enabling downstream system integration without brittle output parsing.
+
+\begin{remark}
+Latency and throughput constraints matter in production. For real-time onboarding decisions, the full pipeline must complete in under 30 seconds. This typically requires pre-built indices, cached embeddings for recurrent subjects, and parallel retrieval across multiple data sources. For periodic batch re-screening of existing customers, latency is less critical but throughput must scale to millions of records per day.
+\end{remark}
 
 \subsection{Adverse Media Index: quantitative risk scoring from text}
 \label{sec:ch11-adverse-media-index}
 
-[Placeholder]
+A binary low/high risk classification of adverse media is insufficient for risk-based AML. What is needed is a continuous risk score that can be compared across subjects, tracked over time, and integrated into quantitative risk models. The Adverse Media Index (AMI) formalises this~\cite{chen2025aml}.
 
+\begin{definition}[Adverse Media Index]
+\label{def:adverse-media-index}
+Let $D = \{d_1, \ldots, d_n\}$ be the set of documents retrieved for subject $s$. For each document $d_i$, let:
+\begin{itemize}
+  \item $r_i \in [0,1]$ be the relevance score (is this document about the subject?),
+  \item $c_i \in [0,1]$ be the credibility weight of the source,
+  \item $\mathbf{e}_i \in \{0,1\}^K$ be a $K$-dimensional binary vector indicating which of $K$ offence categories are evidenced (e.g.\ corruption, sanctions violation, fraud, terrorism financing),
+  \item $t_i$ be the recency weight, typically $t_i = e^{-\lambda(T - T_i)}$ where $T$ is the current date and $T_i$ is the publication date.
+\end{itemize}
+The Adverse Media Index for subject $s$ is:
+\begin{equation}
+\label{eq:ami-score}
+\mathrm{AMI}(s) = \sigma\!\left(\alpha + \sum_{i=1}^{n} r_i \cdot c_i \cdot t_i \cdot \mathbf{w}^{\top} \mathbf{e}_i\right),
+\end{equation}
+where $\sigma(\cdot)$ is the logistic function, $\alpha$ is a baseline intercept, and $\mathbf{w} \in \mathbb{R}^K$ is a vector of offence-category severity weights.
+\end{definition}
+
+The weight vector $\mathbf{w}$ requires domain calibration. Terrorism financing allegations ($w_k$ high) carry more AML significance than minor regulatory violations ($w_k$ low), even if the documentary evidence is comparable in quantity. In practice, $\mathbf{w}$ can be estimated from labelled training data using logistic regression on the outcome variable ``subject was subsequently found to be a true positive in an enforcement action.''
+
+The temporal decay factor $t_i$ reflects the observation that adverse media from five years ago has less relevance to current risk than recent coverage, particularly for individuals who may have been acquitted, rehabilitated, or simply cleared in the intervening period. The decay rate $\lambda$ is a tuning parameter: aggressive decay (large $\lambda$) emphasises recency; slow decay (small $\lambda$) gives weight to historical evidence.
+
+Equation~\eqref{eq:ami-score} produces a scalar in $[0, 1]$, interpretable as a probability of genuine AML risk. This score can be integrated into a bank's risk-based customer scoring model, combined with transaction monitoring alerts and KYC data to produce an overall customer risk rating.
+
+% ---------------------------------------------------------------
 \section{KYC and Sanctions Screening}
 \label{sec:ch11-kyc-sanctions}
 
-[Placeholder]
+\begin{context}
+Know Your Customer (KYC) is the process by which a financial institution verifies the identity of its clients and assesses their risk profile. Sanctions screening is the real-time process of checking customers and transactions against lists maintained by governments and international bodies --- the US Office of Foreign Assets Control (OFAC), the EU, the United Nations, and others --- to prevent the processing of transactions that would violate sanctions regimes. Both functions share a fundamental data challenge: matching entities described in imperfect, multilingual, and often sparse records against databases that are themselves imperfect.
+
+LLMs enter KYC and sanctions screening not as replacements for existing infrastructure but as augmentation layers. They improve the quality of entity matching, extract information from unstructured documents, and surface risk indicators that rule-based systems miss.
+\end{context}
 
 \subsection{Entity resolution and name disambiguation}
 \label{sec:ch11-entity-resolution}
 
-[Placeholder]
+Entity resolution --- the problem of determining whether two records refer to the same real-world entity --- is the central technical challenge in KYC and sanctions screening. The challenge is non-trivial because:
+\begin{itemize}
+  \item Names are transliterated from non-Latin scripts with variable conventions (the Arabic name rendered as ``Muammar Gaddafi'' appears in dozens of distinct transliterations in English-language sources).
+  \item The same individual may use different names in different contexts (maiden name, married name, patronymic, initials).
+  \item Watchlists contain errors, outdated information, and records with missing fields.
+  \item The population of individuals with common names in large countries means that string similarity alone generates unacceptable false positive rates.
+\end{itemize}
+
+Traditional approaches use a combination of string distance metrics (edit distance, Jaro-Winkler), phonetic normalisation (Soundex, Metaphone, Double Metaphone for non-English names), and rule-based blocking (consider only records with matching first-two-characters to limit comparison space). LLMs improve on these approaches in two ways.
+
+First, LLMs trained on multilingual corpora implicitly learn transliteration patterns. A model that has seen ``Muammar Gaddafi'', ``Muammer Kaddafi'', and ``Mu\textquoteleft ammar al-Qadhafi'' in its training corpus has learned that these strings refer to the same individual, even without explicit transliteration rules. This generalises to names from less commonly studied scripts where hand-coded rules do not exist.
+
+Second, LLMs can use auxiliary context to resolve ambiguity. Given two records --- ``Carlos Salinas, born 1948, Mexico City'' and ``Carlos Salinas de Gortari, born 1948, Mexico City, former Mexican president'' --- a language model can recognise that both refer to the same individual (the former Mexican president), whereas a pure string similarity system would give a moderate match score due to the differing name lengths.
+
+\begin{definition}[Entity Resolution as Pair Classification]
+\label{def:entity-resolution}
+Given two entity records $x_1$ and $x_2$, entity resolution is the binary classification problem:
+\begin{equation}
+\label{eq:entity-resolution}
+\hat{y} = f(x_1, x_2) \in \{0, 1\},
+\end{equation}
+where $\hat{y} = 1$ indicates that $x_1$ and $x_2$ refer to the same real-world entity. A well-calibrated classifier produces $P(\hat{y} = 1 \mid x_1, x_2)$, which can be thresholded for binary decisions or used as a soft similarity score. For sanctions screening, the threshold should be set to ensure near-100\% recall (missing a true sanctions hit carries regulatory and reputational consequences far exceeding the cost of a false positive review).
+\end{definition}
+
+In practice, entity resolution for large screening workloads requires a two-stage pipeline. A fast blocking stage uses approximate nearest-neighbour search over name embeddings to reduce the comparison space from $O(n^2)$ to $O(nk)$ candidates. A precise scoring stage applies a cross-encoder or LLM-based classifier to the candidate pairs. This pattern mirrors the retriever-ranker architecture in RAG systems~\cite{gao2024retrieval}.
 
 \subsection{Politically exposed persons (PEP) screening}
 \label{sec:ch11-pep-screening}
 
-[Placeholder]
+Politically exposed persons (PEPs) are individuals who hold or have held prominent public functions --- heads of state, senior politicians, senior government officials, senior military officers, senior executives of state-owned enterprises, and senior officials of international organisations --- as well as their family members and close associates. FATF recommendations require financial institutions to apply enhanced due diligence (EDD) to PEP relationships, including source-of-wealth verification and senior management approval for establishing or continuing the relationship~\cite{fatf2021aml}.
+
+The PEP universe is large and constantly changing. Thousands of individuals enter and exit PEP status annually through elections, appointments, retirements, and deaths. Commercial PEP databases exist but are expensive, inconsistently updated, and limited in their geographic coverage of lower-income countries with smaller English-language media footprints.
+
+LLMs can augment commercial PEP data in several ways. Instruction-tuned models can read Wikipedia articles, government websites, and news sources and extract structured PEP attributes: position held, jurisdiction, dates of service, related parties. This extraction can be run on a continuous basis to maintain a self-updating PEP registry that supplements commercial databases.
+
+The specific challenge of family members and close associates (FaMCAs) --- who also trigger EDD obligations --- is particularly suited to LLM-based extraction. Identifying that a subject's business partner is the brother-in-law of a former prime minister requires reading multiple documents and inferring a graph of relationships. Relation extraction at scale is a task where LLMs substantially outperform rule-based systems.
 
 \subsection{Beneficial ownership extraction from filings}
 \label{sec:ch11-beneficial-ownership}
 
-[Placeholder]
+Anti-money laundering typologies frequently exploit complex corporate structures to obscure beneficial ownership: the natural person who ultimately owns or controls an entity. Shell companies, trusts, and nominee arrangements are used to interpose layers between criminal proceeds and the financial system. The FATF's Recommendation 24 requires countries to maintain accurate, up-to-date information on the beneficial ownership of legal persons, and the Corporate Transparency Act (2021) in the US and similar legislation in the EU require disclosure to central registries.
 
+Despite these disclosure obligations, beneficial ownership information in practice is scattered across corporate filings (annual reports, registration documents, proxy statements), court records, and regulatory submissions. The challenge is to extract this information reliably from heterogeneous, often multilingual, document sources.
+
+LLMs excel at this extraction task. Given a corporate filing, an LLM can identify all named individuals and their ownership stakes, recognise holding company structures, and output a structured graph of ownership relationships. This graph can then be traversed to identify the ultimate beneficial owner (UBO) by following chains of control until a natural person or a publicly traded entity (which has its own disclosure obligations) is reached.
+
+\begin{example}[Beneficial Ownership Extraction from a UK Companies House Filing]
+\label{ex:bo-extraction}
+A compliance analyst is conducting enhanced due diligence on ``Meridian Capital Holdings Ltd,'' a UK-registered company. The Companies House filing lists a single person of significant control (PSC): ``Apex Global Ventures S.A.,'' a Luxembourg entity, with 100\% ownership. The analyst queries the Luxembourg business registry and retrieves the relevant filing, which lists the sole shareholder as a British Virgin Islands company, ``Sunridge International Ltd.'' The BVI file is unavailable through public registries.
+
+An LLM-based beneficial ownership extraction system, given these three documents, would: (1) parse each filing, extracting ownership percentages and entity identifiers; (2) construct a directed ownership graph; (3) flag that the chain terminates in a jurisdiction without public UBO disclosure; (4) cross-reference available adverse media on each intermediate entity; (5) produce a structured report noting that the UBO is unknown, that the structure involves two opacity jurisdictions, and that this configuration is consistent with documented tax avoidance and AML typologies. This structured output reduces the analytical burden on the human reviewer from several hours to a few minutes.
+\end{example}
+
+% ---------------------------------------------------------------
 \section{Regulatory Reporting Automation}
 \label{sec:ch11-regulatory-reporting}
 
-[Placeholder]
+\begin{context}
+Regulatory reporting is one of the most labour-intensive functions in financial services. A large global bank may file hundreds of thousands of regulatory reports annually --- suspicious activity reports to financial intelligence units, XBRL-tagged financial statements to securities regulators, supervisory returns to prudential regulators, and stress test results with accompanying narrative. The volume, frequency, and precision requirements of this reporting have increased substantially in every successive post-2008 regulatory cycle.
+
+LLMs offer the prospect of automating substantial portions of this reporting burden. The key insight is that regulatory reports, despite their apparent heterogeneity, share a common structure: they require the extraction of quantitative data from internal systems, the classification of that data into standardised taxonomies, and the generation of prose narrative explaining the quantitative results. Each of these steps is a task where language models can provide value.
+\end{context}
 
 \subsection{XBRL tagging and automated filing}
 \label{sec:ch11-xbrl-tagging}
 
-[Placeholder]
+The eXtensible Business Reporting Language (XBRL) is a standardised taxonomy for expressing financial data in machine-readable form. The SEC has required XBRL reporting for domestic registrants since 2009~\cite{sec2009xbrl}, and the European Single Electronic Format (ESEF) similarly mandates iXBRL (inline XBRL embedded in HTML) for listed companies in the EU. The core operation in XBRL reporting is \emph{tagging}: associating each line item in a financial statement with the correct XBRL concept from the applicable taxonomy.
+
+Manual XBRL tagging is error-prone. Financial statements contain ambiguous line items (``other comprehensive income'' may map to different XBRL concepts depending on the nature of the items it contains), and taxonomy versions change annually. LLMs can automate tagging by treating it as a classification problem: given a financial statement line item and its surrounding context, predict the correct XBRL concept.
+
+The challenge is the size of the taxonomy space. The US GAAP taxonomy contains over 20,000 elements. A simple classification model over this space performs poorly due to label sparsity --- most XBRL concepts are rarely used. In practice, the tagging problem is better framed as a retrieval problem: embed the financial statement line item and retrieve the most semantically similar XBRL concept descriptions, then use an LLM to verify the match and select among the top candidates.
+
+\begin{equation}
+\label{eq:xbrl-retrieval-score}
+\hat{c}^* = \arg\max_{c \in \mathcal{C}} \left[ \lambda \cdot \cos(\mathbf{e}_{\text{item}}, \mathbf{e}_c) + (1-\lambda) \cdot P_{\text{LLM}}(c \mid \text{item}, \text{context}) \right],
+\end{equation}
+where $\mathcal{C}$ is the XBRL concept space, $\mathbf{e}_{\text{item}}$ and $\mathbf{e}_c$ are embedding vectors, $\cos(\cdot, \cdot)$ denotes cosine similarity, and $P_{\text{LLM}}(c \mid \text{item}, \text{context})$ is the LLM's posterior probability for concept $c$ given the financial statement context. The interpolation parameter $\lambda$ can be cross-validated on labelled historical filings.
 
 \subsection{Suspicious activity report (SAR) drafting}
 \label{sec:ch11-sar-drafting}
 
-[Placeholder]
+A Suspicious Activity Report (SAR) is a structured document filed with a financial intelligence unit (FinCEN in the US, National Crime Agency in the UK, TRACFIN in France) when a financial institution has reason to believe that a transaction or pattern of activity may be related to money laundering or financial crime. SARs have a specific format: they include identifying information on the subject and the filing institution, a description of the suspicious activity, the amount and transaction dates, and a narrative explanation.
+
+SAR drafting is a bottleneck in AML programmes. Writing a high-quality SAR narrative requires the analyst to: assemble transaction records, research the subject's profile, identify the typology that best describes the observed behaviour, and write a coherent narrative that will be useful to law enforcement. A skilled analyst may spend two to four hours on a complex SAR. LLMs can reduce this to minutes by automating the narrative drafting step, leaving the analyst to review, validate, and supplement rather than compose from scratch.
+
+The risks in SAR automation are not trivial. A SAR that mischaracterises the activity, omits material facts, or contains factual errors can mislead law enforcement and expose the institution to liability. This makes the human review step non-negotiable, and it means that the LLM's output must be presented as a draft for human completion, not a final document. Appropriately calibrated uncertainty --- flagging passages where the evidence is weak or the typology attribution is uncertain --- is a design requirement, not an afterthought.
+
+\begin{remark}
+The EU AI Act classification of SAR drafting tools depends on the degree of automation. An LLM that \emph{assists} an analyst by pre-populating a narrative template for human review and editing is likely limited-risk. An LLM that \emph{files} the SAR autonomously without human review would almost certainly qualify as high-risk under Annex III, triggering the full conformity assessment regime. Most compliant implementations adopt the former design.
+\end{remark}
 
 \subsection{Stress test narrative automation}
 \label{sec:ch11-stress-test-narrative}
 
-[Placeholder]
+Prudential regulators require banks to conduct regular stress tests --- hypothetical adverse scenarios applied to the balance sheet to assess capital adequacy and resilience. The output of a stress test is not just a set of numbers; it is a supervisory submission that includes extensive narrative: description of the scenario, explanation of modelling methodology, discussion of management actions, and analysis of results. These narratives run to hundreds of pages and must meet a high standard of clarity and precision.
 
+LLMs are well-suited to generating the narrative components of stress test submissions, particularly those that follow standardised templates. The approach is to use the quantitative results as structured inputs to the LLM, which then generates prose commentary consistent with the template structure and regulatory expectations.
+
+The generation process benefits from a retrieval-augmented approach that grounds the narrative in prior submissions, regulatory guidance, and internal analytical reports. This ensures consistency across reporting periods and alignment with regulatory terminology. The generator should be constrained to produce claims grounded in the quantitative inputs: hallucination of financial figures --- stating that a capital ratio declined by 3 percentage points when the model output shows 2.7 percentage points --- is a material reporting error.
+
+Template-constrained generation, combined with a post-generation fact-checking pass that verifies all numerical claims against a structured data extract, provides a practical safeguard. The fact-checking can itself be automated by a secondary LLM call with chain-of-thought prompting~\cite{wei2022chain} that compares each quantitative claim in the generated text against the source data.
+
+% ---------------------------------------------------------------
 \section{Governance and Audit Trails}
 \label{sec:ch11-governance-audit}
 
-[Placeholder]
+\begin{context}
+Compliance functions are not merely technical systems; they are governance structures. The technology layer is always embedded in a framework of accountability --- who approved the system, who monitors it, who reviews its outputs, and who bears responsibility when it fails. For LLM-based compliance systems, getting the governance right is as important as getting the model right. A technically excellent system that lacks adequate oversight mechanisms will fail regulatory review. A technically modest system with strong governance may pass.
+
+This section examines the governance requirements that apply to LLM compliance systems, focusing on explainability, human oversight design, and the application of model risk management frameworks.
+\end{context}
 
 \subsection{Explainability requirements for compliance decisions}
 \label{sec:ch11-explainability}
 
-[Placeholder]
+Explainability in compliance decisions serves two distinct purposes that must not be conflated. The first is \emph{regulatory compliance}: many jurisdictions require that automated decisions affecting individuals be explained to those individuals (GDPR Article 22, FCRA adverse action notices). The second is \emph{internal governance}: compliance officers, model validators, and auditors need to understand why a system produced a particular output in order to assess its reliability and identify failure modes.
+
+These two purposes impose different requirements on the explanation. Regulatory explanations must be intelligible to a lay audience, focused on the factors that most influenced the decision, and actionable (the subject must be able to understand what they could do differently). Governance explanations must be technically precise, reproducible, and complete enough to support model validation.
+
+For LLM-based systems, explainability is achievable but requires deliberate design. Three approaches are common:
+
+\textbf{Retrieval transparency.} For RAG-based systems, the retrieved passages that grounded the LLM's assessment are the natural unit of explanation. Presenting the top-3 retrieved documents with their relevance scores provides a human-readable evidence chain. This approach aligns with the GDPR Article 22 requirement for ``meaningful information about the logic involved.''
+
+\textbf{Chain-of-thought rationale.} Prompting the LLM to produce a step-by-step reasoning trace before producing its final assessment makes the reasoning explicit and auditable~\cite{wei2022chain}. The rationale can be stored alongside the decision for governance review and, in sanitised form, shared with the affected individual.
+
+\textbf{Post-hoc attribution.} For classification models (risk tier, SAR flag), attribution methods such as SHAP~\cite{lundberg2017unified} can be applied to explain which input features drove the output. For transformer-based models, attention weights provide a rough guide to salient inputs, though they are not reliable as standalone explanations~\cite{clark2019bert}.
+
+None of these approaches is universally adequate. For high-stakes decisions with material individual impact, combining multiple explanation types --- a narrative chain-of-thought, a list of supporting evidence, and an attribution summary --- provides the most defensible basis for compliance with both internal governance and external regulatory requirements.
 
 \subsection{Human-in-the-loop workflow design}
 \label{sec:ch11-human-in-loop}
 
-[Placeholder]
+Human-in-the-loop (HITL) design is not simply the addition of a ``review'' step to an automated pipeline. Poorly designed HITL systems exhibit automation bias: human reviewers tend to accept automated recommendations without critical scrutiny, particularly when review queues are large, review time is short, and overrides are discouraged or difficult~\cite{batarseh2021survey}. This creates a situation where the human review is cosmetic rather than substantive --- satisfying the governance requirement in form but not in substance.
+
+Effective HITL design for compliance systems requires attention to the following dimensions:
+
+\textbf{Task decomposition.} The system should be designed so that the human reviewer is performing a task they can do better than the model, not simply rubber-stamping the model's output. In adverse media screening, the human adds value by: resolving entity disambiguation ambiguities the model flags as uncertain; assessing geopolitical context that requires domain knowledge; and deciding whether a borderline risk score warrants escalation given the overall customer relationship.
+
+\textbf{Uncertainty communication.} The system should express its confidence clearly, and the reviewer interface should direct attention to low-confidence items. A case with a high-confidence automated classification and strong supporting evidence warrants less reviewer time than a borderline case with ambiguous evidence.
+
+\textbf{Override facilitation and feedback loops.} The interface must make it easy for reviewers to override automated classifications, and the override reasons must be recorded and fed back into model monitoring. Review decisions that frequently diverge from model outputs in specific categories signal model drift or a domain gap that requires retraining.
+
+\textbf{Queue design.} Alert queues should be ordered by a combination of risk severity and model confidence. Cases where the model is uncertain about a potentially high-severity outcome should be prioritised. Cases where the model is highly confident of a low-risk outcome can be cleared in bulk with spot-checking.
 
 \subsection{Model risk management for LLM-based compliance systems}
 \label{sec:ch11-model-risk-management}
 
-[Placeholder]
+Applying the SR~11-7 model risk management framework to LLM-based compliance systems requires adapting the framework's concepts to the novel characteristics of language models. The three pillars of SR~11-7 --- development and implementation, validation, and governance --- apply, but each requires extension.
+
+\textbf{Development and implementation.} SR~11-7 requires documented conceptual soundness for any model: the developer must explain the theory underlying the model and why it is appropriate for the use case. For an LLM-based adverse media scoring system, conceptual soundness documentation should: describe the pre-trained model and its training data characteristics; explain why the retrieval-generation architecture is appropriate for the task; identify the scope and limitations (languages covered, source types indexed, entity types addressed); and define the conditions under which the system should not be used (e.g., subjects from jurisdictions not covered by the indexed sources).
+
+\textbf{Validation.} SR~11-7 requires validation by a function independent of model development. For LLMs, validation should include:
+\begin{itemize}
+  \item \emph{Benchmark performance}: accuracy, precision, recall, and F1 on a labelled holdout set of historical adverse media screening cases with known outcomes.
+  \item \emph{Adversarial testing}: red-team exercises designed to probe failure modes (prompt injection, name variation attacks, evasion by paraphrasing).
+  \item \emph{Calibration testing}: verification that the model's confidence scores are well-calibrated against observed outcomes.
+  \item \emph{Bias auditing}: assessment of performance disparities across demographic groups, nationalities, and name types to ensure that the system does not systematically disadvantage individuals from certain backgrounds.
+  \item \emph{Robustness testing}: sensitivity analysis of model outputs to variations in source data availability, retrieval quality, and prompt formulation.
+\end{itemize}
+
+\textbf{Governance and controls.} The governance layer must include: a model inventory entry with the model's scope, risk tier, owner, and validation status; a change management procedure requiring re-validation after material updates to the underlying language model or retrieval corpus; a performance monitoring dashboard with defined alert thresholds for precision and recall degradation; and an incident response procedure for cases where the model produces a material error with compliance consequences.
+
+\begin{example}[Model Risk Management for an LLM Adverse Media System]
+\label{ex:mrm-llm-ams}
+A mid-sized European bank has deployed an LLM-based adverse media screening system as a high-risk AI under the EU AI Act and as a model subject to SR~11-7-equivalent guidance from its national supervisor. The governance structure includes:
+
+\emph{Model owner}: the Head of Financial Crime Compliance, who is accountable for the model's performance and use.
+
+\emph{Model developer}: the in-house AI team, responsible for maintenance, fine-tuning, and version management.
+
+\emph{Model validator}: an independent model risk function, which reviews the system annually and conducts adversarial testing.
+
+\emph{User controls}: compliance analysts who review model outputs and can override classifications; their override decisions are logged and reviewed monthly for systematic divergence patterns.
+
+\emph{Performance monitoring}: precision and recall are tracked weekly against a labelled sample of 200 cases reviewed by senior analysts. If precision drops below 60\% or recall below 95\%, an automatic alert is sent to the model owner and a root-cause review is triggered within five business days.
+
+\emph{Audit trail}: every screening decision, including the retrieved documents, the model output, and the human reviewer's decision, is retained for seven years in a tamper-evident log system, satisfying both SR~11-7 and EU AI Act logging requirements.
+\end{example}
+
+% ---------------------------------------------------------------
+\section{Summary}
+\label{sec:ch11-summary}
+
+This chapter has examined the application of large language models to regulatory technology, compliance, and anti-money laundering, with attention to both technical architecture and governance requirements. Five key takeaways follow.
+
+\textbf{Regulatory frameworks overlap and require careful navigation.} The EU AI Act, MiFID II, Basel III, SR~11-7, and GDPR each impose distinct requirements on LLM-based compliance systems. Institutions must map their specific AI applications to the correct regulatory tier --- many compliance AI tools will qualify as high-risk under the EU AI Act, triggering conformity assessment and documentation obligations. GDPR's Article 22 imposes specific requirements for automated decisions with material individual impact, including meaningful explanation and human review rights.
+
+\textbf{LLMs address the false-positive crisis in AML by adding contextual understanding.} Keyword-based screening systems generate alert volumes that overwhelm compliance teams, with false positive rates above 95\%. Language models can assess whether the contextual evidence associated with a potential match is consistent with genuine AML risk, dramatically reducing alert volume while maintaining recall. The Adverse Media Index (Section~\ref{sec:ch11-adverse-media-index}) provides a quantitative framework for turning textual evidence into calibrated risk scores.
+
+\textbf{RAG-based pipelines are the architecture of choice for adverse media and KYC.} Retrieval-augmented generation, combining hybrid BM25 and dense retrieval with an LLM reader, provides the combination of broad coverage (through the document corpus) and contextual understanding (through the LLM) needed for adverse media screening. Entity resolution, PEP screening, and beneficial ownership extraction all benefit from LLMs' multilingual capabilities and context-integration abilities.
+
+\textbf{Regulatory reporting can be substantially automated but requires post-hoc verification.} XBRL tagging, SAR narrative drafting, and stress test narrative generation are all tasks where LLMs can produce high-quality drafts, reducing the manual burden by an order of magnitude. In all cases, human review remains essential, and automated fact-checking passes --- verifying quantitative claims against source data --- are a practical safeguard against hallucination.
+
+\textbf{Governance is as important as technology.} Effective HITL design prevents automation bias. Model risk management frameworks, adapted to account for LLMs' novel characteristics, provide the structure for SR~11-7 compliance. Explainability mechanisms --- retrieval transparency, chain-of-thought rationales, and post-hoc attribution --- serve both internal governance and external regulatory obligations. The combination of technical capability and rigorous governance is what separates a compliant, defensible LLM compliance system from one that creates new risks while purporting to manage old ones.
+
+% ---------------------------------------------------------------
+\section{Further Reading}
+\label{sec:ch11-further-reading}
+
+The regulatory framework for AI in financial services is evolving rapidly. The text of the EU AI Act \cite{euaiact2024} should be read alongside the guidance notes issued by the European AI Office and national competent authorities, which provide interpretation of the high-level statutory requirements. The Federal Reserve's SR~11-7 guidance \cite{sr117} remains the definitive US reference for model risk management, and the Financial Stability Board's 2024 report \cite{FSB2024stability} provides a global overview of emerging supervisory expectations for AI in finance.
+
+On the AML side, the FATF guidance on AI in AML/CFT \cite{fatf2021aml} is essential reading for practitioners, as it defines the international standard-setter's expectations for AI-enabled compliance programmes. Chen et al.\ \cite{chen2025aml} provide a detailed technical treatment of LLM-based adverse media screening, including the Adverse Media Index formalisation developed in this chapter.
+
+For the technical foundations of retrieval-augmented generation, Lewis et al.\ \cite{lewis2020rag} is the original RAG paper. Gao et al.\ \cite{gao2024retrieval} provide a comprehensive survey of RAG architectures including hybrid retrieval and reranking. Cormack et al.\ \cite{cormack2009reciprocal} introduce the reciprocal rank fusion algorithm used in hybrid retrieval.
+
+Model risk management and explainability for deep learning systems are treated in depth in Doshi-Velez and Kim \cite{doshivelez2017rigorous} (interpretability) and Lundberg and Lee \cite{lundberg2017unified} (SHAP attributions). For HITL workflow design, the automation bias literature provides important background \cite{batarseh2021survey}.
+
+Readers who wish to explore entity resolution in depth should consult the survey literature on record linkage, particularly the probabilistic approaches building on the Fellegi-Sunter model, as well as more recent work applying transformer-based embeddings to the blocking and matching stages of the pipeline.
+
+Cross-references within this book: Chapter~\ref{ch:llm-agents} covers agentic architectures including the ReAct framework applicable to adverse media agents; Chapter~\ref{ch:credit-risk} covers GDPR and SR~11-7 in the credit context, with deeper treatment of SHAP-based explainability; Chapter~\ref{ch:xai-explainability} covers interpretability methods in full generality.

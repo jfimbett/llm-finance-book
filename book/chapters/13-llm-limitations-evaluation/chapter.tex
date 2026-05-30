@@ -180,7 +180,12 @@ In practice, overconfidence manifests in financial LLM outputs as:
 tasks and found that the model showed consistent overconfidence---asserting incorrect
 facts with high lexical confidence markers such as ``certainly'' and ``definitely.''
 In financial contexts this behaviour is particularly dangerous because the audience
-includes practitioners who may take model outputs at face value.
+includes practitioners who may take model outputs at face value. Going further,
+\citet{ChenGreenGulenZhou2024} document that LLM stock return forecasts systematically
+over-extrapolate recent price trends and display optimistic bias, exhibiting miscalibration
+analogous to well-known human behavioral biases---extrapolation and over-optimism---that
+persist even after prompt engineering, providing direct evidence of calibration failure
+in a high-stakes financial forecasting setting.
 
 \subsection{Measuring and Improving Calibration}
 \label{sec:ch13-measuring-improving-calibration}
@@ -261,8 +266,8 @@ about an unknown future from known past information---it is pattern-matching aga
 memorised associations.
 
 This is not merely a theoretical concern. \citet{ziemke2024temporal} provide a
-systematic analysis of temporal leakage in LLM-based financial forecasting. They
-identify three distinct channels:
+systematic analysis of temporal leakage in LLM-based financial forecasting, identifying
+three distinct channels:
 
 \begin{enumerate}
   \item \emph{Direct memorisation}: The model has seen the exact document or a near-verbatim
@@ -283,6 +288,17 @@ The consequences are severe for empirical evaluation. A model that scores 65\% a
 on a stock direction prediction task may appear to outperform chance, but if 10
 percentage points of that accuracy derive from temporal leakage, the true
 out-of-distribution performance may be barely above random.
+
+The severity of the memorisation problem has been confirmed empirically at the numerical
+level. \citet{LopezLiraTangZhu2025} demonstrate that LLMs have memorised exact numerical
+values of key economic and financial variables from within their training window, making
+it impossible to distinguish genuine out-of-sample forecasting from data recall---an
+observation that directly establishes memorisation as a fundamental threat to evaluation
+validity rather than a theoretical nuisance. From a practitioner's perspective,
+\citet{NoguerAlonso2024} provides a comprehensive taxonomy of look-ahead bias sources in
+LLM-based financial applications, covering training cutoffs, entity embeddings, and
+backtesting methodology, and proposes mitigation strategies that inform the contamination-resistant
+design presented in Section~\ref{sec:ch13-contamination-resistant-splits}.
 
 \subsection{Point-in-Time Data Requirements and Anonymization}
 \label{sec:ch13-point-in-time-data}
@@ -359,6 +375,17 @@ contamination is suspected.
 versions with all temporal markers removed. A significant performance drop upon date
 blinding suggests that performance was partly driven by temporal pattern retrieval
 rather than semantic reasoning.
+
+The quantitative stakes of contamination are confirmed by two complementary studies.
+\citet{RahimikiaDrinkall2024} eliminate look-ahead bias by pre-training year-specific
+LLMs for each year from 2007 to 2023, and show that properly time-bounded models
+outperform much larger general-purpose models on trading tasks---demonstrating that
+benchmark results obtained from off-the-shelf LLMs substantially overstate true
+predictive performance. \citet{GaoJiangYan2025} introduce the Lookahead Propensity
+(LAP), a statistical measure of training-data contamination, and use it to show that
+a positive correlation between LAP and forecast accuracy on stock-return and
+capital-expenditure tasks confirms that apparent LLM predictive skill is
+substantially driven by lookahead bias rather than genuine reasoning.
 
 \begin{example}[A Contamination Audit for an LLM Earnings-Surprise Predictor]
 \label{ex:ch13-contamination-audit}
@@ -456,9 +483,17 @@ with average performance across studies clustering around 59\% \cite{xu2024stock
 \citet{lopezlira2023chatgpt} provided one of the first systematic evaluations, testing
 ChatGPT on headline sentiment and showing that a sentiment-based trading strategy
 generated positive returns out-of-sample, with the LLM achieving statistically
-significant directional accuracy on short-horizon price movements. However, their
-evaluation period coincided with a period of unusually high market volatility, and the
-returns were concentrated in specific news categories.
+significant directional accuracy on short-horizon price movements; Lopez-Lira and Tang
+\cite{LopezLiraTang2023} document that this predictive accuracy scales with model
+complexity, establishing the benchmark against which subsequent methodological critiques
+are directed. However, their evaluation period coincided with a period of unusually high
+market volatility, and the returns were concentrated in specific news categories.
+
+\citet{VidalSSRN2024} provides an independent empirical benchmark, evaluating four
+leading LLMs on predicting 30-day directional price movements for 250 S\&P~500 firms
+and reporting an average accuracy of only 59.4\%---a result that, while marginally above
+chance in statistical terms, falls well below the threshold required for economically
+meaningful trading after transaction costs.
 
 A meta-analysis of 84 empirical studies \cite{zhao2025frontiers} finds that the 59\%
 average accuracy figure is ubiquitous across different LLMs, different markets, and
@@ -907,17 +942,27 @@ introduction to conformal prediction and its financial applications are surveyed
 \citet{chen2024uncertainty}.
 
 \emph{Temporal leakage and evaluation design.} \citet{ziemke2024temporal} is the
-primary reference on temporal leakage in LLM financial evaluation. \citet{lopezdeprado2018advances}
-covers purged cross-validation and walk-forward evaluation in the financial machine
-learning context. The importance of point-in-time data is treated extensively in the
-quantitative finance literature; see \citet{lewellen2010empirical} for the
-asset-pricing dimension.
+primary reference on temporal leakage in LLM financial evaluation. \citet{LopezLiraTangZhu2025}
+provides the definitive empirical evidence that LLMs memorise exact numerical financial
+variables from their training corpora. \citet{NoguerAlonso2024} offers a practitioner-oriented
+taxonomy of look-ahead bias sources and mitigation strategies. \citet{RahimikiaDrinkall2024}
+demonstrates the practical magnitude of the problem by training year-specific LLMs and
+showing that properly time-bounded models outperform larger off-the-shelf alternatives.
+\citet{GaoJiangYan2025} introduces the Lookahead Propensity (LAP) measure as a
+statistical test for contamination. \citet{lopezdeprado2018advances} covers purged
+cross-validation and walk-forward evaluation in the financial machine learning context.
+The importance of point-in-time data is treated extensively in the quantitative finance
+literature; see \citet{lewellen2010empirical} for the asset-pricing dimension.
 
 \emph{Stock prediction and market efficiency.} \citet{fama1970efficient} and
 \citet{fama1991efficient} are the foundational texts on market efficiency.
 \citet{grossman1980impossibility} provides the theoretical limit on informational
-efficiency. \citet{lopezlira2023chatgpt} and \citet{xu2024stock} are the primary
-empirical studies on LLM stock prediction accuracy. The meta-analysis in
+efficiency. \citet{LopezLiraTang2023} and \citet{lopezlira2023chatgpt} establish the
+benchmark accuracy findings for ChatGPT-based headline trading strategies.
+\citet{VidalSSRN2024} reports a concrete 59.4\% average accuracy across four LLMs
+and 250 S\&P 500 firms, providing an independent empirical baseline. \citet{ChenGreenGulenZhou2024}
+documents the extrapolation bias and over-optimism present in LLM stock forecasts.
+\citet{xu2024stock} surveys the broader accuracy literature, and the meta-analysis in
 \citet{zhao2025frontiers} covers 84 studies.
 
 \emph{Economic evaluation.} \citet{sharpe1994sharpe} defines the Sharpe ratio.

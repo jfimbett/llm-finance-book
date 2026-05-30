@@ -271,7 +271,11 @@ tasks requiring world knowledge.  On financial NLP benchmarks (FinQA, NER,
 headline classification, and others), BloombergGPT outperformed all existing
 models of comparable size, and also matched or exceeded GPT-NeoX-20B on several
 general language benchmarks, demonstrating that domain-specific pre-training need
-not degrade general capability.
+not degrade general capability.  \citet{Keshri2025} survey the full scope of
+BloombergGPT's architecture, training corpus, and downstream applications---including
+news summarisation, fraud detection, and trading strategy optimisation---providing
+a useful secondary account of the model's capabilities for practitioners who lack
+access to the full technical report.
 
 \textit{FinGPT.}  In contrast to the closed, proprietary BloombergGPT,
 \citet{yang2023fingpt} introduced FinGPT as an open-source framework for
@@ -281,7 +285,11 @@ low-rank adaptation (LoRA \cite{hu2022lora}) to open foundation models
 via APIs.  The design philosophy prioritises \emph{democratisation}: a practitioner
 with access to a single A100 GPU can fine-tune a capable financial model using
 FinGPT's pipeline, whereas replicating BloombergGPT would require a cluster-scale
-compute budget.  Benchmark performance lags BloombergGPT on tasks requiring deep
+compute budget.  \citet{Yang2023} formalise this data-centric philosophy,
+demonstrating that the LoRA-based fine-tuning pipeline keeps the cost of
+producing a financially capable model accessible to teams without proprietary
+infrastructure while still achieving competitive performance on standard financial
+NLP tasks.  Benchmark performance lags BloombergGPT on tasks requiring deep
 financial knowledge encoded in the pre-training corpus, but FinGPT's modular,
 data-efficient approach makes it the natural choice for teams without the resources
 for pre-training at scale.
@@ -290,11 +298,20 @@ for pre-training at scale.
 the PIXIU suite: a 7-billion-parameter LLaMA model instruction-tuned on a
 curated dataset of 136,000 financial instruction--response pairs spanning
 sentiment analysis, named entity recognition, news headline classification,
-financial question answering, and stock movement prediction.  FinMA achieves
-strong performance on tasks covered by its instruction dataset but, as the
-authors document, generalises less reliably to tasks and data formats not seen
-during instruction tuning---a common limitation of instruction-tuned models
-when deployed outside their training distribution.
+financial question answering, and stock movement prediction.  The value of
+reframing even small amounts of supervised data into instruction-tuning format
+is underscored by \citet{Zhang2023}, who show that transforming a limited set
+of financial sentiment examples into instructions yields strong improvements in
+sentiment classification, validating the approach for practitioners with
+constrained labelled datasets.  FinMA achieves strong performance on tasks
+covered by its instruction dataset but, as the authors document, generalises
+less reliably to tasks and data formats not seen during instruction tuning---a
+common limitation of instruction-tuned models when deployed outside their
+training distribution.  \citet{Hirano2024b} propose an alternative that sidesteps
+this data requirement entirely: by combining continual domain pre-training with
+model merging, they build instruction-following financial LLMs without any
+instruction data, offering a practical path for teams in low-resource settings
+who cannot curate large instruction corpora.
 
 \textit{InvestLM.}  \citet{yang2023investlm} take a complementary approach:
 they instruction-tune LLaMA-65B on a smaller but highly curated set of financial
@@ -360,7 +377,12 @@ budget is typically a small fraction of the original pre-training budget: it is
 common to process 1--10~billion tokens of domain text, compared to hundreds of
 billions for the initial pre-training.  The learning rate is usually set lower
 than the original pre-training rate (a factor of 10 is typical) to prevent
-catastrophic forgetting of the general representations.
+catastrophic forgetting of the general representations.  Empirical support for
+this methodology extends beyond English-language models: \citet{Hirano2024a}
+demonstrate through a Japanese financial LLM that continual pre-training on a
+domain-specific corpus consistently improves performance on financial benchmarks,
+confirming that the gains documented for English in \citet{gururangan2020dont}
+generalise across languages and financial sub-domains.
 
 \begin{definition}[Domain-Adaptive Pre-training]
 \label{def:ch08-dapt}
@@ -546,6 +568,12 @@ It includes stress-test tasks such as credit scoring from textual loan descripti
 financial forecasting from annual report narratives, and multi-document
 summarisation of earnings call transcripts---tasks that require a model to
 integrate information across multiple sources and produce coherent structured output.
+A complementary benchmarking methodology is demonstrated by \citet{Cook2023},
+who evaluate local (domain-specific) LLMs on financial and economic text using
+bank earnings calls as the evaluation domain; their framework is notable for
+its practical orientation, covering tasks that matter to central bank researchers
+and providing design principles transferable to institutional deployment settings
+where existing public benchmarks may not align with the target task distribution.
 
 \begin{definition}[Execution Accuracy]
 \label{def:ch08-execution-accuracy}
@@ -602,11 +630,18 @@ models (7B parameters and below), DAPT on financial text provides large, consist
 gains across most financial NLP tasks.  For models at the 70B+ scale, the gains
 are narrower and task-specific: they persist for lexically sensitive tasks
 (sentiment, tone, NER) but largely disappear for tasks whose difficulty is
-primarily about reasoning over long documents.  The implication for practitioners
-is that the correct architecture choice depends on the available compute budget:
-a team constrained to a small model should invest in domain-specific pre-training;
-a team with access to large-scale inference should evaluate whether prompting a
-frontier general model already meets their accuracy threshold.
+primarily about reasoning over long documents.  \citet{Rahimikia2024} sharpen this
+picture by demonstrating that year-specific, domain-pre-trained financial LLMs
+outperform general-purpose models up to 50 times their parameter count in return
+prediction tasks---a particularly striking result because it controls for the
+look-ahead bias that inflates many published performance figures---providing
+direct empirical support for the value of targeted domain-adaptive pre-training
+even in a period when frontier general models are rapidly improving.
+The implication for practitioners is that the correct architecture choice depends
+on the available compute budget: a team constrained to a small model should invest
+in domain-specific pre-training; a team with access to large-scale inference
+should evaluate whether prompting a frontier general model already meets their
+accuracy threshold.
 
 \begin{remark}[The contamination problem]
 A persistent methodological concern in financial LLM evaluation is \emph{data
@@ -738,7 +773,12 @@ rather than a dedicated FinLLM) grounded in a well-indexed EDGAR document store
 can match the accuracy of a larger ungrounded model on document-specific tasks
 while operating at a fraction of the inference cost and with full traceability
 to source documents---a regulatory requirement in many financial AI deployments
-\cite{federalreserve2011sr117}.
+\cite{federalreserve2011sr117}.  The modular approach is taken further by
+\citet{Liu2024}, who extend the FinGPT framework to retrieval-augmented search
+agents tailored separately for individual and institutional users, demonstrating
+how domain-specific financial LLMs can be customised for real-world deployment
+subject to privacy constraints, latency requirements, and the heterogeneous
+information needs of different user classes.
 
 \begin{example}[Cost-optimal architecture for a regulatory filing classifier]
 \label{ex:ch08-deployment}

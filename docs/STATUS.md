@@ -14,6 +14,7 @@
 | 08 | Domain-Specific Financial LLMs | No | No | - | - | - | - | - | No |
 | 09 | Financial NLP and Sentiment Analysis | No | No | - | - | - | - | - | No |
 | 10 | Portfolio Optimization and Quantitative Trading | No | No | - | - | - | - | - | No |
+| 13 | LLM Limitations and Evaluation Rigor in Finance | No | No | - | - | - | - | - | No |
 
 ## Appendices
 

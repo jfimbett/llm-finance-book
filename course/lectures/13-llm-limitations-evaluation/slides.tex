@@ -1,0 +1,70 @@
+\documentclass{beamer}
+\usetheme{metropolis}
+
+\title{LLM Limitations and Evaluation Rigor in Finance}
+\author{Juan F. Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\section{Calibration and Overconfidence}
+
+\begin{frame}{Calibration and Overconfidence}
+  \begin{itemize}
+    \item Calibration measures whether a model's stated confidence matches its empirical accuracy
+    \item Reliability diagrams and Expected Calibration Error (ECE) quantify miscalibration
+    \item LLMs in finance frequently exhibit overconfidence in probabilistic forecasts
+    \item Post-hoc techniques such as temperature scaling can improve calibration
+  \end{itemize}
+\end{frame}
+
+\section{Temporal Leakage and Look-Ahead Bias}
+
+\begin{frame}{Temporal Leakage and Look-Ahead Bias}
+  \begin{itemize}
+    \item Pretrained LLMs may have memorized financial events that appear in test sets
+    \item Point-in-time data discipline is essential to prevent inadvertent leakage
+    \item Anonymization of company names and dates reduces memorization risk
+    \item Contamination-resistant splits use strict temporal cutoffs and holdout anonymization
+  \end{itemize}
+\end{frame}
+
+\section{Stock Movement Prediction: A Cautionary Tale}
+
+\begin{frame}{Stock Movement Prediction: A Cautionary Tale}
+  \begin{itemize}
+    \item Efficient market theory predicts that publicly available news should yield no edge
+    \item Empirical studies report 51--65\% accuracy on short-horizon stock movement tasks
+    \item ARIMA and LSTM baselines often match or exceed LLM accuracy at lower cost
+    \item Reported gains frequently vanish after correcting for look-ahead bias and transaction costs
+  \end{itemize}
+\end{frame}
+
+\section{Evaluation Beyond Classification Accuracy}
+
+\begin{frame}{Evaluation Beyond Classification Accuracy}
+  \begin{itemize}
+    \item Sharpe ratio, alpha generation, and information ratio measure economic value
+    \item Walk-forward and expanding-window validation mimic live trading conditions
+    \item Transaction costs, market impact, and capacity constraints erode paper returns
+    \item Maximum drawdown and tail-risk metrics capture downside beyond mean returns
+  \end{itemize}
+\end{frame}
+
+\section{Hallucination in Financial Contexts}
+
+\begin{frame}{Hallucination in Financial Contexts}
+  \begin{itemize}
+    \item LLMs fabricate citations, invent numerical figures, and hallucinate company details
+    \item Retrieval-Augmented Generation (RAG) grounds outputs in verified source documents
+    \item Retrieval verification and tool use add an additional layer of factual grounding
+    \item Domain-specific hallucination benchmarks are needed to measure and compare risk
+  \end{itemize}
+\end{frame}
+
+\end{document}

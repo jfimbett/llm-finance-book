@@ -108,3 +108,4 @@
 | 2026-05-29 | 3 files | docs: add illustration exercises implementation plan;chore: session log 2026-05-29;docs: add illustration exercises design spec; | — |
 | 2026-05-30 | 12 files | fix: correct includegraphics paths and fix float placement outside tcolorbox environments;chore: add run_illustrations.sh master script for all 7 chapters;feat(ch07): add LLM benchmark comparison illustration exercise; | — |
 | 2026-05-30 | 12 files | chore: session log 2026-05-30;fix: correct includegraphics paths and fix float placement outside tcolorbox environments;chore: add run_illustrations.sh master script for all 7 chapters; | — |
+| 2026-05-30 | 11 files | chore: session log 2026-05-30;chore: session log 2026-05-30;fix: correct includegraphics paths and fix float placement outside tcolorbox environments; | — |

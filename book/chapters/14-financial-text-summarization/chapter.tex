@@ -438,6 +438,12 @@ management's interpretation of performance and forward guidance. \citet{loughran
 established that the linguistic properties of the MD\&A---tone, readability, length---carry
 measurable signals about future earnings and returns. Summarizing the MD\&A faithfully
 while preserving its quantitative claims is therefore a high-value task.
+Lehner \cite{Lehner2024} illustrates the expressive reach of LLM-based summarization
+from the opposite direction: by rewriting 10-K and 10-Q filings with deliberately
+altered tone, he demonstrates measurable sentiment shifts in the re-generated text,
+which implies that summarization and paraphrase generation interact directly with the
+disclosure language of SEC filings and that tone-preservation constraints must be
+explicit components of any faithful summarization prompt.
 
 A common pipeline architecture for 10-K summarization consists of three stages:
 
@@ -530,7 +536,22 @@ The dataset is notable for two properties. First, the target summaries are genui
 abstractive: the human annotators rewrote the key facts rather than extracting sentences.
 Second, the source documents are substantially longer than those in general-domain
 benchmarks such as CNN/DailyMail, making ECTSum a useful stress test for long-document
-models.
+models. Cook et al.\ \cite{CookKazinnik2023} complement this benchmark perspective with
+a practical evaluation of local (on-premise) LLMs on bank earnings call transcripts,
+assessing tone extraction, topic modeling, sentiment analysis, and temporal orientation
+side by side; their results provide a resource-conscious alternative to proprietary
+API-based pipelines for institutions that cannot transmit sensitive transcripts to
+third-party servers.
+The informational stakes of earnings-call summarization are quantified by Siano
+\cite{Siano2025}, who shows that LLM-based contextual text representations of earnings
+press releases and conference calls explain three times more variation in short-window
+stock returns than dictionary or non-LLM methods, directly measuring the additional
+information content that LLM summarization captures relative to simpler text approaches.
+Ernstberger and Nazemi \cite{ErnstbergerNazemi2025} provide further evidence of the
+downstream value of this information: by extracting transparency, tone, and emotion
+signals from earnings call transcripts with LLMs, they demonstrate that these signals
+predict corporate bond recovery rates in default scenarios, validating LLM-based
+earnings-call information extraction for credit-risk applications.
 
 S-1 registration statements, filed when a company first registers securities with the
 SEC, are even longer: a technology company S-1 can exceed 300,000 words. Summarising
@@ -593,6 +614,15 @@ structured XBRL data. Footnotes, which contain information about accounting poli
 choices, litigation contingencies, and segment disaggregations, are often only partially
 tagged. The practitioner must therefore combine XBRL extraction for core financial
 statement figures with NLP-based extraction for the surrounding narrative.
+Li et al.\ \cite{LiGao2023} demonstrate that a prompt-engineering framework can
+achieve 96--99.5\% accuracy when extracting key financial indicators from
+PDF-formatted unstructured sources, establishing a practical performance benchmark
+for LLM-based financial data extraction pipelines that supplement the structured
+XBRL layer. Shaffer and Wang \cite{ShafferWang2024} extend this logic to non-recurring
+items: by applying sequential prompting to 10-K filings, they identify and aggregate
+transitory charges to measure core earnings, showing that LLM-assisted extraction
+from SEC disclosures outperforms traditional accounting metrics in forecasting
+persistent earnings.
 
 % ---------------------------------------------------------------------------
 \subsection{LLMs for Financial Table Understanding and Parsing}
@@ -734,7 +764,14 @@ Neither ROUGE nor BERTScore measures factual correctness. A summary that states 
 correct financial facts in different words receives a deserved high BERTScore. But a
 summary that invents a plausible-sounding figure---``revenue grew 15\%'' when the true
 figure was 13\%---may still receive a high ROUGE or BERTScore if the surrounding language
-is similar to the reference. \textbf{Factual consistency metrics} are designed to catch
+is similar to the reference. The deeper problem is that even when evaluation metrics look
+satisfactory, the underlying outputs may be inconsistent across runs. Wang and Wang
+\cite{WangWang2025} provide the first systematic assessment of consistency and
+reproducibility of LLM outputs across summarization, classification, and text generation
+tasks on financial texts including MD\&As, FOMC statements, and earnings transcripts;
+their findings directly inform quality-assurance design for production information
+extraction systems by cataloguing the conditions under which outputs are stable and where
+stochastic variation undermines reliability. \textbf{Factual consistency metrics} are designed to catch
 these errors. The FactCC model \citep{kryscinski2020evaluating} trains a natural language
 inference (NLI) classifier to predict whether each claim in the candidate summary is
 \emph{entailed} by the source document. For financial summaries, entailment can be

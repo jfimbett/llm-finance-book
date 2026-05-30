@@ -877,7 +877,7 @@ it to a deterministic computational tool.
 The \emph{code interpreter} pattern allows an LLM to generate executable code,
 submit it to a sandboxed Python interpreter, receive the output, and incorporate
 it into its reasoning. This approach has been formalised in systems such as
-Toolformer \citep{schick2024toolformer}, which demonstrated that models can
+Toolformer \citep{schick2023toolformer}, which demonstrated that models can
 learn to decide when to call external tools by observing how tool use reduces
 prediction loss.
 
@@ -1226,6 +1226,34 @@ the downside scenario, and frames the upside drivers. This narrative synthesis
 is where LLMs genuinely augment analyst productivity---producing a first-draft
 investment write-up that would otherwise take an analyst several hours.
 \end{deepdive}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.86\textwidth]{figures/fig_illustration}
+  \caption{DCF sensitivity heatmap for Apple Inc.\ (AAPL).
+           Each cell shows the implied enterprise value in \$B from the Gordon
+           Growth terminal value formula $\mathrm{EV} = \mathrm{FCF}(1+g)/(\mathrm{WACC}-g)$,
+           evaluated at the most recently reported free cash flow.
+           Colour encodes value on a green (high) to red (low) scale.
+           The heatmap reveals the non-linear sensitivity of terminal value to
+           the WACC--$g$ spread: small changes near the lower-right corner
+           (low WACC, high growth) produce large swings in enterprise value.}
+  \label{fig:ch05-illustration}
+\end{figure}
+
+\begin{exercise}[Illustration: DCF Sensitivity Analysis]
+\label{ex:ch05-illustration}
+Using Apple's most recent free cash flow retrieved via \texttt{yfinance}, reproduce
+Figure~\ref{fig:ch05-illustration} with WACC ranging over $[6\%, 14\%]$ and
+terminal growth rate $g$ over $[1\%, 4\%]$.
+(\textit{a})~Identify the cell with the highest sensitivity to a 1\,pp change
+in WACC (i.e.\ the largest row-to-row value difference) and explain intuitively
+why sensitivity is highest in that region.
+(\textit{b})~Extend the grid to WACC $\in [4\%, 18\%]$ and find the
+$(\mathrm{WACC}, g)$ pair that matches AAPL's current market capitalisation.
+See \texttt{code/notebooks/05-business-valuation/exercises.ipynb},
+Illustration Exercise.
+\end{exercise}
 
 % --- Section: Comparable Selection Using LLMs ---
 

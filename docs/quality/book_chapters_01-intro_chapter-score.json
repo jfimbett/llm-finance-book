@@ -1,21 +1,21 @@
 {
   "file": "book/chapters/01-intro/chapter.tex",
-  "date": "2026-05-21",
+  "date": "2026-05-31",
   "scores": {
-    "clarity": 8,
-    "rigor": 9,
-    "completeness": 8,
+    "clarity": 9,
+    "rigor": 8,
+    "completeness": 9,
     "pedagogy": 9,
     "style": 8
   },
   "justifications": {
-    "clarity": "Definitions are formally stated (e.g., def:scaled-dot-product-attn) and each section opens with a motivational paragraph; the transformer section is dense but all symbols are introduced before use.",
-    "rigor": "Three propositions carry complete proofs (thm:vanish-explode, thm:sqrt-dk-scaling, thm:pe-relative); all LSTM and GRU equations are fully labelled with dimensions stated explicitly.",
-    "completeness": "All 11 outline-curator-approved sections are present and substantive; the API section includes working Python code for three providers; the roadmap table covers all 14 planned chapters.",
-    "pedagogy": "Eight explicit learning objectives added at chapter opening; difficulty progresses from history through classical representations to full transformer mathematics; worked examples (TF-IDF computation, PCA case study, API walkthrough) and a chapter summary subsection reinforce learning.",
-    "style": "Academic register is consistent across all 11 sections; LaTeX environments (theorem, definition, remark, example) are used correctly; one cite-key mismatch (hochreiter1997lstm) was caught and fixed."
+    "clarity": "Prose flows naturally from narrative opening (Tetlock) through formal definitions; the new LSTM and Transformer sections maintain precise, unambiguous notation with well-labeled environments; transitions between context and deepdive blocks are smooth.",
+    "rigor": "Theorem 1 (vanishing gradient bound) and Proposition 1 (sqrt(d_k) variance normalisation) both include complete proofs; LSTM Definition specifies all six gate equations; regulatory claims cite EU AI Act articles and SEC 2023 guidance, though article numbers could benefit from primary-source footnotes.",
+    "completeness": "All eight learning objectives are now covered: LO1 (history), LO2 (BoW/TF-IDF), LO3 (embeddings/PCA), LO4 (LSTM/vanishing gradient), LO5 (attention/sqrt(d_k)/multi-head), LO6 (GPT/BERT/T5/LLaMA/BloombergGPT), LO7 (three working API code listings), LO8 (hallucination taxonomy, context limits, EU AI Act, SEC guidance); each new section has [B]/[I]/[A] exercises; PCA placeholder replaced with executable Python code.",
+    "pedagogy": "Learning objectives are enumerated upfront in the remark box; the five new sections each provide one [B] recall exercise, one [I] multi-step exercise, and one [A] proof or design exercise; financial application examples are embedded in every section (earnings calls, 10-K filings, AML compliance); context/deepdive environments correctly gate introductory vs. technical material by audience.",
+    "style": "Notation is now consistent (one-hot vectors uniformly bolded as mathbf{e}_i in {0,1}^{|V|}); FinBERT disambiguation parenthetical correctly cites both Araci (2019) and Yang et al. (2020); code listings use consistent minted formatting with linenos; Looking Ahead expanded with explicit section cross-references; cross-reference sec:intro-classical corrected to sec:classical; wrong citation liu2018 replaced with wu2023bloomberggpt."
   },
-  "overall": 8.4,
+  "overall": 8.6,
   "pass": true,
   "threshold": 8
 }

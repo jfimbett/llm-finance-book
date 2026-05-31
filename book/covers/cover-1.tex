@@ -1,0 +1,113 @@
+% Cover 1: "Neural Night" — Dark navy, golden neural network, candlestick silhouettes
+\documentclass[tikz,border=0mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{calc,positioning,decorations.pathreplacing,fadings}
+\usepackage{xcolor}
+\usepackage[T1]{fontenc}
+
+\definecolor{navydark}{RGB}{10,18,35}
+\definecolor{navymid}{RGB}{18,30,58}
+\definecolor{gold}{RGB}{212,168,65}
+\definecolor{goldlight}{RGB}{240,200,100}
+\definecolor{goldpale}{RGB}{255,230,160}
+\definecolor{textwhite}{RGB}{240,238,230}
+\definecolor{textgray}{RGB}{160,155,145}
+
+\begin{document}
+\begin{tikzpicture}
+  % --- background ---
+  \fill[navydark] (0,0) rectangle (15.24,22.86);
+  % subtle gradient band in middle
+  \foreach \y in {7,7.1,...,15}{
+    \pgfmathsetmacro{\op}{0.03*(15-\y)}
+    \fill[navymid,opacity=\op] (0,\y) rectangle (15.24,\y+0.15);
+  }
+
+  % --- candlestick silhouettes (background, very subtle) ---
+  \foreach \x/\h/\body/\dir in {
+    1.0/3.2/1.8/up, 2.0/2.8/1.4/down, 3.2/4.1/2.2/up,
+    4.2/3.5/1.9/down, 5.4/5.0/2.8/up, 6.3/4.2/2.1/up,
+    7.5/3.8/2.0/down, 8.6/4.8/2.6/up, 9.7/5.5/3.0/up,
+    10.8/4.0/2.2/down, 12.0/5.8/3.2/up, 13.2/5.0/2.7/up,
+    14.2/4.5/2.4/down
+  }{
+    \pgfmathsetmacro{\wick}{\h*0.5+3.5}
+    \pgfmathsetmacro{\bodybot}{4.0}
+    \ifnum\pdfstrcmp{\dir}{up}=0
+      \fill[gold,opacity=0.12] (\x-0.25,\bodybot) rectangle (\x+0.25,\bodybot+\body);
+      \draw[gold,opacity=0.15,line width=0.4pt] (\x,\bodybot+\body) -- (\x,\bodybot+\h*0.6);
+      \draw[gold,opacity=0.15,line width=0.4pt] (\x,\bodybot) -- (\x,\bodybot-0.4);
+    \else
+      \fill[navymid,opacity=0.5] (\x-0.25,\bodybot) rectangle (\x+0.25,\bodybot+\body);
+      \draw[gold,opacity=0.1,line width=0.8pt] (\x-0.25,\bodybot) rectangle (\x+0.25,\bodybot+\body);
+      \draw[gold,opacity=0.12,line width=0.4pt] (\x,\bodybot+\body) -- (\x,\bodybot+\h*0.6);
+      \draw[gold,opacity=0.12,line width=0.4pt] (\x,\bodybot) -- (\x,\bodybot-0.4);
+    \fi
+  }
+
+  % --- neural network (central motif) ---
+  % Layer 1: 4 input nodes at x~3
+  \foreach \y/\i in {10.5/1, 12.0/2, 13.5/3, 15.0/4}{
+    \node[circle,fill=gold,opacity=0.7,minimum size=6pt,inner sep=0] (n1\i) at (3.2,\y) {};
+  }
+  % Layer 2: 6 hidden nodes at x~6.5
+  \foreach \y/\i in {9.5/1, 10.8/2, 12.0/3, 13.2/4, 14.5/5, 15.8/6}{
+    \node[circle,fill=gold,opacity=0.75,minimum size=7pt,inner sep=0] (n2\i) at (6.5,\y) {};
+  }
+  % Layer 3: 6 hidden nodes at x~9.8
+  \foreach \y/\i in {9.5/1, 10.8/2, 12.0/3, 13.2/4, 14.5/5, 15.8/6}{
+    \node[circle,fill=goldlight,opacity=0.8,minimum size=7pt,inner sep=0] (n3\i) at (9.8,\y) {};
+  }
+  % Layer 4: 3 output nodes at x~12.8
+  \foreach \y/\i in {11.0/1, 12.8/2, 14.5/3}{
+    \node[circle,fill=goldpale,opacity=0.9,minimum size=8pt,inner sep=0] (n4\i) at (12.8,\y) {};
+  }
+
+  % edges layer 1->2
+  \foreach \a in {1,2,3,4}{
+    \foreach \b in {1,2,3,4,5,6}{
+      \draw[gold,opacity=0.12,line width=0.3pt] (n1\a) -- (n2\b);
+    }
+  }
+  % edges layer 2->3
+  \foreach \a in {1,2,3,4,5,6}{
+    \foreach \b in {1,2,3,4,5,6}{
+      \draw[gold,opacity=0.10,line width=0.3pt] (n2\a) -- (n3\b);
+    }
+  }
+  % edges layer 3->4
+  \foreach \a in {1,2,3,4,5,6}{
+    \foreach \b in {1,2,3}{
+      \draw[gold,opacity=0.18,line width=0.4pt] (n3\a) -- (n4\b);
+    }
+  }
+
+  % --- horizontal rule ---
+  \draw[gold,opacity=0.6,line width=0.6pt] (1.2,8.2) -- (14.0,8.2);
+  \draw[gold,opacity=0.25,line width=0.3pt] (1.2,8.0) -- (14.0,8.0);
+
+  % --- title text ---
+  \node[anchor=west,text=textwhite,font=\fontsize{22}{26}\selectfont\sffamily\bfseries]
+    at (1.2,20.8) {Large Language};
+  \node[anchor=west,text=textwhite,font=\fontsize{22}{26}\selectfont\sffamily\bfseries]
+    at (1.2,19.6) {Models in};
+  \node[anchor=west,text=gold,font=\fontsize{22}{26}\selectfont\sffamily\bfseries]
+    at (1.2,18.4) {Finance};
+
+  % --- thin decorative top bar ---
+  \fill[gold,opacity=0.9] (0,22.5) rectangle (15.24,22.86);
+  \fill[navydark] (0,22.52) rectangle (15.24,22.84);
+  \fill[gold,opacity=0.9] (0,22.6) rectangle (15.24,22.7);
+
+  % --- author ---
+  \node[anchor=west,text=goldpale,font=\fontsize{11}{13}\selectfont\sffamily]
+    at (1.2,7.2) {Juan F.\ Imbet};
+  \node[anchor=west,text=textgray,font=\fontsize{9}{11}\selectfont\sffamily]
+    at (1.2,6.5) {Paris Dauphine -- PSL University};
+
+  % --- small bottom accent ---
+  \fill[gold,opacity=0.6] (0,0) rectangle (15.24,0.3);
+  \fill[navydark] (0,0.05) rectangle (15.24,0.25);
+
+\end{tikzpicture}
+\end{document}

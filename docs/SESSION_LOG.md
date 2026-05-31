@@ -123,3 +123,4 @@
 | 2026-05-31 | 7 files | feat(ch09): cite author's two textual analysis papers;chore: session log 2026-05-31;chore: session log 2026-05-31; | — |
 | 2026-05-31 | 4 files | fix(bib): strip SSRN fields from published papers; run full audit;chore: session log 2026-05-31;feat(ch09): cite author's two textual analysis papers; | — |
 | 2026-05-31 | 4 files | chore: session log 2026-05-31;fix(bib): strip SSRN fields from published papers; run full audit;chore: session log 2026-05-31; | — |
+| 2026-05-31 | 4 files | chore: session log 2026-05-31;chore: session log 2026-05-31;fix(bib): strip SSRN fields from published papers; run full audit; | — |

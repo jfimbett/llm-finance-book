@@ -117,3 +117,4 @@
 | 2026-05-30 | 6 files | fix: remove duplicate bib entries introduced by parallel weave agents;feat(ch10): enrich with SSRN working papers;feat(ch09): enrich with SSRN working papers; | — |
 | 2026-05-30 | 13 files | fix: remove 13 duplicate bib entries and canonicalize all cite keys to prevent double-name disambiguation;chore: session log 2026-05-30;fix: remove duplicate bib entries introduced by parallel weave agents; | — |
 | 2026-05-30 | 16 files | fix: replace author-name + bare \cite with \citet throughout to eliminate double-name citation display;chore: session log 2026-05-30;fix: remove 13 duplicate bib entries and canonicalize all cite keys to prevent double-name disambiguation; | — |
+| 2026-05-31 | 22 files | feat(config): add cover-designer agent and book cover designs;chore: session log 2026-05-30;fix: replace author-name + bare \cite with \citet throughout to eliminate double-name citation display; | — |

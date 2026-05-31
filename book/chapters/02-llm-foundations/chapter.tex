@@ -136,7 +136,7 @@ frequent in the document and down-weighting common uninformative words.
 \begin{definition}[TF-IDF Weighted Embedding]
 \label{def:tfidf-embedding}
 Let $\text{tfidf}(w_i, d)$ denote the TF-IDF weight of token $w_i$
-in document $d$ (see Section~\ref{sec:classical-tfidf}).  The
+in document $d$ (see Section~\ref{sec:classical-tfidf} of Chapter~1).  The
 \emph{TF-IDF weighted embedding} is
 \begin{equation}
   \boldsymbol{\varphi}_{\mathrm{tfidf}}(d)
@@ -320,9 +320,9 @@ benchmark all three on their specific downstream task.
 
 \begin{deepdive}
 
-The representations developed in Sections~\ref{sec:embeddings} and~\ref{sec:doc-repr}
-treat documents as \emph{bags} of tokens: order is either ignored or captured only
-crudely through $n$-gram features.
+The representations developed in Chapter~1 (Section~\ref{sec:embeddings}) and
+Section~\ref{sec:doc-repr} of this chapter treat documents as \emph{bags} of tokens:
+order is either ignored or captured only crudely through $n$-gram features.
 Financial text, however, is inherently sequential.
 An earnings-call transcript unfolds over time; a regulatory filing builds an argument
 across hundreds of sentences; the sentiment of \textit{the company did not miss its
@@ -1049,7 +1049,7 @@ the answer tokens $\mathbf{a}$:
 \end{equation}
 The trace $\mathbf{r}$ may be exposed to the user (as in OpenAI o1/o3 and
 DeepSeek-R1) or kept internal (as in the \emph{extended thinking} mode of
-Claude 3.7/4.x).  In either case, the effective compute invested per query is
+Claude).  In either case, the effective compute invested per query is
 substantially larger than in standard autoregressive generation.
 
 \emph{Note on marginalisation.}  Equation~\eqref{eq:cot} shows \emph{exact}
@@ -1575,6 +1575,7 @@ earnings figure, and a currency code.
 
 \begin{listing}[htbp]
 \begin{minted}{python}
+# requires: pip install outlines>=0.1  (API may vary by version)
 import outlines
 import outlines.models as models
 import outlines.samplers as samplers
@@ -2172,7 +2173,7 @@ softmax distributions (Definition~\ref{def:temperature}) of the teacher and stud
 $\alpha \in [0,1]$ balances the hard-label cross-entropy and the soft-label KL
 divergence, and $\tau^2$ re-scales the gradient magnitude (since temperature scaling
 reduces gradient magnitudes by $1/\tau^2$, the factor restores them to the
-scale of the cross-entropy term).
+scale of the cross-entropy term \citep{hinton2015distilling}).
 \end{definition}
 
 \begin{remark}[Forward versus Reverse KL in Distillation]
@@ -2191,7 +2192,7 @@ next tokens.
 \end{remark}
 
 In the financial domain, a common distillation scenario is the following: a large
-general-purpose model ($\text{e.g.}$, 70B parameters) is used as teacher on a curated
+general-purpose model (e.g., 70B parameters) is used as teacher on a curated
 dataset of annotated financial documents; a smaller student model (7B or 13B
 parameters) is trained on the same data with the additional KL term in
 \eqref{eq:kd-loss}.  The student inherits the teacher's implicit knowledge of

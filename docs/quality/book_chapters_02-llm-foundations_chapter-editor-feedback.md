@@ -38,3 +38,13 @@
 - [x] **B1 — Roadmap table off-by-one** (tab:roadmap, row "2"): Incremented all chapter rows by 1 (2→3 through 14→15). Updated the prose below the table to match (Chapters 3–5 for text sources, 6–7 for adaptation strategies, etc.).
 - [x] **B2 — Three regulatory citations are comment placeholders**: Added `gdpr2016` and `sec2023ai` bib entries. The existing `euaiact2024` key was used (comments had a variant key name `eu-ai-act-2024`). Replaced all three `% [CITE: ...]` comment lines with live `\citep{}` calls.
 - [x] **B3 — Llama 3 GPU memory citation is a comment**: Replaced `% [CITE: touvron2023llama]` comment with `\citep{touvron2023llama}` inline in the text.
+
+---
+
+## Revision Round 4 — Minor polish (final gate: 8.6/10 PASS, 0 BLOCKERs, peer MINOR_REVISION → READY_TO_RELEASE)
+
+- [x] **m7 — M1/M2 inter-chapter refs**: Added "of Chapter~1" qualifier to `\ref{sec:classical-tfidf}` and "Chapter~1 (Section~\ref{sec:embeddings}) and" qualifier to the doc-repr reference, making inter-chapter nature explicit for standalone readers.
+- [x] **m8 — M4 outlines API version**: Added `# requires: pip install outlines>=0.1` comment to grammar listing.
+- [x] **m9 — M7 KD gradient rescaling missing citation**: Added `\citep{hinton2015distilling}` to the τ² gradient magnitude sentence.
+- [x] **m10 — M8 math-mode e.g.**: Changed `($\text{e.g.}$, 70B...)` to `(e.g., 70B...)`.
+- [x] **m11 — M9 Claude version**: Removed stale "3.7/4.x" version tag — now reads "Claude" (model-version-agnostic).

@@ -1147,13 +1147,12 @@ compliance policies, GDPR obligations, or NDA terms.  Second, there is an
 \emph{auditability} concern: the model's exact behaviour cannot be reproduced or
 independently audited.
 
-Open-weight models such as Llama~3 (Meta, released under a community licence) address
+Open-weight models such as Llama~3 \citep{touvron2023llama} (Meta, released under a community licence) address
 both concerns: they can be deployed on-premises, fine-tuned on proprietary data
 without data leaving the organisation, and their inference behaviour can be exactly
 reproduced given the same random seed.  The trade-off is that the largest open models
 require substantial GPU infrastructure (a 405-billion-parameter model at 16-bit
 precision requires approximately 810~GB of GPU memory).
-% [CITE: touvron2023llama]
 
 BloombergGPT~\cite{wu2023bloomberggpt} % [CITE: wu2023bloomberggpt Wu et al. 2023]
 was trained on 363 billion financial tokens (news, filings, analyst reports) alongside
@@ -2490,8 +2489,7 @@ jurisdiction.
 \end{remark}
 
 The European Union's AI Act (Regulation 2024/1689), which entered into force in
-August 2024, establishes a risk-based classification for AI systems.
-% [CITE: eu-ai-act-2024]
+August 2024, establishes a risk-based classification for AI systems \citep{euaiact2024}.
 AI systems used for credit scoring, insurance risk assessment, pricing of life
 insurance products, and AI-assisted securities pricing fall into the \emph{high-risk}
 category (Annex III).  High-risk systems are subject to mandatory conformity
@@ -2504,8 +2502,7 @@ mechanisms ensuring human oversight before market deployment.
 In the United States, the Securities and Exchange Commission has issued staff guidance indicating that
 investment advisers using AI-generated research must demonstrate that reasonable care
 was exercised in evaluating the AI's output, and that AI-generated recommendations are
-consistent with the adviser's fiduciary duty to clients.
-% [CITE: sec2023ai]
+consistent with the adviser's fiduciary duty to clients \citep{sec2023ai}.
 The \emph{fiduciary duty} question is particularly acute: whether an LLM's output
 constitutes a ``recommendation'' under the Investment Advisers Act of 1940 has not
 been definitively resolved by case law, but the SEC's enforcement posture has been to
@@ -2525,8 +2522,7 @@ any information the model might have memorised is treated as contaminated.
 
 Fine-tuning or retrieval-augmented generation on proprietary client data---transaction
 histories, portfolio compositions, know-your-customer (KYC) files---raises significant
-obligations under the General Data Protection Regulation (GDPR, EU 2016/679).
-% [CITE: gdpr2016]
+obligations under the General Data Protection Regulation \citep{gdpr2016} (GDPR, EU 2016/679).
 Key issues include: (a) whether training on personal data requires explicit consent;
 (b) the right to erasure and whether a model trained on a data subject's information
 can comply with an erasure request without full retraining; (c) data-transfer
@@ -2677,45 +2673,45 @@ multi-agent workflows.
 \hline
 \textbf{Ch.} & \textbf{Title} & \textbf{Key Connection to Ch.~2} \\
 \hline
-2  & Sentiment Analysis
+3  & Sentiment Analysis
    & FinancialPhraseBank; temperature; FinBERT vs.\ GPT-4o \\
-3  & Information Extraction from Filings
+4  & Information Extraction from Filings
    & FinQA; grounding and citation to reduce hallucination \\
-4  & Earnings Calls and Transcripts
+5  & Earnings Calls and Transcripts
    & ECTSum; context-window limits; cost model \\
-5  & Retrieval-Augmented Generation
+6  & Retrieval-Augmented Generation
    & RAG as hallucination mitigation; context-window architecture \\
-6  & Fine-tuning LLMs on Financial Data
+7  & Fine-tuning LLMs on Financial Data
    & Instruction tuning; RLHF; GDPR considerations \\
-7  & AI Agents in Finance
+8  & AI Agents in Finance
    & Reasoning models; agentic loops; fiduciary questions \\
-8  & Multi-Agent Systems and Workflows
+9  & Multi-Agent Systems and Workflows
    & Chain-of-thought; multi-agent coordination protocols \\
-9  & Risk and Compliance Applications
+10 & Risk and Compliance Applications
    & EU AI Act; hallucination auditing; on-premises deployment \\
-10 & Portfolio Construction with LLMs
+11 & Portfolio Construction with LLMs
    & Cost-latency trade-offs; structured output from LLMs \\
-11 & Trading Systems and Execution
+12 & Trading Systems and Execution
    & Real-time latency; reasoning vs.\ generative model choice \\
-12 & Regulatory Technology
+13 & Regulatory Technology
    & Geographic bias; MiFID~II / IFRS; GDPR in practice \\
-13 & Evaluation and Benchmarking
+14 & Evaluation and Benchmarking
    & FLUE; cross-lingual evaluation; bias quantification \\
-14 & Frontiers and Future Directions
+15 & Frontiers and Future Directions
    & Scaling laws; multimodal models; next-generation reasoning \\
 \hline
 \end{tabular}
 \end{table}
 
 Each chapter is self-contained enough to be read independently, but the sequence is
-deliberate.  Chapters~2--4 address the three core financial text sources (news,
+deliberate.  Chapters~3--5 address the three core financial text sources (news,
 filings, transcripts) and establish empirical baselines that later chapters build upon.
-Chapters~5--6 introduce the two principal adaptation strategies (retrieval and
+Chapters~6--7 introduce the two principal adaptation strategies (retrieval and
 fine-tuning) that transform raw LLM capabilities into production-grade financial NLP
-systems.  Chapters~7--8 extend the paradigm from single models to agentic systems
-capable of multi-step reasoning and action.  Chapters~9--12 turn to the institutional
-and regulatory dimensions that govern real-world deployment.  Chapter~13 provides a
-unified evaluation framework, and Chapter~14 surveys open research questions at the
+systems.  Chapters~8--9 extend the paradigm from single models to agentic systems
+capable of multi-step reasoning and action.  Chapters~10--13 turn to the institutional
+and regulatory dimensions that govern real-world deployment.  Chapter~14 provides a
+unified evaluation framework, and Chapter~15 surveys open research questions at the
 frontier.
 
 The thread running through all chapters is the one introduced here: language models

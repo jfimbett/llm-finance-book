@@ -28,3 +28,13 @@
 
 - [x] **S1 — Dangling internal reference** (line ~1073): `\ref{sec:limitations-hallucinations}` → `\ref{sec:hallucinations}` (correct label in this file).
 - [x] **S2 — Missing exercises with difficulty tags** (completeness/pedagogy 7/10): Added `\textbf{[I]}` tag to existing exercise (ex:ch02-illustration). Added 5 new exercises: [B] scaled attention numerical example, [B] sampling strategy selection, [I] LoRA parameter budget, [I] SBERT embedding pipeline, [A] hallucination audit of RAG pipeline. Chapter now has 1 [I] (existing) + 2 [B] + 2 [I] + 1 [A] = 6 exercises with full coverage of all difficulty levels.
+
+---
+
+## Revision Round 3 — Issues from Full Review Gate (8.4/10 PASS, 3 BLOCKERs → NEEDS_REVISION)
+
+### BLOCKER
+
+- [x] **B1 — Roadmap table off-by-one** (tab:roadmap, row "2"): Incremented all chapter rows by 1 (2→3 through 14→15). Updated the prose below the table to match (Chapters 3–5 for text sources, 6–7 for adaptation strategies, etc.).
+- [x] **B2 — Three regulatory citations are comment placeholders**: Added `gdpr2016` and `sec2023ai` bib entries. The existing `euaiact2024` key was used (comments had a variant key name `eu-ai-act-2024`). Replaced all three `% [CITE: ...]` comment lines with live `\citep{}` calls.
+- [x] **B3 — Llama 3 GPU memory citation is a comment**: Replaced `% [CITE: touvron2023llama]` comment with `\citep{touvron2023llama}` inline in the text.

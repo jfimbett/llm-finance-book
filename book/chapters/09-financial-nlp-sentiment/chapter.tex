@@ -259,6 +259,10 @@ The finance and investing communities on social media are large and active. As o
 
 \citet{cookson2020echo} studied disagreement among investors on StockTwits --- a platform where users explicitly tag posts as bullish or bearish --- and found that the dispersion of opinions across users predicts subsequent trading volume and bid-ask spreads, consistent with models where heterogeneous beliefs drive trading.
 
+Moving beyond individual stocks, \citet{gilbazo2025tweeting} combined a database of over 1.6 million posts on Twitter/X by U.S.\ mutual fund families with textual analysis of post tone and volume, finding that asset managers' social media communications positively predict fund inflows: both the quantity and the sentiment of posts shift capital allocation in the direction managers signal, with tone effects that survive controls for fund performance and advertising. The result is among the first to document a causal channel from financial-firm text communications to investor behaviour at scale.
+
+In the domain of financial stability, \citet{cookson2026bankrun} showed that social media can catalyse bank runs. During the Silicon Valley Bank collapse of March 2023, banks with high pre-existing Twitter exposure lost 4.3 percentage points more stock market value in the crisis window, a result obtained by combining large-scale textual analysis of Twitter posts with high-frequency bank stock and deposit data. The paper establishes a mechanism --- coordinated depositor panic transmitted through social media --- that lexicon-based and LLM sentiment scores can jointly detect, and provides a natural use case for the real-time streaming inference pipelines described in Section~\ref{sec:ch09-inference-at-scale}.
+
 \subsubsection*{The WallStreetBets (WSB) Phenomenon}
 
 The January 2021 GameStop episode brought WSB into mainstream financial discourse. Academic work on the event confirmed that coordinated retail sentiment expressed on WSB preceded the dramatic price movements in GME, AMC, and other ``meme stocks'' by one to two days, and that the mechanism operated partly through options markets --- positive WSB sentiment was associated with elevated call option demand, which in turn induced gamma-hedging by market makers, amplifying price moves \cite{da2015sum}.
@@ -598,6 +602,8 @@ This chapter developed the methodology for treating financial language as a data
 \label{sec:ch09-further-reading}
 
 The two surveys that best cover this field are \citet{kearney2014textual}, which reviews both the lexicon-based and early machine-learning literature systematically, and \citet{loughran2020textual}, which provides an authoritative account of textual analysis in corporate finance with emphasis on the issues specific to SEC filings. \citet{tetlock2007giving} and \citet{loughran2011liability} are the founding empirical papers for their respective methodologies and remain essential reading.
+
+For social media applications specifically, \citet{gilbazo2025tweeting} is the reference on how asset managers' Twitter communications affect mutual fund flows; \citet{cookson2026bankrun} provides the cleanest evidence on social media as a systemic financial-stability risk, and together these two papers bracket the range of channels --- routine capital allocation at one end, acute bank-run dynamics at the other --- through which social media text shapes financial outcomes.
 
 On the NLP side, \citet{araci2019finbert} and \citet{huang2023finbert} document the FinBERT line of models with careful ablation studies. \citet{ko2024can} provide the most systematic comparison of LLM zero-shot performance against fine-tuned baselines.
 

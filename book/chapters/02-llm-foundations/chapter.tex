@@ -232,10 +232,14 @@ $n$-token input sequence (including special tokens \texttt{[CLS]} and
 \begin{equation}
   \mathbf{s}
   \;=\;
-  \frac{1}{n}\sum_{i=1}^{n} \mathbf{h}_i \cdot m_i,
+  \frac{\displaystyle\sum_{i=1}^{n} \mathbf{h}_i \cdot m_i}
+       {\displaystyle\sum_{j=1}^{n} m_j},
   \label{eq:sbert-mean-pool}
 \end{equation}
-where $m_i \in \{0, 1\}$ is an attention mask excluding padding tokens.
+where $m_i \in \{0, 1\}$ is an attention mask that equals 1 for real tokens
+and 0 for padding tokens.  Dividing by $\sum_{j} m_j$ (the number of
+non-padding tokens) rather than $n$ (the full sequence length) ensures that the
+embedding magnitude does not decrease with the amount of padding.
 \end{definition}
 
 BERT's \texttt{[CLS]} token is prepended to every input sequence and
@@ -820,12 +824,13 @@ This is the direct parallel of the Bahdanau context vector $\mathbf{c}_t$
 from~\eqref{eq:context-vector}, computed in a single matrix operation.
 
 \begin{remark}
-Figure~\ref{fig:transformer-architecture} shows the architecture schematically.
-% [FIGURE: fig:transformer-architecture --- Standard Transformer encoder-decoder
-%  diagram with token embedding, positional encoding, $N$ stacked encoder layers,
-%  $N$ stacked decoder layers, and output projection.
-%  After Vaswani et al.\ (2017) Figure~1.]
-The base model uses $L = 6$ layers; the large model uses $L = 24$.
+The Transformer encoder--decoder consists of: (i) a shared token embedding and
+positional encoding (Figure~\ref{fig:ch02-illustration} illustrates the sinusoidal
+encoding); (ii) $N$ stacked encoder layers, each with multi-head self-attention
+and a position-wise feed-forward network; (iii) $N$ stacked decoder layers, each
+with masked self-attention, cross-attention over the encoder output, and a
+feed-forward network; and (iv) a linear projection to vocabulary logits followed
+by softmax.  The base model uses $L = 6$ layers; the large model uses $L = 24$.
 Modern LLMs use $L = 32$--$96$.
 \end{remark}
 
@@ -868,7 +873,7 @@ $\mathbf{x}_{\backslash\mathcal{M}}$ the unmasked context.
 Bidirectional attention means both left and right context inform each prediction.
 
 The Next Sentence Prediction (NSP) objective uses a \texttt{[CLS]} binary head to predict whether sentence $B$ follows sentence $A$.
-\citet{liu2018} % [CITE: Liu et al. 2019, RoBERTa: A Robustly Optimized BERT Pretraining Approach]
+\citet{liu2019roberta} % [CITE: Liu et al. 2019, RoBERTa: A Robustly Optimized BERT Pretraining Approach]
 later showed NSP is unhelpful and removed it in RoBERTa.
 
 \subsubsection{Causal Language Modelling: GPT}
@@ -964,7 +969,7 @@ for practitioners.
 
 \begin{exercise}[Illustration: Sinusoidal Positional Encoding]
 \label{ex:ch02-illustration}
-Reproduce Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$
+\textbf{[I]} Reproduce Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$
 and sequence length 50.
 (\textit{a})~Extract the encoding vectors for positions 5 and 10 and compute
 their cosine similarity; repeat for positions 5 and 45. Interpret the difference.
@@ -1046,6 +1051,14 @@ The trace $\mathbf{r}$ may be exposed to the user (as in OpenAI o1/o3 and
 DeepSeek-R1) or kept internal (as in the \emph{extended thinking} mode of
 Claude 3.7/4.x).  In either case, the effective compute invested per query is
 substantially larger than in standard autoregressive generation.
+
+\emph{Note on marginalisation.}  Equation~\eqref{eq:cot} shows \emph{exact}
+marginalisation over all possible reasoning traces.  In practice the model
+draws a single sample $\hat{\mathbf{r}} \sim P(\mathbf{r} \mid \mathbf{x})$,
+so inference corresponds to a Monte Carlo approximation
+$P(\mathbf{a} \mid \mathbf{x}) \approx P(\mathbf{a} \mid \mathbf{x}, \hat{\mathbf{r}})$
+with one sample.  Self-consistency decoding \citep{wang2022selfconsistency} uses
+multiple samples and majority voting to approximate the full marginal.
 \end{definition}
 
 \begin{remark}
@@ -1057,7 +1070,7 @@ a scratch-pad that can represent thousands of intermediate tokens.  This has bee
 shown to dramatically improve performance on mathematical proofs, competitive
 programming, and, increasingly, on quantitative finance tasks such as numerical
 reasoning over financial statements.  It does not, however, eliminate hallucination
-(see Section~\ref{sec:limitations-hallucinations}).
+(see Section~\ref{sec:hallucinations}).
 \end{remark}
 
 \begin{example}[Merger Valuation from an Earnings Call]
@@ -1097,8 +1110,9 @@ latency and cost of extended thinking may not be justified.
 Table~\ref{tab:model-families} provides a structured overview of the major model
 families referenced throughout this book.
 
-\begin{center}
-\captionof{table}{Major language model families relevant to financial NLP (as of 2024--2025).
+\begin{table}[htbp]
+\centering
+\caption{Major language model families relevant to financial NLP (as of 2024--2025).
 Parameter counts are approximate.  ``Finance'' indicates whether the model was
 trained or fine-tuned specifically on financial corpora.}
 \label{tab:model-families}
@@ -1116,7 +1130,7 @@ FinBERT          & Araci (2019)  & Encoder      & 110M             & Financial n
 BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ tok.  & Yes \\
 \hline
 \end{tabular}
-\end{center}
+\end{table}
 
 The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
 weights are not released, and access is mediated through pay-per-token APIs.
@@ -1183,8 +1197,9 @@ Progress in financial NLP is measured against a set of standardised benchmarks.
 Table~\ref{tab:benchmarks} summarises the major ones; all are used in evaluation
 experiments in subsequent chapters.
 
-\begin{center}
-\captionof{table}{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
+\begin{table}[htbp]
+\centering
+\caption{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
 ``Metric'' is the primary evaluation metric used in the literature.}
 \label{tab:benchmarks}
 \small
@@ -1200,7 +1215,7 @@ FinQA               & Numerical reasoning  & 8,281 Q\&A pairs  & Execution acc. 
 FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  & \cite{shah2022flue} \\
 \hline
 \end{tabular}
-\end{center}
+\end{table}
 % [CITE: malo2014good] Malo et al. (2014), FinancialPhraseBank
 % [CITE: fiqa2018] Maia et al. (2018), FiQA challenge
 % [CITE: mukherjee2022ectsum] Mukherjee et al. (2022), ECTSum
@@ -1212,7 +1227,7 @@ from English-language financial news articles, each annotated by sixteen domain 
 with one of three sentiment labels: \texttt{positive}, \texttt{negative}, or
 \texttt{neutral}.  The standard evaluation uses the subset where all annotators agreed
 (\emph{Agree-all}, 2,264 sentences), yielding a highly reliable gold standard.  This
-dataset is used in Chapter~2 as the primary benchmark for sentiment analysis experiments.
+dataset is used later in this chapter as the primary benchmark for sentiment analysis experiments.
 
 The FiQA benchmark \citep{fiqa2018} was released as part of a shared task on financial
 opinion mining.  It contains two subtasks: (SA-C) aspect-based sentiment analysis of
@@ -1399,8 +1414,9 @@ you need the model to do, and on the consequences if it gets it wrong.
 Table~\ref{tab:sampling-strategies} translates this principle into concrete
 recommendations for five common financial NLP tasks.
 
-\begin{center}
-\captionof{table}{Recommended sampling strategies for financial NLP tasks.}
+\begin{table}[htbp]
+\centering
+\caption{Recommended sampling strategies for financial NLP tasks.}
 \label{tab:sampling-strategies}
 \begin{tabular}{lllp{5cm}}
 \toprule
@@ -1429,7 +1445,7 @@ Scenario / stress-test narrative
   & Creative diversity is the point; plausibility checked post-hoc. \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table}
 
 A pragmatic rule of thumb: if the output will be compared to ground-truth values
 or fed into a downstream system that expects a specific schema, use $\tau = 0$ and
@@ -1553,6 +1569,41 @@ In financial reporting, SEC EDGAR's inline XBRL specification and MiFID~II's
 transaction reporting format both impose schemas far richer than flat JSON.  A
 constrained decoder that encodes those schemas as grammars can serve as a zero-shot
 structured extraction layer without any task-specific fine-tuning.
+
+The listing below demonstrates EBNF-constrained generation with \texttt{outlines}
+for a minimal financial reporting record containing a company ticker, a numeric
+earnings figure, and a currency code.
+
+\begin{listing}[htbp]
+\begin{minted}{python}
+import outlines
+import outlines.models as models
+import outlines.samplers as samplers
+
+# EBNF grammar for a minimal earnings record
+EARNINGS_GRAMMAR = r"""
+start: "{" ticker "," eps "," currency "}"
+ticker : "\"" /[A-Z]{1,5}/ "\""
+eps    : /[-]?[0-9]+(\.[0-9]{1,4})?/
+currency : "\"" ("USD" | "EUR" | "GBP" | "JPY") "\""
+"""
+
+model = models.transformers("mistralai/Mistral-7B-v0.1", device="cuda")
+generator = outlines.generate.cfg(model, EARNINGS_GRAMMAR,
+                                   sampler=samplers.greedy())
+
+prompt = ("Extract: 'Apple reported Q3 EPS of $1.26 (USD).'\n"
+          "JSON record:")
+result = generator(prompt)
+# result is guaranteed to match the grammar, e.g. {"AAPL",1.26,"USD"}
+print(result)
+\end{minted}
+\caption{Grammar-constrained generation for financial data extraction using
+\texttt{outlines} \citep{willard2023efficient}.  The EBNF grammar restricts
+the decoder to outputs that match the schema exactly; no post-processing or
+JSON repair is needed.}
+\label{lst:ebnf-grammar}
+\end{listing}
 
 \subsection{Why Structured Generation Is Critical in Finance}
 \label{sec:structured-gen-finance}
@@ -1797,8 +1848,9 @@ for text, res in zip(excerpts, results):
 
 Table~\ref{tab:api-comparison} summarises the key structural differences across the three ecosystems.
 
-\begin{center}
-\captionof{table}{Comparison of LLM API designs for financial NLP tasks.}
+\begin{table}[htbp]
+\centering
+\caption{Comparison of LLM API designs for financial NLP tasks.}
 \label{tab:api-comparison}
 \small
 \begin{tabular}{llll}
@@ -1814,7 +1866,7 @@ Context window  & 128K tokens & 200K tokens & 512 tokens \\
 Task type       & Generative / reasoning & Generative / reasoning & Classification \\
 \hline
 \end{tabular}
-\end{center}
+\end{table}
 
 \subsection{Cost, Latency, and Practical Considerations}
 \label{sec:api-practical}
@@ -1829,8 +1881,9 @@ where $N_{\text{in}}$, $N_{\text{out}}$ are token counts and $c_{\text{in}}$,
 $c_{\text{out}}$ are the provider's per-token prices.
 Table~\ref{tab:api-costs} gives approximate 2024 prices in USD per million tokens.
 
-\begin{center}
-\captionof{table}{Approximate 2024 API pricing.  Prices in USD per million tokens (MTok).
+\begin{table}[htbp]
+\centering
+\caption{Approximate 2024 API pricing.  Prices in USD per million tokens (MTok).
 Verify current prices on provider websites before budgeting.}
 \label{tab:api-costs}
 \small
@@ -1846,7 +1899,7 @@ Llama 3 70B (via API)  & \$0.59       & \$0.79        & E.g.\ Together AI \\
 Llama 3 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
 \hline
 \end{tabular}
-\end{center}
+\end{table}
 
 To make this concrete, suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
 each approximately 5,000 words.  At 1.3 tokens per word (see
@@ -2511,10 +2564,88 @@ merely producing text.
 \end{context}
 
 % ---------------------------------------------------------------
+\section{Exercises}
+\label{sec:ch2-exercises}
+
+\begin{exercise}[Scaled dot-product attention: numerical example]
+\label{ex:ch02-attn-b}
+\textbf{[B]} Let $d_k = 4$.  A single-head attention block receives one query
+$\mathbf{q} = [1, 0, 1, 0]^{\top}$ and two key--value pairs:
+$\mathbf{k}_1 = [1, 1, 0, 0]^{\top}$, $\mathbf{v}_1 = [1, 0]^{\top}$;
+$\mathbf{k}_2 = [0, 0, 1, 1]^{\top}$, $\mathbf{v}_2 = [0, 1]^{\top}$.
+(\textit{a})~Compute the scaled scores $s_i = \mathbf{q}^{\top}\mathbf{k}_i / \sqrt{d_k}$.
+(\textit{b})~Apply softmax to obtain attention weights $(\alpha_1, \alpha_2)$.
+(\textit{c})~Compute the context vector $\mathbf{c} = \alpha_1\mathbf{v}_1 + \alpha_2\mathbf{v}_2$.
+(\textit{d})~Explain intuitively why the $\sqrt{d_k}$ scaling improves gradient flow.
+\end{exercise}
+
+\begin{exercise}[Temperature and sampling strategy selection]
+\label{ex:ch02-sampling-b}
+\textbf{[B]} A compliance team at a hedge fund is building two LLM-assisted tools:
+(i) an extractor that pulls covenant triggers from loan agreements into a structured
+JSON record, and (ii) a scenario generator that produces plausible macroeconomic
+stress narratives for risk committee reports.
+(\textit{a})~Recommend a temperature $\tau$ and sampling strategy (greedy, top-$k$,
+or top-$p$) for each tool, with a one-sentence justification for each choice.
+(\textit{b})~For the extractor, explain why a constrained decoding approach
+(Section~\ref{sec:structured-gen}) provides additional safety beyond low temperature alone.
+\end{exercise}
+
+\begin{exercise}[LoRA parameter budget]
+\label{ex:ch02-lora-i}
+\textbf{[I]} A practitioner fine-tunes a decoder-only LLM with $d_{\text{model}} = 4{,}096$
+using LoRA with rank $r = 16$ applied to the query and value projection matrices of each
+of the $L = 32$ transformer layers.  Each projection has shape $d_{\text{model}} \times d_{\text{model}}$.
+(\textit{a})~Compute the number of trainable parameters introduced by LoRA.
+(\textit{b})~Compare this to the number of parameters in the full query and value projection
+matrices and express the reduction as a percentage.
+(\textit{c})~If the original model has 7 billion parameters total, what fraction of parameters
+are being trained under LoRA?
+(\textit{d})~Explain why even this small fraction is sufficient to achieve domain adaptation
+on financial text.
+\end{exercise}
+
+\begin{exercise}[SBERT embedding pipeline for earnings similarity]
+\label{ex:ch02-sbert-i}
+\textbf{[I]} You wish to retrieve the three most similar historical earnings call
+transcripts for a given query transcript using SBERT mean-pooling embeddings.
+(\textit{a})~Write pseudo-code (or Python using \texttt{sentence-transformers}) for
+a pipeline that: (i) encodes a corpus of 5,000 transcripts; (ii) builds a FAISS
+\texttt{IndexFlatIP} over the $\ell_2$-normalised embeddings; (iii) retrieves the
+top-3 nearest neighbours for a new query.
+(\textit{b})~Why is $\ell_2$ normalisation required when using inner-product search
+to approximate cosine similarity?
+(\textit{c})~Estimate the memory required to store 5,000 embeddings of dimension 768
+at 32-bit precision.  Would 16-bit precision be safe here, and why?
+See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.
+\end{exercise}
+
+\begin{exercise}[Hallucination audit of a RAG pipeline]
+\label{ex:ch02-rag-hallucination-a}
+\textbf{[A]} You are auditing a RAG pipeline used to answer questions about public
+company financials.  The pipeline retrieves the top-3 passages from a corpus of
+10-K filings (BM25 retrieval) and generates answers with a 7B-parameter open-weight
+model at temperature 0.
+(\textit{a})~Describe two distinct hallucination failure modes that can occur even
+when the retriever returns the correct passage.
+(\textit{b})~Design an automated hallucination-detection protocol using SelfCheckGPT
+or FActScore (Section~\ref{sec:hallucinations-detection}) that produces a per-answer
+confidence score without ground-truth labels.
+(\textit{c})~The pipeline occasionally returns a retrieved passage that contains a
+look-ahead data point (e.g.\ a 10-K filed on 2024-01-15 that references full-year
+2023 figures, while the query date is 2023-10-01).  Propose a metadata filtering
+strategy to prevent this form of temporal data leakage.
+(\textit{d})~Under the EU AI Act framework (Section~\ref{sec:limitations-ethics}),
+what transparency obligations apply when this pipeline is used to generate a report
+that informs a client investment decision?
+See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.
+\end{exercise}
+
+% ---------------------------------------------------------------
 \section{Chapter Summary}
 \label{sec:ch2-summary}
 
-\subsection*{Summary of Chapter~2}
+\subsection{Summary of Chapter~2}
 
 This chapter developed the technical and practical foundations for working with large
 language models in finance.  We traced the progression from distributional word
@@ -2535,16 +2666,16 @@ tasks (sentiment analysis, information extraction) to frontier applications (mul
 trading systems, regulatory technology), and from single-model pipelines to complex
 multi-agent workflows.
 
-\subsection*{Chapter-by-Chapter Overview}
+\subsection{Chapter-by-Chapter Overview}
 
 \begin{table}[htbp]
 \centering
-\caption{Overview of book chapters and their relationship to Chapter~1 foundations.}
+\caption{Overview of book chapters and their relationship to Chapter~2 foundations.}
 \label{tab:roadmap}
 \small
 \begin{tabular}{cll}
 \hline
-\textbf{Ch.} & \textbf{Title} & \textbf{Key Connection to Ch.~1} \\
+\textbf{Ch.} & \textbf{Title} & \textbf{Key Connection to Ch.~2} \\
 \hline
 2  & Sentiment Analysis
    & FinancialPhraseBank; temperature; FinBERT vs.\ GPT-4o \\

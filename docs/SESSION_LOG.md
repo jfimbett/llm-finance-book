@@ -120,3 +120,4 @@
 | 2026-05-31 | 22 files | feat(config): add cover-designer agent and book cover designs;chore: session log 2026-05-30;fix: replace author-name + bare \cite with \citet throughout to eliminate double-name citation display; | — |
 | 2026-05-31 | 18 files | feat(book): add back cover, about-author page; remove affiliation;chore: session log 2026-05-31;feat(config): add cover-designer agent and book cover designs; | — |
 | 2026-05-31 | 11 files | chore: session log 2026-05-31;feat(book): add back cover, about-author page; remove affiliation;chore: session log 2026-05-31; | — |
+| 2026-05-31 | 7 files | feat(ch09): cite author's two textual analysis papers;chore: session log 2026-05-31;chore: session log 2026-05-31; | — |

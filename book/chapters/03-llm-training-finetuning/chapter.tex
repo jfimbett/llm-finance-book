@@ -103,13 +103,13 @@ ingredients:
 \begin{example}[Corpus composition of a GPT-class model]
 \label{ex:corpus-composition}
 Table~\ref{tab:gpt3-corpus} reproduces the approximate data mixture reported
-for GPT-3.  Common Crawl accounts for 60\% of training tokens after filtering,
-but only 57\% of training \emph{time} because documents are sampled with
-weights that intentionally over-represent high-quality sources.  Books and
-Wikipedia together constitute fewer than 10\% of raw tokens but receive
-disproportionate sampling weight.  This mismatch between token fraction and
-sampling weight is the first example of the \emph{curriculum} concept explored
-in Section~\ref{subsec:data-mixing}.
+for GPT-3.  Common Crawl accounts for 60\% of the sampling weight despite
+containing a much larger share of raw tokens, because high-quality sources
+(Books, Wikipedia) are intentionally over-sampled relative to their raw token
+fraction.  Books and Wikipedia together constitute fewer than 10\% of raw tokens
+but receive disproportionate sampling weight.  This mismatch between raw token
+fraction and sampling weight is the first example of the \emph{curriculum}
+concept explored in Section~\ref{subsec:data-mixing}.
 
 \begin{table}[H]
   \centering
@@ -125,7 +125,7 @@ in Section~\ref{subsec:data-mixing}.
     WebText2                 &  19 & 22\% \\
     Books1                   &  12 &  8\% \\
     Books2                   &  55 &  8\% \\
-    Wikipedia                &   3 &  3\% \\
+    Wikipedia                &   3 &  2\% \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -135,10 +135,10 @@ in Section~\ref{subsec:data-mixing}.
 \subsection{Financial Data: Filings, Earnings Calls, News, and Alternative Data}
 \label{subsec:financial-data}
 
-General-purpose corpora contain remarkably little financial text.  Bloomberg
-estimates that finance-specific text --- earnings transcripts, research reports,
-regulatory filings, wire news, and market commentary --- constitutes fewer than
-0.5\% of the tokens in a typical web-crawled corpus.  This proportion is far
+General-purpose corpora contain remarkably little financial text.  Finance-specific
+text --- earnings transcripts, research reports, regulatory filings, wire news,
+and market commentary --- constitutes fewer than 0.5\% of the tokens in a typical
+web-crawled corpus \cite{wu2023bloomberggpt}.  This proportion is far
 smaller than finance's economic weight, which explains why general-purpose LLMs
 perform poorly on specialised financial tasks without domain adaptation.
 
@@ -409,7 +409,7 @@ position.
 These objectives produce architectures with fundamentally different inductive
 biases.  CLM, used by the GPT family and most modern decoder-only models,
 produces representations where every token is conditioned only on its past;
-this is ideal for generation tasks.  MLM, used by BERT \cite{yang2020finbert}
+this is ideal for generation tasks.  MLM, used by BERT \cite{devlin2019}
 and its financial variants, produces bidirectional representations that are
 richer for classification and extraction tasks but cannot generate text
 autoregressively without modification.
@@ -476,7 +476,11 @@ as power laws in compute:
 \end{align}
 Substituting the fitted Chinchilla constants, the \emph{ratio} of optimal tokens
 to optimal parameters at a reference compute budget of $C_0 = 10^{23}$ FLOPs
-satisfies empirically $D^*/N^* \approx 20$.
+satisfies $D^*/N^* \approx 78$ under the parametric model.  The widely cited
+``20 tokens per parameter'' heuristic derives from Hoffmann et al.'s IsoFLOP
+approach (Approach~1 in the original paper), which uses a different estimation
+method and yields a lower ratio at comparable compute scales; both approaches
+approximate the same underlying compute-optimal frontier.
 \end{theorem}
 
 \begin{proof}
@@ -502,10 +506,10 @@ The optimal token count follows from $D^*(C) = C/(6N^*(C))$, giving
 $D^*(C) \propto C^{\,\alpha/(\alpha+\beta)}$.
 Inserting the Chinchilla constants ($\alpha = 0.34$, $\beta = 0.28$,
 $A = 406.4$, $B = 410.7$) and evaluating at $C_0 = 10^{23}$ FLOPs gives
-$N^*(C_0) \approx 6.4 \times 10^9$ and $D^*(C_0) \approx 1.3 \times 10^{11}$,
-a ratio $D^*/N^* \approx 20$.  Because $\alpha$ and $\beta$ are close in
+$N^*(C_0) \approx 1.46 \times 10^{10}$ and $D^*(C_0) \approx 1.14 \times 10^{12}$,
+a ratio $D^*/N^* \approx 78$.  Because $\alpha$ and $\beta$ are close in
 magnitude, this ratio is slowly varying in $C$ near the empirically relevant
-compute range, motivating the practical rule of thumb $D^* \approx 20 N^*$.
+compute range.
 \end{proof}
 
 \begin{example}[Compute-optimal allocation for a financial LLM]
@@ -517,15 +521,15 @@ constants ($\alpha = 0.34$, $\beta = 0.28$, $A = 406.4$, $B = 410.7$):
 \begin{align}
   N^*(C) &= \left(\frac{0.34 \times 406.4}{0.28 \times 410.7 \times 6^{0.28}}\right)^{1/0.62}
            \times (10^{23})^{0.28/0.62}
-           \approx 6.4 \times 10^9 \text{ parameters}, \label{eq:ex-nstar} \\
-  D^*(C) &= \frac{C}{6 N^*} = \frac{10^{23}}{6 \times 6.4 \times 10^9}
-           \approx 2.6 \times 10^{12} \text{ tokens}. \label{eq:ex-dstar}
+           \approx 1.46 \times 10^{10} \text{ parameters}, \label{eq:ex-nstar} \\
+  D^*(C) &= \frac{C}{6 N^*} = \frac{10^{23}}{6 \times 1.46 \times 10^{10}}
+           \approx 1.14 \times 10^{12} \text{ tokens}. \label{eq:ex-dstar}
 \end{align}
-This is a 6.4-billion-parameter model trained on 2.6 trillion tokens, giving a
-ratio $D^*/N^* \approx 406$, which corresponds to the ratio at this compute
-scale under the Chinchilla constants.  The widely cited ``20 tokens per parameter''
-rule is an approximation valid near $C \approx 10^{22}$--$10^{23}$ FLOPs; at
-larger compute budgets the optimal ratio slowly increases.  If the available
+This is a 14.6-billion-parameter model trained on 1.14 trillion tokens, giving a
+ratio $D^*/N^* \approx 78$ under the parametric Chinchilla model.  The widely
+cited ``20 tokens per parameter'' heuristic (Hoffmann et al., Approach~1) is
+derived from IsoFLOP curves using a different estimation strategy; the two
+methods bound the same compute-optimal frontier.  If the available
 financial corpus contains only 100 billion high-quality tokens, the organisation
 faces a data constraint: they should reduce model size or augment the corpus,
 since running more compute steps on fewer unique tokens risks overfitting.
@@ -577,10 +581,14 @@ for finite pipeline depth.
 The ZeRO (Zero Redundancy Optimizer) strategy \cite{rajbhandari2020zero}
 addresses the memory inefficiency of vanilla data parallelism by sharding
 optimizer states, gradients, and parameters across devices rather than
-replicating them.  ZeRO defines three stages:
+replicating them.  ZeRO defines three stages (reductions are approximate, assuming Adam in fp32
+and a large number of devices $K$):
 \begin{itemize}
-  \item \emph{ZeRO-1}: Shard optimizer states ($4 \times$ memory reduction).
-  \item \emph{ZeRO-2}: Shard gradients as well ($8 \times$ reduction).
+  \item \emph{ZeRO-1}: Shard optimizer states (up to $4\times$ memory reduction
+        per device, since optimizer states constitute half the 16 bytes/parameter
+        footprint under Adam).
+  \item \emph{ZeRO-2}: Shard gradients as well (up to $8\times$ reduction,
+        eliminating both optimizer-state and gradient redundancy).
   \item \emph{ZeRO-3}: Shard parameters, gradients, and optimizer states
         ($K$-fold reduction where $K$ is the number of devices).
 \end{itemize}
@@ -625,7 +633,10 @@ discarded rather than stored.  During the backward pass, the forward pass is
 recomputed in segments to recover the activations needed for gradient computation.
 This reduces activation memory from $O(L \cdot T \cdot d)$ to $O(\sqrt{L} \cdot T \cdot d)$
 for an $L$-layer model with sequence length $T$ and hidden dimension $d$,
-at the cost of approximately 33\% additional FLOPs.
+at the cost of approximately 33\% additional FLOPs.%
+\footnote{The $O(\sqrt{L})$ bound assumes optimal checkpoint placement at layer
+granularity; checkpointing at finer granularity can reduce memory further at
+proportionally higher recomputation cost.}
 
 \begin{remark}[Flash Attention]
 \label{rem:flash-attention}
@@ -647,8 +658,13 @@ memory-prohibitive.
   \includegraphics[width=0.82\textwidth]{chapters/03-llm-training-finetuning/figures/fig_illustration}
   \caption{Compute-optimal training frontier from \citet{hoffmann2022chinchilla}.
            The black curve traces $(N^*, D^*)$ pairs that minimise loss for a
-           given FLOPs budget $C$, computed via
+           given FLOPs budget $C$, computed via the IsoFLOP power-law fit
+           (Approach~1 in Hoffmann et al.):
            $N^* = 0.1192\,C^{0.4937}$ and $D^* = 2.1714\,C^{0.4977}$.
+           These coefficients come from a direct fit to IsoFLOP curves and differ
+           slightly from the exponents implied by the parametric model
+           (Approach~3, Theorem~\ref{thm:chinchilla}); both approaches
+           approximate the same underlying frontier.
            Points above the frontier are over-parameterised for their compute;
            points below are under-trained.
            Chinchilla (70B, 1.4T tokens) lies on the frontier by construction;
@@ -663,9 +679,11 @@ Reproduce Figure~\ref{fig:ch03-illustration} using the Chinchilla coefficients
 $N^* = 0.1192\,C^{0.4937}$ and $D^* = 2.1714\,C^{0.4977}$.
 (\textit{a})~Compute the compute-optimal parameter count for budgets of
 $10^{23}$ and $10^{25}$ FLOPs and mark them on the plot.
-(\textit{b})~Add GPT-4 (estimated 1.8T parameters, unknown token count---use
-the public estimate of $\sim\!13\times10^{24}$ FLOPs for training) and assess
-whether it lies above or below the frontier.
+(\textit{b})~Add GPT-4 (use the widely cited but unconfirmed estimate of
+$\sim\!1.8$T parameters from informal sources; OpenAI has not published the
+official count) with the public FLOPs estimate of $\sim\!13\times10^{24}$,
+and assess whether it lies above or below the frontier.  Discuss how sensitive
+your conclusion is to the assumed parameter count.
 See \texttt{code/notebooks/03-llm-training-finetuning/exercises.ipynb},
 Illustration Exercise.
 \end{exercise}
@@ -725,7 +743,8 @@ benchmarks, though it falls short of fine-tuned models on complex tasks.
 \emph{Few-shot prompting} includes a handful of labelled examples (typically
 1--32) directly in the prompt.  This is also called \emph{in-context learning}:
 no gradient update is performed, but the model conditions its predictions on
-the examples.  The mechanism is not fully understood theoretically, but
+the examples.  The mechanism is not fully understood theoretically
+\citep{xie2022explanation,akyurek2022learning}, but
 empirically it improves performance substantially on tasks with idiosyncratic
 label conventions.
 
@@ -763,19 +782,21 @@ prefix tuning, and adapters --- are in active use for financial LLM deployment.
 \begin{definition}[LoRA decomposition]
 \label{def:lora}
 Let $W_0 \in \mathbb{R}^{d \times k}$ be a pre-trained weight matrix (frozen).
-LoRA \cite{hu2022lora} parameterises the update as a low-rank decomposition:
+LoRA \cite{hu2022lora} parameterises the update as a scaled low-rank decomposition:
 \begin{equation}
-  W = W_0 + \Delta W = W_0 + B A,
+  W = W_0 + \Delta W = W_0 + \frac{\alpha}{r} B A,
   \label{eq:lora}
 \end{equation}
 where $A \in \mathbb{R}^{r \times k}$ and $B \in \mathbb{R}^{d \times r}$
-with rank $r \ll \min(d, k)$.  At initialisation, $A$ is drawn from $\mathcal{N}(0, \sigma^2)$
+with rank $r \ll \min(d, k)$, and $\alpha > 0$ is a scaling hyperparameter.
+At initialisation, $A$ is drawn from $\mathcal{N}(0, \sigma^2)$
 and $B = 0$, so $\Delta W = 0$ and training begins from the pre-trained weights.
 The trainable parameter count for this layer is $r(d + k)$ rather than $dk$,
 a reduction by a factor of $\min(d, k)/r$.
 \end{definition}
 
-The forward pass with LoRA adds negligible latency: $h = W_0 x + (BA)x = W_0 x + B(Ax)$.
+The forward pass with LoRA adds negligible latency:
+$h = W_0 x + \tfrac{\alpha}{r}(BA)x = W_0 x + \tfrac{\alpha}{r}B(Ax)$.
 At inference time, $\Delta W$ can be merged into $W_0$, so LoRA incurs zero
 inference overhead.  This is a key practical advantage over adapter modules,
 which add sequential computation.
@@ -907,13 +928,14 @@ three-stage pipeline:
         Optimisation (PPO) to maximise the expected reward, regularised by a
         KL penalty toward the SFT model:
         \begin{equation}
-          \mathcal{L}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)}
+          \mathcal{J}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)}
             \!\left[r_\phi(x, y) - \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{SFT}}(y \mid x)}\right],
           \label{eq:ppo-objective}
         \end{equation}
         where $\pi_\theta$ is the policy (the language model), $\pi_{\mathrm{SFT}}$
         is the reference SFT policy, and $\beta > 0$ controls the strength of
-        the KL regularisation.
+        the KL regularisation.  $\mathcal{J}$ denotes an objective to be
+        \emph{maximised}.
 \end{enumerate}
 
 The KL penalty in equation~\eqref{eq:ppo-objective} is essential: without it,
@@ -984,7 +1006,7 @@ Consider adapting LLaMA-2 (7B) for earnings call sentiment analysis.
 learning rate $5 \times 10^{-5}$, for 5 epochs.
 
 \emph{Stage 2.} Fine-tuning on 15{,}000 labelled sentences from the Financial
-PhraseBank dataset \cite{yang2020finbert}, with three-class labels (Positive,
+PhraseBank dataset \cite{malo2014financial}, with three-class labels (Positive,
 Neutral, Negative).  Training for 10 epochs with learning rate $3 \times 10^{-4}$
 and LoRA rank 8.
 
@@ -1021,11 +1043,12 @@ and compute budget.
 
 FinBERT \cite{yang2020finbert} is a BERT-large model (340 million parameters)
 that was further pre-trained on three financial corpora: (i) TRC2 financial
-news from Reuters (1.8\,GB); (ii) Financial PhraseBank, a collection of
-financial sentences with sentiment labels; and (iii) a corpus of financial
-analyst reports.  The continued pre-training used the MLM objective and
-modified the BERT vocabulary to include financial terms that were rare in the
-original WordPiece vocabulary.
+news from Reuters (1.8\,GB); (ii) Financial PhraseBank \cite{malo2014financial},
+a collection of financial sentences with sentiment labels; and (iii) a corpus
+of financial analyst reports.  The continued pre-training used the MLM objective
+with the original WordPiece vocabulary unchanged; gains arise from weight updates
+that shift representations toward financial vocabulary and discourse, not from
+vocabulary expansion.
 
 The key empirical finding of \citet{yang2020finbert} is that domain-adaptive
 pre-training improves substantially over standard BERT fine-tuning across
@@ -1075,14 +1098,14 @@ financial NLP --- is now well established.
 \label{subsec:bloomberggpt}
 
 BloombergGPT \cite{wu2023bloomberggpt} is a 50-billion-parameter, decoder-only
-language model trained on a 363-billion-token corpus assembled from Bloomberg's
-proprietary data archive.  The corpus consists of two components: (i) a
-finance-specific portion of 363\,B tokens from Bloomberg's news archive, company
-filings, press releases, and web crawl of financial domains; and (ii) a
-general-purpose portion of approximately 345\,B tokens from The Pile.  The
-training mixture gave 51\% weight to financial text and 49\% to general text,
-targeting a model that is strong in finance without sacrificing general language
-capabilities.
+language model trained on an approximately 708-billion-token corpus assembled
+from Bloomberg's proprietary data archive.  The corpus consists of two
+components: (i) a finance-specific portion of 363\,B tokens from Bloomberg's
+news archive, company filings, press releases, and web crawl of financial
+domains; and (ii) a general-purpose portion of 345\,B tokens from The Pile.
+The training mixture gave 51\% weight to financial text and 49\% to general
+text, targeting a model that is strong in finance without sacrificing general
+language capabilities.
 
 \begin{table}[H]
   \centering
@@ -1097,14 +1120,14 @@ capabilities.
     Bloomberg Filings  &  88 & 12.2\% \\
     Bloomberg Press    &  63 &  8.7\% \\
     Bloomberg Social   &  19 &  2.6\% \\
-    The Pile (general) & 343 & 49.9\% \\
+    The Pile (general) & 345 & 49.9\% \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 The Chinchilla compute-optimal prescription (Section~\ref{subsec:chinchilla})
 would recommend training a 50B-parameter model on approximately 1 trillion tokens.
-BloombergGPT's 363B-token corpus is under-trained by this standard.  The authors
+BloombergGPT's 708B-token corpus is under-trained by this standard.  The authors
 justify this by noting that the finance-specific corpus is exhausted at roughly
 363B tokens; adding more general text beyond this point would dilute the financial
 content below the 50\% threshold, defeating the purpose of domain-specific
@@ -1119,8 +1142,9 @@ On general NLP benchmarks (MMLU, BIG-bench), BloombergGPT performs comparably
 to GPT-NeoX-20B, confirming that the general-text component of the corpus
 preserved broad capabilities.
 
-The BloombergGPT architecture uses the BLOOM architecture: a decoder-only
-Transformer with ALiBi positional encodings rather than learned position embeddings.
+BloombergGPT adopts architectural choices from the BLOOM model family --- specifically
+ALiBi positional encodings rather than learned position embeddings --- rather than
+building on the BLOOM weights directly.
 ALiBi (Attention with Linear Biases) adds a position-dependent bias to attention
 logits:
 \begin{equation}
@@ -1195,6 +1219,19 @@ to summarise analyst research and then found to hallucinate financial figures
 can generate incorrect investment advice, trigger regulatory scrutiny, and
 destroy institutional credibility.  Rigorous evaluation is not a bureaucratic
 formality; it is a professional obligation.
+
+Evaluation of financial LLMs operates at three levels.  \emph{Intrinsic
+evaluation} measures the model itself --- perplexity on a held-out financial
+corpus captures how well the model has absorbed domain language, but says
+little about task performance.  \emph{Downstream task evaluation} measures
+performance on specific financial NLP tasks --- sentiment classification,
+named entity recognition, numerical QA --- using standard metrics (accuracy,
+F1, ROUGE) on established benchmarks.  \emph{Real-world evaluation} measures
+behaviour in deployment: does the model's output lead to better analyst
+productivity, fewer compliance incidents, or more accurate risk assessments?
+Each level addresses different concerns and requires different methodology.
+The sections below cover intrinsic and downstream metrics; real-world evaluation
+is addressed in the governance discussion of Section~\ref{sec:safety}.
 \end{context}
 
 \begin{deepdive}
@@ -1269,13 +1306,15 @@ For generation tasks (summarisation, question answering), ROUGE is the
 standard automatic metric.  ROUGE-N measures n-gram overlap between a generated
 summary $\hat{y}$ and a reference summary $y$:
 \begin{equation}
-  \mathrm{ROUGE}\text{-}N = \frac{\sum_{s \in y} \sum_{g \in \text{ngram}(s, N)} \text{count}_{\text{match}}(g, \hat{y})}
-                                  {\sum_{s \in y} \sum_{g \in \text{ngram}(s, N)} \text{count}(g, y)},
+  \mathrm{ROUGE}\text{-}N = \frac{\displaystyle\sum_{g \in \mathcal{G}_N(y)} \mathrm{count}_{\mathrm{match}}(g,\, \hat{y},\, y)}
+                                  {\displaystyle\sum_{g \in \mathcal{G}_N(y)} \mathrm{count}(g,\, y)},
   \label{eq:rouge}
 \end{equation}
-where $\text{count}_{\text{match}}(g, \hat{y})$ is the number of times n-gram $g$
-appears in both $y$ and $\hat{y}$, and $\text{count}(g, y)$ is the number of
-times $g$ appears in $y$.  ROUGE-1, ROUGE-2, and ROUGE-L (longest common
+where $\mathcal{G}_N(y)$ is the multiset of all $N$-grams in the reference $y$,
+$\mathrm{count}(g, y)$ is the frequency of $N$-gram $g$ in $y$, and
+$\mathrm{count}_{\mathrm{match}}(g, \hat{y}, y) = \min(\mathrm{count}(g, \hat{y}),\, \mathrm{count}(g, y))$
+clips each match to the reference frequency.
+ROUGE-1, ROUGE-2, and ROUGE-L (longest common
 subsequence) are typically reported together.
 
 ROUGE is a recall-oriented metric: it rewards covering the reference material
@@ -1605,5 +1644,21 @@ Act's classification scheme and implement the required controls before the
 relevant provisions become applicable (August 2026 for high-risk systems
 under Annex III).
 \end{remark}
+
+The themes of this chapter are unified by a single principle: every capability
+of a deployed financial LLM --- from its fluency in regulatory language to its
+resistance to hallucination --- is determined by decisions made at the stages
+of pre-training, fine-tuning, evaluation, and governance.  Compute-optimal
+pre-training (Section~\ref{sec:pretraining}) determines what the model knows;
+parameter-efficient fine-tuning and RLHF (Section~\ref{sec:finetuning})
+determine whether it applies that knowledge correctly; rigorous evaluation
+(Section~\ref{sec:evaluation}) determines whether we can trust our assessment
+of its performance; and governance frameworks (this section) determine whether
+deployment is legally and institutionally appropriate.  Weakness at any stage
+propagates forward: a biased pre-training corpus corrupts every downstream
+application, and a governance framework that ignores model monitoring will
+fail precisely when the model fails.  Financial practitioners who understand
+this chain of dependencies are better positioned to deploy LLMs responsibly
+and to identify where interventions will have the greatest impact.
 
 \end{context}

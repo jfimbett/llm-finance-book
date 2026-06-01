@@ -111,7 +111,16 @@
   - **Fix:** Replace with "updated weight distributions produce richer contextual representations of financial terminology within the existing vocabulary."
 
 - [x] **MAJOR-10** — Exercise missing difficulty tags; too few exercises
-  - **Fix:** Tag ex:ch03-illustration [I]; add [B] and [A] exercises.
-  - **Fix:** Rephrase to "BloombergGPT adopts ALiBi positional encodings from the BLOOM model family."
-  - **Problem:** The O(√L · T · d) formula assumes checkpointing only at layer granularity — not stated.
-  - **Fix:** Add a brief footnote clarifying that the √L bound assumes optimal checkpoint placement at layer granularity.
+  - **Fix:** Tagged ex:ch03-illustration [I]; added [B] (MinHash) and [A] (LoRA rank ablation) exercises.
+
+---
+
+## Revision Round 4 (2026-06-01 — from full-review round 3)
+
+- [x] **BLOCKER-6** — FinBERT BERT-large vs BERT-base error
+  - **Problem:** Lines 1080/1112/1120 stated BERT-large (340M, 24 layers, d=1024, 16 heads, ff=4096); Yang et al. 2020 used BERT-base.
+  - **Fix:** Changed to BERT-base (110M, 12 layers, d=768, 12 heads, ff=3072); updated CLS head to R^768.
+
+- [x] **MAJOR-11** — ZeRO reduction factors off by 2× (lines 588–590)
+  - **Problem:** ZeRO-1 stated as "up to 4×" (correct: ~2×); ZeRO-2 stated as "up to 8×" (correct: ~4×).
+  - **Fix:** Corrected to ~2× (ZeRO-1) and ~4× (ZeRO-2) with derivation from 16-byte baseline.

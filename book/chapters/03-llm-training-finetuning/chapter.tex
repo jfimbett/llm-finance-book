@@ -582,14 +582,16 @@ for finite pipeline depth.
 The ZeRO (Zero Redundancy Optimizer) strategy \cite{rajbhandari2020zero}
 addresses the memory inefficiency of vanilla data parallelism by sharding
 optimizer states, gradients, and parameters across devices rather than
-replicating them.  ZeRO defines three stages (reductions are approximate, assuming Adam in fp32
-and a large number of devices $K$):
+replicating them.  ZeRO defines three stages (reductions assume Adam in fp32 and a large number
+of devices $K$; baseline = 16 bytes/parameter: 4 params + 4 gradients +
+8 optimizer states):
 \begin{itemize}
-  \item \emph{ZeRO-1}: Shard optimizer states (up to $4\times$ memory reduction
-        per device, since optimizer states constitute half the 16 bytes/parameter
-        footprint under Adam).
-  \item \emph{ZeRO-2}: Shard gradients as well (up to $8\times$ reduction,
-        eliminating both optimizer-state and gradient redundancy).
+  \item \emph{ZeRO-1}: Shard optimizer states (${\sim}2\times$ memory reduction
+        per device: removing 8 bytes from 16 leaves ${\approx}8$ bytes/param
+        for large $K$).
+  \item \emph{ZeRO-2}: Shard gradients as well (${\sim}4\times$ reduction:
+        removes optimizer states + gradients, leaving ${\approx}4$ bytes/param
+        for large $K$).
   \item \emph{ZeRO-3}: Shard parameters, gradients, and optimizer states
         ($K$-fold reduction where $K$ is the number of devices).
 \end{itemize}
@@ -1077,7 +1079,7 @@ and compute budget.
 \subsection{FinBERT and Encoder-Based Models}
 \label{subsec:finbert}
 
-FinBERT \cite{yang2020finbert} is a BERT-large model (340 million parameters)
+FinBERT \cite{yang2020finbert} is a BERT-base model (110 million parameters)
 that was further pre-trained on three financial corpora: (i) TRC2 financial
 news from Reuters (1.8\,GB); (ii) Financial PhraseBank \cite{malo2014financial},
 a collection of financial sentences with sentiment labels; and (iii) a corpus
@@ -1109,15 +1111,15 @@ representations substantially outperform the dictionary-based Loughran--McDonald
 lexicon and classical machine-learning approaches on sentiment classification,
 and they apply the model to predict stock returns and corporate fraud.
 
-The FinBERT architecture follows BERT precisely: 24 Transformer layers, hidden
-dimension $d = 1{,}024$, 16 attention heads, feed-forward dimension 4{,}096.
+The FinBERT architecture follows BERT-base precisely: 12 Transformer layers,
+hidden dimension $d = 768$, 12 attention heads, feed-forward dimension 3{,}072.
 For a classification task, the representation of the \texttt{[CLS]} token at
 the final layer is passed through a linear head:
 \begin{equation}
   p(y \mid x) = \mathrm{softmax}(W_{\mathrm{cls}} \, h_{\texttt{[CLS]}} + b),
   \label{eq:finbert-cls}
 \end{equation}
-where $h_{\texttt{[CLS]}} \in \mathbb{R}^{1024}$, $W_{\mathrm{cls}} \in \mathbb{R}^{C \times 1024}$
+where $h_{\texttt{[CLS]}} \in \mathbb{R}^{768}$, $W_{\mathrm{cls}} \in \mathbb{R}^{C \times 768}$
 for $C$ output classes, and the cross-entropy loss is minimised over labelled examples.
 
 \begin{remark}[Alternatives to FinBERT]

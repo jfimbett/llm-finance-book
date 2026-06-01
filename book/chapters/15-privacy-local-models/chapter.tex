@@ -14,143 +14,446 @@ After completing this chapter, the reader should be able to:
         hardware budget and latency constraint.
   \item Design a text anonymisation pipeline using named entity recognition to detect
         and mask personal names, addresses, and financial identifiers.
-  \item Explain differential privacy and federated learning and describe how each
-        technique limits private information leakage during model training.
+  \item Explain differential privacy and state the Gaussian mechanism guarantee;
+        describe how DP-SGD applies it during model fine-tuning.
+  \item Describe the FedAvg algorithm and explain how federated learning enforces
+        data-residency constraints without preventing model improvement.
   \item Construct a privacy-aware retrieval-augmented generation pipeline with audit
         logging and access controls.
-  \item Apply a structured compliance checklist to assess a planned LLM deployment
-        against current regulatory requirements.
 \end{enumerate}
 \end{remark}
 
 % ---------------------------------------------------------------
 \section{The Privacy Imperative in Financial AI}
-\label{sec:privacy-imperative}
+\label{sec:ch15-privacy-imperative}
 
-[Placeholder]
+\begin{context}
+It is January 2023, and a major bank's legal team is reviewing a new internal policy: employees may not paste client data into ChatGPT. The rule lands after a leaked memo reveals that staff have been doing exactly that — feeding loan applications, earnings call transcripts, and merger term sheets into a public cloud API to speed up their drafting work. The bank is not alone. Samsung engineers make global headlines weeks later when source code submitted to ChatGPT is retained for training. In both cases the data left the institution the moment it crossed the API boundary — and there is no technical mechanism for recall.
+
+The episode captures a structural tension that cuts across every sector but is especially acute in finance. LLMs are transformatively useful precisely because they have absorbed vast amounts of text. But that absorption process, and the cloud infrastructure that supports LLM inference, creates privacy surface that financial institutions are poorly equipped to govern. Client names, account numbers, trading strategies, and legal advice all constitute sensitive information whose disclosure is regulated by multiple overlapping frameworks.
+
+This chapter develops a principled response to that tension. We begin by examining what data LLMs expose and why, then survey the regulatory landscape, and finally equip the reader with four complementary engineering strategies: local deployment, text anonymisation, privacy-preserving training, and privacy-aware system architecture.
+\end{context}
 
 \subsection{What Data Do LLMs Expose?}
-\label{sec:privacy-imperative-exposure}
+\label{sec:ch15-exposure}
 
-[Placeholder]
+An LLM exposes data through two distinct channels. The first is the \emph{training channel}: information that appeared in the model's pre-training or fine-tuning corpus may be reconstructable from the model's parameters. The second is the \emph{inference channel}: data submitted in prompts may be stored, logged, or used by the service provider for further training unless contractual protections prevent it.
+
+The two channels carry different risk profiles. Training-time leakage is a property of the model itself: it persists after the API session ends, and any user who queries the model may theoretically recover fragments of training data. Inference-time leakage is an operational risk that depends on the terms of service, the provider's data-handling practices, and the institution's contractual position. A financial institution that fine-tunes a public model on proprietary research reports creates a permanent artefact that embeds those reports in its parameters. A bank that calls a cloud API with a client's name and account balance discloses that information to the provider in the same way it would if it sent the data by email.
+
+Both risks are quantifiable. The extraction experiments of \citet{carlini2021extracting} demonstrated that a 1.5-billion-parameter GPT-2 model memorises verbatim text sequences, including email addresses, telephone numbers, and other identifiers that appeared only once in the training corpus. The risk scales with model size: larger models memorise more because they have greater capacity and are trained on more data, and memorisation is particularly concentrated on sequences that appear multiple times in the corpus. Subsequent work by \citet{carlini2022quantifying} formalised a \emph{memorisation score} for individual training examples and showed that the most memorised sequences can be extracted with high probability by an adversary who knows only that the sequence was likely in the training data.
+
+The inference channel is operationally easier to mitigate — institutional contracts with providers can prohibit training-on-prompts, and on-premise deployment eliminates the channel entirely — but it is the channel that most organisations encounter first because it requires no technical sophistication to exploit. Any employee who pastes a document into a public chatbot has used this channel.
+
+\begin{definition}[Memorisation]
+\label{def:memorisation}
+A language model $\mathcal{M}$ \emph{memorises} a string $s$ if there exists a prompt $p$ such that $\mathcal{M}(p)$ generates $s$ with probability above a threshold $\tau$. Exact memorisation requires $s$ to match verbatim; approximate memorisation allows a bounded edit distance.
+\end{definition}
 
 \subsection{Regulatory Landscape: GDPR, CCPA, MiFID II, and DORA}
-\label{sec:privacy-imperative-regulation}
+\label{sec:ch15-regulation}
 
-[Placeholder]
+Four regulatory frameworks are directly relevant to LLM deployments in finance. They apply at different scopes — geographic, sectoral, and functional — and must often be satisfied simultaneously.
+
+The EU General Data Protection Regulation (GDPR, Regulation 2016/679) is the broadest in reach~\citep{gdpr2016}. It applies to the processing of personal data of individuals in the European Economic Area, regardless of where the processor is located. Personal data is defined expansively: any information that relates to an identified or identifiable natural person. Financial data about retail clients — account balances, transaction histories, credit scores — almost invariably meets this threshold. GDPR imposes obligations on organisations that \emph{control} personal data (determine the purpose and means of processing) and on organisations that \emph{process} it on their behalf. When a bank uses a cloud LLM provider, the bank is typically the controller and the provider is a processor, requiring a Data Processing Agreement that binds the provider to GDPR-compliant practices.
+
+Three GDPR provisions have particular bite for LLM deployments. Article~22 restricts \emph{solely automated decision-making with legal or similarly significant effects}: a credit refusal driven entirely by an LLM's output, without human review, triggers rights to explanation and to human intervention. Article~17 establishes the \emph{right to erasure}: if a client withdraws consent and requests deletion of their data, the controller must comply — but erasing personal data from a model's parameters is currently an open research problem (machine unlearning), not a solved engineering one. Article~83 allows fines up to the higher of €20 million or 4\% of global annual turnover for violations of core GDPR principles, creating material financial exposure.
+
+The California Consumer Privacy Act (CCPA, as amended by the CPRA) mirrors GDPR in substance for California residents. It adds a right to opt out of the \emph{sale} of personal information, which regulators have interpreted broadly to include some forms of data sharing with third-party model providers. Financial institutions with US retail clients must maintain CCPA compliance in parallel with GDPR if they operate across jurisdictions.
+
+MiFID II (Directive 2014/65/EU) adds a layer specific to investment services. Its record-keeping obligations require investment firms to retain records of all services and transactions for at least five years — in a retrievable form — and to make those records available to regulators on request. Any LLM-assisted interaction that constitutes investment advice or order execution therefore creates a documentation obligation. MiFID II also requires firms to demonstrate that their systems and controls are adequate; an undocumented AI system that influences trading decisions is unlikely to satisfy this requirement.
+
+The Digital Operational Resilience Act (DORA, Regulation 2022/2554) entered into force in January 2025 and imposes specific obligations on the use of third-party ICT providers~\citep{dora2022}. A cloud LLM provider qualifies as an ICT third-party service provider; if the service is critical, it may qualify as a \emph{critical third-party provider} subject to direct supervisory oversight by the European Supervisory Authorities. DORA requires contractual provisions guaranteeing data location, access rights for auditors, and exit strategies — provisions that most standard cloud provider agreements do not include by default.
+
+\begin{remark}
+Regulatory compliance is not equivalent to privacy protection, and privacy protection is not sufficient for regulatory compliance. An institution can use a fully GDPR-compliant cloud provider and still create privacy risks for its clients; conversely, it can deploy a technically private local model while failing to satisfy MiFID II's record-keeping requirements. The frameworks must be assessed together against each specific use case.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Privacy Risks in LLM Deployment}
-\label{sec:privacy-risks}
+\label{sec:ch15-risks}
 
-[Placeholder]
+\begin{context}
+A useful frame for thinking about LLM privacy risks is the classical information security triad of confidentiality, integrity, and availability. Privacy risks map primarily onto the confidentiality axis: unauthorised disclosure of information that should remain restricted. But they arise through mechanisms that differ fundamentally from conventional database breaches. No firewall protects against membership inference. No encryption prevents an LLM from reciting a training example. Understanding the mechanisms is a prerequisite for choosing the right mitigations.
+\end{context}
 
 \subsection{Training Data Memorisation and Leakage}
-\label{sec:privacy-risks-memorisation}
+\label{sec:ch15-memorisation}
 
-[Placeholder]
+Neural language models do not store training data explicitly; they compress it into parameters. But compression is lossy only in aggregate. Individual training examples — particularly those that are unusual, repeated, or long — are retained with high fidelity in the form of conditional distributions that assign high probability to the exact original sequence.
+
+The mechanism behind memorisation is the model's training objective. At each step, the model is rewarded for increasing the probability of the next token in the training sequence. For common patterns, this pushes the model toward generalisable features. For rare patterns, the model's only path to a low loss is to memorise the specific sequence. The distinction between learning and memorising is therefore, in part, a function of frequency: a client's name that appears once in a fine-tuning corpus is memorised; the word ``the'' is learned.
+
+Extraction attacks exploit this asymmetry by designing prompts that trigger memorised sequences. \citet{carlini2021extracting} used a simple generation-then-filtering approach: generate a large number of long continuations from various prompts, then rank the completions by the ratio of likelihood under the target model to likelihood under a smaller reference model. Sequences with a high likelihood ratio relative to the reference are disproportionately likely to be training data rather than generic text, because the reference model has not seen the specific sequence. The attack recovered verbatim email addresses, telephone numbers, names, and in one case a full training example containing personal identifying information.
+
+The financial sector faces an amplified version of this risk. Fine-tuning on proprietary data — internal research, client communications, deal documents — is attractive precisely because those documents contain the institution's intellectual property and domain knowledge. But fine-tuning with sensitive documents creates a model whose parameters embed those documents. A competitor who queries the model with carefully designed prompts may recover fragments of the fine-tuning data, even if the model is deployed behind an access-controlled API.
+
+Mitigations fall into three categories, which we develop in subsequent sections. Differential privacy during fine-tuning adds noise to the training process to limit the per-example contribution to the model's parameters. Data selection excludes the most sensitive documents from fine-tuning entirely and instead relies on retrieval at inference time. Quantitative memorisation audits measure the memorisation score of sensitive sequences before deployment and block deployment if the score exceeds a threshold.
 
 \subsection{Inference Attacks}
-\label{sec:privacy-risks-inference}
+\label{sec:ch15-inference-attacks}
 
-[Placeholder]
+Even a model that does not memorise its training data may leak information about whether a specific example was in the training set. \emph{Membership inference attacks} exploit the observation that models typically assign higher probability to their training examples than to unseen examples of similar complexity~\citep{shokri2017membership}. An adversary who knows a candidate sequence $s$ can query the model for the log-likelihood of $s$ and compare it to a threshold. If the log-likelihood exceeds the threshold, the adversary concludes that $s$ was a training example.
+
+\begin{definition}[Membership Inference Advantage]
+\label{def:mia-advantage}
+Let $\mathcal{M}$ be a model trained on dataset $D$, and let $\mathcal{A}$ be an adversary who observes $\mathcal{M}$ and a candidate example $s$. The \emph{membership inference advantage} of $\mathcal{A}$ is
+\begin{equation}
+  \label{eq:ch15-mia}
+  \mathrm{Adv}(\mathcal{A}) = \bigl|\Pr[\mathcal{A}(\mathcal{M}, s) = 1 \mid s \in D]
+    - \Pr[\mathcal{A}(\mathcal{M}, s) = 1 \mid s \notin D]\bigr|,
+\end{equation}
+where the probabilities are over the randomness of training and inference. An advantage of zero means the adversary cannot distinguish members from non-members; an advantage of one means perfect discrimination.
+\end{definition}
+
+In a financial context, non-trivial membership inference advantage has direct consequences. An adversary who knows that a bank fine-tuned its model on a set of merger target companies can query the model for each company name and infer, with above-chance accuracy, which ones were in the fine-tuning set — effectively reconstructing the deal pipeline. Similarly, a model fine-tuned on credit files can leak whether a specific individual's file was in the training corpus.
+
+Property inference attacks extend the concept to aggregate properties: rather than querying membership of a specific example, the adversary infers statistical properties of the training set, such as the mean loan size or the fraction of delinquent accounts. These attacks are generally harder to detect and harder to prevent because they do not require any example-level memorisation.
 
 \subsection{Prompt Injection and Data Exfiltration}
-\label{sec:privacy-risks-injection}
+\label{sec:ch15-injection}
 
-[Placeholder]
+Prompt injection is an adversarial technique in which malicious instructions are embedded in content that the LLM processes, causing it to override its system-level instructions~\citep{perez2022ignore}. In a retrieval-augmented generation system, the retrieved documents are concatenated into the prompt alongside the system instructions. An attacker who controls any retrieved document can embed instructions in that document. If the model follows those instructions, it may disclose the contents of the system prompt, the contents of other retrieved documents, or the query itself.
+
+The financial sector is particularly exposed to prompt injection in two scenarios. First, automated adverse media screening pipelines that retrieve news articles and then ask the model to summarise or score them are vulnerable if an attacker can publish an article containing injection payloads. A well-crafted article might cause the model to produce a favourable risk score regardless of the article's actual content, or to leak the screening criteria. Second, document-processing pipelines that ingest counterparty submissions — loan applications, due diligence questionnaires, ISDA agreements — are vulnerable if those submissions contain embedded instructions.
+
+Defences against prompt injection are an active area of research without a complete solution. Practical mitigations include structural separation of trusted and untrusted content (placing untrusted content in a restricted section of the context), output sanitisation that detects anomalous model outputs, and constitutional or rule-based classifiers that scan the model's output for sensitive content before delivery.
 
 % ---------------------------------------------------------------
 \section{Local and Self-Hosted LLM Deployments}
-\label{sec:local-models}
+\label{sec:ch15-local-models}
 
-[Placeholder]
+\begin{context}
+The simplest way to prevent inference-time data exfiltration is to keep inference inside the institution's own infrastructure. Cloud LLM APIs are convenient, but convenience is not the only dimension of a procurement decision. For many financial workflows, the combination of regulatory requirements, contractual obligations, and competitive sensitivity makes on-premise deployment not merely preferable but mandatory. The emergence of capable open-weight models in 2023 and 2024 made this option practically feasible for the first time.
+\end{context}
 
 \subsection{Open-Weight Models: Llama, Mistral, and Phi}
-\label{sec:local-models-open-weight}
+\label{sec:ch15-open-weight}
 
-[Placeholder]
+An open-weight model is one whose parameters are publicly released, enabling deployment without a call to a third-party API. The distinction from fully open-source is that most open-weight releases include the weights but not necessarily the full training code, data pipeline, or evaluation suite. For privacy purposes, what matters is that inference can be performed entirely within the institution's own compute environment, with no data crossing an external boundary.
+
+The Meta Llama family established the baseline for capable open-weight models~\citep{touvron2023llama}. Llama 2, released in mid-2023, offered models from 7 billion to 70 billion parameters with instruction-tuned variants. The 7B model, when quantised to 4-bit precision, runs on a single consumer GPU with 8\,GB of VRAM, making it accessible for workstations. The 70B model, in 4-bit, requires approximately 40\,GB and therefore a multi-GPU setup or a modern data-centre GPU. For financial institutions with existing GPU infrastructure, Llama 2 and its successors (Llama 3 and Llama 3.1) provide a viable starting point.
+
+Mistral AI released Mistral 7B in late 2023~\citep{jiang2023mistral}, which demonstrated that careful architectural choices — specifically grouped-query attention and a sliding window attention mechanism — could achieve performance competitive with much larger models at a fraction of the inference cost. Mistral 7B outperforms Llama 2 13B on most standard benchmarks while requiring less than half the memory. For latency-sensitive financial applications such as real-time document classification or interactive compliance assistance, the efficiency advantage is material.
+
+Microsoft's Phi family (Phi-2, Phi-3) takes a different approach: training small models on curated, high-quality data rather than raw web text. Phi-3-mini, with 3.8 billion parameters, achieves performance comparable to models several times its size on reasoning benchmarks while fitting comfortably on a laptop GPU. For institutions that need to deploy inference at branch level or on edge devices without GPU infrastructure, the Phi family is an attractive option.
+
+\begin{remark}
+Open-weight models carry their own compliance obligations. Llama models are released under the Llama 2 Community License, which restricts use by organisations with more than 700 million monthly active users and requires including the word ``Meta Llama'' in derivative model names. Mistral models are released under the Apache 2.0 licence, which imposes no such restrictions. Institutions should review the applicable licence terms before deployment in production systems.
+\end{remark}
 
 \subsection{Infrastructure: On-Premise versus Private Cloud}
-\label{sec:local-models-infrastructure}
+\label{sec:ch15-infrastructure}
 
-[Placeholder]
+On-premise deployment means running LLM inference on hardware owned and controlled by the institution. The principal advantage is that no data — not prompts, not completions, not usage metadata — leaves the institution's network perimeter. The principal disadvantages are capital expenditure for GPUs, operational burden of maintaining GPU infrastructure, and reduced flexibility compared to cloud elasticity.
+
+Private cloud deployment uses cloud infrastructure (typically single-tenant instances or virtual private clouds with dedicated hardware) under contractual terms that guarantee data isolation and audit rights. AWS Outposts, Azure Government Cloud, and Google Cloud Assured Workloads all offer configurations that approach the isolation of on-premise deployment while retaining some operational flexibility. The key due diligence question is whether the provider's Data Processing Agreement satisfies GDPR Article~28 and DORA Article~30 requirements for third-party ICT providers.
+
+For most large financial institutions, a hybrid architecture is appropriate. Non-sensitive tasks (drafting generic communications, summarising public documents) are routed to cloud APIs for speed and cost efficiency. Sensitive tasks (processing client data, analysing internal documents, supporting regulated decisions) are routed to on-premise or private-cloud LLM inference. The routing logic itself is a governance artefact that should be documented, version-controlled, and auditable.
+
+\begin{example}[Routing Architecture for a Commercial Bank]
+\label{ex:ch15-routing}
+Consider a commercial bank deploying an LLM assistant for relationship managers. Incoming requests are classified by a lightweight classifier into three tiers:
+\begin{enumerate}
+  \item \emph{Public tier}: requests that contain no client identifiers and reference only publicly available information (e.g., ``summarise the latest ECB rate decision''). Routed to a cloud API.
+  \item \emph{Internal tier}: requests referencing internal analysis, strategy, or product information but no client personal data. Routed to a private-cloud LLM on a single-tenant instance under DORA-compliant contractual terms.
+  \item \emph{Client tier}: requests referencing client names, accounts, or transactions. Routed exclusively to an on-premise LLM with no external network connectivity.
+\end{enumerate}
+The classifier itself must be trained on internal data and must not call any external API. The routing decision is logged with a timestamp and the tier assignment, creating an audit trail of every LLM interaction.
+\end{example}
 
 \subsection{Performance Trade-offs and Quantisation}
-\label{sec:local-models-quantisation}
+\label{sec:ch15-quantisation}
 
-[Placeholder]
+The primary cost of local deployment relative to the largest cloud models is capability. GPT-4 class models, which require tens of thousands of GPUs to run at production scale, are not available as open-weight releases. The best available open-weight models as of 2025 are competitive with GPT-3.5-class performance on general benchmarks, but lag behind GPT-4 on complex reasoning, multi-step instruction following, and tasks requiring broad factual knowledge.
+
+Quantisation bridges part of this gap by reducing the numerical precision of the model's weights from the standard 32-bit or 16-bit floating-point to lower-precision formats. GPTQ~\citep{frantar2022gptq} and AWQ~\citep{lin2023awq} are the two dominant post-training quantisation methods. Both achieve 4-bit quantisation with performance degradation that is negligible for most practical tasks. At 4-bit precision, a 7B model occupies approximately 3.5\,GB of memory — less than a modern video game — and a 13B model occupies approximately 6.5\,GB, fitting within the VRAM budget of a high-end consumer GPU.
+
+\begin{deepdive}
+The quantisation error introduced by reducing from 16-bit to 4-bit precision is not uniform across parameters. The key insight of AWQ is that a small fraction of weights — roughly 1\% — are disproportionately influential because they correspond to inputs with large activation magnitudes. Quantising these weights aggressively causes large errors in model outputs. AWQ identifies these salient weights by analysing activation statistics on a small calibration dataset, then applies a per-channel scale transformation that effectively protects the salient weights from quantisation error without increasing their bit width. The remaining 99\% of weights are quantised uniformly to 4-bit with negligible loss. GPTQ takes a different approach: it performs second-order optimisation on each weight matrix, solving a block-wise reconstruction problem that minimises the quantisation error given the Hessian of the output with respect to the weights. Both methods achieve similar final perplexity, but AWQ is considerably faster to apply (minutes versus hours for a 7B model) and does not require a GPU during quantisation.
+
+The practical implication is that a financial institution can quantise a fine-tuned model on its own hardware in under an hour, producing a 4-bit model that runs at full speed on a single GPU. The quantisation step does not require any client data — only a small public calibration set — and adds no privacy risk.
+\end{deepdive}
 
 % ---------------------------------------------------------------
 \section{Text Anonymisation and De-identification}
-\label{sec:anonymisation}
+\label{sec:ch15-anonymisation}
 
-[Placeholder]
+\begin{context}
+When local deployment is not feasible, or when documents must pass through external systems for reasons beyond the institution's control, the alternative is to remove or obscure sensitive information before the text reaches the model. This approach — text de-identification — has a long history in clinical informatics, where patient records must be anonymised before sharing for research. Finance presents a similar problem with a different vocabulary: instead of clinical diagnoses and medication names, the sensitive entities are client names, account numbers, legal entity identifiers, and trading positions.
+
+The challenge is that sensitive information in financial text does not sit in neatly labelled fields. It is embedded in prose — a loan officer's narrative about a client, a relationship manager's call notes, an analyst's draft research report — where it is entangled with context that is needed for the task. Removing a name without context may render the remaining text unintelligible; replacing it with a placeholder must be done consistently so that co-references remain coherent.
+\end{context}
 
 \subsection{Named Entity Recognition for Sensitive Data}
-\label{sec:anonymisation-ner}
+\label{sec:ch15-ner}
 
-[Placeholder]
+Named entity recognition (NER) is the task of identifying spans of text that refer to entities of predefined types — persons, organisations, locations, dates, monetary amounts, and so on — and assigning each span a type label. Modern NER models are based on pre-trained transformer encoders fine-tuned on labelled datasets and achieve high accuracy (F1 scores above 0.90) on standard entity types in well-edited English text.
+
+The standard entity types (person, organisation, location, date, money) cover most of the privacy-relevant entities in general financial text. A retail banking document referencing ``John Smith'' (person) at ``14 Rue de la Paix, Paris'' (location) who holds a ``Compte Courant Pro'' at ``BNP Paribas'' (organisation) can be substantially de-identified by replacing each detected entity with a typed placeholder.
+
+Financial text introduces entity types that general-purpose NER models are not trained to recognise. These include:
+\begin{itemize}
+  \item \emph{Financial account identifiers}: IBANs (e.g., FR76 3000 6000 0112 3456 7890 189), SWIFT/BIC codes, account numbers.
+  \item \emph{Security identifiers}: ISINs (twelve-character alphanumeric codes), CUSIPs, ticker symbols.
+  \item \emph{Legal entity identifiers}: LEIs (twenty-character alphanumeric codes), company registration numbers.
+  \item \emph{Regulatory identifiers}: passport numbers, national identification numbers, tax identification numbers.
+\end{itemize}
+
+These identifiers follow predictable patterns that can be detected with regular expressions or by fine-tuning an NER model on a labelled financial corpus. The \texttt{spaCy} library~\citep{honnibal2017spacy} supports both approaches: the pattern matcher component handles rule-based entity detection from regular expressions, while the \texttt{ner} pipeline component handles learned entity detection. A production de-identification pipeline typically combines both: a learned model for prose entities (names, organisations, locations) and a rule-based layer for structured identifiers (IBANs, ISINs, LEIs).
+
+\begin{example}[Financial NER Pipeline]
+\label{ex:ch15-ner}
+Consider the sentence: ``The credit committee reviewed the application of Antoine Dupont (NIF: 12345678A) for a mortgage of EUR 320,000 on the property at 4 Avenue des Champs-\'Elys\'ees, Paris 75008, with IBAN FR76 3000 6000 0112 3456 7890 189.''
+
+A financial NER pipeline returns the following entity spans:
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Span & Type & Method \\
+\midrule
+Antoine Dupont & PERSON & Learned model \\
+12345678A & TAX\_ID & Rule (NIF pattern) \\
+EUR 320,000 & MONEY & Learned model \\
+4 Avenue des Champs-\'Elys\'ees, Paris 75008 & ADDRESS & Learned model \\
+FR76 3000 6000 0112 3456 7890 189 & IBAN & Rule (IBAN pattern) \\
+\bottomrule
+\end{tabular}
+\end{center}
+Replacing each span with a typed placeholder yields: ``The credit committee reviewed the application of [PERSON\_001] (NIF: [TAX\_ID\_001]) for a mortgage of [MONEY\_001] on the property at [ADDRESS\_001], with IBAN [IBAN\_001].'' The resulting text is semantically interpretable for the downstream task (e.g., summarisation) while containing no personal information.
+\end{example}
 
 \subsection{Anonymisation Strategies: Masking, Generalisation, and Suppression}
-\label{sec:anonymisation-strategies}
+\label{sec:ch15-strategies}
 
-[Placeholder]
+Three fundamental anonymisation strategies differ in the degree of information they preserve.
+
+\emph{Masking} replaces each sensitive span with a typed placeholder, as illustrated in Example~\ref{ex:ch15-ner}. The placeholder encodes the entity type but not the entity value. Masking is lossless with respect to the document's structure — co-references remain aligned because the same placeholder recurs — but discards all information about the specific entity. A downstream model cannot use the masked document to learn the client's identity, but it can infer the structure of the transaction.
+
+\emph{Generalisation} replaces a specific value with a less specific one. A precise postal code (75008) might be replaced with the arrondissement (8th arrondissement) or the city (Paris). A specific monetary amount (EUR 320,000) might be replaced with a range (EUR 250,000–500,000). Generalisation preserves more semantic content than masking and is particularly useful when the downstream task requires statistical properties (e.g., determining the income tier of an applicant) but not the precise value.
+
+\emph{Suppression} removes the sensitive span entirely, leaving no placeholder. Suppression is appropriate when the entity type itself is sensitive — for example, a nationality field that could reveal protected characteristics. However, suppression can render text incoherent if the suppressed entity is the subject of the sentence.
+
+\begin{definition}[$k$-Anonymity]
+\label{def:k-anonymity}
+A dataset $\mathcal{D}$ satisfies $k$-anonymity with respect to a set of quasi-identifying attributes $\mathcal{Q}$ if every record $r \in \mathcal{D}$ is indistinguishable from at least $k-1$ other records in $\mathcal{D}$ when restricted to $\mathcal{Q}$~\citep{sweeney2002k}. Equivalently, the equivalence class of $r$ under $\mathcal{Q}$ has cardinality at least $k$.
+\end{definition}
+
+$k$-anonymity is the canonical formalisation of generalisation-based anonymisation for tabular data. For text, the concept extends to the requirement that any output document produced by the anonymisation pipeline could plausibly have originated from at least $k$ different individuals. A masking pipeline trivially achieves large $k$ — there are many people named [PERSON\_001] — but may introduce its own risks if the surrounding context uniquely identifies the individual even after masking (the so-called \emph{re-identification by context} problem, discussed in Section~\ref{sec:ch15-reidentification}).
 
 \subsection{Pseudonymisation and Tokenisation}
-\label{sec:anonymisation-pseudonymisation}
+\label{sec:ch15-pseudonymisation}
 
-[Placeholder]
+Pseudonymisation replaces each sensitive entity with a deterministic surrogate that is consistent across the document and, optionally, across a corpus. Unlike masking, which uses generic typed placeholders, pseudonymisation uses specific fake values: a real-sounding but fictitious name (``Marie Leclerc'' instead of ``Antoine Dupont''), a syntactically valid but non-existing IBAN, a real-format but fictitious address.
+
+The advantage of pseudonymisation over masking is that the anonymised document is more natural — it reads as a real document and does not alert the language model to the fact that sensitive content has been removed. This matters because modern LLMs may behave differently when they detect obvious placeholders, producing generic rather than document-specific outputs. Pseudonymisation also preserves the statistical properties of the original entities better than masking: a pseudonymised name is unambiguously a name, not a tag.
+
+The disadvantage is the re-identification risk associated with the pseudonymisation mapping. The table that maps each real entity to its surrogate is itself sensitive — it is, in effect, a key that can decrypt the anonymised corpus. Pseudonymisation is therefore classified under GDPR as a data protection technique (Recital 26 notes that pseudonymised data ``could be attributed to a natural person by the use of additional information'') rather than anonymisation, which GDPR exempts from most obligations. The pseudonymisation key must be held separately from the anonymised data, access-controlled, and ideally encrypted at rest under a key management system.
+
+A related technique is \emph{format-preserving tokenisation}: the sensitive value is replaced by a token that has the same format as the original. An IBAN is replaced by a different syntactically valid IBAN; a postal code is replaced by a different postal code in the same country. Format-preserving tokenisation is widely used in payment card processing (PCI-DSS requires it for cardholder data) and is now appearing in LLM pipelines for the same reasons: it allows downstream models to operate on data that \emph{looks} real without being real.
 
 \subsection{Re-identification Risk Assessment}
-\label{sec:anonymisation-reidentification}
+\label{sec:ch15-reidentification}
 
-[Placeholder]
+Anonymisation reduces but does not eliminate re-identification risk. A document from which all entity mentions have been removed may still be uniquely identifiable from its non-entity content: the specific combination of transaction dates, amounts (expressed as ranges), and product types may correspond to only one client in the institution's portfolio. This is the \emph{contextual re-identification} problem.
+
+Quantifying this risk requires a model of the adversary's background knowledge. A useful framework treats re-identification as an inference problem: the adversary observes the anonymised document $\hat{d}$ and uses prior knowledge $\mathcal{K}$ to compute a posterior distribution over the set of possible original documents $\mathcal{P}(\text{individual} \mid \hat{d}, \mathcal{K})$. If this posterior is concentrated on a single individual, re-identification is trivially possible. If it is uniform over a large set, re-identification is infeasible.
+
+Practical re-identification risk assessment tools implement this logic by simulation: they apply the anonymisation pipeline to the document, then attempt re-identification using the institution's own databases as background knowledge. If re-identification succeeds, the pipeline is insufficiently protective and must apply stronger generalisation or suppression. If re-identification fails on all test cases, the pipeline is considered adequate for that threat model.
+
+\begin{remark}
+Re-identification assessment is a point-in-time evaluation. The adversary's background knowledge $\mathcal{K}$ grows over time as more data becomes public. A document that is adequately anonymised today may become re-identifiable in five years if additional auxiliary data is published. Institutions should establish a periodic review cycle for anonymisation adequacy, particularly for long-lived document archives.
+\end{remark}
 
 % ---------------------------------------------------------------
 \section{Privacy-Preserving Training Techniques}
-\label{sec:privacy-training}
+\label{sec:ch15-privacy-training}
 
-[Placeholder]
+\begin{context}
+The preceding sections addressed the inference channel: how to prevent sensitive data from reaching an external model. This section addresses the training channel: how to limit the amount of sensitive information that becomes permanently embedded in a model's parameters during fine-tuning on proprietary data. Two techniques dominate the current practice — differential privacy and federated learning — and they address complementary risks. Differential privacy bounds the per-example information contribution to the model, regardless of where training occurs. Federated learning prevents training data from leaving the institution where it originates, enabling collaborative model improvement without data centralisation.
+\end{context}
 
 \subsection{Differential Privacy in Fine-Tuning}
-\label{sec:privacy-training-dp}
+\label{sec:ch15-dp}
 
-[Placeholder]
+Differential privacy (DP) is a mathematical framework for bounding the information that a computation reveals about any individual input~\citep{dwork2014algorithmic}. The core definition is deceptively simple.
+
+\begin{definition}[($\varepsilon$, $\delta$)-Differential Privacy]
+\label{def:dp}
+A randomised mechanism $\mathcal{M}: \mathcal{X} \to \mathcal{Y}$ satisfies $(\varepsilon, \delta)$-differential privacy if, for all pairs of adjacent datasets $D, D' \in \mathcal{X}$ differing in exactly one record, and for all measurable output sets $S \subseteq \mathcal{Y}$:
+\begin{equation}
+  \label{eq:ch15-dp}
+  \Pr[\mathcal{M}(D) \in S] \leq e^{\varepsilon} \cdot \Pr[\mathcal{M}(D') \in S] + \delta.
+\end{equation}
+The parameter $\varepsilon \geq 0$ is the \emph{privacy budget} (smaller is more private); $\delta \geq 0$ is the \emph{failure probability} (the probability that the $e^{\varepsilon}$ bound fails to hold). Pure DP corresponds to $\delta = 0$.
+\end{definition}
+
+Intuitively, $(\varepsilon, \delta)$-DP guarantees that an adversary who observes the output of $\mathcal{M}$ cannot infer with high confidence whether any particular record was in the input dataset. The adversary's log-odds of distinguishing $D$ from $D'$ are bounded by $\varepsilon$; with probability $1-\delta$, this bound holds exactly.
+
+The most common mechanism for achieving DP on real-valued functions is the Gaussian mechanism.
+
+\begin{theorem}[Gaussian Mechanism]
+\label{thm:gaussian-mechanism}
+Let $f: \mathcal{X} \to \mathbb{R}^d$ be a function with $\ell_2$-sensitivity $\Delta_2 f = \max_{D, D'} \|f(D) - f(D')\|_2$, where the maximum is over all adjacent datasets. The mechanism
+\begin{equation}
+  \label{eq:ch15-gaussian}
+  \mathcal{M}(D) = f(D) + \mathcal{N}(0, \sigma^2 I_d),
+  \quad \sigma = \frac{\Delta_2 f \cdot \sqrt{2 \ln(1.25/\delta)}}{\varepsilon},
+\end{equation}
+satisfies $(\varepsilon, \delta)$-differential privacy for any $\varepsilon \in (0, 1)$ and $\delta \in (0, 1)$.
+\end{theorem}
+
+DP-SGD, introduced by \citet{abadi2016deep}, applies the Gaussian mechanism to stochastic gradient descent by perturbing the per-example gradients before aggregation. The algorithm proceeds in three modifications to standard SGD:
+
+\begin{enumerate}
+  \item \emph{Per-example gradient computation}: rather than summing gradients across the minibatch before backpropagation, DP-SGD computes a separate gradient for each training example.
+  \item \emph{Gradient clipping}: each per-example gradient $g_i$ is clipped to $\ell_2$-norm at most $C$ — the clipping norm — by setting $\hat{g}_i = g_i / \max(1, \|g_i\|_2 / C)$. Clipping bounds the sensitivity: no single example can change the aggregate gradient by more than $C$.
+  \item \emph{Noise addition}: Gaussian noise $\mathcal{N}(0, \sigma^2 C^2 I)$ is added to the sum of clipped gradients before the parameter update. The noise scale $\sigma$ is chosen to satisfy the target $(\varepsilon, \delta)$ guarantee over the full training run.
+\end{enumerate}
+
+The privacy guarantee is computed using the moments accountant or the R\'enyi DP composition theorem, which track the cumulative privacy loss across all gradient steps more tightly than the basic composition theorem~\citep{abadi2016deep}.
+
+The primary cost of DP-SGD is utility degradation. Adding noise to gradients slows convergence and may prevent the model from reaching the same loss as non-private training. The trade-off is characterised by the privacy--utility curve: for a given $\delta$, the test accuracy of the DP model is plotted as a function of $\varepsilon$. Typical values in the literature range from $\varepsilon = 1$ (strong privacy, significant utility cost) to $\varepsilon = 10$ (weak privacy, small utility cost) for large language model fine-tuning. The parameter-efficient fine-tuning methods of Chapter~\ref{ch:llm-training-finetuning} (LoRA, adapters) are particularly compatible with DP-SGD because they reduce the number of trainable parameters, which reduces the effective sensitivity and therefore the required noise scale.
+
+\begin{proposition}[Composition of DP Mechanisms]
+\label{prop:composition}
+If $\mathcal{M}_1$ satisfies $(\varepsilon_1, \delta_1)$-DP and $\mathcal{M}_2$ satisfies $(\varepsilon_2, \delta_2)$-DP, then their sequential composition $(\mathcal{M}_1, \mathcal{M}_2)$ satisfies $(\varepsilon_1 + \varepsilon_2, \delta_1 + \delta_2)$-DP. Under advanced composition over $k$ mechanisms each satisfying $(\varepsilon, \delta)$-DP, the composite satisfies $(\varepsilon', k\delta + \delta')$-DP for any $\delta' > 0$, where
+\begin{equation}
+  \label{eq:ch15-advanced-comp}
+  \varepsilon' = \varepsilon\sqrt{2k \ln(1/\delta')} + k\varepsilon(e^{\varepsilon} - 1).
+\end{equation}
+For small $\varepsilon$ (i.e.\ $e^{\varepsilon} - 1 \approx \varepsilon$), the second term is of order $k\varepsilon^2$ and is often negligible relative to the first, giving the commonly cited approximation $\varepsilon' \approx \varepsilon\sqrt{2k\ln(1/\delta')}$.
+\end{proposition}
+
+Proposition~\ref{prop:composition} has an important operational implication: every time a DP mechanism is applied during training, it consumes part of the institution's privacy budget. An organisation that plans to fine-tune a model multiple times on sensitive data must account for the cumulative privacy loss across all training runs. Once the budget is exhausted, further training on the sensitive data would violate the privacy guarantee, requiring either a fresh model or a new data collection with a separate budget allocation.
+
+\begin{proof}[Proof sketch]
+For basic composition, the key tool is the post-processing immunity lemma: any deterministic or randomised function of the output of a DP mechanism satisfies at least the same DP guarantee. Let $D$ and $D'$ be adjacent datasets. The composition $(\mathcal{M}_1(D), \mathcal{M}_2(D))$ can be analysed by first applying the $(\varepsilon_1, \delta_1)$-DP guarantee of $\mathcal{M}_1$ to bound the change in the joint distribution, then noting that the conditional distribution of $\mathcal{M}_2$'s output given $\mathcal{M}_1$'s output satisfies the $(\varepsilon_2, \delta_2)$ bound by the DP guarantee of $\mathcal{M}_2$. Chaining the two bounds via a union argument yields the $(\varepsilon_1 + \varepsilon_2, \delta_1 + \delta_2)$ guarantee. The advanced composition bound follows from the moments accountant analysis, which tracks the R\'enyi divergence between the distributions of outputs on $D$ and $D'$ rather than the multiplicative distance; see \citet{dwork2014algorithmic} for the full derivation.
+\end{proof}
 
 \subsection{Federated Learning for Distributed Financial Data}
-\label{sec:privacy-training-federated}
+\label{sec:ch15-federated}
 
-[Placeholder]
+Federated learning addresses a different privacy threat: data centralisation. In the standard machine-learning paradigm, training data is aggregated at a central server before model training begins. For financial institutions subject to data-residency regulations — which prohibit client data from leaving a specific jurisdiction or even a specific office — centralisation may be legally prohibited even when the training is conducted by the same institution.
+
+Federated learning, formalised by the FedAvg algorithm of \citet{mcmahan2017communication}, replaces centralised training with a distributed protocol. Each client (a branch, a subsidiary, or a counterpart institution) trains locally on its own data for several gradient steps, then sends only the resulting model update — not the data — to a central aggregator. The aggregator averages the updates and broadcasts the improved global model back to all clients.
+
+\begin{definition}[Federated Averaging]
+\label{def:fedavg}
+Let $K$ clients each hold a local dataset $D_k$ with $n_k$ examples. Let $n = \sum_{k=1}^K n_k$. The FedAvg objective is to minimise
+\begin{equation}
+  \label{eq:ch15-fedavg-obj}
+  F(\theta) = \sum_{k=1}^K \frac{n_k}{n} F_k(\theta),
+  \quad F_k(\theta) = \frac{1}{n_k} \sum_{(x,y) \in D_k} \ell(f_\theta(x), y),
+\end{equation}
+where $f_\theta$ is the shared model with parameters $\theta$ and $\ell$ is the per-example loss. At round $t$, the server selects a subset $S_t \subseteq [K]$ of clients. Each selected client $k$ initialises with $\theta^t$, performs $E$ local gradient steps with learning rate $\eta$, and returns $\Delta_k^t = \theta_k^t - \theta^t$. The server updates
+\begin{equation}
+  \label{eq:ch15-fedavg-update}
+  \theta^{t+1} = \theta^t + \sum_{k \in S_t} \frac{n_k}{\sum_{j \in S_t} n_j} \Delta_k^t.
+\end{equation}
+\end{definition}
+
+The fundamental privacy guarantee of federated learning is that the central aggregator never sees raw training data — only gradient updates. This satisfies data-residency requirements at the level of data location, but it does not provide differential privacy: gradient updates can themselves leak information about the local training data through gradient inversion attacks. Combining federated learning with DP-SGD (applied locally, before transmitting the gradient update) provides both data-residency guarantees and differential privacy, at the cost of increased noise and slower convergence.
+
+In a financial context, federated learning enables two use cases that would otherwise be infeasible. First, multi-bank collaboration on shared models: several institutions may wish to jointly train a fraud detection or AML model on their combined transaction data, which would be more powerful than any institution's individual dataset, without any institution revealing its data to the others. Second, cross-border model improvement: a global bank operating in jurisdictions with conflicting data-residency requirements can improve a single global model without moving data between jurisdictions, provided each jurisdiction runs its own federated client.
 
 % ---------------------------------------------------------------
 \section{Architectural Patterns for Privacy-Compliant LLM Systems}
-\label{sec:privacy-architecture}
-
-[Placeholder]
+\label{sec:ch15-architecture}
 
 \subsection{Privacy-Aware Retrieval-Augmented Generation}
-\label{sec:privacy-architecture-rag}
+\label{sec:ch15-rag}
 
-[Placeholder]
+Retrieval-augmented generation (RAG) pipelines, introduced in Chapter~\ref{ch:llm-agents}, retrieve relevant documents from a knowledge base and include them in the model's prompt as context. Privacy risks arise at three points in the pipeline: during ingestion (when documents are embedded and stored), during retrieval (when query embeddings may reveal the query to the vector database operator), and during inference (when retrieved documents appear in the prompt alongside user data).
+
+Privacy-aware RAG addresses each point systematically. During ingestion, documents are anonymised before embedding: the de-identification pipeline of Section~\ref{sec:ch15-anonymisation} is applied to each document, and only the anonymised version is stored in the vector index. The mapping from anonymised to original is kept separately in an access-controlled store. During retrieval, embeddings are computed locally (using a local embedding model) rather than by a cloud API, preventing the query from leaving the institution's network. During inference, the retrieved document chunks are scanned for residual sensitive information — using a lightweight classifier — before being included in the prompt.
+
+Access control at the retrieval layer is particularly important in financial institutions, where different employees have different authorisation levels. A junior analyst should not be able to retrieve documents about merger targets by asking the LLM assistant an indirect question. Row-level security in the vector index — where each document chunk carries an access-control list and the retrieval query is filtered by the querying user's clearance — provides the technical enforcement mechanism.
+
+\begin{example}[Privacy-Aware RAG for Credit Analysis]
+\label{ex:ch15-rag}
+A credit analyst queries the LLM assistant: ``What is the typical collateral structure for leveraged buyout loans in the technology sector?'' The pipeline executes as follows:
+\begin{enumerate}
+  \item The query embedding is computed locally by a self-hosted embedding model.
+  \item The vector index retrieves the top-5 relevant document chunks, filtered to documents the analyst is authorised to access (credit policy documents, sector reports, and anonymised historical loan files for the technology sector).
+  \item The retrieved chunks are scanned for PII and financial identifiers; none is found (the documents have been pre-anonymised at ingestion).
+  \item The filtered chunks are included in the prompt to the local LLM, which generates a response citing the retrieved content.
+  \item The response is logged with: timestamp, user ID, query hash (not the query itself), document IDs retrieved, and model version. The log entry is written to an immutable audit store.
+\end{enumerate}
+At no point does any client-identifying information enter the prompt, and no data crosses an external network boundary.
+\end{example}
 
 \subsection{Audit Trails, Access Logging, and Encrypted Pipelines}
-\label{sec:privacy-architecture-audit}
+\label{sec:ch15-audit}
 
-[Placeholder]
+Regulators expect financial institutions to be able to reconstruct the history of any decision that affects a client. For LLM-assisted decisions, this means logging sufficient information to answer: who asked the model a question, what documents were retrieved, what the model was asked, what the model replied, and what action was taken based on the reply.
+
+Designing an audit trail for an LLM system requires balancing completeness against the privacy of the very clients the system processes. Logging the full prompt and completion — the most complete record — also creates a secondary data store containing client-identifying information, which is itself subject to GDPR retention limits and DORA resilience requirements. An operationally superior approach logs only a hash of the prompt (preserving integrity without storing the content), plus structured metadata: user ID, authorisation level, document IDs retrieved, model version, response time, and outcome (if the response was used to support a documented decision).
+
+End-to-end encryption of the LLM pipeline means that data is encrypted at rest in the document store, during transmission over internal networks, and ideally during inference. Homomorphic encryption, which allows computation on ciphertext without decryption, would in principle allow inference to be performed on encrypted prompts — but the computational overhead of current homomorphic encryption schemes makes this infeasible for transformer inference at the scale of interest. Confidential computing — running inference inside a hardware-isolated trusted execution environment (TEE) such as Intel TDX or AMD SEV — is a practical alternative that prevents the cloud operator from accessing the data even during processing.
 
 % ---------------------------------------------------------------
 \section{Evaluation and Compliance}
-\label{sec:privacy-evaluation}
-
-[Placeholder]
+\label{sec:ch15-evaluation}
 
 \subsection{Measuring Privacy Leakage}
-\label{sec:privacy-evaluation-measurement}
+\label{sec:ch15-leakage-measurement}
 
-[Placeholder]
+Privacy guarantees should be verified empirically, not taken on faith from the training algorithm. Three quantitative evaluations are standard.
+
+\emph{Membership inference success rate}: hold out a random subset of fine-tuning documents as the negative class. Apply the likelihood-ratio attack of \citet{carlini2021extracting} to both the fine-tuning documents and the held-out documents. Compute the area under the ROC curve (AUC) for distinguishing members from non-members. An AUC of 0.5 indicates perfect privacy (the attack performs no better than chance); an AUC of 1.0 indicates complete failure. For practical systems, an AUC below 0.6 is a common threshold for acceptable privacy.
+
+\emph{Verbatim extraction rate}: define a set of ``canary'' sequences — specific sensitive strings from the fine-tuning corpus — and measure the fraction that can be recovered by the extraction attack. A model fine-tuned with appropriate DP guarantees should have a near-zero extraction rate for canaries; a model fine-tuned without privacy protections may have extraction rates above 1\% for highly repeated sequences.
+
+\emph{Property inference accuracy}: select an aggregate property of the fine-tuning dataset (e.g., the fraction of documents in the default category, the mean loan size) and train a meta-classifier on shadow models to infer this property from the target model's outputs. Compare the meta-classifier's accuracy to a random baseline. Accuracy significantly above baseline indicates property leakage.
 
 \subsection{Compliance Checklists and Privacy Impact Assessments}
-\label{sec:privacy-evaluation-compliance}
+\label{sec:ch15-compliance}
 
-[Placeholder]
+A Data Protection Impact Assessment (DPIA), required by GDPR Article~35 for processing that is ``likely to result in a high risk to the rights and freedoms of natural persons,'' should precede any LLM deployment that processes personal financial data. The DPIA documents: the purpose of processing, the legal basis, the categories of data and data subjects, the identified risks, and the mitigations in place. For LLM systems, the DPIA should specifically address memorisation risk (and its DP mitigation), the data-sharing model with any third-party API provider, and the mechanism for exercising data subject rights (particularly the right to erasure).
+
+Table~\ref{tab:ch15-compliance} provides a structured compliance checklist covering the four regulatory frameworks discussed in Section~\ref{sec:ch15-regulation}. Each row identifies a specific obligation, the applicable article or provision, the relevant mitigation from this chapter, and the evidence required to demonstrate compliance.
+
+\begin{table}[h]
+\caption{Compliance checklist for LLM deployments in financial services.}
+\label{tab:ch15-compliance}
+\begin{center}
+\begin{tabular}{p{3.5cm}p{2.5cm}p{3cm}p{3.5cm}}
+\toprule
+\textbf{Obligation} & \textbf{Source} & \textbf{Mitigation} & \textbf{Evidence} \\
+\midrule
+Lawful basis for processing personal data & GDPR Art.\ 6 & Document legal basis (contract, legitimate interest, consent) & Legal assessment on file \\
+\addlinespace
+Restrict automated decision-making & GDPR Art.\ 22 & Human-in-the-loop review for significant decisions & Workflow documentation \\
+\addlinespace
+Support right to erasure & GDPR Art.\ 17 & Exclude data subject data from fine-tuning; use retrieval instead & Architecture documentation \\
+\addlinespace
+Data minimisation & GDPR Art.\ 5 & Anonymise before embedding; log only hashes & Pipeline design documentation \\
+\addlinespace
+DPIA for high-risk processing & GDPR Art.\ 35 & Conduct DPIA before deployment & Signed DPIA document \\
+\addlinespace
+ICT third-party contract requirements & DORA Art.\ 30 & DORA-compliant DPA with provider & Signed contract \\
+\addlinespace
+Record-keeping for investment services & MiFID II & Audit trail with immutable log & Audit log samples \\
+\addlinespace
+Model risk management & SR 11-7 (US) / ECB expectations (EU) & Model card, performance benchmarks, human oversight & Model documentation \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+The checklist is a starting point, not a complete compliance programme. Requirements evolve as regulators issue guidance on AI specifically (the ECB's supervisory expectations on AI risk management, published in 2024, and the EBA's work on machine learning in credit risk are examples), and as case law under GDPR develops. Institutions should maintain a living compliance register that tracks the evolution of requirements against their deployed systems.
+
+\begin{remark}[Summary of Mitigations by Threat]
+\label{rem:ch15-summary}
+The four engineering strategies developed in this chapter address complementary threat vectors:
+\begin{itemize}
+  \item \emph{Inference-channel exfiltration}: mitigated by local or private-cloud deployment (Section~\ref{sec:ch15-local-models}), eliminating the external API boundary.
+  \item \emph{Input-data disclosure via prompt}: mitigated by text anonymisation and de-identification (Section~\ref{sec:ch15-anonymisation}), reducing the sensitive content in the prompt.
+  \item \emph{Training-channel memorisation}: mitigated by DP-SGD during fine-tuning (Section~\ref{sec:ch15-dp}), bounding per-example information contribution.
+  \item \emph{Data-residency violation}: mitigated by federated learning (Section~\ref{sec:ch15-federated}), keeping data within its jurisdictional boundary.
+  \item \emph{Systemic risk from prompt injection and access control failure}: mitigated by privacy-aware RAG architecture with access-controlled retrieval and audit logging (Section~\ref{sec:ch15-architecture}).
+\end{itemize}
+A production deployment should apply all five strategies in combination. No single strategy is sufficient; the threat landscape is multi-dimensional and each strategy has residual risks that the others address.
+\end{remark}

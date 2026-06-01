@@ -158,9 +158,10 @@ the AMF (France), and documents submitted under the Transparency Directive.
 transcribed to text, capture real-time management commentary and Q\&A in a
 conversational register that differs markedly from formal filings.  Services
 such as Refinitiv, FactSet, and Seeking Alpha provide historical transcript
-archives.  BloombergGPT \cite{wu2023bloomberggpt} used a curated internal
-corpus of 363 billion tokens, of which a substantial fraction consisted of
-Bloomberg news articles and terminal data.  The cost and data requirements
+archives.  BloombergGPT \cite{wu2023bloomberggpt} used a corpus of approximately
+708 billion tokens (363\,B finance-specific from Bloomberg's archives plus
+345\,B general-purpose tokens), described further in
+Section~\ref{subsec:bloomberggpt}.  The cost and data requirements
 of such from-scratch training motivated open-source alternatives: FinGPT
 \cite{yang2023fingpt_lora} democratises access by applying LoRA fine-tuning
 to publicly available foundation models, reducing training costs to under
@@ -673,19 +674,54 @@ memory-prohibitive.
   \label{fig:ch03-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: Chinchilla Scaling Law]
+\begin{exercise}[[B] MinHash Deduplication Step]
+\label{ex:ch03-minhash}
+Let $A = \{\text{``the'', ``stock'', ``rose'', ``sharply''}\}$ and
+$B = \{\text{``the'', ``stock'', ``fell'', ``sharply''}\}$ be two documents
+represented as 1-gram shingle sets.
+(\textit{a})~Compute the Jaccard similarity $J(A, B)$ exactly.
+(\textit{b})~Using the hash functions $h_1(x) = (3x + 1) \bmod 7$ and
+$h_2(x) = (5x + 2) \bmod 7$ (assign each word an integer 0–3 in alphabetical
+order across the union), compute the MinHash estimate $\hat{J}(A, B)$ from
+two hash functions.
+(\textit{c})~Under what Jaccard threshold would these documents be treated as
+near-duplicates in a typical deduplication pipeline?
+\end{exercise}
+
+\begin{exercise}[[I] Illustration: Chinchilla Scaling Law]
 \label{ex:ch03-illustration}
 Reproduce Figure~\ref{fig:ch03-illustration} using the Chinchilla coefficients
-$N^* = 0.1192\,C^{0.4937}$ and $D^* = 2.1714\,C^{0.4977}$.
+$N^* = 0.1192\,C^{0.4937}$ and $D^* = 2.1714\,C^{0.4977}$ (IsoFLOP fit,
+Approach~1 from Hoffmann et al.).
 (\textit{a})~Compute the compute-optimal parameter count for budgets of
 $10^{23}$ and $10^{25}$ FLOPs and mark them on the plot.
-(\textit{b})~Add GPT-4 (use the widely cited but unconfirmed estimate of
+(\textit{b})~Also compute $N^*(10^{23})$ from the parametric model
+(Theorem~\ref{thm:chinchilla}; use $\alpha=0.34$, $\beta=0.28$, $A=406.4$,
+$B=410.7$). Compare with the IsoFLOP result and explain the discrepancy.
+(\textit{c})~Add GPT-4 (use the widely cited but unconfirmed estimate of
 $\sim\!1.8$T parameters from informal sources; OpenAI has not published the
 official count) with the public FLOPs estimate of $\sim\!13\times10^{24}$,
-and assess whether it lies above or below the frontier.  Discuss how sensitive
-your conclusion is to the assumed parameter count.
+and assess whether it lies above or below the frontier.
 See \texttt{code/notebooks/03-llm-training-finetuning/exercises.ipynb},
 Illustration Exercise.
+\end{exercise}
+
+\begin{exercise}[[A] LoRA Rank Ablation for Domain Adaptation]
+\label{ex:ch03-lora-rank}
+You are adapting a 7B LLaMA-2 model for financial NER using LoRA on the
+query and value projection matrices ($d = k = 4{,}096$, 32 layers).
+(\textit{a})~Derive the total trainable parameter count as a function of rank
+$r$, including the $\alpha/r$ scaling factor.  At what rank does LoRA exceed
+1\% of the base model's parameter count?
+(\textit{b})~You observe that rank $r = 4$ achieves 89.5\% F1 on the FiNER-139
+benchmark while $r = 64$ achieves 91.2\%.  The model will be served on a
+single A100 (80\,GB) alongside three other LoRA adapters.  Calculate the
+additional GPU memory required for $r = 64$ versus $r = 4$ (parameters only,
+in fp16), and decide whether the performance gain justifies the memory cost.
+(\textit{c})~Propose an experiment to determine whether the performance gap
+closes if the training set is doubled.  What confound must you control for?
+See \texttt{code/notebooks/03-llm-training-finetuning/exercises.ipynb},
+Advanced Exercise.
 \end{exercise}
 
 % --- Section: Transfer Learning and Fine-Tuning ---
@@ -1058,10 +1094,12 @@ three financial NLP tasks:
   \item \emph{ESG category classification:} macro-F1 78.3\% vs 71.2\%.
   \item \emph{Forward-looking statement detection:} F1 91.3\% vs 85.6\%.
 \end{itemize}
-These gains arise from two mechanisms.  First, the financial vocabulary is
-better represented in the FinBERT tokeniser, reducing tokenisation noise.
-Second, the pre-training distribution is closer to the fine-tuning distribution,
-so fewer gradient steps are needed to reach a given loss level.
+These gains arise from two mechanisms.  First, continued pre-training on
+financial text produces richer contextual representations of financial
+terminology within the unchanged WordPiece vocabulary, effectively teaching
+the model how financial tokens co-occur and relate.  Second, the pre-training
+distribution is closer to the fine-tuning distribution, so fewer gradient
+steps are needed to reach a given loss level.
 
 A parallel line of work by \citet{huang2023finbert} pre-trained FinBERT on a
 much larger corpus of 4.9 billion financial tokens drawn from corporate filings,

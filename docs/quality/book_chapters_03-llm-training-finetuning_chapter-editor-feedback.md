@@ -98,6 +98,20 @@
   - **Fix:** Replace with single-summation standard form summing over n-grams directly.
 
 - [x] **MINOR-8** — "BloombergGPT architecture uses the BLOOM architecture" misleading (~line 1130)
+
+---
+
+## Revision Round 3 (2026-06-01 — from full-review round 2)
+
+- [x] **BLOCKER-5** — BloombergGPT "363 billion tokens" still at line 162 (Section 1 early mention)
+  - **Fix:** Change to ~708B total corpus (363B finance + 345B general) consistent with Section 3 fix.
+
+- [x] **MAJOR-9** — FinBERT tokeniser self-contradiction (lines 1061–1062)
+  - **Problem:** Lines 1048–1051 say vocabulary is unchanged; lines 1061–1062 claim "financial vocabulary is better represented in the FinBERT tokeniser."
+  - **Fix:** Replace with "updated weight distributions produce richer contextual representations of financial terminology within the existing vocabulary."
+
+- [x] **MAJOR-10** — Exercise missing difficulty tags; too few exercises
+  - **Fix:** Tag ex:ch03-illustration [I]; add [B] and [A] exercises.
   - **Fix:** Rephrase to "BloombergGPT adopts ALiBi positional encodings from the BLOOM model family."
   - **Problem:** The O(√L · T · d) formula assumes checkpointing only at layer granularity — not stated.
   - **Fix:** Add a brief footnote clarifying that the √L bound assumes optimal checkpoint placement at layer granularity.

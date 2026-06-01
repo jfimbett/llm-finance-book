@@ -139,3 +139,4 @@
 | 2026-05-31 | 1 files | chore: session log 2026-05-31;chore: session log 2026-05-31;chore: session log 2026-05-31; | — |
 | 2026-05-31 | 5 files | fix(ch01): revision complete — all 10 editor issues resolved, score 8.6/10 PASS;chore: session log 2026-05-31;chore: session log 2026-05-31; | — |
 | 2026-05-31 | 8 files | chore(ch02): revision complete — all editor issues resolved, score 8.6/10 PASS;fix(ch02): resolve 3 BLOCKERs from full-review gate;fix(ch02): revision complete — all editor issues resolved, exercises added; | — |
+| 2026-06-01 | 5 files | chore(ch03): revision complete — all editor issues resolved, score 9.0/10 PASS;fix(ch03): round 4 — FinBERT base model and ZeRO reduction factors;fix(ch03): round 3 — resolve 1 BLOCKER + 2 MAJORs from full-review gate; | — |

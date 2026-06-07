@@ -1,0 +1,233 @@
+\chapter{Building Commercial Applications with the Anthropic SDK and Claude Code SDK}
+\label{app:sdk-commercial}
+
+\begin{remark}[Learning Objectives]
+After working through this appendix, the reader should be able to:
+\begin{enumerate}
+  \item Explain when the interactive Claude Code CLI is insufficient and a
+        programmatic SDK approach is required for commercial deployments.
+  \item Install the Anthropic Python or TypeScript SDK, authenticate with an
+        API key, and make a basic completion call with the correct parameters.
+  \item Define tools as JSON schemas, handle tool-call responses in a loop,
+        and extract structured outputs using the SDK.
+  \item Implement a self-contained agentic loop that manages conversation
+        state, calls tools, and handles errors and retries without human input.
+  \item Spawn and manage Claude Code processes headlessly via the Claude Code
+        SDK, capturing structured output for downstream pipeline steps.
+  \item Design a multi-agent workflow that fans work out in parallel, aggregates
+        results, and passes state between orchestrator and subagents.
+  \item Integrate token streaming into a web-facing API endpoint and handle
+        partial response buffering correctly.
+  \item Apply production-engineering practices---rate-limit handling, exponential
+        backoff, cost budgeting, and structured logging---to an SDK-based service.
+  \item Identify the security and compliance requirements specific to financial
+        applications (API key hygiene, PII handling, audit trails, HITL controls).
+  \item Trace through a complete automated financial report generator built on
+        the Anthropic SDK, identifying where each design principle is applied.
+\end{enumerate}
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{When to Go Beyond the Interactive CLI}
+\label{app:sdk-commercial:motivation}
+
+[Placeholder]
+
+\subsection{Limitations of the Interactive Model for Production Systems}
+\label{app:sdk-commercial:motivation:limits}
+
+[Placeholder]
+
+\subsection{Taxonomy of Programmatic Use Cases}
+\label{app:sdk-commercial:motivation:taxonomy}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{The Anthropic SDK}
+\label{app:sdk-commercial:sdk}
+
+[Placeholder]
+
+\subsection{Installation and Authentication}
+\label{app:sdk-commercial:sdk:install}
+
+[Placeholder]
+
+\subsection{Making Your First API Call}
+\label{app:sdk-commercial:sdk:first-call}
+
+[Placeholder]
+
+\subsection{Model Selection and Parameters}
+\label{app:sdk-commercial:sdk:params}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{Tool Use and Structured Outputs}
+\label{app:sdk-commercial:tools}
+
+[Placeholder]
+
+\subsection{Defining Tools as JSON Schemas}
+\label{app:sdk-commercial:tools:schemas}
+
+[Placeholder]
+
+\subsection{Handling Tool Calls in the Response Loop}
+\label{app:sdk-commercial:tools:loop}
+
+[Placeholder]
+
+\subsection{Structured Output with JSON Mode}
+\label{app:sdk-commercial:tools:json}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{Building an Agent Loop}
+\label{app:sdk-commercial:agent-loop}
+
+[Placeholder]
+
+\subsection{The Agentic Loop Pattern}
+\label{app:sdk-commercial:agent-loop:pattern}
+
+[Placeholder]
+
+\subsection{System Prompts and Conversation State}
+\label{app:sdk-commercial:agent-loop:state}
+
+[Placeholder]
+
+\subsection{Error Handling and Retries Within the Loop}
+\label{app:sdk-commercial:agent-loop:errors}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{The Claude Code SDK: Headless Execution}
+\label{app:sdk-commercial:cc-sdk}
+
+[Placeholder]
+
+\subsection{Architecture: The SDK Versus the Interactive CLI}
+\label{app:sdk-commercial:cc-sdk:arch}
+
+[Placeholder]
+
+\subsection{Installation and Process Management}
+\label{app:sdk-commercial:cc-sdk:install}
+
+[Placeholder]
+
+\subsection{Spawning Tasks Programmatically}
+\label{app:sdk-commercial:cc-sdk:spawn}
+
+[Placeholder]
+
+\subsection{Capturing Structured Output}
+\label{app:sdk-commercial:cc-sdk:output}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{Multi-Agent Workflows}
+\label{app:sdk-commercial:workflows}
+
+[Placeholder]
+
+\subsection{Orchestrator--Subagent Patterns}
+\label{app:sdk-commercial:workflows:orchestrator}
+
+[Placeholder]
+
+\subsection{Parallel Fan-Out with Async Processing}
+\label{app:sdk-commercial:workflows:parallel}
+
+[Placeholder]
+
+\subsection{State Passing and Result Aggregation}
+\label{app:sdk-commercial:workflows:state}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{Streaming and Real-Time Applications}
+\label{app:sdk-commercial:streaming}
+
+[Placeholder]
+
+\subsection{Server-Sent Events and Token Streaming}
+\label{app:sdk-commercial:streaming:sse}
+
+[Placeholder]
+
+\subsection{Integrating Streaming into a Web API}
+\label{app:sdk-commercial:streaming:web}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{Production Engineering}
+\label{app:sdk-commercial:production}
+
+[Placeholder]
+
+\subsection{Rate Limiting, Retries, and Back-Pressure}
+\label{app:sdk-commercial:production:rate-limits}
+
+[Placeholder]
+
+\subsection{Cost Management and Token Budgeting}
+\label{app:sdk-commercial:production:cost}
+
+[Placeholder]
+
+\subsection{Logging, Observability, and Tracing}
+\label{app:sdk-commercial:production:observability}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{Security and Compliance for Commercial Deployments}
+\label{app:sdk-commercial:security}
+
+[Placeholder]
+
+\subsection{API Key Management and Secrets Hygiene}
+\label{app:sdk-commercial:security:keys}
+
+[Placeholder]
+
+\subsection{Data Handling, PII, and Financial Regulations}
+\label{app:sdk-commercial:security:pii}
+
+[Placeholder]
+
+\subsection{Audit Trails and Human-in-the-Loop Controls}
+\label{app:sdk-commercial:security:audit}
+
+[Placeholder]
+
+% ---------------------------------------------------------------
+\section{Applied Example: An Automated Financial Report Generator}
+\label{app:sdk-commercial:example}
+
+[Placeholder]
+
+\subsection{Architecture Overview}
+\label{app:sdk-commercial:example:arch}
+
+[Placeholder]
+
+\subsection{Implementation Walkthrough}
+\label{app:sdk-commercial:example:impl}
+
+[Placeholder]
+
+\subsection{Evaluation and Quality Gates}
+\label{app:sdk-commercial:example:eval}
+
+[Placeholder]

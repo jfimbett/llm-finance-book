@@ -27,4 +27,4 @@
 | A | Claude Code | Yes | Yes | 8 | 8 | 9 | 8 | 8 | No |
 | B | Codex CLI | Yes | Yes | 8 | 8 | 9 | 8 | 8 | No |
 | C | Hugging Face & Local Models | Yes | Yes | 9 | 8 | 9 | 8 | 8 | No |
-| D | Anthropic SDK & Claude Code SDK for Commercial Applications | No | No | - | - | - | - | - | No |
+| D | Anthropic SDK & Claude Code SDK for Commercial Applications | Yes | Yes | 9 | 8 | 9 | 8 | 8 | No |

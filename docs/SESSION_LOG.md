@@ -143,3 +143,4 @@
 | 2026-06-01 | 13 files | chore: scaffold chapter 15 — llm-privacy-local-models;chore: session log 2026-06-01;chore(ch03): revision complete — all editor issues resolved, score 9.0/10 PASS; | — |
 | 2026-06-01 | 13 files | feat(ch15): draft LLM privacy chapter — score 8.6/10 PASS;chore: session log 2026-06-01;chore: scaffold chapter 15 — llm-privacy-local-models; | — |
 | 2026-06-02 | 12 files | fix(ch15): remove duplicate perez2022ignore bibliography entry;chore: session log 2026-06-01;feat(ch15): draft LLM privacy chapter — score 8.6/10 PASS; | — |
+| 2026-06-07 | 8 files | chore: scaffold appendix D-sdk-commercial;chore: session log 2026-06-02;fix(ch15): remove duplicate perez2022ignore bibliography entry; | — |

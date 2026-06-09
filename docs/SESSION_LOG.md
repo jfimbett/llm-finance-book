@@ -145,3 +145,4 @@
 | 2026-06-02 | 12 files | fix(ch15): remove duplicate perez2022ignore bibliography entry;chore: session log 2026-06-01;feat(ch15): draft LLM privacy chapter — score 8.6/10 PASS; | — |
 | 2026-06-07 | 8 files | chore: scaffold appendix D-sdk-commercial;chore: session log 2026-06-02;fix(ch15): remove duplicate perez2022ignore bibliography entry; | — |
 | 2026-06-07 | 7 files | feat(appD): draft Anthropic SDK & Claude Code SDK appendix;chore: session log 2026-06-07;chore: scaffold appendix D-sdk-commercial; | — |
+| 2026-06-09 | 9 files | feat(ch02): expand transformer §2.3 intro and add TikZ pipeline figure;chore: session log 2026-06-07;feat(appD): draft Anthropic SDK & Claude Code SDK appendix; | — |

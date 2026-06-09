@@ -19,6 +19,20 @@ After completing this chapter, the reader should be able to:
 \end{enumerate}
 \end{remark}
 
+This chapter builds the technical and practical foundations for applying large language
+models in finance.
+It begins where Chapter~1 left off --- individual token embeddings --- and shows how
+those embeddings are aggregated into document-level representations (Section~\ref{sec:doc-repr}).
+It then traces the evolution of sequence models from vanilla RNNs through LSTMs to the
+Transformer (Sections~\ref{sec:sequential}--\ref{sec:transformer}), establishes the
+pre-training and tokenisation machinery that underlies every modern LLM
+(Sections~\ref{sec:pretraining}--\ref{sec:tokenisation}), and turns to the production
+concerns that dominate practical deployment: the LLM landscape, sampling strategies,
+structured generation, API usage, retrieval-augmented generation, model compression,
+hallucination mitigation, and regulatory constraints
+(Sections~\ref{sec:llm-landscape}--\ref{sec:regulatory}).
+Readers who are already comfortable with document-level representations may proceed
+directly to Section~\ref{sec:sequential}.
 
 % --- moved from ch01 ---
 \section{Document-Level Representations}
@@ -1325,7 +1339,7 @@ implicitly, even without targeted domain training \citep{wei2022emergent}.
 The practical implication is that \emph{task-specific fine-tuning of a general-purpose
 model} often outperforms a domain-pre-trained model of the same size, and
 \emph{prompt engineering} applied to a large general model often outperforms
-both---a theme developed extensively in Chapter~6.
+both---a theme developed extensively in Chapter~3 (LLM Training and Fine-Tuning).
 \citet{niszczota2023gpt} provide an independent calibration of this point: in a
 standardised financial literacy test, GPT-4 achieves a near-perfect score of 99\%
 against a population of college students, confirming that frontier LLMs have absorbed
@@ -1392,9 +1406,9 @@ retrieval-augmented generation systems discussed in Section~\ref{sec:rag}.
 
 The ECTSum dataset of \citet{mukherjee2022ectsum} provides 2,425 earnings call
 transcript--summary pairs, where the reference summaries were written by domain experts
-and verified for factual consistency.  It is the primary benchmark for Chapter~4
-(Earnings Calls and Transcripts) and is used to evaluate both extractive and
-abstractive summarisation methods.
+and verified for factual consistency.  It is the primary benchmark for Chapter~14
+(Financial Text Summarisation and Information Extraction) and is used to evaluate
+both extractive and abstractive summarisation methods.
 
 The FinQA dataset of \citet{chen2021finqa} requires models to answer questions that
 demand multi-step numerical reasoning over structured tables and unstructured prose
@@ -1504,19 +1518,20 @@ $k=50$ may exclude reasonable alternatives.
 \begin{definition}[Nucleus (Top-$p$) Sampling]
 \label{def:nucleus}
 Nucleus sampling, introduced by \citet{holtzman2020curious}, selects the smallest
-set of tokens whose cumulative probability meets or exceeds a threshold $p \in (0,1]$:
+set of tokens whose cumulative probability meets or exceeds a threshold
+$\rho \in (0,1]$ (distinct from the token probability $p_i(\tau)$):
 \begin{equation}
-  \mathcal{V}_p = \arg\min_{S \subseteq \mathcal{V}} \bigl\{ |S| :
-    \textstyle\sum_{i \in S} p_i(\tau) \geq p \bigr\},
+  \mathcal{V}_\rho = \arg\min_{S \subseteq \mathcal{V}} \bigl\{ |S| :
+    \textstyle\sum_{i \in S} p_i(\tau) \geq \rho \bigr\},
   \label{eq:topp}
 \end{equation}
 where the tokens in $S$ are ordered by decreasing probability.
-The model then samples from $\mathcal{V}_p$ proportionally to the renormalised original probabilities.
+The model then samples from $\mathcal{V}_\rho$ proportionally to the renormalised original probabilities.
 \end{definition}
 
 Nucleus sampling adapts the vocabulary size to the model's confidence at each step:
-a sharp distribution yields a small $\mathcal{V}_p$, while a flat distribution
-yields a large one.  In practice, $p = 0.9$ or $p = 0.95$ is a common default for
+a sharp distribution yields a small $\mathcal{V}_\rho$, while a flat distribution
+yields a large one.  In practice, $\rho = 0.9$ or $\rho = 0.95$ is a common default for
 open-ended generation tasks.
 
 \subsection{Beam Search}
@@ -1587,7 +1602,7 @@ Sentiment labelling
   & Low variance; multiple samples for self-consistency if needed. \\[4pt]
 Document summarisation
   & $\tau \approx 0.3$--$0.5$
-  & top-$p = 0.9$
+  & top-$p$ ($\rho = 0.9$)
   & Some lexical diversity is desirable; factual accuracy still critical. \\[4pt]
 Regulatory Q\&A / compliance
   & $\tau \approx 0.1$
@@ -1595,8 +1610,13 @@ Regulatory Q\&A / compliance
   & Low temperature + retrieved context minimises hallucination risk. \\[4pt]
 Scenario / stress-test narrative
   & $\tau \approx 0.7$--$1.0$
-  & top-$p = 0.95$
-  & Creative diversity is the point; plausibility checked post-hoc. \\
+  & top-$p$ ($\rho = 0.95$)
+  & Creative diversity is the point; plausibility checked post-hoc. \\[4pt]
+Extractive summarisation / ROUGE evaluation
+  & N/A
+  & Beam search ($B = 4$)
+  & Deterministic output maximises $n$-gram overlap with reference texts;
+    less suitable for open-ended or factual generation. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2329,6 +2349,10 @@ $\alpha \in [0,1]$ balances the hard-label cross-entropy and the soft-label KL
 divergence, and $\tau^2$ re-scales the gradient magnitude (since temperature scaling
 reduces gradient magnitudes by $1/\tau^2$, the factor restores them to the
 scale of the cross-entropy term \citep{hinton2015distilling}).
+Here $\tau$ plays the same mathematical role as the sampling temperature
+(Definition~\ref{def:temperature}), but is set to $\tau \in [2, 10]$ during
+training to \emph{soften} the teacher distribution and expose inter-class
+similarities --- distinct from the inference-time convention $\tau = 1$.
 \end{definition}
 
 \begin{remark}[Forward versus Reverse KL in Distillation]
@@ -2410,8 +2434,10 @@ error matters most when the activation magnitude is large, so protecting those
 channels at higher precision yields a better accuracy-compression trade-off.
 
 The practical implication for financial practitioners is that a 70B frontier model
-can be deployed at INT4 on two consumer GPUs (80~GB combined VRAM) with negligible
-accuracy degradation on financial NLP benchmarks.  This changes the deployment
+can be deployed at INT4 on two consumer GPUs (80~GB combined VRAM) with accuracy
+degradation that general benchmarks show to be small \citep{frantar2022gptq,lin2023awq};
+domain-specific validation on financial tasks (e.g.\ FinancialPhraseBank, FinQA)
+remains advisable before production deployment.  This changes the deployment
 economics significantly: tasks that previously required cloud API calls---with
 associated data-privacy and latency concerns---can be run on-premises on standard
 data-centre hardware.
@@ -2682,8 +2708,8 @@ obligations under the General Data Protection Regulation \citep{gdpr2016} (GDPR,
 Key issues include: (a) whether training on personal data requires explicit consent;
 (b) the right to erasure and whether a model trained on a data subject's information
 can comply with an erasure request without full retraining; (c) data-transfer
-restrictions if API calls route personal data to non-EU servers.  Chapter~6
-(Fine-tuning) and Chapter~9 (Risk and Compliance) discuss technical mitigations
+restrictions if API calls route personal data to non-EU servers.  Chapter~3
+(Fine-Tuning) and Chapter~11 (RegTech and Compliance) discuss technical mitigations
 including federated learning, differential privacy, and on-premises deployment.
 
 General-purpose LLMs are trained predominantly on English-language data from North
@@ -2708,10 +2734,9 @@ generates investment recommendations---even as decision-support rather than auto
 execution---triggers fiduciary obligations and, if so, who bears them.  Current legal
 consensus is that the \emph{human adviser} (or firm) deploying the AI retains full
 fiduciary responsibility for its outputs, making thorough testing, documentation, and
-human oversight essential rather than optional.  Chapter~7 (AI Agents in Finance) and
-Chapter~8 (Multi-Agent Systems) return to this question in the context of agentic
-systems that take actions---executing trades, sending communications---rather than
-merely producing text.
+human oversight essential rather than optional.  Chapter~4 (LLM Agents and Finance Applications) returns to this question in the
+context of agentic systems that take actions---executing trades, sending
+communications---rather than merely producing text.
 
 \end{context}
 
@@ -2858,15 +2883,14 @@ multi-agent workflows.
 \end{table}
 
 Each chapter is self-contained enough to be read independently, but the sequence is
-deliberate.  Chapters~3--5 address the three core financial text sources (news,
-filings, transcripts) and establish empirical baselines that later chapters build upon.
-Chapters~6--7 introduce the two principal adaptation strategies (retrieval and
-fine-tuning) that transform raw LLM capabilities into production-grade financial NLP
-systems.  Chapters~8--9 extend the paradigm from single models to agentic systems
-capable of multi-step reasoning and action.  Chapters~10--13 turn to the institutional
-and regulatory dimensions that govern real-world deployment.  Chapter~14 provides a
-unified evaluation framework, and Chapter~15 surveys open research questions at the
-frontier.
+deliberate.  Chapter~3 deepens the technical toolkit with LLM training and fine-tuning
+strategies.  Chapter~4 extends the single-model paradigm to agentic systems capable of
+multi-step reasoning and autonomous action.  Chapters~5--9 apply these foundations to
+domain-specific tasks: business valuation, credit risk, quantitative trading,
+domain-adapted LLMs, and financial NLP\@.  Chapters~10--13 address RegTech and
+compliance, explainability, and rigorous evaluation of model limitations.
+Chapters~14--15 close with applied techniques in financial text summarisation,
+information extraction, and privacy-preserving local deployment.
 
 The thread running through all chapters is the one introduced here: language models
 are powerful but imperfect tools, and the financial practitioner's task is to deploy

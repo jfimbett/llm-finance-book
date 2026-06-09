@@ -594,13 +594,167 @@ reducing cost from $O(Td_a)$ to $O(Td_k)$.
 
 \begin{deepdive}
 
-The Transformer, introduced by \citet{vaswani2017attention}, % [CITE: Vaswani et al. 2017, Attention Is All You Need]
-dispenses with recurrence and relies exclusively on attention to model dependencies.
-Three major advantages motivate it for large-scale financial NLP\@:
-(i) all token pairs are connected in $O(1)$ layers, eliminating the
-vanishing-gradient bottleneck;
-(ii) the attention computation is highly parallelisable;
-and (iii) learned attention patterns are interpretable.
+The 2017 paper \emph{Attention Is All You Need} by \citet{vaswani2017attention}
+is arguably the single most consequential contribution in modern natural-language
+processing.
+Published at NeurIPS~2017, it has since accumulated more than 100{,}000 citations
+and directly catalysed the development of BERT, GPT, and every subsequent large
+language model used in finance today.
+Its central claim — that \emph{recurrence is unnecessary} — ran counter to a decade
+of received wisdom.
+To appreciate why the Transformer represented such a departure, recall the three
+structural failures of the architectures traced in Section~\ref{sec:sequential}:
+\begin{enumerate}
+  \item \textbf{Vanishing gradients.}  Back-propagating through $T$ time steps
+    multiplies the hidden-to-hidden weight matrix $W_h$ at each step.
+    For $T = 500$ tokens --- a modest earnings-call paragraph --- the gradient
+    signal shrinks by a factor of $\|W_h\|^{500}$, effectively erasing all
+    information about distant tokens (Theorem~\ref{thm:vanishing}).
+  \item \textbf{Sequential bottleneck.}  Each hidden state $\mathbf{h}_t$ depends
+    on $\mathbf{h}_{t-1}$, so an RNN cannot be parallelised across the time axis.
+    Training a one-billion-parameter language model on a corpus of financial filings
+    would take years rather than weeks under this constraint.
+  \item \textbf{Fixed-capacity memory.}  All information about tokens
+    $1,\ldots,t-1$ must be compressed into the single vector $\mathbf{h}_{t-1}$
+    before token $t$ is processed.
+    Long documents inevitably overwrite earlier content with later content.
+\end{enumerate}
+The Transformer eliminates all three bottlenecks simultaneously: it replaces the
+recurrent loop with \emph{self-attention}, a mechanism in which every token
+computes a weighted sum over every other token in a single parallel operation.
+Figure~\ref{fig:ch02-transformer-pipeline} shows the full processing pipeline
+on the financial phrase \textit{``Revenue fell sharply''}, contrasting the
+Transformer's all-to-all connectivity with the RNN's sequential chain.
+
+\end{deepdive}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+    node distance = 0.55cm and 1.5cm,
+    tok/.style    = {rectangle, draw=blue!60, fill=blue!8, rounded corners=3pt,
+                     minimum width=2.0cm, minimum height=0.65cm,
+                     font=\small\ttfamily},
+    emb/.style    = {rectangle, draw=green!50!black, fill=green!10,
+                     rounded corners=3pt, minimum width=2.0cm,
+                     minimum height=0.55cm, font=\scriptsize},
+    mha/.style    = {rectangle, draw=orange!70!black, fill=orange!12,
+                     rounded corners=3pt, minimum width=7.2cm,
+                     minimum height=0.8cm, font=\small, align=center},
+    ffn/.style    = {rectangle, draw=purple!60, fill=purple!8,
+                     rounded corners=3pt, minimum width=2.0cm,
+                     minimum height=0.55cm, font=\scriptsize},
+    ctx/.style    = {rectangle, draw=red!60, fill=red!8, rounded corners=3pt,
+                     minimum width=2.0cm, minimum height=0.65cm,
+                     font=\scriptsize},
+    rnnbox/.style = {rectangle, draw=gray!70, fill=gray!8, rounded corners=3pt,
+                     minimum width=1.3cm, minimum height=0.65cm,
+                     font=\scriptsize\ttfamily},
+    lbl/.style    = {font=\scriptsize\itshape, text=gray!70!black},
+    arr/.style    = {->, >=stealth, thick},
+    attn/.style   = {->, >=stealth, dashed, blue!50},
+  ]
+  % ---- LEFT PANEL: Transformer ----
+  % Row 0: input tokens
+  \node[tok] (t1) {Revenue};
+  \node[tok, right=of t1] (t2) {fell};
+  \node[tok, right=of t2] (t3) {sharply};
+  \node[lbl, left=0.25cm of t1] {tokens};
+
+  % Row 1: embeddings
+  \node[emb, above=of t1] (e1) {$\mathbf{x}_1$};
+  \node[emb, above=of t2] (e2) {$\mathbf{x}_2$};
+  \node[emb, above=of t3] (e3) {$\mathbf{x}_3$};
+  \node[lbl, left=0.25cm of e1] {embed};
+
+  \draw[arr] (t1)--(e1); \draw[arr] (t2)--(e2); \draw[arr] (t3)--(e3);
+
+  % Row 2: Multi-head self-attention (one wide box)
+  \node[mha, above=0.9cm of e2] (mha) {Multi-Head Self-Attention\\
+    \scriptsize(every token attends to every other token in parallel)};
+  \node[lbl, left=0.25cm of mha.west, xshift=-0.1cm, align=right]
+    {attention};
+
+  % Feeds into MHA
+  \draw[arr] (e1.north) -- ++(0,0.35) -| (mha.south west);
+  \draw[arr] (e2.north) -- (mha.south);
+  \draw[arr] (e3.north) -- ++(0,0.35) -| (mha.south east);
+
+  % Attention weight arrows between embeddings (curved, thickness encodes weight)
+  \draw[attn, line width=1.8pt, bend left=35]
+    (e1.north east) to node[above, font=\tiny, text=blue!70] {0.71}
+    (e3.north west);
+  \draw[attn, line width=0.8pt, bend right=25]
+    (e2.north) to node[right, font=\tiny, text=blue!70] {0.21}
+    (e1.north east);
+  \draw[attn, line width=0.4pt, bend left=20]
+    (e2.north) to node[right, font=\tiny, text=blue!70] {0.08}
+    (e3.north west);
+
+  % Row 3: per-token FFN
+  \node[ffn, above=0.9cm of mha.north west, xshift=1.0cm] (f1) {FFN};
+  \node[ffn, right=of f1] (f2) {FFN};
+  \node[ffn, right=of f2] (f3) {FFN};
+  \node[lbl, left=0.25cm of f1] {FFN};
+
+  \draw[arr] (mha.north west) ++(1.0cm,0) -- (f1.south);
+  \draw[arr] (mha.north)                  -- (f2.south);
+  \draw[arr] (mha.north east) ++(-1.0cm,0) -- (f3.south);
+
+  % Row 4: contextual output
+  \node[ctx, above=of f1] (o1) {$\mathbf{z}_1$};
+  \node[ctx, above=of f2] (o2) {$\mathbf{z}_2$};
+  \node[ctx, above=of f3] (o3) {$\mathbf{z}_3$};
+  \node[lbl, left=0.25cm of o1] {output};
+
+  \draw[arr] (f1)--(o1); \draw[arr] (f2)--(o2); \draw[arr] (f3)--(o3);
+
+  % ---- RIGHT PANEL: RNN contrast ----
+  \node[rnnbox, right=2.2cm of t3] (r1) {$h_1$};
+  \node[rnnbox, above=of r1]       (r2) {$h_2$};
+  \node[rnnbox, above=of r2]       (r3) {$h_3$};
+
+  \node[font=\scriptsize\bfseries, above=0.2cm of r3, align=center]
+    {RNN\\chain};
+  \node[font=\tiny, below=0.15cm of r1, text=gray] {\textit{Revenue}};
+  \node[font=\tiny, right=0.05cm of r2, text=gray] {\textit{fell}};
+  \node[font=\tiny, right=0.05cm of r3, text=gray] {\textit{sharply}};
+
+  \draw[arr, gray] (r1)--(r2) node[midway, right, font=\tiny, text=gray]
+    {copy};
+  \draw[arr, gray] (r2)--(r3) node[midway, right, font=\tiny, text=gray]
+    {copy};
+
+  % Brace showing "T steps to reach sharply"
+  \draw[decorate,
+        decoration={brace, amplitude=5pt, mirror, raise=4pt},
+        gray!60]
+    (r1.west) -- (r3.west)
+    node[midway, left=10pt, font=\tiny, text=gray, align=right]
+    {$T$ steps\\to bridge};
+
+  % Dividing rule between panels
+  \draw[gray!40, dashed] ($(t3.north east)+(0.8cm,-0.3cm)$) --
+                          ($(o3.south east)+(0.8cm, 0.5cm)$);
+
+  % Panel labels
+  \node[font=\small\bfseries, below=0.4cm of t2] {Transformer};
+  \node[font=\small\bfseries, below=0.4cm of r1] {RNN};
+
+  \end{tikzpicture}
+  \caption{Processing the phrase \textit{``Revenue fell sharply''} through a
+    Transformer encoder (left) versus an RNN (right).
+    In the Transformer, every token simultaneously attends to every other token;
+    dashed arrows show the attention weights that \texttt{Revenue} places on each
+    peer when computing its contextual representation $\mathbf{z}_1$
+    (thickness $\propto$ weight).
+    In the RNN, information about \texttt{Revenue} must propagate through
+    $T$ hidden states before reaching \texttt{sharply}, accumulating
+    gradient decay at every step.}
+  \label{fig:ch02-transformer-pipeline}
+\end{figure}
+
+\begin{deepdive}
 
 % ---
 \subsection{Self-Attention (Mathematics)}

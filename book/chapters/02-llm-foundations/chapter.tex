@@ -548,10 +548,10 @@ states and $\mathbf{s}_t \in \mathbb{R}^{d_s}$ the decoder state at step $t$.
 The \emph{alignment score} between $\mathbf{s}_t$ and $\mathbf{h}_i$ is
 \begin{equation}
   e_{t,i} = \mathbf{v}^{\top}
-    \tanh\!\left(W_s\,\mathbf{s}_t + W_h\,\mathbf{h}_i\right),
+    \tanh\!\left(W_s\,\mathbf{s}_t + U_h\,\mathbf{h}_i\right),
   \label{eq:alignment-score}
 \end{equation}
-with $W_s \in \mathbb{R}^{d_a \times d_s}$, $W_h \in \mathbb{R}^{d_a \times d_h}$,
+with $W_s \in \mathbb{R}^{d_a \times d_s}$, $U_h \in \mathbb{R}^{d_a \times d_h}$,
 and $\mathbf{v} \in \mathbb{R}^{d_a}$ learnable.
 The \emph{attention weights} and \emph{context vector} are:
 \begin{align}
@@ -609,7 +609,7 @@ structural failures of the architectures traced in Section~\ref{sec:sequential}:
     multiplies the hidden-to-hidden weight matrix $W_h$ at each step.
     For $T = 500$ tokens --- a modest earnings-call paragraph --- the gradient
     signal shrinks by a factor of $\|W_h\|^{500}$, effectively erasing all
-    information about distant tokens (Theorem~\ref{thm:vanishing}).
+    information about distant tokens (Proposition~\ref{thm:vanish-explode}).
   \item \textbf{Sequential bottleneck.}  Each hidden state $\mathbf{h}_t$ depends
     on $\mathbf{h}_{t-1}$, so an RNN cannot be parallelised across the time axis.
     Training a one-billion-parameter language model on a corpus of financial filings
@@ -846,8 +846,9 @@ In the original Transformer: $h = 8$, $d_{\mathrm{model}} = 512$, $d_k = d_v = 6
 \end{definition}
 
 Summing $O(n^2 d_k)$ per head over $h$ heads gives $O(n^2 d_{\mathrm{model}})$.
-For $n = 4{,}096$ tokens, the attention matrix requires $\approx 134\,\mathrm{M}$
-values per layer, motivating efficient variants such as FlashAttention
+For $n = 4{,}096$ tokens, the $h = 8$ attention matrices together require
+$\approx 134\,\mathrm{M}$ values per layer ($8 \times 4096^2$ entries),
+motivating efficient variants such as FlashAttention
 \cite{dao2022flashattention}. % [CITE: Dao et al. 2022, FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness]
 
 Probing studies \cite{clark2019bert} % [CITE: Clark et al. 2019, What Does BERT Look at? An Analysis of BERT's Attention]
@@ -1276,10 +1277,10 @@ trained or fine-tuned specifically on financial corpora.}
 \textbf{Model} & \textbf{Organisation} & \textbf{Arch.} & \textbf{Params} &
 \textbf{Training Data} & \textbf{Finance} \\
 \hline
-GPT-4 / GPT-4o   & OpenAI        & Decoder-only & $\sim$1T (est.) & Web + RLHF       & No  \\
+GPT-4 / GPT-4o   & OpenAI        & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
 Claude 3.x/4.x   & Anthropic     & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
 Llama 3 (405B)   & Meta          & Decoder-only & 405B             & 15T tokens       & No  \\
-Gemini 1.5 Pro   & Google DM     & Decoder-only & Undisclosed      & Multimodal web   & No  \\
+Gemini 1.5 Pro   & Google DM     & Multimodal   & Undisclosed      & Multimodal web   & No  \\
 FinBERT          & Araci (2019)  & Encoder      & 110M             & Financial news   & Yes \\
 BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ tok.  & Yes \\
 \hline
@@ -2795,8 +2796,6 @@ See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.
 % ---------------------------------------------------------------
 \section{Chapter Summary}
 \label{sec:ch2-summary}
-
-\subsection{Summary of Chapter~2}
 
 This chapter developed the technical and practical foundations for working with large
 language models in finance.  We traced the progression from distributional word

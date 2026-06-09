@@ -148,3 +148,4 @@
 | 2026-06-09 | 9 files | feat(ch02): expand transformer §2.3 intro and add TikZ pipeline figure;chore: session log 2026-06-07;feat(appD): draft Anthropic SDK & Claude Code SDK appendix; | — |
 | 2026-06-09 | 7 files | chore: session log 2026-06-09;feat(ch02): expand transformer §2.3 intro and add TikZ pipeline figure;chore: session log 2026-06-07; | — |
 | 2026-06-09 | 3 files | fix(ch02): apply easy full-review fixes;chore: session log 2026-06-09;chore: session log 2026-06-09; | — |
+| 2026-06-09 | 2 files | fix(ch02): resolve all MAJOR issues from full-review;chore: session log 2026-06-09;fix(ch02): apply easy full-review fixes; | — |

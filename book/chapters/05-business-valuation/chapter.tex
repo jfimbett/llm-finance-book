@@ -467,13 +467,7 @@ The LLM output is then reviewed programmatically: high-confidence items are
 automatically stripped from EBIT, medium-confidence items are flagged for analyst
 review, and low-confidence items are passed through unchanged. This human-in-the-loop
 design is important: the LLM accelerates identification but does not make the final
-adjustment autonomously. The normalised EBIT is:
-\begin{equation}
-\label{eq:ebit-normalised}
-\mathrm{EBIT}^* = \mathrm{EBIT} + \sum_{k \in \mathcal{K}} a_k,
-\end{equation}
-where $\mathcal{K}$ is the set of identified non-recurring expense items and $a_k > 0$
-is the pre-tax amount of item $k$ (positive because we are adding back an expense).
+adjustment autonomously. The normalised EBIT is computed by adding back each identified non-recurring expense item: $\mathrm{EBIT}^* = \mathrm{EBIT} + \sum_{k \in \mathcal{K}} a_k$, where $\mathcal{K}$ is the set of such items and $a_k > 0$ is the pre-tax amount of item $k$.
 \end{deepdive}
 
 % --- Section: Forecasting Cash Flows with LLMs ---
@@ -1140,17 +1134,7 @@ large-scale applications. A representative 10-K filing contains approximately
 50{,}000 tokens. With a retrieval-augmented pipeline that sends relevant excerpts
 (rather than the full document) to the model, the typical input context for a
 single extraction call is 3{,}000--8{,}000 tokens; for a forecasting call,
-1{,}000--2{,}000 tokens. The total token budget per company valuation is therefore
-roughly:
-
-\begin{equation}
-\label{eq:token-cost}
-\text{Cost} \approx (T_{\mathrm{in}} \times p_{\mathrm{in}} + T_{\mathrm{out}} \times p_{\mathrm{out}}) \times N_{\mathrm{calls}},
-\end{equation}
-
-where $T_{\mathrm{in}}$ and $T_{\mathrm{out}}$ are average input and output tokens
-per call, $p_{\mathrm{in}}$ and $p_{\mathrm{out}}$ are the per-token prices, and
-$N_{\mathrm{calls}}$ is the number of LLM calls in the pipeline. For a full
+1{,}000--2{,}000 tokens. The total token cost per company valuation is therefore roughly the sum of input and output token counts multiplied by the respective per-token prices, multiplied by the number of LLM calls in the pipeline. For a full
 valuation with six LLM calls (three extraction, one normalisation, one forecast,
 one comparable filter) at typical 2024 frontier-model pricing, the cost per company
 is in the range \$0.50--\$3.00. At scale---a universe of 3{,}000 companies

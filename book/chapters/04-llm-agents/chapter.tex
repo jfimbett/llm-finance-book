@@ -293,12 +293,8 @@ The information-theoretic tension in memory design concerns the \emph{precision-
 trade-off} inherent in approximate retrieval. Suppose the agent's memory store contains
 $N$ documents $\{d_1, \ldots, d_N\}$, each embedded as a vector $\mathbf{v}_i \in
 \mathbb{R}^D$. A query $q$ is embedded as $\mathbf{q} \in \mathbb{R}^D$, and the
-retrieval function returns the $k$ documents with highest cosine similarity:
-\begin{equation}
-  \text{Retrieve}(q, k) = \operatorname{argtopk}_{i \in \{1,\ldots,N\}}
-  \frac{\mathbf{q} \cdot \mathbf{v}_i}{\|\mathbf{q}\|\,\|\mathbf{v}_i\|}.
-  \label{eq:cosine-retrieval}
-\end{equation}
+retrieval function returns the $k$ documents with highest cosine similarity to
+$\mathbf{q}$.
 The returned set may be irrelevant if the query semantics are not well captured by the
 embedding space, or relevant documents may be missed if their surface form differs
 significantly from the query. This retrieval error propagates into the agent's
@@ -798,19 +794,7 @@ The core operation is: given a query vector $\mathbf{q} \in \mathbb{R}^D$, retri
 the $k$ database vectors $\{\mathbf{v}_i\}$ with highest cosine similarity to $\mathbf{q}$,
 subject to a latency constraint.
 
-\begin{definition}[Approximate Nearest-Neighbour Retrieval]
-\label{def:ann}
-Given a vector database $\mathcal{V} = \{\mathbf{v}_1, \ldots, \mathbf{v}_N\} \subset
-\mathbb{R}^D$, a query $\mathbf{q} \in \mathbb{R}^D$, and parameters $k$ and
-approximation factor $c \geq 1$, an \emph{approximate nearest-neighbour} (ANN) search
-returns a set $S \subseteq \mathcal{V}$ with $|S| = k$ such that for each
-$\mathbf{v} \in S$ and the true nearest neighbour $\mathbf{v}^*$:
-\begin{equation}
-  \|\mathbf{q} - \mathbf{v}\| \leq c \cdot \|\mathbf{q} - \mathbf{v}^*\|.
-  \label{eq:ann-approximation}
-\end{equation}
-The approximation factor $c$ trades retrieval precision for query latency.
-\end{definition}
+Approximate nearest-neighbour (ANN) search returns the $k$ closest vectors to a query $\mathbf{q}$ within a controllable approximation tolerance, trading a small loss in retrieval precision for substantially lower query latency.
 
 The most widely deployed ANN algorithm in production financial systems is FAISS (Facebook
 AI Similarity Search) \cite{johnson2019billion}, which implements several index types
@@ -858,24 +842,10 @@ model's training data.
 Sparse retrieval methods, led by BM25 \cite{robertson2009probabilistic}, address this
 complementary weakness. BM25 is a probabilistic term-frequency ranking function that
 scores documents by the normalised frequency of query terms in the document, weighted
-by the inverse document frequency of each term.
-
-\begin{definition}[BM25 Score]
-\label{def:bm25}
-For query $q$ with terms $q_1, \ldots, q_m$ and document $d$ of length $|d|$, the
-BM25 score is:
-\begin{equation}
-  \text{BM25}(q, d) = \sum_{i=1}^{m} \text{IDF}(q_i) \cdot
-  \frac{f(q_i, d)\,(k_1 + 1)}{f(q_i, d) + k_1 \left(1 - b + b\,\frac{|d|}{\text{avgdl}}\right)},
-  \label{eq:bm25}
-\end{equation}
-where $f(q_i, d)$ is the term frequency of $q_i$ in $d$; $\text{avgdl}$ is the
-average document length in the corpus (in tokens); $k_1 \in [1.2, 2.0]$ and
-$b = 0.75$ are tuning parameters; and the inverse document frequency is
-$\text{IDF}(q_i) = \log\!\left(\tfrac{N - n(q_i) + 0.5}{n(q_i) + 0.5} + 1\right)$,
-with $N$ the total number of documents and $n(q_i)$ the number of documents
-containing $q_i$.
-\end{definition}
+by the inverse document frequency of each term. A tunable length-normalisation parameter
+controls the degree to which longer documents are penalised, making BM25 effective for
+heterogeneous corpora such as a mix of brief research notes and multi-hundred-page 10-K
+filings.
 
 Hybrid search combines dense and sparse scores. Because cosine similarity lies in
 $[-1, 1]$ and BM25 scores are non-negative and unbounded, direct linear combination
@@ -1262,15 +1232,9 @@ multi-path sparse-dense retrieval augmented with query expansion, and a complian
 re-ranking module, achieving 92.51\% recall on expert-curated compliance questions and
 surpassing baseline RAG accuracy on FinanceBench by 24\%.
 
-Formally, let $g$ be the generator model, $v$ the verifier model, $a$ the generated
-answer, and $C_j$ the chunk cited for claim $s_j$ extracted from $a$. The
-citation-verified answer is:
-\begin{equation}
-  \hat{a} = \{s_j \in a : v(s_j, C_j) = \textsc{Supported}\},
-  \label{eq:citation-verification}
-\end{equation}
-with unsupported claims $\{s_j : v(s_j, C_j) = \textsc{NotSupported}\}$ replaced by
-a flag: ``[Claim not verified in retrieved context; human review required.]''
+In practice, a verifier model checks each claim $s_j$ in the generated answer against the
+chunk $C_j$ cited for it. Claims confirmed as supported are retained; unsupported claims
+are replaced by an explicit flag: ``[Claim not verified in retrieved context; human review required.]''
 
 For EDGAR-based Q\&A systems, the retrieval pipeline should be pre-structured around
 the standardised form sections: Item 1 (Business), Item 1A (Risk Factors), Item 7

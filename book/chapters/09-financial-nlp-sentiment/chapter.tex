@@ -264,7 +264,7 @@ In the domain of financial stability, \citet{cookson2026bankrun} showed that soc
 
 \subsubsection*{The WallStreetBets (WSB) Phenomenon}
 
-The January 2021 GameStop episode brought WSB into mainstream financial discourse. Academic work on the event confirmed that coordinated retail sentiment expressed on WSB preceded the dramatic price movements in GME, AMC, and other ``meme stocks'' by one to two days, and that the mechanism operated partly through options markets --- positive WSB sentiment was associated with elevated call option demand, which in turn induced gamma-hedging by market makers, amplifying price moves \citep{chen2022wsb}. % [FIXME: verify citation for gamma-hedging mechanism]
+The January 2021 GameStop episode brought WSB into mainstream financial discourse. Academic work on the event confirmed that coordinated retail sentiment expressed on WSB preceded the dramatic price movements in GME, AMC, and other ``meme stocks'' by one to two days, and that the mechanism operated partly through options markets --- positive WSB sentiment was associated with elevated call option demand, which in turn induced gamma-hedging by market makers, amplifying price moves \citep{chen2022wsb}.
 
 \subsubsection*{Methodological Issues}
 
@@ -597,6 +597,48 @@ This chapter developed the methodology for treating financial language as a data
 
   \item Production pipelines must handle both batch and streaming inference at scale, and evaluation should combine statistical measures (macro F1, Krippendorff's alpha) with economic validity tests in strictly held-out samples.
 \end{itemize}
+
+% ---------------------------------------------------------------
+\section*{Exercises}
+
+\begin{exercise}[Loughran-McDonald Sentiment Scoring]
+\label{ex:ch09-lm-scoring}
+\textbf{[B]} Download the Loughran-McDonald Master Dictionary from
+\url{https://sraf.nd.edu/loughranmcdonald-master-dictionary/}.
+(\textit{a})~Apply the dictionary to a recent earnings call transcript of your choice
+and report the positive, negative, and uncertainty word counts as a fraction of total
+tokens. (\textit{b})~Explain why the L\&M dictionary assigns the word ``liability'' to
+the negative category whereas the Harvard GI dictionary does not, and discuss what
+this implies for applying a general-purpose sentiment lexicon to financial text.
+\end{exercise}
+
+\begin{exercise}[FinBERT vs.\ Zero-Shot GPT-4 on FinancialPhraseBank]
+\label{ex:ch09-finbert-gpt}
+\textbf{[I]} Using the FinancialPhraseBank dataset (2,264 annotated sentences,
+available via HuggingFace Datasets), evaluate two sentiment classifiers:
+(\textit{a})~FinBERT (\texttt{ProsusAI/finbert}) using the HuggingFace
+\texttt{pipeline} API; (\textit{b})~zero-shot GPT-4o with the system prompt
+``Classify the financial sentiment of this sentence as positive, negative, or neutral.
+Return only one word.'' Compare macro-F1 scores on the ``agree'' subset (those
+sentences where all annotators agreed). Discuss which model makes more errors on
+negated phrases such as ``revenue did not decline.''
+\end{exercise}
+
+\begin{exercise}[Event-Study Signal Construction and Economic Validity]
+\label{ex:ch09-event-study}
+\textbf{[A]} Construct a text-based trading signal from a publicly available news
+sentiment dataset (e.g., Reuters news via WRDS or a sample from
+\citet{tetlock2007giving}).
+(\textit{a})~Compute a daily cross-sectional sentiment score $\tilde{S}_{i,t}$ by
+standardising raw L\&M negative-word fractions within each calendar week.
+(\textit{b})~Run the predictive regression $r_{i,t+1} = \alpha + \beta\,\tilde{S}_{i,t}
++ \gamma' \mathbf{z}_{i,t} + \varepsilon_{i,t}$ where $\mathbf{z}_{i,t}$ includes
+market beta, size, and book-to-market controls. Report Newey-West standard errors with
+five lags. (\textit{c})~Compute the cumulative abnormal return over the five-day
+post-publication window and assess whether the signal is stronger for small-cap stocks.
+Discuss one alternative explanation for any predictability you find other than
+information content.
+\end{exercise}
 
 % ---------------------------------------------------------------
 \section{Further Reading}

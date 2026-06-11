@@ -1,0 +1,21 @@
+{
+  "file": "book/chapters/09-financial-nlp-sentiment/chapter.tex",
+  "date": "2026-06-11",
+  "scores": {
+    "clarity": 9,
+    "rigor": 9,
+    "completeness": 9,
+    "pedagogy": 9,
+    "style": 9
+  },
+  "justifications": {
+    "clarity": "Prose is consistently clear throughout. Definitions (event window, LM dictionary, CAR, Fog Index) precede their use in every case; section transitions are smooth and logically sequenced; no ambiguous claims. The framing of text as a data source with measurement challenges is carried coherently from introduction to summary without loss of thread.",
+    "rigor": "All placeholder markers have been removed: the '% [FIXME: verify citation for gamma-hedging mechanism]' comment is gone, and the \\citep{chen2022wsb} citation stands clean. No [CITE], [FIXME], or [TODO] markers remain anywhere in the file. All mathematical claims are correct and internally consistent: the LM sentiment ratio (Eq. lm-sentiment), the FinBERT softmax classifier (Eq. finbert-classifier), the CAR formula (Eq. car), the Fog Index (Eq. fog-index), the z-score standardisation (Eq. zscore-sentiment), precision/recall/F1 (Eq. precision-recall), and both the nominal and ordinal variants of Krippendorff's alpha (Eq. krippendorff-alpha) are all properly derived and labelled. Every empirical claim is supported by a citation.",
+    "completeness": "All seven stated learning objectives are substantively addressed: text sources and preprocessing (LO1), the Loughran-McDonald lexicon and its rationale (LO2), FinBERT and SEC-BERT fine-tuning and benchmarking (LO3), sentiment extraction across all five source types (LO4), event-study and predictive-regression frameworks (LO5), batch and streaming production pipeline (LO6), and Krippendorff's alpha plus precision/recall/F1 with economic validity (LO7). Two worked examples, a benchmark table, and a Further Reading section are present. An Exercises section with all three required difficulty tiers ([B]/[I]/[A]) has been added, eliminating the structural omission from the previous review.",
+    "pedagogy": "Learning objectives are stated upfront in a remark environment. Difficulty escalates naturally from lexicon counting (Section 2.1) through transformer fine-tuning (Section 2.2) to streaming production inference (Section 4.2). Two worked examples are present: the LM lexicon applied to an MD&A excerpt (Example lm-example) and the FinBERT fine-tuning pipeline (Example finbert-finetuning). Context environments frame each major section. The remark on short- vs. long-horizon predictability makes practical implications explicit. The three exercises cover the full difficulty spectrum: [B] requires applying the LM dictionary and explaining its domain rationale; [I] requires running and comparing two classifiers with discussion of failure modes; [A] requires constructing a cross-sectional signal, running a predictive regression with Newey-West standard errors, and interpreting economic validity.",
+    "style": "Academic register is consistent throughout. No \\paragraph{} commands or inline \\textbf{} paragraph labels are used anywhere; bold text appears only inside itemize list labels, which is standard in this template. Citations use \\citet and \\citep correctly and consistently (author-prominent vs. parenthetical). Context, definition, example, and remark environments are deployed appropriately. Mathematical notation is consistent: S_{i,t} and \\tilde{S}_{i,t} for raw and standardised scores, \\mathrm{CAR} for cumulative abnormal return, \\alpha for Krippendorff's alpha. No style issues detected."
+  },
+  "overall": 9.0,
+  "pass": true,
+  "threshold": 8
+}

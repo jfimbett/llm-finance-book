@@ -816,19 +816,6 @@ Then
 so dividing by $\sqrt{d_k}$ normalises the pre-softmax variance to one.
 \end{proposition}
 
-\begin{proof}
-Write $\mathbf{q}_i^{\top}\mathbf{k}_j = \sum_{\ell=1}^{d_k} q_\ell k_\ell$
-with components mutually independent, $\mathrm{Var}(q_\ell) = \mathrm{Var}(k_\ell) = 1$.
-Since $\mathbb{E}[q_\ell k_\ell] = 0$ and
-$\mathbb{E}[(q_\ell k_\ell)^2] = \mathbb{E}[q_\ell^2]\mathbb{E}[k_\ell^2] = 1$,
-each term has unit variance, so
-$\mathrm{Var}(\mathbf{q}_i^{\top}\mathbf{k}_j) = d_k$.
-For large $d_k$ the logits concentrate near $\pm\sqrt{d_k}$, pushing softmax into
-its saturated regime where
-$\partial\sigma(z)/\partial z = \sigma(z)(1-\sigma(z)) \approx 0$.
-Dividing by $\sqrt{d_k}$ normalises variance to $1$, restoring gradient flow.
-\end{proof}
-
 In decoder-only models, token $i$ must not attend to $j > i$.
 This is enforced by
 \begin{equation}
@@ -1912,17 +1899,8 @@ Verify current prices on provider websites before budgeting.}
 To make this concrete, suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
 each approximately 5,000 words.  At 1.3 tokens per word (see
 Example~\ref{ex:bpe}), each transcript is $\approx 6{,}500$ input tokens.  Adding a
-500-token system prompt and $\approx 400$ output tokens, and applying
-\eqref{eq:cost-model}:
-
-\begin{align}
-  \text{cost}_{\text{GPT-4o}}
-  &= 10{,}000 \times \left(\frac{7{,}000}{10^6} \times 5.00
-    + \frac{400}{10^6} \times 15.00 \right) \nonumber \\
-  &= 10{,}000 \times (0.035 + 0.006) \;=\; \$410.
-  \label{eq:cost-example}
-\end{align}
-
+500-token system prompt and $\approx 400$ output tokens, applying
+\eqref{eq:cost-model} gives $\text{cost}_{\text{GPT-4o}} \approx \$410$.
 The same workload on Claude 3 Haiku costs approximately \$20---a twenty-fold
 reduction.  This illustrates the core cost-optimisation decision in financial NLP
 pipelines: a small, cheap model handles straightforward extraction tasks, while a

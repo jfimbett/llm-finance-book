@@ -1,0 +1,15 @@
+{
+  "file": "book/chapters/08-domain-specific-llms/chapter.tex",
+  "date": "2026-06-11",
+  "scores": { "clarity": 9, "rigor": 9, "completeness": 9, "pedagogy": 9, "style": 9 },
+  "justifications": {
+    "clarity": "Prose flows naturally from motivation through taxonomy to deployment. The three structural features of financial language (Section 1) are crisp and well-ordered; the new encoder-decoder subsection (Section 2.1) integrates smoothly without disrupting the logical progression. Definitions are introduced before use throughout; transitions between subsections are smooth.",
+    "rigor": "The prior factual error in the BloombergGPT corpus total has been corrected: lines 287-290 now state '708 billion tokens, comprising a 363-billion-token Bloomberg-proprietary slice and a 345-billion-token public component.' The FinBERT citation inconsistency (huang2023finbert vs. yang2020finbert) is resolved. Mathematical definitions (DAPT, execution accuracy, effective-cost formula) are formally correct and internally consistent. Empirical claims are cited throughout. A minor idealisation remains in Definition 4 (line 777: human review 'recovers all incorrectly classified queries') but this is a standard modelling simplification of the kind routinely accepted in the literature.",
+    "completeness": "All five learning objectives are substantively addressed: LO1 (financial language register, Section 1), LO2 (architecture taxonomy covering encoder-only, encoder-decoder, and decoder-only families, Section 2), LO3 (DAPT with formal definition and corpus composition strategy, Section 3), LO4 (FinQA/FLUE/FinBen benchmarks with quantitative comparisons, Section 4), LO5 (licensing, data governance, hosting, and hybrid cost-performance trade-offs, Section 5). The previously missing encoder-decoder coverage is now supplied by the T5/FLAN-T5 subsection. Exercises cover all three required difficulty levels [B]/[I]/[A]. No % [CITE] or % TODO markers appear in the file.",
+    "pedagogy": "Learning objectives are stated upfront in a remark environment. Difficulty escalates logically: linguistic motivation → architecture taxonomy → training strategies → benchmarks → deployment. Three worked examples are present and well-chosen (FinBERT earnings-call sentiment, central-bank corpus composition, cost-optimal regulatory classifier). Exercises are now present with [B], [I], and [A] tags. Contextual remarks on encoder-decoder trade-offs, data contamination, and hallucination deepen understanding at appropriate points in the flow.",
+    "style": "No \\paragraph{} or \\textbf{} inline paragraph labels used as structural crutches. Italicised run-in heads (\\textit{BloombergGPT.}) are style-consistent with the book's conventions. The FinBERT citation inconsistency (huang2023finbert vs. yang2020finbert) is resolved: yang2020finbert is used correctly. All citations use \\citet/\\citep. Context environments open Sections 1 and 3 appropriately. Academic register is consistent throughout. SR 11-7 citation is correctly formatted."
+  },
+  "overall": 9.0,
+  "pass": true,
+  "threshold": 8
+}

@@ -418,49 +418,7 @@ connectors, and web search interfaces. Each category has distinct design conside
 
 The following Python pseudocode illustrates a minimal tool registration pattern:
 
-\begin{listing}[H]
-\begin{minted}{python}
-from pydantic import BaseModel, Field
-from typing import Optional
-import datetime
-
-class DCFInput(BaseModel):
-    free_cash_flows: list[float] = Field(
-        description="Projected FCFs in USD millions, in chronological order"
-    )
-    wacc: float = Field(
-        description="Weighted average cost of capital as a decimal (e.g. 0.08 for 8%)",
-        ge=0.0, le=1.0
-    )
-    terminal_growth_rate: float = Field(
-        description="Perpetual growth rate as a decimal",
-        ge=0.0, le=0.15
-    )
-
-def discounted_cash_flow(args: DCFInput) -> dict:
-    """
-    Compute DCF valuation from projected FCFs and a terminal value.
-    Returns present value of FCFs plus terminal value.
-    """
-    pv_fcfs = sum(
-        fcf / (1 + args.wacc) ** (t + 1)
-        for t, fcf in enumerate(args.free_cash_flows)
-    )
-    terminal_value = (
-        args.free_cash_flows[-1] * (1 + args.terminal_growth_rate)
-        / (args.wacc - args.terminal_growth_rate)
-    )
-    n = len(args.free_cash_flows)
-    pv_terminal = terminal_value / (1 + args.wacc) ** n
-    return {
-        "pv_fcfs": round(pv_fcfs, 2),
-        "pv_terminal": round(pv_terminal, 2),
-        "enterprise_value": round(pv_fcfs + pv_terminal, 2),
-    }
-\end{minted}
-\caption{Tool registration with type-validated arguments}
-\label{lst:tool-registration}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/04-llm-agents/demo.ipynb}.}
 
 The tool's docstring serves a dual purpose: it documents the function for human
 developers and, when formatted into the system prompt, tells the language model what
@@ -773,62 +731,7 @@ directly. An \emph{extractor agent} reads a short earnings snippet and pulls out
 reported EPS and analyst consensus, then passes the structured result to a
 \emph{classifier agent} that labels the result as a beat, miss, or inline outcome.
 
-\begin{listing}[H]
-\begin{minted}{python}
-import anthropic
-import json
-
-client = anthropic.Anthropic()
-
-EXTRACTOR_SYSTEM = """You are a financial data extractor.
-Given an earnings text snippet, return a JSON object with exactly
-two fields: reported_eps (float) and consensus_eps (float).
-Return only the JSON object, no other text."""
-
-CLASSIFIER_SYSTEM = """You are an earnings analyst.
-Given reported_eps and consensus_eps, classify the result as one of:
-'beat' (reported > consensus by more than 1%),
-'miss' (reported < consensus by more than 1%),
-'inline' (within 1% of consensus).
-Return a JSON object with fields: verdict (str) and rationale (str)."""
-
-def extract_eps(snippet: str) -> dict:
-    msg = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=256,
-        system=EXTRACTOR_SYSTEM,
-        messages=[{"role": "user", "content": snippet}],
-    )
-    return json.loads(msg.content[0].text)
-
-def classify_result(eps_data: dict) -> dict:
-    payload = json.dumps(eps_data)
-    msg = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=256,
-        system=CLASSIFIER_SYSTEM,
-        messages=[{"role": "user", "content": payload}],
-    )
-    return json.loads(msg.content[0].text)
-
-# Example: Apple Q4 2023 snippet
-snippet = (
-    "Apple reported Q4 2023 EPS of $1.46, beating the analyst "
-    "consensus estimate of $1.39 by approximately 5 cents."
-)
-
-eps_data   = extract_eps(snippet)      # Agent 1: extractor
-verdict    = classify_result(eps_data) # Agent 2: classifier
-
-print(f"Extracted : {eps_data}")
-print(f"Verdict   : {verdict['verdict']} — {verdict['rationale']}")
-\end{minted}
-\caption{Two-agent earnings beat/miss pipeline using the Anthropic API.
-  The extractor agent (claude-opus-4-5) parses the EPS figures; the classifier agent
-  (claude-haiku-4-5) labels the outcome. Separating roles allows each agent to be
-  swapped or fine-tuned independently.}
-\label{lst:two-agent-earnings}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/04-llm-agents/demo.ipynb}.}
 
 \end{deepdive}
 
@@ -1155,7 +1058,7 @@ from the prior-year 10-K and identifies newly added or removed risk factors.
 Agent~3 (Synthesiser) produces a structured summary of material risk changes,
 classifying each change as an escalation, de-escalation, or new risk.
 (\textit{a})~Implement the pipeline using the Anthropic API (or LangChain),
-applying the two-agent pattern from Listing~\ref{lst:two-agent-earnings} as a
+applying the two-agent extractor--classifier pipeline described earlier in this chapter as a
 starting point.
 (\textit{b})~Propose a faithfulness evaluation method for Agent~3's output:
 how would you verify that every cited risk change is traceable to a specific
@@ -1271,37 +1174,7 @@ market data, consensus estimates, key events) in machine-readable format, and th
 agent produces prose that describes this data package, citing each figure with a
 reference to its source.
 
-\begin{listing}[H]
-\begin{minted}{python}
-from dataclasses import dataclass
-from typing import Any
-
-@dataclass
-class FactPackage:
-    ticker: str
-    revenue_ttm: float          # USD millions, source: Compustat
-    revenue_yoy_growth: float   # decimal
-    ev_ebitda: float            # ratio, source: FactSet
-    consensus_rating: str       # "Buy" / "Hold" / "Sell"
-    consensus_target_price: float
-
-def generate_valuation_paragraph(facts: FactPackage, llm) -> str:
-    prompt = f"""
-You are writing the valuation section of an equity research report.
-Use ONLY the following verified data. Do not introduce any figures not present here.
-
-Company: {facts.ticker}
-TTM Revenue: ${facts.revenue_ttm:.0f}M (YoY growth: {facts.revenue_yoy_growth:.1%})
-EV/EBITDA: {facts.ev_ebitda:.1f}x
-Consensus: {facts.consensus_rating}, target ${facts.consensus_target_price:.2f}
-
-Write 2-3 sentences describing the current valuation and how it compares to growth.
-"""
-    return llm.invoke(prompt)
-\end{minted}
-\caption{Fact-grounded report generation}
-\label{lst:fact-grounded}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/04-llm-agents/demo.ipynb}.}
 
 The fact-grounding discipline ensures that every number in the generated report can be
 audited against a data source. This is not merely a best-practice recommendation; for

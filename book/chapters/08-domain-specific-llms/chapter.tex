@@ -184,6 +184,30 @@ Financial LLMs are further classified by architecture as \emph{encoder-only}
 \end{definition}
 
 % ---------------------------------------------------------------
+\subsection{Encoder--Decoder Models: T5 Family in Finance}
+\label{sec:ch08-encoder-decoder}
+
+A third architectural family that the taxonomy above implicitly omits is the
+\emph{encoder--decoder} (sequence-to-sequence) model, whose canonical
+representative is T5 \cite{raffel2020t5} and its instruction-tuned descendant
+FLAN-T5.  Encoder--decoder models process an input sequence through a
+bidirectional encoder---capturing full context on the source side---and then
+generate output token by token through an autoregressive decoder, making them
+architecturally well suited to sequence-to-sequence tasks: summarisation,
+translation, question answering, and structured text generation.  In financial
+NLP, this architecture has been applied to earnings call summarisation (condensing
+hours of executive commentary into a structured abstract), abstractive summarisation
+of SEC filings (reducing a 100-page 10-K to a one-page narrative summary), and
+financial table-to-text generation (converting a tabular income statement into
+a plain-language paragraph).  Although recent instruction-tuned decoder-only
+models such as FinMA have demonstrated that the decoder-only paradigm can handle
+these tasks with sufficient scale and instruction data, encoder--decoder models
+retain practical advantages in constrained-output settings: the separate encoding
+pass allows the model to attend fully to a long source document before generating
+a single output token, which reduces copy errors and improves factual consistency
+in extraction-heavy summarisation tasks.
+
+% ---------------------------------------------------------------
 \subsection{BERT-Family: FinBERT, SEC-BERT, FinBERT-tone}
 \label{sec:ch08-bert-family}
 
@@ -205,7 +229,7 @@ adds measurable value even for a relatively straightforward classification task.
 
 \textit{FinBERT (Yang, Uy, and Huang 2020).}  A second model also called
 FinBERT \cite{yang2020finbert} was published independently by
-\citet{huang2023finbert}.  This version continues BERT-large on a corpus of
+\citet{yang2020finbert}.  This version continues BERT-large on a corpus of
 financial communication text---earnings call transcripts, analyst reports, and
 SEC filings---and introduces a \emph{tone} classification variant
 (FinBERT-tone) fine-tuned to distinguish the rhetorical tone of corporate
@@ -260,11 +284,11 @@ generation, and numerical reasoning.
 
 \textit{BloombergGPT.}  The landmark paper in this family is
 \citet{wu2023bloomberggpt}, which describes a 50-billion-parameter autoregressive
-decoder model trained on a 363-billion-token corpus.  The corpus blends a
-proprietary Bloomberg dataset (363B tokens: news, filings, earnings transcripts,
-web text, and Bloomberg-specific data) with 345B tokens from standard general
-corpora (The Pile \cite{gao2020pile}, Wikipedia, books).  The roughly 50/50
-split between financial and general text is deliberate: the authors argue that
+decoder model trained on a corpus of approximately 708 billion tokens, comprising
+a 363-billion-token Bloomberg-proprietary slice (news, filings, earnings
+transcripts, web text, and Bloomberg-specific data) and a 345-billion-token
+public component drawn from The Pile \cite{gao2020pile}, Wikipedia, and books.
+The roughly 50/50 split between financial and general text is deliberate: the authors argue that
 a model trained \emph{exclusively} on financial text would sacrifice the general
 reasoning and commonsense capabilities that make an LLM useful for financial
 tasks requiring world knowledge.  On financial NLP benchmarks (FinQA, NER,
@@ -880,3 +904,12 @@ of this book extends the discussion to the EU AI Act and MiFID~II obligations
 arising from LLM-based financial products.  Readers interested in the broader
 landscape of financial LLM applications should consult the survey by
 \citet{li2023llmfinsurvey}.
+
+% ---------------------------------------------------------------
+\section*{Exercises}
+
+\textbf{[B]} 1. Explain in your own words why financial text poses unique tokenisation challenges for general-purpose LLMs. Give two examples of financial terms or expressions that a standard BPE tokeniser trained on Wikipedia would likely segment incorrectly.
+
+\textbf{[I]} 2. BloombergGPT was trained on a 708-billion-token corpus mixing proprietary financial data with public text. Discuss the trade-off between domain specificity and general capability. Under what conditions would you prefer BloombergGPT over GPT-4o for a financial NLP task, and vice versa?
+
+\textbf{[A]} 3. Suppose you are fine-tuning a 7B-parameter decoder-only LLM on a dataset of 10,000 quarterly earnings call transcripts annotated with analyst sentiment scores. Design a complete fine-tuning pipeline: specify the base model, adaptation technique (full fine-tuning, LoRA, QLoRA), training objective, evaluation metric, and one ablation you would run to validate the domain-adaptation benefit.

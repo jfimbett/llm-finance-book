@@ -199,7 +199,7 @@ observation. The downstream reasoning then operates on the exact value rather th
 approximation, eliminating a systematic source of factual error.
 
 Beyond single-loop ReAct, more sophisticated planning architectures have emerged.
-\emph{Tree-of-Thought} (ToT) prompting \cite{wang2023survey} structures the reasoning
+\emph{Tree-of-Thought} (ToT) prompting \cite{yao2023tree} structures the reasoning
 space as a search tree, evaluating multiple candidate reasoning paths before committing
 to one. \emph{Reflexion} \cite{shinn2023reflexion} adds a self-evaluation step: after
 each trajectory, the agent generates a verbal critique of its own performance and stores
@@ -765,6 +765,66 @@ two days for a human analyst team. Human reviewers focus on the compliance agent
 flagged items and the quant agent's scenario assumptions.
 \end{example}
 
+The following listing implements a minimal two-agent pipeline using the Anthropic API
+directly. An \emph{extractor agent} reads a short earnings snippet and pulls out the
+reported EPS and analyst consensus, then passes the structured result to a
+\emph{classifier agent} that labels the result as a beat, miss, or inline outcome.
+
+\begin{minted}{python}
+import anthropic
+import json
+
+client = anthropic.Anthropic()
+
+EXTRACTOR_SYSTEM = """You are a financial data extractor.
+Given an earnings text snippet, return a JSON object with exactly
+two fields: reported_eps (float) and consensus_eps (float).
+Return only the JSON object, no other text."""
+
+CLASSIFIER_SYSTEM = """You are an earnings analyst.
+Given reported_eps and consensus_eps, classify the result as one of:
+'beat' (reported > consensus by more than 1%),
+'miss' (reported < consensus by more than 1%),
+'inline' (within 1% of consensus).
+Return a JSON object with fields: verdict (str) and rationale (str)."""
+
+def extract_eps(snippet: str) -> dict:
+    msg = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=256,
+        system=EXTRACTOR_SYSTEM,
+        messages=[{"role": "user", "content": snippet}],
+    )
+    return json.loads(msg.content[0].text)
+
+def classify_result(eps_data: dict) -> dict:
+    payload = json.dumps(eps_data)
+    msg = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=256,
+        system=CLASSIFIER_SYSTEM,
+        messages=[{"role": "user", "content": payload}],
+    )
+    return json.loads(msg.content[0].text)
+
+# Example: Apple Q4 2023 snippet
+snippet = (
+    "Apple reported Q4 2023 EPS of $1.46, beating the analyst "
+    "consensus estimate of $1.39 by approximately 5 cents."
+)
+
+eps_data   = extract_eps(snippet)      # Agent 1: extractor
+verdict    = classify_result(eps_data) # Agent 2: classifier
+
+print(f"Extracted : {eps_data}")
+print(f"Verdict   : {verdict['verdict']} — {verdict['rationale']}")
+\end{minted}
+\captionof{listing}{Two-agent earnings beat/miss pipeline using the Anthropic API.
+  The extractor agent (claude-opus-4-5) parses the EPS figures; the classifier agent
+  (claude-haiku-4-5) labels the outcome. Separating roles allows each agent to be
+  swapped or fine-tuned independently.}
+\label{lst:two-agent-earnings}
+
 \end{context}
 
 % ---------------------------------------------------------------
@@ -1057,7 +1117,7 @@ omitting material disclosures.
 
 \begin{exercise}[Illustration: RAG Retrieval Ranking]
 \label{ex:ch04-illustration}
-Reproduce Figure~\ref{fig:ch04-illustration} using TF-IDF cosine similarity
+\textbf{[I]} Reproduce Figure~\ref{fig:ch04-illustration} using TF-IDF cosine similarity
 between the query \emph{``What are the main risk factors and competitive threats
 facing the company?''} and a corpus of recent financial news headlines.
 (\textit{a})~Identify the top-3 retrieved chunks and explain why TF-IDF ranked
@@ -1067,6 +1127,36 @@ them highest.
 ranking. Does dense retrieval surface qualitatively different chunks?
 See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Illustration
 Exercise.
+\end{exercise}
+
+\begin{exercise}[ReAct Loop for Live Price Lookup]
+\label{ex:ch04-react-price}
+\textbf{[B]} Consider a single-turn agent equipped with one tool:
+\texttt{get\_price(ticker: str) -> float}, which returns the current stock price.
+(\textit{a})~Write the ReAct trajectory (Thought, Action, Observation, Thought,
+Finish) for the query \emph{``Is AAPL trading above \$180?''}.
+(\textit{b})~Explain why a chain-of-thought only approach (no tool call) would be
+unreliable for this task, and identify the specific failure mode.
+(\textit{c})~Extend your trajectory to handle the case where the tool returns an
+error because the market is closed.
+\end{exercise}
+
+\begin{exercise}[Multi-Agent Earnings Pipeline Design]
+\label{ex:ch04-multi-agent-design}
+\textbf{[A]} Design and implement a three-agent pipeline for automated earnings
+analysis. Agent~1 (Extractor) retrieves the most recent 10-K risk factors for
+a given ticker from SEC EDGAR. Agent~2 (Comparator) retrieves the same section
+from the prior-year 10-K and identifies newly added or removed risk factors.
+Agent~3 (Synthesiser) produces a structured summary of material risk changes,
+classifying each change as an escalation, de-escalation, or new risk.
+(\textit{a})~Implement the pipeline using the Anthropic API (or LangChain),
+applying the two-agent pattern from Listing~\ref{lst:two-agent-earnings} as a
+starting point.
+(\textit{b})~Propose a faithfulness evaluation method for Agent~3's output:
+how would you verify that every cited risk change is traceable to a specific
+passage in one of the two retrieved filing sections?
+(\textit{c})~Identify at least two prompt-injection vectors an adversary could
+exploit in this pipeline and describe a defence for each.
 \end{exercise}
 
 % ---------------------------------------------------------------

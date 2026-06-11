@@ -198,8 +198,7 @@ The key advantage over lexicons is context-sensitivity: the embedding $\mathbf{h
 
 \subsubsection*{SEC-BERT}
 
-% [CITE: describe needed source -- SEC-BERT Loukas et al. 2022, arXiv:2207.12167]
-SEC-BERT is a domain-specific model pre-trained on the EDGAR corpus of SEC filings, including 10-K, 10-Q, and 8-K documents. Unlike FinBERT, which mixes news and filings in pre-training, SEC-BERT is trained exclusively on regulatory text, giving it a vocabulary and token representation optimised for legal-financial language including accounting terminology, boilerplate legalese, and structured data references. Benchmarks on SEC-specific tasks (risk factor classification, material event detection) show SEC-BERT outperforming both FinBERT and RoBERTa in in-domain settings.
+SEC-BERT \citep{loukas2022secbert} is a domain-specific model pre-trained on the EDGAR corpus of SEC filings, including 10-K, 10-Q, and 8-K documents. Unlike FinBERT, which mixes news and filings in pre-training, SEC-BERT is trained exclusively on regulatory text, giving it a vocabulary and token representation optimised for legal-financial language including accounting terminology, boilerplate legalese, and structured data references. Benchmarks on SEC-specific tasks (risk factor classification, material event detection) show SEC-BERT outperforming both FinBERT and RoBERTa in in-domain settings.
 
 \subsubsection*{The Financial PhraseBank}
 
@@ -265,7 +264,7 @@ In the domain of financial stability, \citet{cookson2026bankrun} showed that soc
 
 \subsubsection*{The WallStreetBets (WSB) Phenomenon}
 
-The January 2021 GameStop episode brought WSB into mainstream financial discourse. Academic work on the event confirmed that coordinated retail sentiment expressed on WSB preceded the dramatic price movements in GME, AMC, and other ``meme stocks'' by one to two days, and that the mechanism operated partly through options markets --- positive WSB sentiment was associated with elevated call option demand, which in turn induced gamma-hedging by market makers, amplifying price moves \cite{da2015sum}.
+The January 2021 GameStop episode brought WSB into mainstream financial discourse. Academic work on the event confirmed that coordinated retail sentiment expressed on WSB preceded the dramatic price movements in GME, AMC, and other ``meme stocks'' by one to two days, and that the mechanism operated partly through options markets --- positive WSB sentiment was associated with elevated call option demand, which in turn induced gamma-hedging by market makers, amplifying price moves \citep{chen2022wsb}. % [FIXME: verify citation for gamma-hedging mechanism]
 
 \subsubsection*{Methodological Issues}
 
@@ -545,6 +544,8 @@ When constructing a labelled dataset, multiple annotators assign labels to the s
 where $D_o$ is the observed disagreement and $D_e$ is the expected disagreement under the null hypothesis of random annotation. For nominal categories with $k$ labels, $D_o = \frac{1}{n(n-1)} \sum_{i \neq j} \mathbb{1}[y_i \neq y_j]$ and $D_e = 1 - \sum_c \left(\frac{n_c}{n}\right)^2$, where $n_c$ is the number of annotations in category $c$.
 
 An alpha of 0 indicates agreement at chance level; 1 indicates perfect agreement. Krippendorff suggested $\alpha \geq 0.667$ as the minimum threshold for reliable data, and $\alpha \geq 0.800$ for high confidence. Published financial sentiment benchmarks typically report alphas between 0.65 and 0.78, reflecting the genuine ambiguity of many financial sentences.
+
+The formula above gives the nominal variant, which treats all disagreements as equally costly. For ordinal labels---such as the three-class sentiment scale \textsc{positive} $>$ \textsc{neutral} $>$ \textsc{negative}---the ordinal variant replaces the binary coincidence metric with a weighted disagreement measure. Specifically, for categories $c$ and $c'$ drawn from an ordered scale, the ordinal difference function is $d^2(c,c') = \bigl(\sum_{g=c}^{c'} n_g\bigr)^2$, where $n_g$ is the frequency of category $g$; this penalises disagreements proportionally to the number of scale steps separating the two labels. The ordinal $\alpha$ is generally more conservative than the nominal $\alpha$ for sentiment corpora, providing a stricter lower bound on agreement.
 
 \begin{table}[htbp]
   \centering

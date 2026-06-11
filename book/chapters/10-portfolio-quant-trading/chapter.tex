@@ -366,12 +366,12 @@ over the subsequent holding period.
 The key empirical question is whether LF earns a significant alpha after controlling
 for classical factors. If the regression
 \begin{equation}
-  \text{LF}_t = \alpha + \beta_{\text{MKT}} \text{MKT}_t + \beta_{\text{SMB}} \text{SMB}_t
+  \text{LF}_t = a + \beta_{\text{MKT}} \text{MKT}_t + \beta_{\text{SMB}} \text{SMB}_t
   + \beta_{\text{HML}} \text{HML}_t + \beta_{\text{RMW}} \text{RMW}_t
   + \beta_{\text{CMA}} \text{CMA}_t + \varepsilon_t
   \label{eq:ch10-lf-alpha-regression}
 \end{equation}
-yields a statistically significant $\hat{\alpha} > 0$, then LF captures information
+yields a statistically significant $\hat{a} > 0$, then LF captures information
 orthogonal to the classical factors. Early evidence from earnings-call sentiment suggests
 this alpha exists in the short run---up to five trading days after the call---but decays
 rapidly as market participants process the same text \citep{tetlock2007giving,
@@ -448,7 +448,8 @@ market digests the news. A common functional form is exponential decay:
 \end{equation}
 where $\lambda > 0$ controls the half-life of the signal. Calibrating $\lambda$ is an
 empirical matter: short-horizon price impact suggests $\lambda$ around $0.1$--$0.5$
-day$^{-1}$ (half-lives of one to seven trading days) for most equity news events.
+day$^{-1}$ (half-lives of one to seven trading days) for most equity news events
+\citep{grinold2000active}.
 
 % -----------------------------------------------------------
 \subsection{LLM-Guided Reinforcement Learning for Order Execution}
@@ -459,14 +460,21 @@ Order execution is the problem of slicing a large parent order into child orders
 dispatched to the exchange over a specified horizon, minimising total market impact and
 shortfall relative to a benchmark price (typically the arrival price or VWAP). Classical
 approaches, such as the Almgren-Chriss model \citep{almgren2001optimal}, derive optimal
-execution schedules under a quadratic impact model:
+execution schedules by minimising the expected cost of trading plus a penalty for
+execution risk. In the linear-impact version the objective is:
 \begin{equation}
-  \text{Cost}(\mathbf{x}) = \sum_{k=1}^{T} \left[\eta x_k^2 + \gamma \sigma^2 x_k
-    \left(X - \sum_{j=1}^{k} x_j\right) \right],
+  C(\mathbf{x}) = \gamma \sum_{k=1}^{N} x_k v_k
+                + \eta  \sum_{k=1}^{N} \tau_k v_k^2
+                + \lambda \sigma^2 \sum_{k=1}^{N} \tau_k x_k^2,
   \label{eq:ch10-ac-cost}
 \end{equation}
-where $x_k$ is the volume executed in period $k$, $X$ is the total order size, $\eta$
-is the temporary impact coefficient, and $\gamma$ is the risk-aversion coefficient.
+where $v_k = \dot{x}_k$ is the trading rate in period $k$, $x_k$ is the remaining
+inventory, $\tau_k$ is the length of trading interval $k$, $\gamma$ is the permanent
+impact coefficient (capturing the lasting price displacement from each trade),
+$\eta$ is the temporary impact coefficient (capturing per-trade slippage), $\lambda$
+is the trader's risk aversion, and $\sigma$ is return volatility.  The first sum is
+the permanent-impact cost, the second is the temporary-impact (slippage) cost, and the
+third penalises the variance of the execution shortfall.
 The Almgren-Chriss solution is a closed-form time-varying schedule that front-loads
 execution when risk-aversion is high and spreads it uniformly when it is low.
 
@@ -731,12 +739,14 @@ textual signal is:
   \label{eq:ch10-risk-model-1}
 \end{equation}
 \begin{equation}
-  \sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2
+  \sigma_t^2 = \omega + \alpha_1 \varepsilon_{t-1}^2 + \beta_1 \sigma_{t-1}^2
                + \kappa v_{t-1},
   \label{eq:ch10-risk-model-2}
 \end{equation}
 where equations~\eqref{eq:ch10-risk-model-1}--\eqref{eq:ch10-risk-model-2} define a
-GARCH(1,1) model augmented by the textual signal through the coefficient $\kappa$.
+GARCH(1,1) model augmented by the textual signal through the coefficient $\kappa$
+(here $\alpha_1$ is the ARCH coefficient, not to be confused with the CVaR confidence
+level $\alpha$).
 Positive $\kappa$ means that elevated textual risk language forecasts higher return
 variance---and thus fatter tails---in the next period.
 

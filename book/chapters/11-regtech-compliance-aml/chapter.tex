@@ -248,12 +248,7 @@ Second, LLMs can use auxiliary context to resolve ambiguity. Given two records -
 
 \begin{definition}[Entity Resolution as Pair Classification]
 \label{def:entity-resolution}
-Given two entity records $x_1$ and $x_2$, entity resolution is the binary classification problem:
-\begin{equation}
-\label{eq:entity-resolution}
-\hat{y} = f(x_1, x_2) \in \{0, 1\},
-\end{equation}
-where $\hat{y} = 1$ indicates that $x_1$ and $x_2$ refer to the same real-world entity. A well-calibrated classifier produces $P(\hat{y} = 1 \mid x_1, x_2)$, which can be thresholded for binary decisions or used as a soft similarity score. For sanctions screening, the threshold should be set to ensure near-100\% recall (missing a true sanctions hit carries regulatory and reputational consequences far exceeding the cost of a false positive review).
+Given two entity records $x_1$ and $x_2$, entity resolution is the binary classification problem of determining whether they refer to the same real-world entity. A well-calibrated classifier produces $P(\hat{y} = 1 \mid x_1, x_2)$, which can be thresholded for binary decisions or used as a soft similarity score. For sanctions screening, the threshold should be set to ensure near-100\% recall (missing a true sanctions hit carries regulatory and reputational consequences far exceeding the cost of a false positive review).
 \end{definition}
 
 In practice, entity resolution for large screening workloads requires a two-stage pipeline. A fast blocking stage uses approximate nearest-neighbour search over name embeddings to reduce the comparison space from $O(n^2)$ to $O(nk)$ candidates. A precise scoring stage applies a cross-encoder or LLM-based classifier to the candidate pairs. This pattern mirrors the retriever-ranker architecture in RAG systems~\cite{gao2024retrieval}.

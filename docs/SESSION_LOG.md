@@ -154,3 +154,4 @@
 | 2026-06-11 | 12 files | feat(ch16): draft AI, ML, and Text in Finance chapter;chore: session log 2026-06-11;fix: move ch16 to position 2 — after intro, before llm-foundations; | — |
 | 2026-06-11 | 6 files | fix(ch16): replace undefined chapterintro env with remark[Learning Objectives];chore: session log 2026-06-11;feat(ch16): draft AI, ML, and Text in Finance chapter; | — |
 | 2026-06-11 | 9 files | fix(ch01,ch02): defloat all listing/table environments inside tcolorbox boxes;chore: session log 2026-06-11;fix(ch16): replace undefined chapterintro env with remark[Learning Objectives]; | — |
+| 2026-06-11 | 6 files | chore: session log 2026-06-11;fix(ch01,ch02): defloat all listing/table environments inside tcolorbox boxes;chore: session log 2026-06-11; | — |

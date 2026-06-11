@@ -243,14 +243,6 @@ whereas a finance-trained vocabulary would represent it as a single token.
 This asymmetry affects both input length (and therefore compute cost) and the
 quality of downstream representations.
 
-Formally, let $w$ be a word and $\tau(w)$ its tokenisation.  The fertility of
-the tokeniser over a corpus $\mathcal{C}$ is
-\begin{equation}
-  F(\tau, \mathcal{C}) = \frac{\sum_{w \in \mathcal{C}} |\tau(w)|}
-                              {\sum_{w \in \mathcal{C}} 1},
-  \label{eq:fertility}
-\end{equation}
-where $|\tau(w)|$ is the number of tokens assigned to word $w$.
 A domain-specific vocabulary trained on financial text will have strictly
 lower fertility on that domain than a general-purpose vocabulary, reducing
 context-window consumption and enabling longer documents to fit within the
@@ -323,14 +315,10 @@ probability proportional to the token count of each sub-source.  Proportional
 mixing favours large sources (Common Crawl) over small but high-quality ones
 (Wikipedia, books), which motivates alternatives.
 
-\emph{Up-sampling} addresses this by assigning a sampling weight $w_i$ to each
-source $i$ that differs from its token fraction $p_i$:
-\begin{equation}
-  \tilde{p}_i \propto p_i^{\alpha}, \quad \alpha \in (0, 1),
-  \label{eq:upsampling}
-\end{equation}
-where $\alpha < 1$ compresses the distribution, boosting small sources relative
-to large ones.  The GPT-3 mixture used a schedule of this kind.
+\emph{Up-sampling} addresses this by assigning each source a sampling weight
+proportional to its token fraction raised to a power $\alpha \in (0,1)$:
+compressing the distribution boosts small, high-quality sources relative to
+large ones.  The GPT-3 mixture used a schedule of this kind.
 
 \emph{Curriculum learning} goes further: the mixing weights change over the
 course of training.  Early in training, the model benefits from easy, clean,
@@ -864,16 +852,10 @@ single A100, compared with 40 hours for full fine-tuning.
 
 Prefix tuning \cite{li2021prefix} prepends a sequence of $L_p$ trainable
 continuous vectors (the \emph{prefix}) to the key and value sequences of every
-attention layer.  Formally, for an attention layer with $n_h$ heads, the
-extended key and value matrices are:
-\begin{equation}
-  K' = [P_K; K_0], \quad V' = [P_V; V_0],
-  \label{eq:prefix}
-\end{equation}
-where $P_K, P_V \in \mathbb{R}^{L_p \times d_h}$ are trained and $K_0, V_0$
-are the original key and value matrices computed from the input.  Queries attend
-over the prefix tokens in addition to the input tokens, effectively prepending
-$L_p$ soft tokens to every layer's context.
+attention layer.  The trainable prefix matrices $P_K, P_V \in \mathbb{R}^{L_p \times d_h}$
+are concatenated with the original key and value matrices computed from the input,
+so that queries attend over the prefix tokens in addition to the input tokens,
+effectively prepending $L_p$ soft tokens to every layer's context.
 
 Prefix tuning was proposed for generation tasks (table-to-text, summarisation)
 and achieves competitive performance with fine-tuning on 1\% of the parameters.
@@ -1207,14 +1189,10 @@ require different architectural choices and training strategies.
 \emph{Named Entity Recognition (NER).}  Financial NER identifies entities
 such as company names, person names, financial instruments, and monetary
 amounts in unstructured text.  The standard approach adds a token-level
-classification head to an encoder model:
-\begin{equation}
-  p(y_t \mid x) = \mathrm{softmax}(W_{\mathrm{ner}} \, h_t + b),
-  \quad t = 1, \ldots, T,
-  \label{eq:ner-head}
-\end{equation}
-where $h_t$ is the contextual representation of token $t$ and $y_t$ is its
-BIO (Begin--Inside--Outside) tag.  The CoNLL-2003 NER scheme extends naturally
+classification head to an encoder model: for each token position $t$, the
+contextual representation $h_t$ is projected through a linear layer with
+softmax to predict a BIO (Begin--Inside--Outside) tag $y_t$.
+The CoNLL-2003 NER scheme extends naturally
 to financial entities: B-ORG for company name beginnings, I-ORG for continuations,
 B-MON for monetary amounts, and so on.
 

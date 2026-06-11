@@ -227,76 +227,7 @@ The following code illustrates a minimal but complete pipeline for retrieving a 
 filing. It first resolves a ticker symbol to a CIK, then fetches the filing index to
 locate the primary document, and finally downloads it for parsing.
 
-\begin{listing}[H]
-\begin{minted}{python}
-import requests
-import json
-from pathlib import Path
-
-HEADERS = {"User-Agent": "Your Name your@email.com"}
-
-def ticker_to_cik(ticker: str) -> str:
-    """Look up the 10-digit CIK for a given ticker symbol."""
-    url = "https://www.sec.gov/files/company_tickers.json"
-    resp = requests.get(url, headers=HEADERS)
-    resp.raise_for_status()
-    data = resp.json()
-    ticker_upper = ticker.upper()
-    for entry in data.values():
-        if entry["ticker"] == ticker_upper:
-            return str(entry["cik_str"]).zfill(10)
-    raise ValueError(f"Ticker {ticker} not found in EDGAR.")
-
-def get_filings_metadata(cik: str) -> dict:
-    """Retrieve submission history for a given CIK."""
-    url = f"https://data.sec.gov/submissions/CIK{cik}.json"
-    resp = requests.get(url, headers=HEADERS)
-    resp.raise_for_status()
-    return resp.json()
-
-def get_latest_10k_accession(cik: str) -> str:
-    """Return the accession number of the most recent 10-K filing."""
-    meta = get_filings_metadata(cik)
-    filings = meta["filings"]["recent"]
-    for form, accession in zip(filings["form"], filings["accessionNumber"]):
-        if form == "10-K":
-            return accession.replace("-", "")
-    raise ValueError("No 10-K found for this company.")
-
-def download_10k(ticker: str, save_dir: Path = Path("filings")) -> Path:
-    """Download the primary HTML document of the latest 10-K."""
-    cik = ticker_to_cik(ticker)
-    accession = get_latest_10k_accession(cik)
-    # Build the filing index URL
-    index_url = (
-        f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
-        f"{accession}/{accession}-index.json"
-    )
-    resp = requests.get(index_url, headers=HEADERS)
-    resp.raise_for_status()
-    index_data = resp.json()
-    # Find the primary document (htm/html)
-    primary_doc = None
-    for item in index_data.get("directory", {}).get("item", []):
-        if item.get("type") == "10-K":
-            primary_doc = item["name"]
-            break
-    if primary_doc is None:
-        raise ValueError("Could not identify primary 10-K document.")
-    doc_url = (
-        f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
-        f"{accession}/{primary_doc}"
-    )
-    doc_resp = requests.get(doc_url, headers=HEADERS)
-    doc_resp.raise_for_status()
-    save_dir.mkdir(parents=True, exist_ok=True)
-    out_path = save_dir / f"{ticker}_10K.html"
-    out_path.write_bytes(doc_resp.content)
-    return out_path
-\end{minted}
-\caption{EDGAR Filing Retrieval Pipeline}
-\label{lst:edgar-pipeline}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 Several engineering considerations deserve attention. The SEC's EDGAR data services
 require the \texttt{User-Agent} header to identify the requesting party; requests that
@@ -329,46 +260,7 @@ table using a lightweight parser such as BeautifulSoup. Convert the table to a c
 plain-text representation---preserving column headers and indentation but stripping
 HTML tags. Then send this representation to an LLM with a structured extraction prompt:
 
-\begin{listing}[H]
-\begin{minted}{python}
-EXTRACTION_PROMPT = """You are a financial data extraction assistant.
-Below is the text of a financial table from a 10-K SEC filing.
-
-Your task: extract the income statement data as a JSON object.
-The JSON must have the following structure:
-{
-  "statement_type": "income_statement",
-  "fiscal_year_end": "YYYY-MM-DD",
-  "currency": "USD",
-  "unit": "millions",
-  "line_items": {
-    "revenue": <float or null>,
-    "cost_of_revenue": <float or null>,
-    "gross_profit": <float or null>,
-    "operating_expenses": <float or null>,
-    "ebit": <float or null>,
-    "interest_expense": <float or null>,
-    "ebt": <float or null>,
-    "income_tax_expense": <float or null>,
-    "net_income": <float or null>,
-    "depreciation_amortization": <float or null>,
-    "ebitda": <float or null>
-  }
-}
-
-Rules:
-- Return ONLY the JSON object, no additional text.
-- If a line item is not present in the table, set it to null.
-- Expenses should be positive numbers (do not use the sign from the filing).
-- Convert all figures to the same unit indicated in the table header.
-
-TABLE TEXT:
-{table_text}
-"""
-\end{minted}
-\caption{LLM-Based Income Statement Extraction Prompt}
-\label{lst:llm-extract-prompt}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 The structured output approach---requesting JSON directly rather than free-form
 text---reduces post-processing effort and enables automatic validation against a schema.
@@ -521,55 +413,7 @@ Given a structured financial data object produced by the extraction pipeline
 algebraic operation. The following function takes the standardised JSON output
 and returns FCFF for each available period:
 
-\begin{listing}[H]
-\begin{minted}{python}
-def compute_fcff(financials: dict, tax_rate: float | None = None) -> dict:
-    """
-    Compute FCFF from standardised extracted financials.
-
-    Parameters
-    ----------
-    financials : dict
-        Dictionary with keys: 'ebit', 'depreciation_amortization',
-        'capex', 'nwc_current', 'nwc_prior', 'income_tax_expense',
-        'ebt'.  All values are floats in the same currency/unit.
-    tax_rate : float or None
-        Explicit marginal tax rate. If None, inferred from
-        income_tax_expense / ebt (effective rate).
-
-    Returns
-    -------
-    dict with 'fcff', 'tax_rate_used', and component breakdown.
-    """
-    ebit = financials["ebit"]
-    da   = financials["depreciation_amortization"]
-    capex = financials["capex"]
-    delta_nwc = financials["nwc_current"] - financials["nwc_prior"]
-
-    if tax_rate is None:
-        ebt = financials.get("ebt")
-        tax_expense = financials.get("income_tax_expense")
-        if ebt and ebt != 0 and tax_expense is not None:
-            tax_rate = tax_expense / ebt
-        else:
-            raise ValueError(
-                "Cannot infer tax rate; provide tax_rate explicitly."
-            )
-
-    nopat = ebit * (1 - tax_rate)
-    fcff = nopat + da - capex - delta_nwc
-    return {
-        "fcff": fcff,
-        "nopat": nopat,
-        "da": da,
-        "capex": capex,
-        "delta_nwc": delta_nwc,
-        "tax_rate_used": tax_rate,
-    }
-\end{minted}
-\caption{FCFF Computation from Extracted Financial Data}
-\label{lst:fcff-computation}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 A production implementation applies this function across a time series of annual or
 quarterly observations, producing a vector of historical FCFFs that seeds the
@@ -690,64 +534,7 @@ A well-designed CoT forecasting prompt structures the reasoning in four stages:
 (1) characterise the macro environment, (2) assess industry dynamics, (3) evaluate
 firm-specific factors, and (4) synthesise into a numerical projection.
 
-\begin{listing}[H]
-\begin{minted}{python}
-COT_FORECAST_PROMPT = """You are an experienced sell-side equity analyst.
-Your task is to forecast the Free Cash Flow to Firm (FCFF) for the next
-three fiscal years for {company_name}.
-
-You have access to the following information:
-- Historical FCFF (last 5 years): {historical_fcff}
-- Most recent 10-K MD&A summary: {mdna_summary}
-- Industry: {industry}
-- Current macroeconomic conditions: {macro_summary}
-- Analyst consensus revenue growth estimates: {consensus_estimates}
-
-Please reason through the following steps BEFORE giving your forecast:
-
-Step 1 - Macroeconomic context:
-Assess how the current macro environment (interest rates, GDP growth,
-inflation) is likely to affect this company's revenue and margins.
-
-Step 2 - Industry dynamics:
-Identify the key drivers and headwinds for this industry over the next
-three years. Consider competitive dynamics, technology disruption,
-and regulatory changes.
-
-Step 3 - Firm-specific factors:
-Evaluate the company's competitive position, recent strategic
-initiatives, margin trajectory, and capital expenditure plans
-as disclosed in the MD&A.
-
-Step 4 - Synthesis and projection:
-Combining the above, provide your FCFF forecast for Years 1, 2, and 3.
-For each year, give:
-  - Point estimate (USD millions)
-  - Upside case (90th percentile)
-  - Downside case (10th percentile)
-  - Two-sentence justification
-
-Respond in the following JSON format:
-{{
-  "reasoning": {{
-    "macro": "<your macro analysis>",
-    "industry": "<your industry analysis>",
-    "firm_specific": "<your firm analysis>"
-  }},
-  "forecasts": [
-    {{"year": 1, "base": <float>, "upside": <float>, "downside": <float>,
-      "justification": "<text>"}},
-    {{"year": 2, "base": <float>, "upside": <float>, "downside": <float>,
-      "justification": "<text>"}},
-    {{"year": 3, "base": <float>, "upside": <float>, "downside": <float>,
-      "justification": "<text>"}}
-  ]
-}}
-"""
-\end{minted}
-\caption{Chain-of-Thought Cash Flow Forecasting Prompt}
-\label{lst:cot-forecast-prompt}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 The separation of reasoning from numerical output is not merely cosmetic: it enables
 downstream validation. If the reasoning step contains an internally inconsistent claim
@@ -883,53 +670,7 @@ prediction loss.
 
 The code interpreter pattern for DCF computation looks as follows:
 
-\begin{listing}[H]
-\begin{minted}{python}
-import subprocess
-import sys
-
-DCF_TOOL_SCHEMA = {
-    "name": "python_executor",
-    "description": (
-        "Execute Python code and return the output. "
-        "Use this for all arithmetic, financial calculations, "
-        "and data transformations."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "code": {
-                "type": "string",
-                "description": "Python code to execute. Must be self-contained."
-            }
-        },
-        "required": ["code"]
-    }
-}
-
-def execute_python(code: str, timeout: int = 30) -> dict:
-    """
-    Execute Python code in an isolated subprocess and return results.
-    Returns dict with 'stdout', 'stderr', and 'success' fields.
-    """
-    try:
-        result = subprocess.run(
-            [sys.executable, "-c", code],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        return {
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
-            "success": result.returncode == 0,
-        }
-    except subprocess.TimeoutExpired:
-        return {"stdout": "", "stderr": "Execution timed out.", "success": False}
-\end{minted}
-\caption{Code Interpreter Tool for DCF Calculation}
-\label{lst:code-interpreter-dcf}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 The advantage of generating Python over performing mental arithmetic is not merely
 accuracy: the generated code is an auditable artefact. A human reviewer can inspect
@@ -955,53 +696,7 @@ consists of three phases:
 
 Applied to DCF valuation, a ReAct loop might unfold as follows:
 
-\begin{listing}[H]
-\begin{minted}{python}
-# Illustrative trace of a ReAct agent computing enterprise value
-
-Thought 1: I need to compute FCFF. I have EBIT=840M, DA=310M,
-           CapEx=180M, delta_NWC=80M, tax_rate=0.21.
-           I will use the python_executor to ensure correctness.
-
-Action 1:  python_executor(code="""
-               ebit = 840; da = 310; capex = 180
-               delta_nwc = 80; tau = 0.21
-               fcff = ebit * (1 - tau) + da - capex - delta_nwc
-               print(f"FCFF = {fcff:.1f} M")
-           """)
-
-Observation 1: FCFF = 713.6 M
-
-Thought 2: FCFF is 713.6M. Now I need the terminal value.
-           Assuming FCF grows at 8% for 5 years then perpetuity at 3%,
-           WACC = 9%. Let me compute the full DCF.
-
-Action 2:  python_executor(code="""
-               import numpy as np
-               fcff0 = 713.6; g_explicit = 0.08; g_terminal = 0.03
-               wacc = 0.09; n = 5
-               fcfs = [fcff0 * (1 + g_explicit)**t for t in range(1, n+1)]
-               tv = fcfs[-1] * (1 + g_terminal) / (wacc - g_terminal)
-               pv_fcfs = sum(f / (1+wacc)**t for t, f in enumerate(fcfs, 1))
-               pv_tv = tv / (1+wacc)**n
-               ev = pv_fcfs + pv_tv
-               print(f"PV of FCFs = {pv_fcfs:.1f} M")
-               print(f"Terminal Value = {tv:.1f} M")
-               print(f"PV of TV = {pv_tv:.1f} M")
-               print(f"Enterprise Value = {ev:.1f} M")
-           """)
-
-Observation 2: PV of FCFs = 3210.4 M
-               Terminal Value = 15601.7 M
-               PV of TV = 10136.3 M
-               Enterprise Value = 13346.7 M
-
-Thought 3: Enterprise value is approximately $13.3B.
-           I can now report this result with full provenance.
-\end{minted}
-\caption{Illustrative ReAct Loop for DCF Valuation}
-\label{lst:react-dcf}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 The ReAct pattern makes the reasoning transparent and auditable while offloading all
 arithmetic to a reliable executor. The agent's role is to formulate the calculation
@@ -1081,36 +776,7 @@ LLMs are valuable at this stage not for numerical computation but for
 model can assess whether the numbers are consistent with the described business
 environment and flag contradictions. An example prompt:
 
-\begin{listing}[H]
-\begin{minted}{python}
-SCENARIO_CHECK_PROMPT = """You are a senior equity research analyst reviewing
-a DCF valuation scenario for {company_name} in the {industry} industry.
-
-The following scenario has been proposed:
-- Scenario: {scenario_name}
-- Revenue CAGR (Years 1-5): {revenue_cagr}%
-- EBIT Margin (Year 5): {ebit_margin}%
-- CapEx as % of Revenue: {capex_pct}%
-- Terminal Growth Rate: {terminal_growth}%
-- WACC: {wacc}%
-
-Context: {scenario_narrative}
-
-Please evaluate the internal consistency of these assumptions. Specifically:
-1. Are the margin and growth assumptions consistent with each other
-   and with industry benchmarks?
-2. Is the terminal growth rate defensible relative to long-run GDP growth?
-3. Are there any assumptions that are internally contradictory?
-
-Respond with a JSON object:
-{{"is_consistent": true/false,
-  "issues": ["<list of specific inconsistencies or concerns>"],
-  "recommendation": "<brief corrective action if needed>"}}
-"""
-\end{minted}
-\caption{Scenario Consistency Validation Prompt}
-\label{lst:scenario-consistency}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 \subsection{Monte Carlo Simulation Orchestrated by Agents}
 \label{subsec:bv-scenarios-montecarlo}
@@ -1138,72 +804,7 @@ for enterprise value.
 
 A practical Monte Carlo implementation for valuation, invoked by an agent, is:
 
-\begin{listing}[H]
-\begin{minted}{python}
-import numpy as np
-
-def monte_carlo_dcf(
-    fcff_base: float,
-    g_explicit_mean: float,
-    g_explicit_std: float,
-    wacc_mean: float,
-    wacc_std: float,
-    g_terminal_mean: float,
-    g_terminal_std: float,
-    n_years: int = 5,
-    n_simulations: int = 10_000,
-    seed: int = 42,
-) -> dict:
-    """
-    Monte Carlo DCF simulation.
-
-    Parameters
-    ----------
-    fcff_base : float
-        Current-year FCFF (USD millions).
-    g_explicit_* : float
-        Mean and std of explicit-period annual FCF growth rate.
-    wacc_* : float
-        Mean and std of WACC.
-    g_terminal_* : float
-        Mean and std of terminal growth rate.
-    """
-    rng = np.random.default_rng(seed)
-    wacc_sim = rng.normal(wacc_mean, wacc_std, n_simulations)
-    g_term_sim = rng.normal(g_terminal_mean, g_terminal_std, n_simulations)
-    g_exp_sim = rng.normal(g_explicit_mean, g_explicit_std,
-                            size=(n_simulations, n_years))
-
-    # Clip to ensure g_terminal < wacc (Gordon Growth Model validity)
-    g_term_sim = np.minimum(g_term_sim, wacc_sim - 0.005)
-
-    ev_sim = np.zeros(n_simulations)
-    for m in range(n_simulations):
-        fcfs = [fcff_base]
-        for t in range(n_years):
-            fcfs.append(fcfs[-1] * (1 + g_exp_sim[m, t]))
-        pv_fcf = sum(
-            fcfs[t] / (1 + wacc_sim[m]) ** t for t in range(1, n_years + 1)
-        )
-        tv = (fcfs[n_years] * (1 + g_term_sim[m])
-              / (wacc_sim[m] - g_term_sim[m]))
-        pv_tv = tv / (1 + wacc_sim[m]) ** n_years
-        ev_sim[m] = pv_fcf + pv_tv
-
-    return {
-        "mean": float(np.mean(ev_sim)),
-        "median": float(np.median(ev_sim)),
-        "std": float(np.std(ev_sim)),
-        "p10": float(np.percentile(ev_sim, 10)),
-        "p25": float(np.percentile(ev_sim, 25)),
-        "p75": float(np.percentile(ev_sim, 75)),
-        "p90": float(np.percentile(ev_sim, 90)),
-        "simulations": ev_sim.tolist(),
-    }
-\end{minted}
-\caption{Monte Carlo DCF Simulation}
-\label{lst:monte-carlo-dcf}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 Typical parameterisation in a mid-cap equity context might use
 $\mu_\mathrm{WACC} = 0.09$, $\sigma_\mathrm{WACC} = 0.015$,
@@ -1298,42 +899,7 @@ LLMs can identify peer companies from a natural-language description of the targ
 firm's business model, without relying on rigid classification codes. A zero-shot
 prompt simply describes the target and requests comparable firms:
 
-\begin{listing}[H]
-\begin{minted}{python}
-ZERO_SHOT_COMPS_PROMPT = """You are an investment banking analyst specialising
-in equity valuation. Your task is to identify publicly listed comparable companies
-for the following target firm.
-
-Target firm description:
-{target_description}
-
-Financial profile:
-- Revenue: {revenue} USD millions
-- EBIT margin: {ebit_margin}%
-- Geography: {geography}
-- Stage: {company_stage}
-
-Identify 8 to 12 publicly listed comparable companies. For each, provide:
-- Company name
-- Ticker symbol
-- Stock exchange
-- Similarity rationale (2-3 sentences)
-- Similarity score (1-5, where 5 is near-identical business model)
-
-Rules:
-- Include only actually existing, currently publicly listed companies.
-- Do NOT invent tickers or company names.
-- Prefer companies with similar revenue scale (0.3x to 3x target revenue).
-- Exclude competitors that are more than 5x larger (index-constituents with
-  very different multiple dynamics).
-
-Respond as a JSON array of objects with keys:
-"name", "ticker", "exchange", "rationale", "similarity_score".
-"""
-\end{minted}
-\caption{Zero-Shot Comparable Identification Prompt}
-\label{lst:zero-shot-comps}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 The instruction ``Do NOT invent tickers or company names'' is necessary but not
 sufficient: hallucinated comparables occur with non-trivial frequency even with
@@ -1370,63 +936,7 @@ markets, competitive position, and strategy. Embedding the MD\&A of all companie
 a universe and indexing them in a vector database allows efficient nearest-neighbour
 retrieval.
 
-\begin{listing}[H]
-\begin{minted}{python}
-import numpy as np
-import faiss  # pip install faiss-cpu
-
-def build_comparable_index(
-    company_embeddings: dict[str, np.ndarray],
-) -> tuple[faiss.IndexFlatIP, list[str]]:
-    """
-    Build a FAISS inner-product index for fast comparable retrieval.
-
-    Parameters
-    ----------
-    company_embeddings : dict mapping ticker -> embedding vector (L2-normalised)
-
-    Returns
-    -------
-    index : faiss.IndexFlatIP
-    tickers : list of tickers in index order
-    """
-    tickers = list(company_embeddings.keys())
-    dim = len(next(iter(company_embeddings.values())))
-    # Stack into matrix
-    matrix = np.vstack([company_embeddings[t] for t in tickers]).astype("float32")
-    # L2-normalise so inner product equals cosine similarity
-    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
-    matrix /= norms
-    index = faiss.IndexFlatIP(dim)
-    index.add(matrix)
-    return index, tickers
-
-def find_comparables(
-    target_embedding: np.ndarray,
-    index: faiss.IndexFlatIP,
-    tickers: list[str],
-    top_k: int = 15,
-    exclude_self: str | None = None,
-) -> list[dict]:
-    """
-    Retrieve the top-k most similar companies by cosine similarity.
-    """
-    query = target_embedding.reshape(1, -1).astype("float32")
-    query /= np.linalg.norm(query)
-    similarities, indices = index.search(query, top_k + 1)
-    results = []
-    for sim, idx in zip(similarities[0], indices[0]):
-        ticker = tickers[idx]
-        if exclude_self and ticker == exclude_self:
-            continue
-        results.append({"ticker": ticker, "cosine_similarity": float(sim)})
-        if len(results) == top_k:
-            break
-    return results
-\end{minted}
-\caption{Embedding-Based Comparable Selection}
-\label{lst:embedding-comps}
-\end{listing}
+\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
 Empirical studies using MD\&A embeddings find that cosine-similarity-based peers
 outperform SIC-code-based peers on several metrics: the comparable set has lower

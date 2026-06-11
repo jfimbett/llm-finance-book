@@ -577,11 +577,7 @@ The contrast is instructive. Maria's reasoning is dominated by loss aversion and
 
 Running a single persona produces one trajectory through the decision space. Running an ensemble of $N$ personas --- a \emph{synthetic population} --- produces a distribution over decisions that approximates the population-level response to a financial product or policy intervention.
 
-Let $\Pi_1, \ldots, \Pi_N$ be a sample of persona specifications drawn from a target population distribution $\mathcal{P}$. For each persona $\Pi_i$, let $d_i \in \{1, \ldots, K\}$ denote the decision recorded after presenting the scenario. The empirical distribution of decisions is:
-\begin{equation}
-  \hat{P}(d = k) = \frac{1}{N} \sum_{i=1}^{N} \mathbf{1}[d_i = k], \quad k = 1, \ldots, K.
-  \label{eq:empirical-decision-dist}
-\end{equation}
+Let $\Pi_1, \ldots, \Pi_N$ be a sample of persona specifications drawn from a target population distribution $\mathcal{P}$. For each persona $\Pi_i$, let $d_i \in \{1, \ldots, K\}$ denote the decision recorded after presenting the scenario. Aggregating across personas yields an empirical distribution over decisions that approximates the population-level response.
 
 Population-level disagreement arises because different personas weight the same information differently. This disagreement is informative: it identifies which subgroups are sensitive to which product features, enabling more targeted product design and communication.
 
@@ -634,20 +630,11 @@ The calibration procedure involves three steps:
 
 \subsubsection*{Step 1: Population Alignment}
 
-The persona sampling distribution $\mathcal{P}$ is calibrated so that the joint distribution of demographic and socioeconomic attributes in the synthetic population matches the marginal distributions in the target survey. Post-stratification weighting is a standard approach:
-\begin{equation}
-  w_i = \frac{P_{\text{target}}(\Pi_i)}{P_{\text{simulation}}(\Pi_i)},
-  \label{eq:poststrat-weight}
-\end{equation}
-where $P_{\text{target}}$ is the empirical distribution in the survey and $P_{\text{simulation}}$ is the simulation sampling distribution.
+The persona sampling distribution $\mathcal{P}$ is calibrated so that the joint distribution of demographic and socioeconomic attributes in the synthetic population matches the marginal distributions in the target survey. Post-stratification weighting is a standard approach: each persona $\Pi_i$ is assigned a weight equal to its probability under the target survey distribution divided by its probability under the simulation sampling distribution, reweighting the synthetic population to match observed demographics.
 
 \subsubsection*{Step 2: Behavioural Alignment}
 
-For each decision domain (mortgage uptake, pension participation, insurance purchase), the weighted decision distribution from the simulation is compared to the observed decision distribution in the survey using a calibration loss:
-\begin{equation}
-  \mathcal{L}_{\text{cal}} = \sum_{k=1}^{K} \left( \hat{P}_{\text{sim}}(d = k) - \hat{P}_{\text{survey}}(d = k) \right)^2.
-  \label{eq:calibration-loss}
-\end{equation}
+For each decision domain (mortgage uptake, pension participation, insurance purchase), the weighted decision distribution from the simulation is compared to the observed decision distribution in the survey using a calibration loss: the sum of squared differences between the simulated and survey decision frequencies across all $K$ options.
 
 \subsubsection*{Step 3: Prompt Refinement}
 

@@ -1233,17 +1233,9 @@ These terms span four semantic groups:
 
 To project the embeddings into two dimensions, let $\mathbf{E} \in \mathbb{R}^{30 \times d}$ be the matrix whose
 $i$-th row is the (mean-centred) embedding vector of the $i$-th term.
-We apply principal component analysis (PCA) to obtain a
-$30 \times 2$ matrix of scores:
-\begin{equation}
-  \mathbf{Z}
-  \;=\;
-  \mathbf{E}\,\mathbf{P}_{:,1:2},
-  \label{eq:pca-projection}
-\end{equation}
-where $\mathbf{P} \in \mathbb{R}^{d \times d}$ contains the principal
-components (eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$) sorted by
-descending eigenvalue, and $\mathbf{P}_{:,1:2}$ retains the first two.
+We apply principal component analysis (PCA), projecting onto the first two
+principal components (the eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$ with
+the largest eigenvalues), to obtain a $30 \times 2$ matrix of scores.
 
 The resulting scatter plot of the 30 terms
 in the two-dimensional PCA space, coloured by semantic group, is produced by the notebook at \texttt{code/notebooks/01-intro/demo.ipynb}.

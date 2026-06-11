@@ -161,3 +161,4 @@
 | 2026-06-11 | 6 files | refine(ch09): add [B]/[I]/[A] exercises, remove FIXME comment — 8.4→9.0;chore: session log 2026-06-11;chore(ch08): update quality score — 7.6→9.0, PASS; | — |
 | 2026-06-11 | 6 files | refine(ch10): add exercises, rewrite summary — 7.8→8.2, PASS;chore: session log 2026-06-11;refine(ch09): add [B]/[I]/[A] exercises, remove FIXME comment — 8.4→9.0; | — |
 | 2026-06-11 | 5 files | refine(ch11): remove decorative math with orphaned notation;refine(ch05): remove decorative math with orphaned notation;refine(ch06): remove decorative math with orphaned notation; | — |
+| 2026-06-11 | 12 files | feat: generate all chapter illustration figures from exercise notebooks;chore: session log 2026-06-11;refine(ch11): remove decorative math with orphaned notation; | — |

@@ -160,3 +160,4 @@
 | 2026-06-11 | 8 files | chore(ch08): update quality score — 7.6→9.0, PASS;chore: session log 2026-06-11;refine(ch04): fix context/deepdive structure in §4.3, pass quality gate; | — |
 | 2026-06-11 | 6 files | refine(ch09): add [B]/[I]/[A] exercises, remove FIXME comment — 8.4→9.0;chore: session log 2026-06-11;chore(ch08): update quality score — 7.6→9.0, PASS; | — |
 | 2026-06-11 | 6 files | refine(ch10): add exercises, rewrite summary — 7.8→8.2, PASS;chore: session log 2026-06-11;refine(ch09): add [B]/[I]/[A] exercises, remove FIXME comment — 8.4→9.0; | — |
+| 2026-06-11 | 5 files | refine(ch11): remove decorative math with orphaned notation;refine(ch05): remove decorative math with orphaned notation;refine(ch06): remove decorative math with orphaned notation; | — |

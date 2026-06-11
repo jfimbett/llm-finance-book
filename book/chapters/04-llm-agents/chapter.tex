@@ -564,6 +564,9 @@ state across steps, handling failures at any point, and ensuring auditability of
 entire pipeline---requires a higher-level abstraction than a single agent loop.
 Orchestration frameworks such as LangChain, LlamaIndex, and AutoGen provide these
 abstractions.
+\end{context}
+
+\begin{deepdive}
 
 % --- Subsection: Skills ---
 
@@ -770,6 +773,7 @@ directly. An \emph{extractor agent} reads a short earnings snippet and pulls out
 reported EPS and analyst consensus, then passes the structured result to a
 \emph{classifier agent} that labels the result as a beat, miss, or inline outcome.
 
+\begin{listing}[H]
 \begin{minted}{python}
 import anthropic
 import json
@@ -819,13 +823,14 @@ verdict    = classify_result(eps_data) # Agent 2: classifier
 print(f"Extracted : {eps_data}")
 print(f"Verdict   : {verdict['verdict']} — {verdict['rationale']}")
 \end{minted}
-\captionof{listing}{Two-agent earnings beat/miss pipeline using the Anthropic API.
+\caption{Two-agent earnings beat/miss pipeline using the Anthropic API.
   The extractor agent (claude-opus-4-5) parses the EPS figures; the classifier agent
   (claude-haiku-4-5) labels the outcome. Separating roles allows each agent to be
   swapped or fine-tuned independently.}
 \label{lst:two-agent-earnings}
+\end{listing}
 
-\end{context}
+\end{deepdive}
 
 % ---------------------------------------------------------------
 

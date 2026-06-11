@@ -158,3 +158,4 @@
 | 2026-06-11 | 10 files | fix(ch04,ch08,ch09,ch10): resolve all failing quality dimensions;chore: session log 2026-06-11;chore: session log 2026-06-11; | — |
 | 2026-06-11 | 7 files | refine(ch04): fix context/deepdive structure in §4.3, pass quality gate;chore: session log 2026-06-11;fix(ch04,ch08,ch09,ch10): resolve all failing quality dimensions; | — |
 | 2026-06-11 | 8 files | chore(ch08): update quality score — 7.6→9.0, PASS;chore: session log 2026-06-11;refine(ch04): fix context/deepdive structure in §4.3, pass quality gate; | — |
+| 2026-06-11 | 6 files | refine(ch09): add [B]/[I]/[A] exercises, remove FIXME comment — 8.4→9.0;chore: session log 2026-06-11;chore(ch08): update quality score — 7.6→9.0, PASS; | — |

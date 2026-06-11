@@ -9,108 +9,689 @@ prevalence of text in financial markets makes large language models an
 especially powerful tool for practitioners and researchers alike.
 \end{chapterintro}
 
+% --- Section: Artificial Intelligence ---
 % -----------------------------------------------------------------------
 \section{Artificial Intelligence: Definitions and Scope}
 \label{sec:ai-definitions}
 
-[Placeholder]
+Few terms in contemporary discourse are used more broadly, or with less
+precision, than \emph{artificial intelligence}.  Before treating the
+specific techniques that fill the rest of this book, this section
+establishes a working definition and traces the intellectual arc that
+connects the term's origins in the 1950s to today's large language
+models.
 
 \subsection{From Expert Systems to Learning Machines}
 \label{subsec:expert-to-learning}
 
-[Placeholder]
+The phrase ``artificial intelligence'' was coined in 1956 by John McCarthy,
+who used it to describe the project of making machines perform tasks that
+would require intelligence if performed by humans.  For the first three
+decades of the field's existence that project was pursued primarily through
+\emph{expert systems}: hand-crafted programs encoding domain knowledge as
+explicit rules.  A financial expert system of the 1980s might, for instance,
+contain hundreds of ``if-then'' rules describing when a loan applicant should
+be classified as high-risk.  The appeal was transparency --- every decision
+could be traced to a specific rule --- but the brittleness was equally
+apparent.  Rules must be written by human experts, they proliferate rapidly
+as the domain grows, and they fail without recourse when they encounter
+situations their authors did not anticipate.
+
+The limitations of rule-based systems motivated a gradual shift toward
+approaches in which intelligence is \emph{induced from data} rather than
+\emph{encoded by hand}.  Statistical pattern recognition, which had existed
+as a research area since the 1950s, began to attract serious attention from
+the AI community in the late 1980s and accelerated through the 1990s as
+larger datasets and faster hardware made empirical evaluation feasible.  By
+the mid-2000s, data-driven methods had overtaken symbolic approaches in
+nearly every application domain where labeled data were available: speech
+recognition, image classification, spam filtering, and, eventually, natural
+language processing.
+
+\begin{remark}[The shifting definition of AI]
+\label{rem:ai-definition-shift}
+The boundary of ``artificial intelligence'' has always been socially
+constructed as much as technically defined.  Tasks once considered hallmarks
+of intelligence --- playing chess, diagnosing disease, translating text ---
+tend to be reclassified as ``mere computation'' once machines perform them
+reliably.  This ratchet effect, sometimes called the \emph{AI effect}, means
+that the field perpetually chases a moving target.  For practical purposes
+in this book, we treat AI as the broad enterprise of building systems that
+perform cognitive tasks, machine learning as the dominant contemporary
+methodology for building such systems, and deep learning and large language
+models as particular implementations of that methodology.
+\end{remark}
 
 \subsection{Symbolic vs.\ Statistical AI}
 \label{subsec:symbolic-vs-statistical}
 
-[Placeholder]
+The tension between \emph{symbolic} and \emph{statistical} approaches
+to AI is one of the oldest and most productive fault lines in the field.
+Symbolic AI represents knowledge explicitly, manipulating discrete symbols
+according to formal rules; logic programming, semantic networks, and
+knowledge graphs are its natural home.  Statistical AI, by contrast,
+represents knowledge implicitly in the parameters of a model fitted to
+data, and makes predictions by computing probabilities rather than
+applying rules.
+
+\begin{definition}[Symbolic AI]
+\label{def:symbolic-ai}
+A \emph{symbolic AI system} represents the world through discrete, human-
+readable symbols and reasons by applying explicit, interpretable rules to
+those symbols.  Knowledge is encoded by domain experts prior to deployment
+and does not change as new data arrive.
+\end{definition}
+
+\begin{definition}[Statistical AI]
+\label{def:statistical-ai}
+A \emph{statistical AI system} represents the world through numerical
+parameters estimated from data and makes predictions by evaluating a
+learned function.  Knowledge is implicit in the parameter values and
+changes whenever the model is retrained on new observations.
+\end{definition}
+
+The two paradigms are not mutually exclusive.  Modern systems often combine
+a statistical backbone --- a neural network, say --- with symbolic
+post-processing such as a grammar checker or a knowledge-graph lookup.
+In finance this hybrid character is common: a statistical model may flag
+an anomalous transaction, but the final decision about regulatory reporting
+follows a deterministic rule specified in compliance policy.  Throughout
+this book we lean toward statistical methods because the data richness of
+financial markets makes learning from evidence more reliable than encoding
+rules by hand, but we return to the symbolic perspective when discussing
+interpretability (Chapter~12) and regulatory constraints.
 
 % -----------------------------------------------------------------------
+% --- Section: AI-ML-DL Hierarchy ---
 \section{The AI--ML--Deep Learning Hierarchy}
 \label{sec:ai-ml-dl-hierarchy}
 
-[Placeholder]
+Artificial intelligence, machine learning, and deep learning are nested
+concepts, each a proper subset of the one above it.  Understanding the
+hierarchy clarifies what distinguishes large language models from earlier
+AI systems and why they represent a qualitative advance rather than a
+marginal improvement.
 
 \subsection{Machine Learning: Learning from Data}
 \label{subsec:ml-from-data}
 
-[Placeholder]
+Machine learning is the subfield of AI concerned with algorithms that
+improve their performance at a task through experience, where ``experience''
+means exposure to data \parencite{goodfellow2016deep}.  The central
+desideratum is \emph{generalization}: a model should perform well not only
+on data it has already seen but on new inputs drawn from the same
+distribution.
+
+\begin{definition}[Supervised Learning]
+\label{def:supervised-learning}
+In \emph{supervised learning} an algorithm is given a training set
+$\{(\mathbf{x}_i, y_i)\}_{i=1}^n$ of input--output pairs and learns a
+function $f_\theta : \mathcal{X} \to \mathcal{Y}$ by minimizing a loss
+$\mathcal{L}(\theta) = \frac{1}{n}\sum_{i=1}^n \ell(f_\theta(\mathbf{x}_i), y_i)$
+over parameters $\theta$.  The goal is for $f_\theta$ to generalize to
+unseen inputs.
+\end{definition}
+
+Supervised learning covers classification and regression, the two workhorses
+of quantitative finance.  Credit scoring, default prediction, and factor
+model estimation are all supervised tasks at their core.  Alongside
+supervised learning, \emph{unsupervised} methods discover structure in
+unlabeled data --- clustering trades into market regimes, for instance ---
+and \emph{reinforcement learning} trains agents to maximize cumulative reward
+through sequential interaction, a framework naturally suited to algorithmic
+trading and portfolio rebalancing.  \textcite{lopezdeprado2018advances}
+provides a thorough treatment of these paradigms in financial applications.
+
+The learning paradigm carries substantial practical implications.
+A supervised credit model requires labeled historical defaults and is
+constrained to the distribution of the training period.  A model trained
+on data from a benign credit cycle may badly underestimate tail risk during
+a crisis --- an instance of \emph{distribution shift} that has practical
+and regulatory consequences.  These generalization challenges pervade
+financial machine learning and motivate much of the methodological care
+described in later chapters.
 
 \subsection{Deep Learning: Representation at Scale}
 \label{subsec:deep-learning-representation}
 
-[Placeholder]
+Deep learning is machine learning with neural networks of sufficient depth
+that the model learns intermediate representations automatically, rather
+than requiring the practitioner to specify features by hand.  The key
+insight, formalized in the universal approximation theorem for networks
+with hidden layers, is that hierarchical compositions of simple nonlinear
+functions can represent arbitrarily complex mappings given sufficient
+width or depth \parencite{goodfellow2016deep}.
+
+In practice, depth confers a more specific advantage: lower layers tend to
+learn general, transferable features (edges in images, phonemes in speech,
+common collocations in text) while higher layers combine these into
+task-specific representations.  This hierarchical decomposition is
+efficient in terms of both data and computation, and it allows a model
+pre-trained on a broad dataset to be fine-tuned effectively on a narrow
+downstream task with far fewer labeled examples.
+
+\begin{context}
+The analogy between deep networks and financial markets is instructive.
+Markets aggregate information across many interacting agents operating at
+different time scales and with different information sets.  A deep network
+aggregates information across layers, each of which operates on the
+compressed output of the one below.  Both systems perform hierarchical
+computation, and both are difficult to interpret from the outside:
+understanding why a market price moved to a particular level is as
+challenging as understanding why a deep network produced a particular
+output.  This parallel motivates the explainability methods discussed in
+Chapter~12.
+\end{context}
 
 \subsection{Large Language Models as a Special Case}
 \label{subsec:llms-special-case}
 
-[Placeholder]
+Large language models (LLMs) are deep neural networks trained on text at
+scale to model the probability distribution over sequences of tokens.
+They inherit all the characteristics of deep learning --- learned
+representations, transfer learning, gradient-based optimization --- and
+add several that are specific to their scale and modality.
+
+\begin{definition}[Large Language Model]
+\label{def:llm}
+A \emph{large language model} is a neural network with billions of
+parameters, trained on a corpus of hundreds of billions of tokens,
+whose primary objective is to assign probabilities to token sequences.
+Formally, let $x_1, x_2, \dots, x_T$ denote a sequence of $T$ tokens
+drawn from a vocabulary $\mathcal{V}$, and let $P_\theta(x_t \mid x_1,
+\dots, x_{t-1})$ be the conditional probability the model assigns to
+token $x_t$ given the preceding context.  The canonical training
+objective is next-token prediction:
+\[
+  \mathcal{L}_{\mathrm{LM}} = -\sum_{t=1}^{T} \log P_\theta(x_t \mid x_1, \dots, x_{t-1}),
+\]
+where $\theta$ denotes the model parameters.
+\end{definition}
+
+What makes LLMs a \emph{special case} is the combination of scale,
+architecture, and emergent capability.  Models trained at sufficient
+scale exhibit \emph{emergent abilities} --- capabilities that appear
+abruptly as parameters and data increase, not predicted by smooth
+extrapolation from smaller models \parencite{wei2022emergent}.  These include multi-step reasoning,
+instruction following, and in-context learning, in which the model adapts
+to a new task from a handful of examples provided in the prompt without
+any parameter update.  For finance, the practical consequence is that a
+single LLM can serve as a flexible substrate for tasks as diverse as
+earnings call summarization, regulatory document parsing, and quantitative
+strategy explanation --- topics explored throughout this book and
+exemplified by domain-adapted models such as BloombergGPT
+\parencite{wu2023bloomberggpt}.
 
 % -----------------------------------------------------------------------
+% --- Section: AI Applications in Finance ---
 \section{AI Applications in Finance}
 \label{sec:ai-applications-finance}
 
-[Placeholder]
+The financial industry is one of the earliest and most intensive adopters
+of data-driven modeling.  Statistical arbitrage, credit scoring, and
+algorithmic execution have relied on quantitative methods for decades.
+What has changed with modern AI is the scope of problems that can be
+addressed, the quality of solutions achievable, and the speed at which
+new applications are being discovered.
 
 \subsection{Decision-Making Under Uncertainty}
 \label{subsec:decision-making-uncertainty}
 
-[Placeholder]
+Finance is fundamentally a discipline of decision-making under uncertainty.
+Every investment, lending, or hedging decision involves forming beliefs about
+future states of the world and acting on those beliefs subject to constraints.
+AI methods contribute at two distinct levels: they can improve the
+\emph{quality of beliefs} (better forecasts, richer models of uncertainty)
+and they can improve the \emph{quality of decisions} conditional on those
+beliefs (portfolio optimization, dynamic programming, reinforcement learning).
+
+The separation is conceptually clean but empirically entangled.  A model
+that produces well-calibrated probability estimates over future returns
+enables better portfolio construction, but the portfolio construction
+procedure itself may reshape market dynamics and invalidate the forecast
+model --- an instance of the \emph{reflexivity} that distinguishes financial
+markets from most other prediction targets.  AI systems deployed in
+finance must therefore be understood as actors within the market, not
+merely observers of it.  This reflexive character adds a strategic
+dimension to model design that has no direct analogue in, say, medical
+imaging.
+
+\begin{example}[AI in algorithmic trading]
+\label{ex:algo-trading}
+A market-making algorithm must quote bid and ask prices for a security at
+high frequency, earning the spread while managing inventory risk.  A
+deep reinforcement learning agent can be trained to optimize this
+objective across millions of simulated market episodes, learning execution
+strategies that adapt to changing liquidity conditions.  The agent's
+actions, however, affect the order book, which in turn affects the signals
+on which the agent conditions its decisions.  This feedback loop must be
+modeled explicitly in the training environment to avoid policies that
+perform well in simulation but destabilize in live markets.
+% [CITE: high-frequency trading AI applications, market impact models]
+\end{example}
 
 \subsection{Forecasting, Risk, and Alpha Generation}
 \label{subsec:forecasting-risk-alpha}
 
-[Placeholder]
+Asset return forecasting, risk estimation, and the identification of
+profitable trading signals (``alpha'') are the core quantitative problems
+in investment management, and modern machine learning has transformed all
+three.  The key challenge in each is the signal-to-noise ratio:
+financial returns are nearly unpredictable at short horizons, risk models
+must extrapolate into tails observed rarely in historical data, and genuine
+alpha erodes quickly once discovered.
+
+Machine learning addresses the forecasting challenge through its capacity
+to process high-dimensional feature spaces --- thousands of technical
+indicators, macro variables, and cross-sectional characteristics --- without
+requiring the analyst to pre-specify which interactions matter.  The
+\emph{Advances in Financial Machine Learning} framework
+\parencite{lopezdeprado2018advances} articulates the methodological
+discipline required to make this work in practice: purging look-ahead
+bias from cross-validation, controlling for the multiple comparisons
+implicit in large feature sets, and constructing features that are
+stationary and informative.  Text-based signals, which are the central
+focus of this book, extend this toolkit by incorporating information that
+is entirely absent from price and volume data.
+
+Risk modeling has been similarly transformed.  Traditional parametric
+approaches such as variance-covariance VaR assume Gaussian returns and
+stable correlations, assumptions that fail precisely when they matter
+most, during market stress.  Machine learning methods can fit richer
+distributional models, incorporate regime-switching dynamics, and learn
+from high-dimensional cross-asset data to produce more robust tail risk
+estimates.  Language models contribute to risk analysis through their
+ability to parse narrative risk disclosures and translate qualitative
+language about uncertainty into quantitative signals.
 
 \subsection{Regulatory Compliance and Fraud Detection}
 \label{subsec:compliance-fraud}
 
-[Placeholder]
+Beyond investment management, AI plays a critical role in the operational
+and compliance functions of financial institutions.  Anti-money laundering
+(AML) systems, sanctions screening, Know-Your-Customer (KYC) verification,
+and real-time transaction fraud detection all involve identifying rare,
+anomalous patterns in high-volume data streams --- tasks for which
+statistical classifiers trained on labeled historical incidents have proven
+effective.
+
+Language models add particular value in the regulatory domain because
+much of the relevant information is textual: suspicious activity reports,
+correspondence, legal and regulatory filings, and analyst opinions.  An
+LLM can surface unusual phrasing in a client communication, flag
+discrepancies between a filing's narrative risk disclosures and its
+quantitative exhibits, or assist compliance officers in interpreting
+newly issued regulatory guidance.  Chapter~11 treats these applications
+in depth.
+
+The regulatory context also introduces obligations that constrain the
+design of AI systems.  Explainability requirements under frameworks such
+as the European Union's AI Act and GDPR's right to explanation mean that
+opaque models may be inadmissible for certain decisions regardless of their
+accuracy.  This tension between predictive performance and interpretability
+is a recurring theme in financial AI and shapes the architecture choices
+discussed throughout the book.
 
 % -----------------------------------------------------------------------
+% --- Section: Textual Nature of Financial Data ---
 \section{The Textual Nature of Financial Data}
 \label{sec:textual-finance}
 
-[Placeholder]
+One of the defining characteristics of financial markets is the
+extraordinary diversity of data they generate.  Price feeds, order books,
+corporate filings, analyst reports, central bank communications, news
+wires, social media, and earnings call transcripts all carry information
+relevant to asset prices, yet they differ fundamentally in structure,
+volume, and the kind of processing they require.
 
 \subsection{Structured vs.\ Unstructured Data in Finance}
 \label{subsec:structured-unstructured}
 
-[Placeholder]
+\begin{definition}[Structured Data]
+\label{def:structured-data}
+\emph{Structured data} are observations that can be represented as rows
+and columns in a relational table, with well-defined data types for each
+field.  Each observation corresponds to a known entity (a security, a
+trade, a firm) at a specific point in time, and every field carries a
+consistent, machine-readable meaning.
+\end{definition}
+
+\begin{definition}[Unstructured Data]
+\label{def:unstructured-data}
+\emph{Unstructured data} lack a pre-defined schema.  Text, audio,
+images, and video are canonical examples.  Extracting quantitative
+features from unstructured data requires a processing pipeline that
+transforms raw content into a representation amenable to statistical
+analysis.
+\end{definition}
+
+Structured financial data --- daily closing prices, quarterly accounting
+items, trade volumes --- have been the primary substrate of quantitative
+finance since the 1960s.  They are well-served by conventional statistical
+tools: regression, factor models, time series analysis.  Their limitations
+are equally well understood: they are backward-looking by construction,
+they capture outcomes (prices, earnings) rather than the reasoning and
+sentiment that drive those outcomes, and they are observable by many
+market participants simultaneously, which limits the informational edge
+any single analyst can extract.
+
+Unstructured data, and text in particular, are far more abundant and far
+less efficiently processed.  A large institutional investor may have access
+to tens of thousands of documents per day --- earnings call transcripts,
+analyst notes, regulatory filings, news articles, patent applications ---
+that contain decision-relevant information but are too voluminous for
+analysts to read systematically.  This processing bottleneck creates a
+persistent opportunity for machine learning methods that can scale.
 
 \subsection{Sources of Financial Text: Filings, News, and Earnings Calls}
 \label{subsec:financial-text-sources}
 
-[Placeholder]
+The primary sources of financial text can be organized by their
+production process, their informational content, and the regulatory
+context that governs their disclosure.
+
+Corporate filings submitted to securities regulators are among the most
+carefully scrutinized financial documents.  In the United States the SEC's
+EDGAR database contains annual reports (10-K), quarterly reports (10-Q),
+and current reports (8-K) for all public companies.  These filings include
+both quantitative financial statements and mandatory narrative disclosures:
+the Management Discussion and Analysis (MD\&A) section, the Risk Factors
+section, and forward-looking statements.  Because managers face both legal obligations and reputational incentives
+regarding these disclosures, the text carries information complementary
+to the financial statements themselves.  \textcite{loughran2011liability}
+demonstrated that the sentiment of 10-K filings --- measured using a
+purpose-built financial lexicon --- is associated with post-filing stock
+returns in ways that general-text dictionaries do not capture.
+
+News and wire services produce high-frequency text that incorporates and
+transmits public information.  The relationship between media sentiment
+and market returns has been studied at least since \textcite{tetlock2007giving},
+who found that pessimistic language in the Wall Street Journal ``Abreast of
+the Market'' column predicts downward price pressure followed by
+mean-reversion.  Modern news data providers offer real-time, machine-readable
+feeds covering equities, fixed income, foreign exchange, and commodities
+across dozens of languages and geographies.
+
+Earnings conference calls occupy a position between corporate filings and
+market commentary: they are live events in which executives and analysts
+exchange views on company performance and outlook.  The transcript of an
+earnings call captures not only the scripted prepared remarks but also
+the unscripted Q\&A, where analysts probe management on sensitive topics.
+Research has consistently found that both the content and the linguistic
+properties of these calls --- management tone, the types of questions
+asked, hedging language, and even the pace of speech in audio recordings
+--- contain incremental information about future firm performance beyond
+the reported numbers \parencite{loughran2020textual}.
+
+\begin{example}[Information in financial text]
+\label{ex:financial-text-info}
+A company reports earnings per share of \$1.20, beating the analyst
+consensus of \$1.15.  On the basis of reported numbers alone the result
+appears positive.  But the 10-K's Risk Factors section has grown by
+30\% year-over-year, three of the six newly added risks concern supply
+chain exposure in a politically sensitive region, and the CEO used the
+word ``challenging'' eleven times on the earnings call --- more than in
+any prior quarter.  A quantitative analyst reading only the headline EPS
+figure misses the signal embedded in the text.
+\end{example}
 
 \subsection{Why Text is Hard: Noise, Ambiguity, and Context}
 \label{subsec:text-challenges}
 
-[Placeholder]
+Despite the informational richness of financial text, extracting
+reliable signals from it is technically demanding.  Several properties
+of natural language conspire to make this difficult.
+
+First, language is \emph{ambiguous}.  The same sequence of words can
+mean different things depending on who wrote it, when, and in what
+institutional context.  The word ``uncertainty'' in a Federal Reserve
+statement carries a very different connotation than the same word in a
+startup founder's shareholder letter.  Domain-specific terminology
+compounds the problem: the phrase ``positive outlook'' is bullish in
+equity research but cautious in credit rating reports, where ``positive''
+denotes a potential upgrade from a currently difficult position.
+\textcite{loughran2011liability} showed that approximately three-quarters
+of the words classified as negative by the Harvard General Inquirer
+dictionary carry neutral or positive connotations in financial filings,
+motivating the construction of a domain-specific lexicon.
+
+Second, language is \emph{high-dimensional and sparse}.  A vocabulary of
+fifty thousand words --- modest by financial NLP standards --- implies a
+document-term matrix with vastly more dimensions than observations,
+creating severe statistical challenges for classical regression methods.
+Dimensionality reduction through topic modeling, word embeddings, or
+language model encoders is necessary before most downstream analyses
+can proceed.
+
+Third, financial text is \emph{strategically produced}.  Corporate
+disclosures are written by lawyers and communications professionals
+who are acutely aware of legal liability and market reaction.  Managers
+have incentives to emphasize positive developments, obscure negative
+ones through hedging language, and time disclosures strategically.
+A model that takes financial text at face value --- treating it as
+an unbiased signal of the underlying state of the firm --- will be
+systematically misled.  Understanding the incentive structure of document
+producers is as important as understanding the statistical properties
+of the text itself.
+
+\begin{remark}[Context as a first-class variable]
+\label{rem:context-financial-text}
+Many of the hardest problems in financial NLP reduce to the challenge
+of context.  Determining whether a given passage is bullish or bearish,
+legally compliant or potentially misleading, or consistent with prior
+disclosures requires the model to maintain a rich representation of the
+entity, the time period, the regulatory environment, and the genre of
+the document.  This is precisely the kind of long-range contextual
+reasoning that transformer-based language models are designed to perform,
+and it is a large part of why LLMs represent such a significant advance
+over earlier NLP methods for financial applications.
+\end{remark}
 
 % -----------------------------------------------------------------------
+% --- Section: Bag-of-Words to LLMs ---
 \section{From Bag-of-Words to Large Language Models}
 \label{sec:bow-to-llms}
 
-[Placeholder]
+The application of quantitative text analysis to finance has a history
+stretching back several decades, and the techniques in use have changed
+dramatically over that period.  Tracing this evolution clarifies what
+the current generation of language models can do that earlier approaches
+could not, and situates the rest of the book in a longer intellectual
+tradition.
 
 \subsection{Early NLP Approaches in Finance}
 \label{subsec:early-nlp-finance}
 
-[Placeholder]
+The first generation of quantitative financial text analysis relied on
+methods developed for information retrieval and computational linguistics
+that do not require labeled training data at scale.  Bag-of-Words (BoW)
+models represent each document as a vector of word counts, discarding
+all information about word order and grammar.  Combined with tf-idf
+weighting --- which up-weights rare, informative words and down-weights
+common ones --- BoW models can classify documents, measure similarity,
+and track the frequency of concept-related terms over time.  These
+Researchers applied these approaches to financial filings as early as
+the 1990s to measure changes in management tone and document readability
+\parencite{kearney2014textual}.
+
+Dictionary-based sentiment analysis extends the BoW framework by
+mapping words to pre-defined sentiment scores.  The analyst defines
+a list of positive words, a list of negative words, and computes the
+net sentiment of a document as the difference in their frequencies.
+The construction of finance-specific dictionaries was a significant
+methodological contribution: \textcite{loughran2011liability} introduced
+a lexicon of roughly 2,700 words classified into six categories
+(negative, positive, uncertainty, litigious, strong modal, and weak modal)
+based on their frequency in financial filings, and demonstrated superior
+performance relative to general-purpose dictionaries on a range of
+financial prediction tasks.  This lexicon remains widely used as a
+benchmark \parencite{loughran2020textual}.
+
+Latent Semantic Analysis (LSA) and Latent Dirichlet Allocation (LDA)
+took a different approach, learning document representations from the
+co-occurrence structure of words in a corpus rather than from pre-defined
+lists.  Topic models identify latent themes in a collection of documents
+and represent each document as a mixture over those themes.  Applied to
+earnings call transcripts, a topic model might discover that one latent
+dimension captures discussions of operational efficiency while another
+captures regulatory risk --- themes that no dictionary predicts in advance.
+The principal limitation of all these approaches is their shallow treatment
+of semantics: words are treated as atomic units, their meanings are context-
+independent, and word order carries no information.
 
 \subsection{The Transformer Revolution}
 \label{subsec:transformer-revolution}
 
-[Placeholder]
+The publication of \textcite{vaswani2017attention}, ``Attention Is All
+You Need,'' in 2017 triggered the most significant transition in the
+history of natural language processing.  The Transformer architecture
+introduced \emph{self-attention}: a mechanism that allows each position
+in a sequence to attend to every other position, computing a weighted
+combination of all token representations where the weights are learned
+functions of the tokens themselves.  This allows the model to resolve long-range dependencies --- connecting a
+pronoun to its antecedent many sentences earlier, or linking a risk factor
+in the first paragraph of a filing to a quantitative disclosure in the
+financial statements.  Recurrent architectures, which process tokens
+sequentially and suffer from vanishing gradients over long contexts,
+cannot do this reliably.
+
+\begin{deepdive}
+The self-attention mechanism computes, for each position $i$ in a sequence,
+a weighted sum of value vectors $\mathbf{v}_j$ at all positions $j$:
+\[
+  \mathrm{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V})
+  = \mathrm{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V},
+\]
+where $\mathbf{Q}$ and $\mathbf{K}$ are linear projections of the input
+sequence into query and key spaces of dimension $d_k$, and $\mathbf{V}$
+is a linear projection into a value space of dimension $d_v$ (in the
+standard single-head presentation $d_v = d_k$ is assumed for notational
+simplicity, though multi-head implementations may differ).
+The $\sqrt{d_k}$ scaling prevents the dot products from growing large
+enough to push the softmax into a saturated regime where gradients
+vanish.  Multiple attention heads operating in parallel subspaces allow
+the model to jointly attend to different aspects of the context --- one
+head might track syntactic agreement while another tracks coreference.
+The full derivation and financial NLP implications are developed in
+Chapter~2.
+\end{deepdive}
+
+Pre-trained Transformer models --- BERT, GPT, RoBERTa, and their
+successors --- combined the self-attention mechanism with unsupervised
+pre-training on very large text corpora.  The resulting models acquire
+rich, context-sensitive representations of words and phrases that can
+be fine-tuned on downstream tasks with relatively small labeled datasets.
+This transfer-learning paradigm transformed the economics of NLP: tasks
+that previously required thousands of labeled examples could now be
+solved with hundreds, lowering the barrier to entry for financial
+applications where labeled data are expensive to obtain.
 
 \subsection{Why LLMs are Particularly Suited to Finance}
 \label{subsec:llms-suited-finance}
 
-[Placeholder]
+The alignment between what large language models do well and what
+financial analysis requires is unusually close.  Four properties of
+LLMs are especially valuable in the financial domain.
+
+First, LLMs excel at \emph{long-document reasoning}.  Modern models with
+context windows of tens or hundreds of thousands of tokens can process
+an entire 10-K filing, an earnings call transcript, or a legal agreement
+in a single pass, maintaining coherent representations of entities and
+relationships across the full document.  This eliminates the
+information loss inherent in the chunking strategies required by
+earlier architectures.
+
+Second, LLMs support \emph{in-context learning} without parameter
+updates.  A compliance analyst can supply the model with three examples
+of suspicious transaction patterns and then ask it to evaluate a new
+transaction, relying on the model's ability to generalize from the
+provided examples.  This few-shot capability is particularly valuable
+in finance, where the distribution of interesting events is narrow and
+labeled examples are scarce.
+
+Third, the scale of pre-training data ensures broad \emph{world knowledge}
+that complements financial domain knowledge.  A model that understands
+geopolitical events, supply chain structures, and corporate governance
+norms can contextualize a risk disclosure in ways that a purely financial
+model cannot.  BloombergGPT \parencite{wu2023bloomberggpt} demonstrated
+that further pre-training on a large financial corpus improves performance
+on financial NLP benchmarks, but general-domain LLMs already perform
+impressively on many tasks, reflecting the degree to which financial
+knowledge is embedded in broadly available text.
+
+Fourth, LLMs expose a natural language \emph{interface} that lowers the
+barrier to use.  A portfolio manager can query a model in plain English ---
+``Summarize the key risks disclosed in this 10-K and flag any that differ
+from last year's filing'' --- without writing code or configuring a
+classification pipeline.  This democratization of quantitative text
+analysis has important implications for how financial research is
+conducted and how AI capabilities diffuse across organizational
+hierarchies.
+
+\begin{remark}[LLMs are not a panacea]
+\label{rem:llm-limitations-preview}
+The properties listed above are genuine and consequential, but they
+are accompanied by equally genuine limitations.  LLMs hallucinate
+--- they generate plausible-sounding but factually incorrect statements
+with confidence.  They are sensitive to prompt wording in ways that
+make systematic evaluation difficult.  Their reasoning processes are
+opaque.  And their behavior on rare, high-stakes financial events may
+be poorly calibrated because such events are underrepresented in
+pre-training data.  These limitations are not reasons to avoid LLMs
+in finance, but they are reasons to deploy them carefully and to
+invest seriously in evaluation, monitoring, and human oversight.
+Chapter~13 is dedicated to these issues.
+\end{remark}
 
 % -----------------------------------------------------------------------
+% --- Section: Roadmap ---
 \section{Roadmap: What This Book Covers and How to Read It}
 \label{sec:book-roadmap}
 
-[Placeholder]
+The remainder of this book is organized in three parts, each building on
+the conceptual scaffolding erected in the present chapter.
+
+The first part builds the technical foundations.  The next chapter
+develops the architecture of transformer-based language models from the
+ground up, deriving the attention mechanism, the pre-training objectives,
+and the tokenization schemes that underlie all modern LLMs.  The chapters
+that follow cover training and fine-tuning --- how language models are
+adapted to specific tasks and domains using supervised fine-tuning,
+reinforcement learning from human feedback, and parameter-efficient
+methods such as LoRA --- and extend the single-model view to multi-agent
+systems, examining how LLMs can be composed into pipelines that plan,
+use tools, and interact with external data sources.  The final chapter
+of the first part applies these foundations to business valuation,
+showing how LLMs can assist in extracting and synthesizing the inputs to
+discounted-cash-flow and comparable-company analyses.
+
+The second part covers the primary application domains in finance.
+Successive chapters treat credit risk, emerging and frontier applications,
+domain-specific language models trained or adapted for finance, financial
+NLP and sentiment analysis, portfolio construction and quantitative
+trading, regulatory technology and anti-money laundering, and
+explainability.  The application chapters are designed to be read
+independently once the technical foundations are in place; a reader
+with a specific use case --- say, compliance automation or sentiment
+analysis --- can proceed directly to the relevant chapter after
+completing the foundational part.
+
+The third part turns to evaluation, deployment, and operational concerns.
+It provides a systematic treatment of LLM limitations and evaluation
+methodology, covers financial text summarization, and examines
+privacy-preserving and locally deployed models, addressing the
+data-residency and confidentiality concerns that constrain the use of
+cloud-hosted models in financial institutions.
+
+Throughout the book, formal definitions and examples are set off from
+the main text in the environments the reader has already encountered in
+this chapter.  \emph{Context} boxes provide broader perspective --- on
+connections to economic theory, institutional practice, or adjacent
+fields --- that enriches the main argument without interrupting its
+flow.  \emph{Deep Dive} boxes provide technical derivations and
+implementation details for readers who want them, and can be skipped
+without loss of continuity by those who do not.  Exercises at the end of
+each chapter are tagged by difficulty: \textbf{[B]} for beginner,
+\textbf{[I]} for intermediate, and \textbf{[A]} for advanced.  Python
+code implementing the examples is available in the companion repository
+and in the Jupyter notebooks distributed with the book.

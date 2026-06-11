@@ -1248,7 +1248,6 @@ descending eigenvalue, and $\mathbf{P}_{:,1:2}$ retains the first two.
 Figure~\ref{fig:embeddings-pca} shows the scatter plot of the 30 terms
 in the two-dimensional PCA space, coloured by semantic group.
 
-\begin{listing}[htbp]
 \begin{minted}[fontsize=\small, linenos]{python}
 import numpy as np
 import matplotlib.pyplot as plt
@@ -1303,7 +1302,7 @@ plt.tight_layout()
 plt.savefig("fig_embeddings_pca.pdf", dpi=150)
 plt.show()
 \end{minted}
-\caption{Python code (using \texttt{gensim}, \texttt{sklearn}, and
+\captionof{listing}{Python code (using \texttt{gensim}, \texttt{sklearn}, and
          \texttt{matplotlib}) that produces the PCA scatter plot of
          embedding vectors for 30 financial terms.
          Points are coloured by semantic group:
@@ -1319,7 +1318,6 @@ plt.show()
          and the rates cluster (\emph{yield}, \emph{spread},
          \emph{inflation}) is well-separated from the equities cluster.}
 \label{fig:embeddings-pca}
-\end{listing}
 
 Several patterns are consistently observable across different
 pre-trained models:
@@ -1901,7 +1899,6 @@ OpenAI exposes models through a REST API wrapped by the
 \emph{chat completion}: a list of role-tagged messages is sent to the
 model and the response is returned as a structured JSON object.
 
-\begin{listing}[htbp]
 \begin{minted}[fontsize=\small, linenos]{python}
 import os
 from openai import OpenAI
@@ -1935,18 +1932,16 @@ label, tokens = analyse_sentiment(
 print(f"Sentiment: {label}  |  Tokens used: {tokens}")
 # Sentiment: Negative  |  Tokens used: 71
 \end{minted}
-\caption{Financial sentiment classification via the OpenAI Chat Completions API
+\captionof{listing}{Financial sentiment classification via the OpenAI Chat Completions API
          (\texttt{gpt-4o-mini}).  The \texttt{temperature=0} setting makes
          outputs deterministic; \texttt{max\_tokens=10} caps cost.}
 \label{lst:openai-sentiment}
-\end{listing}
 
 \subsection{The Anthropic API}
 \label{sec:api-anthropic}
 
 Anthropic's Claude models are queried through a similar interface.
 
-\begin{listing}[htbp]
 \begin{minted}[fontsize=\small, linenos]{python}
 import os
 import anthropic
@@ -1974,11 +1969,10 @@ def summarise_mda(text: str, max_words: int = 150) -> str:
 summary = summarise_mda(open("mda_excerpt.txt").read())
 print(summary)
 \end{minted}
-\caption{MD\&A summarisation via the Anthropic Messages API (Claude Haiku).
+\captionof{listing}{MD\&A summarisation via the Anthropic Messages API (Claude Haiku).
          Note the \texttt{max\_tokens} cap and the explicit word-count
          instruction in the prompt.}
 \label{lst:anthropic-mda}
-\end{listing}
 
 \subsection{HuggingFace \texttt{transformers}: Open-Weight Inference}
 \label{sec:api-huggingface}
@@ -1986,7 +1980,6 @@ print(summary)
 For open-weight models (LLaMA, FinBERT, T5-finance), the HuggingFace
 \texttt{transformers} library provides a unified interface.
 
-\begin{listing}[htbp]
 \begin{minted}[fontsize=\small, linenos]{python}
 from transformers import pipeline
 
@@ -2010,11 +2003,10 @@ for headline, result in zip(headlines, results):
 # Negative   (0.993)  Silicon Valley Bank seized by regulators amid bank run
 # Neutral    (0.851)  Fed holds rates steady amid mixed inflation signals
 \end{minted}
-\caption{Batch financial sentiment classification with FinBERT via the
+\captionof{listing}{Batch financial sentiment classification with FinBERT via the
          HuggingFace \texttt{transformers} pipeline.  Running locally
          avoids routing proprietary data through a third-party API.}
 \label{lst:huggingface-finbert}
-\end{listing}
 
 \subsection{Token Costs and Latency Trade-offs}
 \label{sec:api-costs}

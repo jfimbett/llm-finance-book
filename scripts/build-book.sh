@@ -12,10 +12,10 @@ fi
 echo "Building book..."
 cd book
 
-pdflatex -interaction=nonstopmode main.tex
+pdflatex -shell-escape -interaction=nonstopmode main.tex
 biber main
-pdflatex -interaction=nonstopmode main.tex
-pdflatex -interaction=nonstopmode main.tex
+pdflatex -shell-escape -interaction=nonstopmode main.tex
+pdflatex -shell-escape -interaction=nonstopmode main.tex
 
 # Check for errors
 if grep -q "^! " main.log 2>/dev/null; then

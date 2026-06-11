@@ -850,33 +850,79 @@ calibrating the automated response thresholds.
 This chapter developed the intersection of large language models with classical portfolio
 theory, algorithmic trading, and risk management. Five key takeaways deserve emphasis.
 
-\textbf{LLMs as information extractors, not optimizers.} The efficient frontier
-\citep{markowitz1952portfolio} and Black-Litterman framework \citep{blacklitterman1992}
-remain the correct tools for translating return signals into portfolio weights. LLMs
-contribute by generating better estimates of $\boldsymbol{\mu}$---the expected return
-vector---from unstructured text, not by replacing the optimization machinery.
+The efficient frontier \citep{markowitz1952portfolio} and Black-Litterman framework
+\citep{blacklitterman1992} remain the correct tools for translating return signals into
+portfolio weights. LLMs contribute by generating better estimates of
+$\boldsymbol{\mu}$---the expected return vector---from unstructured text, not by
+replacing the optimisation machinery; they are information extractors, not optimisers.
 
-\textbf{Factor construction is the most defensible channel.} Building long-short
+Factor construction is the most defensible application channel. Building long-short
 portfolios based on LLM-derived sentiment scores and testing their alpha against
-Fama-French factors \citep{fama1993common, fama2015five} provides a principled evaluation
-framework. Statistical rigour demands adjustment for multiple comparisons
+Fama-French factors \citep{fama1993common, fama2015five} provides a principled
+evaluation framework. Statistical rigour demands adjustment for multiple comparisons
 \citep{harvey2016cross} and out-of-sample validation.
 
-\textbf{Market efficiency limits but does not eliminate LLM alpha.} The Grossman-Stiglitz
-paradox \citep{grossman1980impossibility} implies that some informed return must exist, but it also
-implies that LLM signals will be most valuable in low-coverage markets where price
+Market efficiency limits but does not eliminate LLM alpha. The Grossman-Stiglitz
+paradox \citep{grossman1980impossibility} implies that some informed return must exist,
+but also that LLM signals will be most valuable in low-coverage markets where price
 discovery is slowest. Large-cap, heavily covered equities are the hardest target.
 
-\textbf{Backtesting discipline is non-negotiable.} Walk-forward evaluation, realistic
+Backtesting discipline is non-negotiable. Walk-forward evaluation, realistic
 transaction cost modelling, point-in-time data, and correction for backtest overfitting
-\citep{bailey2014probability, lopezdeprado2018advances} are not optional refinements---they are
-the difference between a research artefact and a deployable strategy.
+\citep{bailey2014probability, lopezdeprado2018advances} are not optional refinements---they
+are the difference between a research artefact and a deployable strategy.
 
-\textbf{Real-time risk monitoring is a high-value, lower-competition application.}
+Real-time risk monitoring represents a high-value, lower-competition application.
 Extracting structured risk signals from regulatory filings and news wires, augmenting
 GARCH-family volatility models \citep{engle2002dynamic}, and maintaining continuous
-portfolio surveillance represent applications where LLMs deliver tangible, auditable
-value with less exposure to the market-efficiency critique.
+portfolio surveillance deliver tangible, auditable value with less exposure to the
+market-efficiency critique.
+
+% ============================================================
+\section*{Exercises}
+% ============================================================
+
+\begin{exercise}[Mean-Variance Portfolio with an LLM Signal]
+\label{ex:ch10-mv-llm}
+\textbf{[B]} Suppose you have five assets with expected excess returns
+$\boldsymbol{\mu} = (0.08,\, 0.06,\, 0.04,\, 0.03,\, 0.02)^{\top}$ and a diagonal
+covariance matrix $\boldsymbol{\Sigma} = \mathrm{diag}(0.04, 0.09, 0.06, 0.03, 0.05)$.
+(\textit{a})~Compute the minimum-variance portfolio weights (long-only, weights summing
+to one) analytically or numerically. (\textit{b})~An LLM processes recent earnings calls
+and produces a positive sentiment update for asset~1, raising its expected return to
+$0.12$. Recompute the weights. (\textit{c})~Explain intuitively why the shift in
+$\boldsymbol{\mu}$ for one asset affects the weights of the others.
+\end{exercise}
+
+\begin{exercise}[Almgren-Chriss Optimal Liquidation]
+\label{ex:ch10-ac-liquidation}
+\textbf{[I]} A trader holds $X_0 = 10{,}000$ shares and must liquidate over $N = 5$
+equally-spaced periods. The permanent impact coefficient is $\gamma = 2.5 \times
+10^{-6}$, the temporary impact coefficient is $\eta = 6.25 \times 10^{-7}$, the
+per-period time step is $\tau = 0.2$ days, return volatility is $\sigma = 0.02$
+(per day), and risk aversion is $\lambda = 10^{-6}$.
+(\textit{a})~Compute the Almgren-Chriss optimal trading trajectory using the standard
+three-term cost function from Section~\ref{sec:ch10-execution}. (\textit{b})~Plot
+remaining inventory $x_k$ against period $k$. (\textit{c})~An LLM monitoring news
+wires detects a negative sentiment spike at $k=2$, suggesting the permanent impact
+coefficient will double for the remaining periods. Recompute the optimal trajectory
+from $k=2$ onward and compare total expected cost with and without the LLM signal.
+\end{exercise}
+
+\begin{exercise}[Walk-Forward Backtest of an LLM Sentiment Factor]
+\label{ex:ch10-backtest}
+\textbf{[A]} Design and implement a walk-forward backtest of a long-short factor
+constructed from LLM-derived sentiment scores on earnings call transcripts.
+(\textit{a})~Obtain or simulate a panel of 50 stocks over 24 months with monthly
+sentiment scores $S_{i,t}$ and returns $r_{i,t+1}$. (\textit{b})~Each month, rank
+stocks by $S_{i,t}$ and form a value-weighted long portfolio (top decile) minus a
+value-weighted short portfolio (bottom decile). Compute annualised Sharpe ratio and
+information ratio. (\textit{c})~Apply realistic transaction costs using the cost model
+$c_{i,t} = 0.001 \cdot |w_{i,t} - w_{i,t-1}|$ for each stock. Report the net-of-cost
+Sharpe ratio. (\textit{d})~Run the Deflated Sharpe Ratio test \citep{bailey2014probability}
+and interpret whether the observed Sharpe is statistically significant after adjusting
+for the number of strategy variants you tested.
+\end{exercise}
 
 % ============================================================
 \section{Further Reading}

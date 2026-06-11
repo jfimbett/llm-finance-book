@@ -1,0 +1,21 @@
+{
+  "file": "book/chapters/10-portfolio-quant-trading/chapter.tex",
+  "date": "2026-06-11",
+  "scores": {
+    "clarity": 9,
+    "rigor": 8,
+    "completeness": 8,
+    "pedagogy": 8,
+    "style": 8
+  },
+  "justifications": {
+    "clarity": "All major notation ambiguities from prior rounds are resolved. The triple alpha overloading was addressed previously: GARCH uses alpha_1/beta_1 with a disambiguating note, the factor regression intercept is renamed a/hat{a}, and CVaR retains alpha. A low-severity residual persists: the calibration scaling constant in eq. ch10-signal-to-view (line 283) is also named alpha, overlapping with the CVaR confidence-level alpha from Section 5.1. The separation of sections and unambiguous prose context prevent practical confusion for a reader. All definitions precede use, transitions are smooth, and the signal-processing chain (raw score -> normalisation -> z-score -> position sizing -> BL view) is traced coherently through the chapter.",
+    "rigor": "All rigor defects identified in prior rounds are resolved. The Almgren-Chriss cost function matches the standard three-term formulation (permanent impact + temporary impact + execution-risk penalty), each term labelled in prose and cited to almgren2001optimal. The signal-decay half-life calibration range is supported by grinold2000active. The Black-Litterman posterior formula matches the canonical derivation. CVaR is cited to rockafellar2000optimization. The minimum track record length formula matches lopezdeprado2018advances. The walk-forward protocol definition is internally consistent. All empirical claims carry citations. The exercise set adds further rigour requirements: the [A] exercise demands application of the Deflated Sharpe Ratio test from bailey2014probability.",
+    "completeness": "All six learning objectives stated in the opening remark are addressed in the chapter body. The exercises section (\\section*{Exercises}) now contains three substantive exercises tagged [B], [I], and [A], satisfying the rubric requirement for all three difficulty tiers. The [B] exercise covers mean-variance optimisation with an LLM signal update (LO1, LO2). The [I] exercise requires computing the Almgren-Chriss optimal trajectory and re-optimising after an LLM news signal (LO4). The [A] exercise requires a full walk-forward backtest implementation with realistic costs and a Deflated Sharpe Ratio test (LO4, LO5). LO6 (CVaR-based risk management) is addressed via eq. ch10-cvar-constrained and the GARCH-text augmentation model, though it lacks a worked numerical example. No placeholder markers (% TODO, % [CITE]) appear anywhere in the file.",
+    "pedagogy": "Six learning objectives are clearly stated in the opening remark block and are mapped to chapter content. Three worked examples are present: a single absolute BL view from an LLM earnings-call signal (Example 10.1), extraction of BL views from earnings-call transcripts with calibration details (Example 10.2), and an LLM alert triggered by an 8-K SEC filing (Example 10.3). All examples are concrete, quantitative, and directly tied to LOs. The addition of [B]/[I]/[A] exercises completes the pedagogical arc: students can work from a simple portfolio computation (beginner) through an execution-scheduling optimisation (intermediate) to a full empirical backtest (advanced). Difficulty escalates appropriately across sections and exercises. The absence of any figure (efficient frontier diagram, BL update geometry) remains a missed opportunity but does not constitute a rubric failure.",
+    "style": "Both style violations from prior rounds are now resolved. The Summary section (lines 850-879) no longer contains standalone \\textbf{...} paragraph-opening labels: each paragraph begins with a plain prose topic sentence ('The efficient frontier ... remain the correct tools...', 'Factor construction is the most defensible application channel.', etc.). The \\textbf{[B]}, \\textbf{[I]}, \\textbf{[A]} difficulty tags inside the exercise environments are analogous to bold inside list items and are not penalised under the rubric. No \\paragraph{} macros appear anywhere. Citations use \\citet/\\citep consistently and correctly throughout. Academic register is maintained. Notation is consistent across all sections."
+  },
+  "overall": 8.2,
+  "pass": true,
+  "threshold": 8
+}

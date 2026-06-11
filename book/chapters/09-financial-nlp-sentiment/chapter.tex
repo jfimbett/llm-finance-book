@@ -113,12 +113,7 @@ Exact deduplication (checking for identical strings) is computationally cheap bu
 
 \subsubsection*{Temporal Alignment}
 
-Event-driven financial analysis requires that each text observation be assigned a precise timestamp and that this timestamp be aligned correctly with price data. Two pitfalls are common. First, look-ahead bias: using a news article published after a market close to predict that day's return rather than the next day's open. Second, stale timestamps: some aggregator platforms republish old articles with the current date, creating phantom freshness. A robust pipeline stores the original publication timestamp and the retrieval timestamp separately, and constructs event windows that explicitly account for market hours.
-
-\begin{definition}[Event Window]
-\label{def:event-window}
-Let $t_0$ denote the publication timestamp of a text document. The event return $r_{[a,b]}$ is the cumulative stock return from $t_0 + a$ trading periods to $t_0 + b$ trading periods. A pre-announcement window $[a,0]$ with $a < 0$ tests whether text anticipated a price move; a post-announcement window $[0,b]$ with $b > 0$ tests whether text caused a price move or was followed by drift.
-\end{definition}
+Event-driven financial analysis requires that each text observation be assigned a precise timestamp and that this timestamp be aligned correctly with price data. Two pitfalls are common. First, look-ahead bias: using a news article published after a market close to predict that day's return rather than the next day's open. Second, stale timestamps: some aggregator platforms republish old articles with the current date, creating phantom freshness. A robust pipeline stores the original publication timestamp and the retrieval timestamp separately, and constructs event windows that explicitly account for market hours. A pre-announcement window tests whether text anticipated a price move; a post-announcement window tests whether text caused a price move or was followed by drift.
 
 % ---------------------------------------------------------------
 \section{Sentiment Analysis Methods}
@@ -223,16 +218,7 @@ An instruction-following model will typically respond with ``Neutral'' or ``Mixe
 
 \citet{ko2024can} benchmarked GPT-4 zero-shot against FinBERT and several other baselines on the Financial PhraseBank, the FiQA opinion task \cite{maia2018fiqa}, and a proprietary earnings call dataset, finding that GPT-4 zero-shot matched or exceeded FinBERT on all three tasks despite using no labelled financial training data. \citet{LopezLiraTang2023} reached a related conclusion for news headlines: GPT-based sentiment scores are positively correlated with next-day stock returns, with predictive power higher than that of standard lexicons. The gap between LLM and dictionary approaches is particularly visible in trading applications: \citet{KirtacGermano2024} benchmarked a GPT-3-based model (OPT) against FinBERT and the Loughran--McDonald dictionary on nearly one million U.S. financial news articles, showing that OPT produces a Sharpe ratio of 3.05 in a long-short strategy --- substantially above what the lexicon achieves --- providing a direct quantitative motivation for deploying LLMs rather than dictionaries in sentiment-driven investment processes.
 
-Few-shot classification extends zero-shot by including labelled examples in the prompt:
-
-\begin{equation}
-  \label{eq:few-shot-template}
-  \text{Prompt} = \underbrace{[\text{Task description}]}_{\text{system}}
-  + \underbrace{[\text{example}_1, \ldots, \text{example}_k]}_{\text{few-shot examples}}
-  + \underbrace{[\text{query sentence}]}_{\text{user turn}}
-\end{equation}
-
-Including 4--8 examples drawn from the target domain generally improves calibration: the model learns the labelling convention and vocabulary from the in-context examples without any gradient update. The optimal number of examples trades off between richer context (more examples) and reduced throughput due to longer prompts.
+Few-shot classification extends zero-shot by including labelled examples in the prompt: a system message describing the task is followed by $k$ labelled in-context examples and then the query sentence. Including 4--8 examples drawn from the target domain generally improves calibration: the model learns the labelling convention and vocabulary from the in-context examples without any gradient update. The optimal number of examples trades off between richer context (more examples) and reduced throughput due to longer prompts.
 
 The primary limitation of LLM-based classification is cost and latency at scale. Classifying one million short sentences at \$0.01 per thousand tokens (a rough order of magnitude for frontier models in 2024) costs approximately \$100--\$500 depending on sentence length --- feasible for research but potentially prohibitive for production systems processing tens of millions of documents daily. Distillation into a smaller fine-tuned model is the standard solution when throughput matters. A separate but important question is whether expanding the number of in-context examples further improves accuracy: \citet{FatemiHu2023} found that fine-tuned smaller LLMs match state-of-the-art results on financial sentiment benchmarks, and that increasing the number of few-shot examples beyond a small initial set yields no additional accuracy gain, suggesting that fine-tuning is a more reliable path to performance than continuing to scale prompt length.
 

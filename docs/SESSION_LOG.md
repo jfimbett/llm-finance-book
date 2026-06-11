@@ -150,3 +150,4 @@
 | 2026-06-09 | 3 files | fix(ch02): apply easy full-review fixes;chore: session log 2026-06-09;chore: session log 2026-06-09; | — |
 | 2026-06-09 | 2 files | fix(ch02): resolve all MAJOR issues from full-review;chore: session log 2026-06-09;fix(ch02): apply easy full-review fixes; | — |
 | 2026-06-11 | 11 files | chore: scaffold chapter 16 — ai-ml-finance-text;chore: session log 2026-06-09;fix(ch02): resolve all MAJOR issues from full-review; | — |
+| 2026-06-11 | 11 files | fix: move ch16 to position 2 — after intro, before llm-foundations;chore: session log 2026-06-11;chore: scaffold chapter 16 — ai-ml-finance-text; | — |

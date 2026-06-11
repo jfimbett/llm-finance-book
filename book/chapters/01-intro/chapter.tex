@@ -1245,26 +1245,10 @@ where $\mathbf{P} \in \mathbb{R}^{d \times d}$ contains the principal
 components (eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$) sorted by
 descending eigenvalue, and $\mathbf{P}_{:,1:2}$ retains the first two.
 
-Figure~\ref{fig:embeddings-pca} shows the scatter plot of the 30 terms
-in the two-dimensional PCA space, coloured by semantic group.
+The resulting scatter plot of the 30 terms
+in the two-dimensional PCA space, coloured by semantic group, is produced by the notebook at \texttt{code/notebooks/01-intro/demo.ipynb}.
 
 \textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
-\captionof{listing}{Python code (using \texttt{gensim}, \texttt{sklearn}, and
-         \texttt{matplotlib}) that produces the PCA scatter plot of
-         embedding vectors for 30 financial terms.
-         Points are coloured by semantic group:
-         \textcolor{steelblue}{rates \& macro} (blue),
-         \textcolor{forestgreen}{equities \& returns} (green),
-         \textcolor{crimson}{risk concepts} (red), and
-         \textcolor{darkorange}{corporate actions \& derivatives} (orange).
-         The full executable version is in
-         \texttt{code/notebooks/01-intro/demo.ipynb}.
-         Clusters confirm that the embedding space encodes domain-specific
-         semantic proximity: \emph{option} and \emph{futures} lie close
-         to \emph{derivative}; \emph{default} and \emph{credit} co-cluster;
-         and the rates cluster (\emph{yield}, \emph{spread},
-         \emph{inflation}) is well-separated from the equities cluster.}
-\label{fig:embeddings-pca}
 
 Several patterns are consistently observable across different
 pre-trained models:
@@ -1847,10 +1831,6 @@ OpenAI exposes models through a REST API wrapped by the
 model and the response is returned as a structured JSON object.
 
 \textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
-\captionof{listing}{Financial sentiment classification via the OpenAI Chat Completions API
-         (\texttt{gpt-4o-mini}).  The \texttt{temperature=0} setting makes
-         outputs deterministic; \texttt{max\_tokens=10} caps cost.}
-\label{lst:openai-sentiment}
 
 \subsection{The Anthropic API}
 \label{sec:api-anthropic}
@@ -1858,10 +1838,6 @@ model and the response is returned as a structured JSON object.
 Anthropic's Claude models are queried through a similar interface.
 
 \textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
-\captionof{listing}{MD\&A summarisation via the Anthropic Messages API (Claude Haiku).
-         Note the \texttt{max\_tokens} cap and the explicit word-count
-         instruction in the prompt.}
-\label{lst:anthropic-mda}
 
 \subsection{HuggingFace \texttt{transformers}: Open-Weight Inference}
 \label{sec:api-huggingface}
@@ -1870,10 +1846,6 @@ For open-weight models (LLaMA, FinBERT, T5-finance), the HuggingFace
 \texttt{transformers} library provides a unified interface.
 
 \textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
-\captionof{listing}{Batch financial sentiment classification with FinBERT via the
-         HuggingFace \texttt{transformers} pipeline.  Running locally
-         avoids routing proprietary data through a third-party API.}
-\label{lst:huggingface-finbert}
 
 \subsection{Token Costs and Latency Trade-offs}
 \label{sec:api-costs}
@@ -1912,8 +1884,8 @@ models is less relevant and accuracy differences dominate.
 \label{rem:prompt-engineering}
 The single most effective cost-reduction strategy is prompt brevity: the
 fewer input tokens, the lower the cost.  In classification tasks, a one-line
-system prompt with a one-sentence instruction (as in
-Listing~\ref{lst:openai-sentiment}) typically outperforms a lengthy five-paragraph
+system prompt with a one-sentence instruction (as in the example above)
+typically outperforms a lengthy five-paragraph
 prompt on accuracy while costing 80\%\ less.  Chain-of-thought prompting
 \cite{wei2022chain}
 % [CITE: Wei, J. et al. (2022). Chain-of-Thought Prompting Elicits Reasoning in Large Language Models. NeurIPS.]
@@ -1924,7 +1896,7 @@ justify the expense.
 
 \begin{exercise}[API call anatomy]
 \label{ex:api-b}
-\textbf{[B]} Using the code in Listing~\ref{lst:openai-sentiment} as a
+\textbf{[B]} Using the notebook at \texttt{code/notebooks/01-intro/demo.ipynb} as a
 template, write a function \texttt{extract\_eps(text: str) -> float} that
 queries \texttt{gpt-4o-mini} to extract the earnings-per-share figure from
 a single sentence of an earnings release.  The function should return a
@@ -1938,7 +1910,7 @@ identify a numeric EPS figure.
 (Malo et al., 2014, available via HuggingFace datasets) and evaluate three
 models on the task of classifying sentences as positive/negative/neutral:
 \texttt{gpt-4o-mini} (via API), \texttt{claude-haiku} (via API), and
-FinBERT (local, via Listing~\ref{lst:huggingface-finbert}).
+FinBERT (local, via \texttt{code/notebooks/01-intro/demo.ipynb}).
 Compute accuracy, cost per 1{,}000 sentences (estimating from token counts),
 and mean latency per sentence.  Present your results in a single table and
 recommend a model for a use case where 95\%\ accuracy is required at minimum

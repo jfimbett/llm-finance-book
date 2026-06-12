@@ -164,3 +164,4 @@
 | 2026-06-11 | 12 files | feat: generate all chapter illustration figures from exercise notebooks;chore: session log 2026-06-11;refine(ch11): remove decorative math with orphaned notation; | — |
 | 2026-06-12 | 11 files | chore: session log 2026-06-11;feat: generate all chapter illustration figures from exercise notebooks;chore: session log 2026-06-11; | — |
 | 2026-06-12 | 24 files | docs: hallucination audit report — 16 chapters, 64 findings;chore: session log 2026-06-12;chore: session log 2026-06-11; | — |
+| 2026-06-12 | 5 files | docs: post-fix hallucination audit — all 16 chapters clean;fix(ch12): remove two remaining fabricated CFA Institute study attributions;fix(ch13): remove '84 studies' count from Further Reading section; | — |

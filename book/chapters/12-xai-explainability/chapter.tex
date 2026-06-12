@@ -888,3 +888,43 @@ chain-of-thought reasoning as an agent planning mechanism, which complements the
 explanation trace perspective developed in this chapter. Chapter~\ref{ch:responsible-llms}
 addresses fairness and bias issues that are closely related to the non-discrimination
 requirements of ECOA.
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch12-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/12-xai-explainability/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[Logistic Regression Coefficients]\label{ex:ch12-edgar-b}
+\textbf{[B]} Build a logistic regression model (implemented in NumPy) to
+predict whether a company's next-year stock return beats the S\&P~500.
+Features: leverage, ROE, and revenue growth (computed from EDGAR XBRL).
+(\textit{a})~Train on ten companies over three years of data.
+(\textit{b})~Print the coefficient vector and identify which feature has the
+largest absolute weight.
+See \texttt{code/notebooks/12-xai-explainability/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Manual SHAP-Style Feature Attribution]\label{ex:ch12-edgar-i}
+\textbf{[I]} Implement leave-one-feature-out attribution (a simplified SHAP
+method): for each test company, compute the predicted probability with all
+features, then with each feature set to the training mean.
+Attribution for feature $j$ $= P(\text{all features}) - P(\text{without }j)$.
+(\textit{a})~Compute attributions for three companies.
+(\textit{b})~Display a waterfall chart for one company.
+See \texttt{code/notebooks/12-xai-explainability/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Model Card Design]\label{ex:ch12-edgar-a}
+\textbf{[A]} Write a structured model card (as a Python dictionary printed as
+formatted text) for the logistic regression trained in
+Exercises~\ref{ex:ch12-edgar-b}--\ref{ex:ch12-edgar-i}.
+Include the fields: \texttt{model\_type}, \texttt{training\_data},
+\texttt{features} (with XBRL concept names), \texttt{performance}
+(LOO-CV accuracy), \texttt{known\_limitations} (at least three),
+\texttt{intended\_use}, \texttt{out\_of\_scope\_use}.
+Discuss what additional validation a financial regulator (e.g.\ under
+SR~11-7 guidance) would require before deployment.
+See \texttt{code/notebooks/12-xai-explainability/exercises.ipynb}, Data Lab section.
+\end{exercise}

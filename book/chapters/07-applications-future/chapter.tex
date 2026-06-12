@@ -592,3 +592,45 @@ The combination of LLM capability and professional expertise, applied with rigou
 \begin{remark}[A Note on Model Versions and Reproducibility]
 The code examples throughout this book use specific model identifiers (e.g., \texttt{claude-opus-4-5}). Model providers update and retire models continuously; readers implementing the examples should consult current provider documentation for the appropriate model identifier and adapt prompt templates as necessary for the model's instruction format. The underlying techniques---chain-of-thought prompting, tool use, RAG, agent orchestration---are architecture-level patterns that generalise across model versions. Specific prompt templates and API call structures may require adjustment.
 \end{remark}
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch07-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/07-applications-future/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[8-K Event Log]\label{ex:ch07-edgar-b}
+\textbf{[B]} Fetch all 8-K current report filings for Apple Inc.\ (\texttt{AAPL})
+in the past 12 months from the EDGAR submissions endpoint.
+(\textit{a})~Print a table of filings ordered by date, showing accession number
+and filing date.
+(\textit{b})~Plot monthly 8-K frequency as a bar chart.
+(\textit{c})~Identify the month with the highest number of 8-K filings and
+suggest a business calendar explanation (e.g.\ earnings seasons).
+See \texttt{code/notebooks/07-applications-future/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[AI Disclosure Tracker]\label{ex:ch07-edgar-i}
+\textbf{[I]} For Microsoft's (\texttt{MSFT}) five most recent annual 10-K filings,
+download the full text and count occurrences of AI-related keywords
+(\texttt{artificial intelligence}, \texttt{machine learning},
+\texttt{large language model}, \texttt{generative AI}, \texttt{LLM}, \texttt{GPT},
+\texttt{AI}) normalised per thousand words.
+(\textit{a})~Plot keyword frequency by year as a multi-line chart.
+(\textit{b})~Identify the year of the largest year-on-year increase and
+connect it to a known product announcement.
+See \texttt{code/notebooks/07-applications-future/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Sector-Wide AI Disclosure Monitor]\label{ex:ch07-edgar-a}
+\textbf{[A]} Extend the AI keyword analysis to ten companies spanning
+three sectors: AAPL, MSFT, GOOGL (technology); JPM, BAC, GS (finance);
+JNJ, PFE (healthcare); XOM, CVX (energy).
+(\textit{a})~For each company, retrieve the most recent 10-K and compute
+the aggregate AI keyword frequency per thousand words.
+(\textit{b})~Produce a company $\times$ keyword frequency heatmap.
+(\textit{c})~Discuss whether AI disclosure frequency correlates more
+with sector, firm size, or timing.
+See \texttt{code/notebooks/07-applications-future/exercises.ipynb}, Data Lab section.
+\end{exercise}

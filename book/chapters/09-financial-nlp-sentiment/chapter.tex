@@ -639,3 +639,45 @@ On the NLP side, \citet{araci2019finbert} and \citet{huang2023finbert} document 
 For event-driven asset pricing applications, \citet{manela2017news} is the methodological benchmark for long-horizon news sentiment indices. \citet{schmeling2019does} is the reference for central bank text analysis. \citet{larcker2012detecting} remains the key paper on deception detection in earnings calls.
 
 Chapter~\ref{ch:domain-specific-llms} of this book covers the pre-training and adaptation of domain-specific models including FinBERT's successors. Chapter~\ref{ch:financial-text-summarization} extends the NLP toolkit to abstractive summarisation of financial documents, including earnings call and research report summarisation. Chapter~\ref{ch:llm-limitations-evaluation} addresses the evaluation of LLM outputs more broadly, including calibration, hallucination, and benchmark construction.
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch09-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[Loughran--McDonald Sentiment Scoring]\label{ex:ch09-edgar-b}
+\textbf{[B]} Download the MD\&A section of the most recent 10-K for four
+companies: AAPL, MSFT, JPM, and XOM.
+Using the Loughran--McDonald positive and negative word lists (20 words each,
+hardcoded), compute for each company:
+(\textit{a})~positive word frequency $p$ and negative word frequency $n$
+(counts per total tokens);
+(\textit{b})~net sentiment $= (p - n)/(p + n + 1)$;
+(\textit{c})~a horizontal bar chart of net sentiment scores.
+See \texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Sentiment vs.\ Filing-Day Return]\label{ex:ch09-edgar-i}
+\textbf{[I]} For ten companies, fetch the 10-K filing date from EDGAR
+and the stock return on the filing date using \texttt{yfinance}.
+(\textit{a})~Compute the net sentiment score for each filing's MD\&A.
+(\textit{b})~Plot a scatter diagram of net sentiment vs.\ filing-day return.
+(\textit{c})~Compute the Pearson correlation and discuss whether this
+simple signal has predictive content.
+See \texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Filing-Date Event Study]\label{ex:ch09-edgar-a}
+\textbf{[A]} For ten companies, compute the cumulative abnormal return (CAR)
+in the $[-5, +10]$ trading-day window around the 10-K filing date.
+Abnormal return $= r_{\text{stock}} - r_{\text{S\&P 500}}$ on each day,
+using closing prices from \texttt{yfinance}.
+(\textit{a})~Sort filings into positive-sentiment and negative-sentiment
+halves based on net MD\&A sentiment.
+(\textit{b})~Plot mean CAR by sentiment group.
+(\textit{c})~Discuss the limitations of this event study (information leakage,
+sample size, confounders).
+See \texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
+\end{exercise}

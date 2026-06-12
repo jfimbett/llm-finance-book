@@ -941,3 +941,50 @@ Section~\ref{sec:ch14-table-numerical-extraction} are direct prerequisites for t
 discounted cash flow models developed there. The hallucination mitigation framework
 introduced in Chapter~13 should be applied to any production system that uses abstractive
 summarisation in a decision-critical context.
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch14-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[MD\&A Section Extraction]\label{ex:ch14-edgar-b}
+\textbf{[B]} Fetch Apple's most recent 10-K filing HTML from EDGAR and extract
+the MD\&A section (between ``Item~7'' and ``Item~7A'' headings) using
+the \texttt{extract\_mda} helper.
+(\textit{a})~Print the word count, sentence count, and the first
+500 characters of the extracted text.
+(\textit{b})~Plot a histogram of sentence lengths (words per sentence).
+(\textit{c})~Discuss the challenges of reliably detecting section boundaries
+across different filer formats.
+See \texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Extractive Summarisation]\label{ex:ch14-edgar-i}
+\textbf{[I]} Implement TF-IDF sentence scoring: compute TF within each sentence
+and IDF over all sentences, then score each sentence as the sum of its
+TF-IDF weights.
+Apply this to the MD\&A sections of AAPL, MSFT, and JPM.
+(\textit{a})~Select the top-5 sentences as the extractive summary.
+(\textit{b})~Print each summary and compute the compression ratio
+(words in summary / words in original).
+(\textit{c})~Compare the three summaries qualitatively.
+See \texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Information Extraction Pipeline]\label{ex:ch14-edgar-a}
+\textbf{[A]} For AAPL, MSFT, GOOGL, AMZN, and META, build an information
+extraction pipeline that retrieves from the most recent 10-K:
+(\textit{a})~the first revenue figure matching the pattern
+\verb|\$\d+[\d.,]*\s*(billion|million)| in the MD\&A;
+(\textit{b})~the first three risk-factor sentences from Item~1A
+(identified by searching for the Item~1A heading);
+(\textit{c})~the names of the top-three executives mentioned on the filing
+cover page or management section, using a heuristic that finds consecutive
+capitalised tokens preceded by titles such as \textit{CEO}, \textit{CFO},
+\textit{President}, or \textit{Chairman}.
+Output as a structured list of dicts and discuss the limitations of
+regex-based IE versus an LLM-based approach.
+See \texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
+\end{exercise}

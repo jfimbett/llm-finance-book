@@ -437,3 +437,44 @@ Model risk management and explainability for deep learning systems are treated i
 Readers who wish to explore entity resolution in depth should consult the survey literature on record linkage, particularly the probabilistic approaches building on the Fellegi-Sunter model, as well as more recent work applying transformer-based embeddings to the blocking and matching stages of the pipeline.
 
 Cross-references within this book: Chapter~\ref{ch:llm-agents} covers agentic architectures including the ReAct framework applicable to adverse media agents; Chapter~\ref{ch:credit-risk} covers GDPR and SR~11-7 in the credit context, with deeper treatment of SHAP-based explainability; Chapter~\ref{ch:xai-explainability} covers interpretability methods in full generality.
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch11-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[Regulatory Keyword Monitor]\label{ex:ch11-edgar-b}
+\textbf{[B]} For the five most recent annual 10-K filings of JPMorgan Chase
+(\texttt{JPM}), count occurrences of the following compliance keywords:
+``anti-money laundering'', ``AML'', ``BSA'', ``OFAC'', ``sanctions'',
+``KYC'', ``suspicious activity'', ``FinCEN'', ``compliance programme''
+(all case-insensitive), normalised per thousand words.
+(\textit{a})~Print the year-by-year frequency table.
+(\textit{b})~Plot the total keyword frequency as a line chart over years.
+See \texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Risk-Factor Paragraph Classification]\label{ex:ch11-edgar-i}
+\textbf{[I]} Download Item~1A (Risk Factors) from JPMorgan's most recent 10-K.
+Split into paragraphs and classify each as one of five risk categories:
+``credit risk'', ``regulatory/compliance risk'', ``operational risk'',
+``market risk'', or ``other'', using keyword-matching rules.
+(\textit{a})~Report the class distribution.
+(\textit{b})~Print one representative paragraph per class.
+(\textit{c})~Discuss how this keyword-based classification compares to an LLM-based approach.
+See \texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Cross-Bank Compliance Language Comparison]\label{ex:ch11-edgar-a}
+\textbf{[A]} Repeat the compliance keyword analysis for five large banks:
+JPM, BAC, Citigroup (\texttt{C}), Wells Fargo (\texttt{WFC}), and Goldman Sachs (\texttt{GS}).
+(\textit{a})~Build a $5 \times 9$ keyword-frequency matrix (normalised per thousand words).
+(\textit{b})~Cluster the banks by their keyword profiles using hierarchical
+agglomerative clustering (implement with \texttt{scipy.cluster.hierarchy}).
+(\textit{c})~Display the result as a dendrogram.
+(\textit{d})~Discuss whether clustering reflects bank size, business model,
+or regulatory exposure.
+See \texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
+\end{exercise}

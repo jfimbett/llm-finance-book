@@ -832,7 +832,9 @@ investment write-up that would otherwise take an analyst several hours.
            Colour encodes value on a green (high) to red (low) scale.
            The heatmap reveals the non-linear sensitivity of terminal value to
            the WACC--$g$ spread: small changes near the lower-right corner
-           (low WACC, high growth) produce large swings in enterprise value.}
+           (low WACC, high growth) produce large swings in enterprise value.
+           (Based on AAPL approximate FY2024 free cash flow; values are illustrative and depend on the filing date used. See companion notebook for live computation via \texttt{yfinance}.)}
+
   \label{fig:ch05-illustration}
 \end{figure}
 
@@ -1117,11 +1119,7 @@ equity value against the observed market price. The standard metrics are:
         successfully without manual intervention.
 \end{itemize}
 
-Preliminary evidence from internal experiments and published literature suggests that
-LLM-assisted extraction achieves coverage rates above 90\% for S\&P 500 constituents
-and above 75\% for Russell 2000 companies, with MAVE broadly comparable to the spread
-between analyst price targets and realised prices (typically 20--40\% on an annualised
-basis) \cite{zhang2024financebench}.
+As a rough illustration, a well-engineered LLM-assisted extraction pipeline might achieve coverage rates above 90\% for large-cap constituents and above 75\% for smaller companies where filings are less standardised. Mean absolute valuation error (MAVE) for such pipelines has been found to be broadly comparable to the spread between analyst price targets and realised prices~\citep{zhang2024financebench}, though results vary substantially by pipeline design and sector.
 The key insight is that the accuracy ceiling of any valuation model is determined by
 the fundamental unpredictability of future cash flows, not by the extraction or
 reasoning engine.
@@ -1136,17 +1134,9 @@ large-scale applications. A representative 10-K filing contains approximately
 single extraction call is 3{,}000--8{,}000 tokens; for a forecasting call,
 1{,}000--2{,}000 tokens. The total token cost per company valuation is therefore roughly the sum of input and output token counts multiplied by the respective per-token prices, multiplied by the number of LLM calls in the pipeline. For a full
 valuation with six LLM calls (three extraction, one normalisation, one forecast,
-one comparable filter) at typical 2024 frontier-model pricing, the cost per company
-is in the range \$0.50--\$3.00. At scale---a universe of 3{,}000 companies
-refreshed quarterly---the budget is thus \$6{,}000--\$36{,}000 per quarter, well
-within the operational budget of a mid-size investment management firm.
+one comparable filter) at typical 2024 frontier-model pricing, the cost per company is on the order of \$1--\$5 at 2024 list prices (verify current rates at provider pricing pages; prices change frequently). At scale---a universe of 3{,}000 companies refreshed quarterly---the illustrative budget is thus on the order of \$3{,}000--\$15{,}000 per quarter.
 
-Latency is a separate concern. Each LLM call introduces 1--5 seconds of network and
-inference latency. The pipeline can be parallelised across companies (each company's
-valuation is independent) and, within a single company, across pipeline stages that
-have no data dependencies (e.g., comparable selection can run concurrently with FCF
-computation). With aggressive parallelisation, end-to-end latency per company can
-be reduced to 15--30 seconds.
+Latency is a separate concern. Each LLM call introduces network and inference latency on the order of seconds; with parallelised calls across filing sections, end-to-end latency per company can be reduced to tens of seconds on modern infrastructure.
 
 \subsection{Error Propagation in Multi-Step Agent Workflows}
 \label{subsec:bv-efficiency-errors}

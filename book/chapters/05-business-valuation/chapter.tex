@@ -1233,3 +1233,49 @@ that quantifies how extraction and forecast errors translate into valuation unce
 Together, these components form a production-oriented reference architecture for
 LLM-augmented equity valuation.
 \end{remark}
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch05-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[Revenue and Earnings Time Series from EDGAR]\label{ex:ch05-edgar-b}
+\textbf{[B]} Fetch ten years of annual \texttt{Revenues} and
+\texttt{NetIncomeLoss} for Apple Inc.\ (\texttt{AAPL}) from the EDGAR XBRL API.
+(\textit{a})~Plot both series on a dual-axis line chart (revenue on the left
+axis in \$B; net income on the right axis in \$B).
+(\textit{b})~Compute and report the compound annual growth rate (CAGR) for
+each series over the available period.
+See \texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Free Cash Flow and Gordon Growth Model]\label{ex:ch05-edgar-i}
+\textbf{[I]} Using EDGAR XBRL data, compute Apple's free cash flow (FCF) as
+$\mathrm{FCF} = \text{Operating CF} - \text{CapEx}$, where
+Operating CF is \texttt{NetCashProvidedByUsedInOperatingActivities} and
+CapEx is \texttt{PaymentsToAcquirePropertyPlantAndEquipment}.
+(\textit{a})~Plot the FCF time series over the most recent five years.
+(\textit{b})~Apply the Gordon Growth Model
+$\mathrm{EV} = \mathrm{FCF}(1+g)/(\mathrm{WACC}-g)$ with the most recent
+FCF on a $(9 \times 7)$ grid of
+$\mathrm{WACC} \in [6\%,14\%]$ and $g \in [1\%,4\%]$, and display the
+result as a colour-coded heatmap.
+(\textit{c})~Compare the heatmap's implied enterprise value to Apple's
+current market capitalisation retrieved via \texttt{yfinance}.
+See \texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Five-Company DCF Comparison]\label{ex:ch05-edgar-a}
+\textbf{[A]} Extend the FCF analysis to five large-cap technology companies:
+AAPL, MSFT, GOOGL, AMZN, and META.
+(\textit{a})~Use company-specific WACCs (AAPL and MSFT: 9\,\%; GOOGL: 10\,\%;
+AMZN and META: 11\,\%) and a uniform terminal growth rate of 3\,\%.
+(\textit{b})~For each company, compute the implied enterprise value and compare
+it to the current market capitalisation (from \texttt{yfinance}).
+(\textit{c})~Plot a horizontal bar chart showing implied EV versus
+market cap, and discuss which companies appear over- or under-valued under
+these assumptions.
+See \texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
+\end{exercise}

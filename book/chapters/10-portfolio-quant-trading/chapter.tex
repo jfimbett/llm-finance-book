@@ -967,3 +967,49 @@ risk management should consult Chapter~7 on regulatory compliance and the Federa
 Reserve's model risk management guidance \citep{sr117}, which requires
 that all model outputs be explainable, validated, and auditable---challenges that apply
 directly to LLM-based risk signals.
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch10-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/10-portfolio-quant-trading/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[Fundamental Factor Dashboard]\label{ex:ch10-edgar-b}
+\textbf{[B]} Fetch the most recent annual values of \texttt{Revenues},
+\texttt{NetIncomeLoss}, \texttt{Assets}, \texttt{StockholdersEquity},
+and \texttt{LongTermDebt} for ten S\&P~500 companies of your choice.
+(\textit{a})~Compute return on equity
+$\mathrm{ROE} = \text{Net Income}/\text{Equity}$,
+leverage $= \text{Debt}/\text{Assets}$,
+and revenue growth year-on-year.
+(\textit{b})~Display a table of all companies sorted by ROE.
+See \texttt{code/notebooks/10-portfolio-quant-trading/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Simple Value Factor Portfolio]\label{ex:ch10-edgar-i}
+\textbf{[I]} Compute the price-to-book ratio (P/B) for ten companies.
+Book value per share $= \texttt{StockholdersEquity} / \text{shares outstanding}$
+(shares from \texttt{yfinance}).
+(\textit{a})~Rank companies by P/B and form two equal-weighted portfolios:
+value (lowest P/B three companies) and growth (highest P/B three companies).
+(\textit{b})~Compute the realised one-year return for each portfolio using
+\texttt{yfinance} closing prices.
+(\textit{c})~Report which portfolio outperformed and discuss the result.
+See \texttt{code/notebooks/10-portfolio-quant-trading/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Annual Factor Backtest]\label{ex:ch10-edgar-a}
+\textbf{[A]} Extend Exercise~\ref{ex:ch10-edgar-i} to a five-year annual
+rebalancing backtest.
+Each year, rank the ten companies by P/B using that year's XBRL data,
+invest equally in the bottom three (value portfolio), and hold until the
+next 10-K filing date.
+(\textit{a})~Compute the annualised return, Sharpe ratio (assume risk-free rate
+of 2\,\%), and maximum drawdown.
+(\textit{b})~Plot cumulative portfolio value vs.\ an equal-weight
+buy-and-hold benchmark.
+(\textit{c})~Discuss the transaction-cost and look-ahead biases inherent
+in this exercise.
+See \texttt{code/notebooks/10-portfolio-quant-trading/exercises.ipynb}, Data Lab section.
+\end{exercise}

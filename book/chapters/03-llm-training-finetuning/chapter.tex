@@ -1668,3 +1668,46 @@ this chain of dependencies are better positioned to deploy LLMs responsibly
 and to identify where interventions will have the greatest impact.
 
 \end{context}
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch03-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/03-llm-training-finetuning/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[MD\&A Paragraph Corpus]\label{ex:ch03-edgar-b}
+\textbf{[B]} Download the MD\&A section (Item~7) of the most recent 10-K for
+Apple, Microsoft, and JPMorgan Chase (\texttt{AAPL}, \texttt{MSFT}, \texttt{JPM}).
+(\textit{a})~Split each MD\&A into paragraphs (on double line-breaks or
+sentence boundaries).
+(\textit{b})~Report total paragraph count, mean word count per paragraph,
+and maximum paragraph length.
+(\textit{c})~Display three random paragraphs from each company.
+See \texttt{code/notebooks/03-llm-training-finetuning/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Weak-Label Sentiment Dataset]\label{ex:ch03-edgar-i}
+\textbf{[I]} Using the paragraph corpus from Exercise~\ref{ex:ch03-edgar-b},
+assign weak sentiment labels with the Loughran--McDonald word lists.
+(\textit{a})~Label each paragraph as \textsc{positive}, \textsc{negative},
+or \textsc{neutral} based on the ratio of positive to negative finance words.
+(\textit{b})~Report the class distribution and print three representative
+paragraphs per class.
+(\textit{c})~Discuss why weak labels derived from keyword counts differ from
+expert human annotation and how this affects fine-tuning quality.
+See \texttt{code/notebooks/03-llm-training-finetuning/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Instruction-Tuning Dataset Construction]\label{ex:ch03-edgar-a}
+\textbf{[A]} From each 10-K in the corpus, construct five instruction--answer
+pairs suitable for supervised fine-tuning:
+\emph{instruction} = ``Summarise the main point of the following paragraph: \{paragraph\}'',
+\emph{answer} = the first sentence of the paragraph.
+(\textit{a})~Export the dataset as a JSONL file where each line is
+\texttt{\{"instruction":~..., "input":~..., "output":~...\}}.
+(\textit{b})~Report the distribution of instruction and answer lengths.
+(\textit{c})~Identify and discuss at least two biases this auto-labelling
+method introduces for instruction fine-tuning.
+See \texttt{code/notebooks/03-llm-training-finetuning/exercises.ipynb}, Data Lab section.
+\end{exercise}

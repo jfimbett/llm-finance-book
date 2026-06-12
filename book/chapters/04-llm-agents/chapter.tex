@@ -610,7 +610,7 @@ abstraction is the \emph{chain}: a composable sequence of LLM calls, tool invoca
 and data transformations. Chains can be assembled declaratively using LangChain
 Expression Language (LCEL) or programmatically. LangChain's agent module implements
 ReAct-style loops with configurable tool libraries, and its integration layer provides
-pre-built connectors for over 100 data sources and APIs. For financial applications,
+pre-built connectors for a large and growing set of data sources and APIs (see the LangChain documentation for the current list). For financial applications,
 LangChain is well suited to pipelines that involve diverse data sources---mixing market
 data APIs, document stores, and relational databases within a single workflow.
 
@@ -822,7 +822,7 @@ note), fund name, asset class, date, and regulatory jurisdiction. When a client 
 ``What are the redemption terms for the European Credit Fund?'', the query is embedded
 and retrieved with a metadata filter restricting to documents of type ``prospectus'' or
 ``fact sheet'' for the specified fund. This combination of semantic search and metadata
-filtering reduces irrelevant retrievals by approximately 60\% compared to unconstrained
+filtering substantially reduces irrelevant retrievals compared to unconstrained
 semantic search.
 \end{example}
 
@@ -862,9 +862,7 @@ An alternative that avoids normalisation altogether is \emph{reciprocal rank fus
 (RRF), which combines the rank positions from each retrieval system: $\text{RRF}(q,d)
 = \sum_{r \in \{\text{dense},\text{sparse}\}} (k + \text{rank}_r(d))^{-1}$, with
 $k = 60$ a standard constant that dampens the influence of top-ranked documents.
-Empirically, $\alpha \approx 0.7$ (favouring dense retrieval) works well for
-question-answering tasks over long financial documents, while $\alpha \approx 0.3$
-is preferable for keyword-heavy regulatory lookup tasks.
+As a starting point, practitioners typically weight dense retrieval more heavily (higher $\alpha$) for semantic question-answering tasks, and sparse retrieval more heavily (lower $\alpha$) for exact-match regulatory keyword lookups; the optimal value is task-specific and should be tuned on a held-out validation set.
 
 Recent work on \emph{learned sparse retrieval}---methods such as SPLADE that produce
 sparse high-dimensional vectors by applying a ReLU-log activation to MLM logits---
@@ -922,19 +920,20 @@ For SEC 10-K filings specifically, the recommended chunking strategy combines se
 and hierarchical approaches: use the EDGAR item structure to identify top-level sections
 (Item 1A Risk Factors, Item 7 MD\&A, etc.), then apply a sentence-boundary-aware
 chunker within each item with a maximum chunk size of 512 tokens and a 64-token overlap.
-This strategy outperforms fixed-size chunking by approximately 15--20\% on downstream
-question-answering benchmarks over 10-K filings.
+This strategy consistently outperforms fixed-size chunking on downstream question-answering tasks over long financial documents.
 
 \begin{example}[Chunking a 10-K for RAG]
 \label{ex:chunking-10k}
 An analyst-augmentation system processes Apple's 2023 10-K (170 pages). The hierarchical
-chunker produces: 15 top-level item chunks (full items, for summary retrieval), 340
-paragraph-level chunks (mean 180 tokens each, for precise retrieval), and 28 table
-chunks (each table is treated as a single chunk regardless of size, preserving its
-row-column structure). The vector index stores all 383 chunks with metadata tagging
-the item number, section name, and whether the chunk is prose or tabular. A query
-about iPhone revenue growth retrieves the relevant paragraph from Item 7 (MD\&A)
-with 94\% recall on a manually labelled evaluation set.
+chunker produces: 15 top-level item chunks (full items, for summary retrieval), around
+300 paragraph-level chunks (for precise retrieval), and 20--30 table chunks (each table
+is treated as a single chunk regardless of size, preserving its row-column structure).
+The vector index stores all chunks with metadata tagging the item number, section name,
+and whether the chunk is prose or tabular. A query about iPhone revenue growth might
+retrieve the relevant paragraph from Item~7 (MD\&A) with high recall---in practice,
+typical recall figures for well-tuned hierarchical RAG systems on 10-K filings range
+from 85\% to 95\% on manually labelled evaluation sets, though exact results depend
+heavily on chunking parameters and embedding model choice.
 \end{example}
 
 % --- Subsection: RAG Evaluation ---
@@ -973,7 +972,7 @@ available), and $\mathcal{C} = \{c_1, \ldots, c_k\}$ the retrieved context chunk
 In financial applications, faithfulness is the most operationally critical metric.
 An agent that generates answers not grounded in the retrieved documents is hallucinating
 factual claims---a compliance failure if those claims are presented to clients. A
-faithfulness score below 0.85 should trigger automatic review rather than automated
+faithfulness score below a practitioner-chosen threshold (commonly in the 0.80--0.90 range, calibrated on labelled validation data) should trigger automatic review rather than automated
 publication. Context recall is important for completeness: a RAG system with high
 faithfulness but low recall answers questions accurately but incompletely, potentially
 omitting material disclosures.
@@ -1092,6 +1091,10 @@ a sentiment agent assigns directional scores to each topic segment, using a scal
 calibrated for financial language. Fifth, \emph{synthesis}: a coordinator agent assembles
 the extracted metrics, sentiment scores, and anomalous statements into a structured
 summary with explicit citations to the transcript segments.
+
+\begin{remark}[Illustrative output]
+The following pipeline output is constructed for pedagogical purposes; all figures, timestamps, and scores are hypothetical and do not represent the actual content of any specific earnings call.
+\end{remark}
 
 \begin{example}[Earnings Call Pipeline Output]
 \label{ex:earnings-output}
@@ -1401,7 +1404,7 @@ post-hoc audit.
 An audit trail is a chronological record of all agent actions, observations, and
 reasoning steps sufficient to reconstruct the agent's decision-making process after the
 fact. For financial applications subject to regulatory oversight, the audit trail is
-not optional: MiFID II's record-keeping obligations (Article 25), the SEC's
+not optional: MiFID~II's record-keeping obligations (Article~16~\citep{esma2018mifid2}), the SEC's
 Rule 17a-4 electronic records requirements, and equivalent regulations in other
 jurisdictions all apply to algorithmically generated decisions that influence investment
 outcomes.

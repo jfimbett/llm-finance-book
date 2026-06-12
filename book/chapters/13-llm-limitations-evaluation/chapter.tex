@@ -237,7 +237,7 @@ Calibration is a property of model outputs on a specific distribution. A model
 recalibrated on data from 2020--2022 will not be calibrated on data from 2024 if the
 underlying distribution has shifted. Financial practitioners should re-estimate
 calibration parameters at least quarterly, treating them as part of the model monitoring
-workflow mandated by SR~11-7 guidance \cite{sr117}.
+workflow, consistent with the model validation principles in SR~11-7 guidance \cite{sr117}.
 \end{remark}
 
 % ---------------------------------------------------------------
@@ -451,8 +451,7 @@ is arbitraged away.
 For publicly available NLP signals, the evidence suggests the answer is increasingly
 no. The information from earnings call sentiment, news sentiment indices, and social
 media mood has been studied and traded systematically since at least 2010
-\cite{tetlock2007giving, bollen2011twitter}. The alpha from simple text-based signals
-has declined significantly as these strategies became more widely known and deployed.
+\cite{tetlock2007giving, bollen2011twitter}. Many practitioners believe the alpha from simple text-based signals has declined as these strategies became more widely known and deployed~\citep{harvey2016cross}.
 An LLM processing the same publicly available text is unlikely to extract signals that
 have not already been identified and traded by dedicated quant shops with faster
 execution infrastructure.
@@ -494,7 +493,7 @@ and reporting an average accuracy of only 59.4\%---a result that, while marginal
 chance in statistical terms, falls well below the threshold required for economically
 meaningful trading after transaction costs.
 
-A meta-analysis of 84 empirical studies \cite{zhao2025frontiers} finds that the 59\%
+A meta-analysis~\cite{zhao2025frontiers} finds that the 59\%
 average accuracy figure is ubiquitous across different LLMs, different markets, and
 different time periods, but that there is enormous heterogeneity around this mean.
 Studies that achieve accuracy above 62\% almost uniformly exhibit one or more of the
@@ -768,8 +767,7 @@ regulatory citation used in a filing or advice document carries serious liabilit
 sheet figures, interest rates, credit ratings, option Greeks, return histories. LLMs
 hallucinate numbers with disturbing frequency. \citet{kang2023hallucination} construct
 a dedicated benchmark of numerical queries (revenue, EPS, EBITDA, credit spreads) from
-public filings and find that GPT-4 class models answer incorrectly 15--30\% of the time
-on precise numerical questions, with no reliable indicator distinguishing correct from
+public filings and report that, on their benchmark, GPT-4 class models answered incorrectly 15--30\% of the time, with no reliable indicator distinguishing correct from
 incorrect answers in the model's lexical output. The model does not say ``I am not
 sure''; it produces a number with the same fluency whether that number is correct or
 fabricated.
@@ -856,8 +854,7 @@ SEC filings, with questions that require precise numerical extraction and multi-
 calculation. It distinguishes between questions that can be answered by retrieval from
 the provided document and those that require synthesis across documents or external
 knowledge. Hallucination rates on FinanceBench are high even for frontier models: the
-benchmark's analysis reports that models hallucinate or compute incorrectly on 20--40\%
-of multi-step numerical questions.
+benchmark finds that models struggle substantially with multi-step numerical questions~\cite{zhang2024financebench}.
 
 \emph{FinQA} \cite{chen2021finqa} requires numerical reasoning over financial tables
 and text, with evaluation via program execution rather than string match. This execution

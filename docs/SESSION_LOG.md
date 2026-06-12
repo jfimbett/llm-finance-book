@@ -163,3 +163,4 @@
 | 2026-06-11 | 5 files | refine(ch11): remove decorative math with orphaned notation;refine(ch05): remove decorative math with orphaned notation;refine(ch06): remove decorative math with orphaned notation; | — |
 | 2026-06-11 | 12 files | feat: generate all chapter illustration figures from exercise notebooks;chore: session log 2026-06-11;refine(ch11): remove decorative math with orphaned notation; | — |
 | 2026-06-12 | 11 files | chore: session log 2026-06-11;feat: generate all chapter illustration figures from exercise notebooks;chore: session log 2026-06-11; | — |
+| 2026-06-12 | 24 files | docs: hallucination audit report — 16 chapters, 64 findings;chore: session log 2026-06-12;chore: session log 2026-06-11; | — |

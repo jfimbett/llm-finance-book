@@ -1526,3 +1526,47 @@ attack sophistication evolve together, practitioners should treat adversarial ro
 as an ongoing operational concern rather than a one-time design decision.
 
 \end{context}
+
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch04-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[Filing Lookup Tool]\label{ex:ch04-edgar-b}
+\textbf{[B]} Implement an \texttt{edgar\_tool(ticker, form\_type, n)} function
+that, given a ticker symbol, returns a list of the $n$ most recent filings of
+the specified form type, each as a dictionary
+\texttt{\{form, date, accession\_url\}}.
+(\textit{a})~Call the tool for \texttt{AAPL}, \texttt{MSFT}, and \texttt{GOOGL}
+with \texttt{form\_type="10-K"} and \texttt{n=3}.
+(\textit{b})~Wrap the output in a natural-language agent response:
+``Based on EDGAR, the three most recent annual filings for \{ticker\} are\ldots''
+See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Fact-Retrieval Agent Step]\label{ex:ch04-edgar-i}
+\textbf{[I]} Implement a two-step fact-retrieval chain.
+\emph{Step 1}: look up the CIK for a given ticker.
+\emph{Step 2}: call \texttt{get\_annual\_series} to retrieve the annual
+\texttt{Revenues} series.
+(\textit{a})~Answer the query ``What was Apple's revenue in FY2023?'' by
+identifying the closest fiscal-year entry and returning a formatted string.
+(\textit{b})~Generalise to a function
+\texttt{answer\_query(ticker, concept, fy\_year)}
+that handles any XBRL concept and fiscal year.
+See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Multi-Company Comparison Agent]\label{ex:ch04-edgar-a}
+\textbf{[A]} Build a \texttt{compare\_companies(tickers, concepts, years)}
+function that fetches XBRL data for multiple companies and returns a tidy
+\texttt{DataFrame} indexed by (ticker, year).
+(\textit{a})~Use it to compare \texttt{Revenues}, \texttt{NetIncomeLoss},
+and \texttt{Assets} for AAPL, MSFT, and GOOGL over 2019--2023.
+(\textit{b})~Plot a grouped bar chart for revenues.
+(\textit{c})~Produce an agent-style natural-language summary:
+``The company with the highest revenue growth over the period was\ldots''
+See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
+\end{exercise}

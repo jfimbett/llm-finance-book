@@ -2673,4 +2673,46 @@ them in ways that harness their strengths---scale, speed, and breadth of
 knowledge---while managing their risks through careful system design, rigorous
 evaluation, and meaningful human oversight.
 
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch02-data-lab}
+
+The following exercises use live data from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code is in
+\texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
+
+\begin{exercise}[Token Budget Audit]\label{ex:ch02-edgar-b}
+\textbf{[B]} Fetch Microsoft's (\texttt{MSFT}) most recent 10-K from EDGAR and
+strip all HTML tags.
+(\textit{a})~Count whitespace-separated tokens, total characters, and sentences
+(split on \texttt{[.!?]}).
+(\textit{b})~Estimate the number of GPT-4 tokens (approximately 4 characters per
+token) and determine whether the full filing would fit in a 128\,000-token context
+window.
+(\textit{c})~Produce a summary table: \{document, tokens, chars, sentences,
+estimated LLM tokens, fits in 128K\}.
+See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Chunking Strategy Comparison]\label{ex:ch02-edgar-i}
+\textbf{[I]} Using the MSFT MD\&A text from Exercise~\ref{ex:ch02-edgar-b},
+implement and compare three chunking strategies:
+(\textit{a})~Fixed windows of 512 tokens with no overlap.
+(\textit{b})~Fixed windows of 256 tokens with 128-token overlap.
+(\textit{c})~Sentence-level chunks.
+For each strategy, plot a histogram of chunk sizes (in tokens) and report
+mean, standard deviation, and the number of chunks produced.
+See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Type-Token Ratio Across Companies]\label{ex:ch02-edgar-a}
+\textbf{[A]} Download the MD\&A section from the most recent 10-K for ten
+companies spanning technology, finance, and energy sectors.
+(\textit{a})~Compute the type-token ratio
+$\mathrm{TTR} = |\text{unique tokens}| / |\text{total tokens}|$ for each.
+(\textit{b})~Plot TTR as a horizontal bar chart sorted by sector, and add a
+vertical reference line at $\mathrm{TTR} = 0.12$ (a typical value for news text).
+(\textit{c})~Discuss: does financial MD\&A text exhibit higher or lower lexical
+diversity than general news, and what does this imply for LLM tokeniser design?
+See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
+\end{exercise}
 

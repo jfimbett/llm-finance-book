@@ -138,7 +138,7 @@ high-value extraction task for credit analysts and legal teams \cite{frattaroli2
 Consider the following excerpt from an earnings call transcript:
 
 \begin{quote}
-``In Q3 2023, \textbf{Microsoft} reported revenue of \textbf{\$56.5 billion},
+``In Q3 2023, \textbf{Microsoft} reported revenue of \textbf{\$56.5 billion}\footnote{Figures drawn from Microsoft's Q3 FY2023 earnings release; consult the company's SEC filings for authoritative numbers.},
 representing a \textbf{13\%} increase year-over-year. \textbf{CEO Satya Nadella}
 noted that \textbf{Azure} cloud revenue grew \textbf{29\%}, driven by enterprise
 adoption of \textbf{Copilot} products.''
@@ -409,7 +409,7 @@ to \emph{hallucination}---generating plausible-sounding but factually incorrect 
 
 The hallucination risk is particularly consequential in finance. If an abstractive
 model summarises an earnings call as reporting ``revenue of \$57 billion'' when the
-actual figure was \$56.5 billion, the error is small in percentage terms but could
+actual figure was \$56.5 billion (illustrative), the error is small in percentage terms but could
 constitute material misinformation if the summary is consumed by an investment decision
 process. \citet{kryscinski2020evaluating} find that state-of-the-art abstractive models
 hallucinate factual errors in 25--30\% of summaries on the CNN/DailyMail benchmark;
@@ -480,11 +480,12 @@ risk mentioned by management. Quote all numbers exactly as stated.
 The instruction ``quote all numbers exactly as stated'' is a practical prompt
 engineering technique that reduces numerical hallucination. Evaluation on a set
 of 100 earnings releases, scored by a financial analyst against ground truth,
-finds that the constrained prompt reduces number errors by approximately 40\%
-relative to an unconstrained paraphrase prompt. However, the approach does not
-eliminate hallucination entirely: in roughly 8\% of cases the model paraphrases
-a nuanced forward guidance statement in a way that changes its meaning. This
-motivates the factual consistency checking methods described in
+finds that the constrained prompt substantially reduces number errors relative to an
+unconstrained paraphrase prompt. As an illustration, suppose the constrained prompt
+reduced number errors by roughly 40\%, with approximately 8\% of cases still showing
+paraphrase errors that change the meaning of nuanced forward guidance; exact figures
+would vary with corpus composition and model version. This motivates the factual
+consistency checking methods described in
 Section~\ref{sec:ch14-rouge-bertscore-metrics}.
 \end{example}
 
@@ -568,8 +569,8 @@ Strategies for handling these extreme-length documents include:
         summarise those passages. This turns summarisation into retrieval-augmented
         generation \citep{lewis2020rag}.
   \item \textbf{Long-context models.} Models with extended context windows---Longformer
-        \citep{beltagy2020} and, more recently, commercial models with 128K or 1M token
-        contexts---can process an entire S-1 in a single forward pass. The practical
+        \citep{beltagy2020} and, as of 2024, commercial models with extended context
+        windows of 128K to 1M tokens---such as Gemini 1.5 Pro---can process an entire S-1 in a single forward pass. The practical
         constraint is the computational cost: processing 300,000 tokens through a
         dense attention model is expensive, though sparse-attention variants mitigate
         this.

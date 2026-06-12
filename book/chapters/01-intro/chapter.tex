@@ -198,8 +198,7 @@ specifically with Long Short-Term Memory (LSTM) networks
 allowed models to read a document sequentially and maintain a hidden state summarising
 everything read so far.  Applied to financial text, LSTM-based models could, in
 principle, handle negation and long-range dependencies that defeat bag-of-words
-approaches.  They achieved state-of-the-art performance on financial sentiment
-benchmarks such as FiQA and Financial Phrase Bank throughout 2016--2018.
+approaches.  They achieved state-of-the-art performance on the Financial PhraseBank benchmark~\citep{malo2014phrasebank} throughout 2015--2018, with the FiQA task~\citep{maia2018fiqa} (introduced in 2018) providing a later evaluation point for encoder models.
 
 The attention mechanism introduced by \citet{bahdanau2015neural} % [CITE: Bahdanau, D., Cho, K. & Bengio, Y. (2015). Neural Machine Translation by Jointly Learning to Align and Translate. ICLR 2015.]
 and then generalised to the \emph{Transformer} architecture by \citet{vaswani2017attention} % [CITE: Vaswani, A., Shazeer, N., Parmar, N., et al. (2017). Attention Is All You Need. NeurIPS 2017.]
@@ -1864,10 +1863,14 @@ summarises representative pricing and latency benchmarks as of 2024.
   \end{tabular}
 \end{center}
 
+\begin{remark}[Note on Pricing Data]
+The figures in Table~\ref{tab:api-costs} are approximate list prices and throughput benchmarks as of early 2024; these change frequently. Verify current rates at provider pricing pages before any production deployment~\citep{anthropic2025api}.
+\end{remark}
+
 For high-frequency applications (real-time news classification of thousands
 of headlines per minute), the cost difference between \texttt{gpt-4o}
 and \texttt{gpt-4o-mini} is economically material: classifying one million
-headlines with a 100-token context costs roughly \$250 vs.\ \$15.  In
+headlines with a 100-token context costs roughly \$250 with a frontier model versus \$15 with a lightweight alternative (at the illustrative prices in Table~\ref{tab:api-costs}).  In
 batch analytical applications where latency is less critical (overnight
 processing of 10-K filings), the smaller latency advantage of smaller
 models is less relevant and accuracy differences dominate.
@@ -2038,7 +2041,7 @@ NLP, two biases warrant specific attention:
 \begin{remark}[EU AI Act (2024) — Implications for Financial AI]
 \label{rem:eu-ai-act}
 The EU AI Act, entering into force August 2024, classifies AI systems
-into four risk tiers.  General-purpose LLM APIs (Article 51–52) must comply
+into four risk tiers.  General-purpose LLM APIs (Articles~51--52 of \citet{euaiact2024}) must comply
 with transparency obligations: operators must disclose that users are
 interacting with an AI system and cannot deploy systems to generate content
 that could deceive users about its artificial origin.  For financial
@@ -2054,7 +2057,7 @@ data governance, and human oversight requirements under Annex~III.
 In July 2023 the US Securities and Exchange Commission proposed rules
 requiring investment advisers and broker-dealers to eliminate or neutralise
 conflicts of interest when using ``predictive data analytics,'' including
-LLMs, in investor interactions.  Covered firms must evaluate whether their
+LLMs, in investor interactions~\citep{sec2023predictive}.  Covered firms must evaluate whether their
 AI-driven recommendations prioritise investor interests or the firm's own
 financial interests and document that evaluation.  The guidance signals
 that LLM outputs that influence investment decisions are subject to the

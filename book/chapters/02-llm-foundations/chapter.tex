@@ -611,7 +611,7 @@ reducing cost from $O(Td_a)$ to $O(Td_k)$.
 The 2017 paper \emph{Attention Is All You Need} by \citet{vaswani2017attention}
 is arguably the single most consequential contribution in modern natural-language
 processing.
-Published at NeurIPS~2017, it has since accumulated more than 100{,}000 citations
+Published at NeurIPS~2017, it has since become one of the most widely cited works in computer science
 and directly catalysed the development of BERT, GPT, and every subsequent large
 language model used in finance today.
 Its central claim — that \emph{recurrence is unnecessary} — ran counter to a decade
@@ -1141,8 +1141,7 @@ Illustration Exercise.
 \begin{context}
 
 In November 2022, a chatbot launched with almost no fanfare.  Within sixty days
-it had a hundred million users---the fastest consumer adoption of any product in
-history.  ChatGPT did not introduce any fundamentally new technology; the
+it reportedly reached a hundred million users in approximately two months, making it one of the fastest-growing consumer applications on record.  ChatGPT did not introduce any fundamentally new technology; the
 Transformer architecture had existed since 2017, GPT-3 since 2020.  What it
 introduced was \emph{interface}: a fluent, patient, conversational layer over a
 raw language model that made the underlying capability legible to people who had
@@ -1916,14 +1915,11 @@ Several engineering considerations govern the cost-latency trade-off in producti
     for real-time applications.
   \item For real-time applications (live earnings call summarisation,
     intraday news monitoring), latency is a binding constraint.
-    Time-to-first-token for GPT-4o is typically 1--3 seconds; for
-    Claude 3 Haiku under 500 ms.  Locally-hosted Llama 3 (8B, single
-    A100 GPU) can achieve sub-100 ms first-token latency.
+    Time-to-first-token for frontier API models is typically in the low-second range; for smaller or locally-hosted models it can fall below one second, depending on hardware configuration.
   \item A common two-stage financial NLP pipeline uses a cheap, fast
     model (FinBERT, Claude Haiku) to filter and classify large volumes
     of text, then routes only the high-signal subset to a large model
-    for deep analysis.  This can reduce total API cost by 80--95\% on
-    typical workloads.
+    for deep analysis.  This can reduce total API cost substantially on repetitive workloads where the prefix is stable across calls.
 \end{itemize}
 
 \begin{remark}[Prompt Caching]
@@ -2454,9 +2450,7 @@ jurisdiction.
 
 The European Union's AI Act (Regulation 2024/1689), which entered into force in
 August 2024, establishes a risk-based classification for AI systems \citep{euaiact2024}.
-AI systems used for credit scoring, insurance risk assessment, pricing of life
-insurance products, and AI-assisted securities pricing fall into the \emph{high-risk}
-category (Annex III).  High-risk systems are subject to mandatory conformity
+AI systems used for credit scoring of natural persons and evaluation of creditworthiness fall into the high-risk category under Annex~III of \citet{euaiact2024}. Algorithmic trading and AI-assisted securities pricing are not explicitly enumerated in Annex~III, though they may fall under the general transparency obligations for general-purpose AI models.  High-risk systems are subject to mandatory conformity
 assessments, post-market monitoring, transparency obligations towards regulators, and
 human oversight requirements.  An LLM deployed as part of an algorithmic trading
 system or a loan-approval pipeline would likely qualify as high-risk under the Act,

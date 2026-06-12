@@ -45,7 +45,7 @@ Credit data exists along a spectrum from highly standardised bureau reports to l
 
 \subsubsection*{Traditional Bureau Data}
 
-The three major US credit bureaus --- Equifax, Experian, and TransUnion --- each maintain files on roughly 220 million adults. A standard credit file contains:
+The three major US credit bureaus --- Equifax, Experian, and TransUnion --- each maintain files on the large majority of credit-active US adults (figures reported by the bureaus themselves vary; the commonly cited range is 200--230 million). A standard credit file contains:
 
 \begin{itemize}
   \item \textbf{Identification data}: name, address history, Social Security Number (encrypted in transit), date of birth.
@@ -57,7 +57,7 @@ The three major US credit bureaus --- Equifax, Experian, and TransUnion --- each
 
 From this raw file, bureaus and third-party vendors compute \emph{credit scores}: scalar summaries of default risk, the most widely used being the FICO score (introduced in 1989 by Fair Isaac Corporation) and the VantageScore (introduced in 2006 as a joint venture of the three bureaus). Both range from 300 to 850. FICO's publicly disclosed factor weights are approximately: payment history 35\%, amounts owed 30\%, length of credit history 15\%, new credit 10\%, credit mix 10\%.
 
-Bureau data is standardised, timely (most accounts report monthly), and highly predictive of near-term default. Its limitation is that it is circular: it records credit behaviour, so it is uninformative for the roughly 45 million US adults with thin or no credit files, a group disproportionately composed of recent immigrants, young adults, and lower-income households.
+Bureau data is standardised, timely (most accounts report monthly), and highly predictive of near-term default. Its limitation is that it is circular: it records credit behaviour, so it is uninformative for the tens of millions of US adults with thin or no credit files~\citep{cfpb2013ecoa}, a group disproportionately composed of recent immigrants, young adults, and lower-income households.
 
 \subsubsection*{Alternative Data Sources}
 
@@ -105,7 +105,7 @@ ECOA (1974, implemented by Regulation B) prohibits discrimination in credit tran
 
 Critically, ECOA prohibits not only intentional discrimination (\emph{disparate treatment}) but also practices that are facially neutral yet produce discriminatory effects (\emph{disparate impact}) unless the practice is justified by business necessity and there is no less discriminatory alternative. This distinction matters enormously for machine learning: a model trained on historically collected data inherits the discrimination embedded in that history, potentially in features that appear race-neutral (zip code, loan purpose, occupation category).
 
-The CFPB's 2022 ``Special Purpose Credit Programs'' guidance clarified that lenders may proactively use alternative data to extend credit to underserved populations, provided the approach is not used to further exclude protected classes.
+The CFPB has issued guidance clarifying that lenders may proactively use alternative data to extend credit to underserved populations through Special Purpose Credit Programmes (SPCPs), provided the programme meets the requirements of the Equal Credit Opportunity Act.
 
 \subsubsection*{The General Data Protection Regulation (GDPR)}
 

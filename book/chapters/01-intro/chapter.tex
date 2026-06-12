@@ -2148,3 +2148,49 @@ protocols developed throughout this book.
 
 \end{context}
 
+% ---------------------------------------------------------------
+\section{Data Lab}\label{sec:ch01-data-lab}
+
+The following exercises use live data retrieved from the SEC EDGAR REST API
+(\url{https://data.sec.gov}). Starter code and working solutions are in
+\texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
+The \texttt{edgar\_get} helper enforces a 110\,ms inter-request delay to comply
+with the SEC's rate limit of ten requests per second.
+
+\begin{exercise}[EDGAR Filing Browser]\label{ex:ch01-edgar-b}
+\textbf{[B]} Using the EDGAR submissions API, retrieve the filing history for
+Apple Inc.\ (\texttt{AAPL}).
+(\textit{a})~Print a table of the 20 most recent filings showing form type,
+filing date, and accession number.
+(\textit{b})~Count filings by form type (10-K, 10-Q, 8-K, DEF~14A, etc.)
+and display the result as a bar chart.
+(\textit{c})~Identify the date of the most recent 10-K filing.
+See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[MD\&A Keyword Landscape]\label{ex:ch01-edgar-i}
+\textbf{[I]} Download Apple's most recent 10-K filing in HTML format from
+EDGAR, strip all HTML tags, and extract the
+Management's Discussion and Analysis (MD\&A) section (Item~7).
+(\textit{a})~Compute TF-IDF scores for all tokens in the MD\&A section
+(IDF computed over sentences).
+(\textit{b})~Display the top-20 keywords as a horizontal bar chart.
+(\textit{c})~Remove common English stop words (define a set of at least
+30 stop words) and compare the top-20 with and without stop-word filtering.
+See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
+\end{exercise}
+
+\begin{exercise}[Cross-Sector Vocabulary Overlap]\label{ex:ch01-edgar-a}
+\textbf{[A]} Repeat the MD\&A extraction from Exercise~\ref{ex:ch01-edgar-i}
+for five companies spanning three sectors: AAPL and MSFT (technology),
+JPM and BAC (banking), XOM (energy).
+(\textit{a})~Build the vocabulary set for each company's MD\&A.
+(\textit{b})~Compute the pairwise Jaccard similarity
+$J(A,B) = |A \cap B| / |A \cup B|$ and display the $5 \times 5$ matrix
+as a heatmap with company tickers on both axes.
+(\textit{c})~Interpret the pattern: do within-sector pairs show higher
+overlap than cross-sector pairs? What does this imply for domain-adapted
+language model pre-training?
+See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
+\end{exercise}
+

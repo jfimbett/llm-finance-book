@@ -109,7 +109,7 @@ Tokenization divides a character stream into meaningful units (tokens). For the 
 
 In news and social media corpora, deduplication is among the most important preprocessing steps and among the most frequently neglected. Near-duplicate content arises in several ways: wire services distribute the same story to multiple outlets that publish it verbatim or with minor edits; press releases are reproduced across aggregator sites; retweets and shares propagate identical text across social platforms. Including duplicates in a corpus biases any sentiment measure in the direction of whatever content was duplicated, and inflates the effective sample size, producing spuriously narrow confidence intervals.
 
-Exact deduplication (checking for identical strings) is computationally cheap but misses near-duplicates. Approximate deduplication using locality-sensitive hashing or MinHash is standard for large corpora. A common threshold in practice is to mark as duplicates any two documents whose Jaccard similarity of character trigrams exceeds 0.7, though the optimal threshold is corpus-dependent.
+Exact deduplication (checking for identical strings) is computationally cheap but misses near-duplicates. Approximate deduplication using locality-sensitive hashing or MinHash is standard for large corpora. A common approach is to mark as duplicates any two documents whose Jaccard similarity of character trigrams exceeds a corpus-specific threshold, often chosen in the 0.6--0.8 range.
 
 \subsubsection*{Temporal Alignment}
 
@@ -306,7 +306,7 @@ Suppose a practitioner wishes to build a classifier that labels each sentence of
   \item \textbf{Inference.} Apply the model to all sentences in a held-out set of 2,000 calls. Aggregate sentence-level scores to a call-level net positivity score per speaker role (CEO, CFO, analyst). Correlate call-level scores with 5-day buy-and-hold abnormal returns (Section~\ref{sec:ch09-event-studies}).
 \end{enumerate}
 
-A model trained this way consistently achieves macro-averaged F1 of 0.72--0.78 on held-out earnings call sentences, compared with 0.60--0.65 for the LM lexicon on the same data, and the fine-tuned model correctly handles negated phrases (``did not disappoint'') and comparative constructions (``margins improved relative to the prior-year period'') that the lexicon counts as ambiguous.
+In practice, models trained this way typically achieve macro-averaged F1 noticeably above lexicon baselines on held-out earnings call sentences; as an illustrative order of magnitude, one might expect F1 in the 0.70--0.80 range versus 0.60--0.65 for a lexicon, though exact figures depend on corpus, model architecture, and fine-tuning procedure. The fine-tuned model correctly handles negated phrases (``did not disappoint'') and comparative constructions (``margins improved relative to the prior-year period'') that the lexicon counts as ambiguous.
 \end{example}
 
 % ---------------------------------------------------------------
@@ -334,7 +334,7 @@ The Gunning Fog Index for a text passage is defined as:
   \label{eq:fog-index}
   \text{Fog} = 0.4 \left( \frac{N_{\text{words}}}{N_{\text{sentences}}} + 100 \cdot \frac{N_{\text{complex}}}{N_{\text{words}}} \right)
 \end{equation}
-where $N_{\text{complex}}$ counts words with three or more syllables, excluding proper nouns, compound modifiers, and two-syllable verbs formed by adding ``-es'' or ``-ed''. A Fog Index of 12 corresponds to US high-school reading level; 10-K MD\&A sections typically score between 18 and 22.
+where $N_{\text{complex}}$ counts words with three or more syllables, excluding proper nouns, compound modifiers, and two-syllable verbs formed by adding ``-es'' or ``-ed''. A Fog Index of 12 corresponds to US high-school reading level; 10-K MD\&A sections typically score between 18 and 22~\citep{li2008annual}, indicating that financial disclosures are considerably harder to read than a general newspaper.
 \end{definition}
 
 % ---------------------------------------------------------------
@@ -496,7 +496,7 @@ A production sentiment pipeline must handle two modes: batch processing of histo
 
 \subsubsection*{Batch Inference}
 
-Batch inference processes a fixed corpus offline. The bottleneck is GPU throughput. For a FinBERT-scale model (110M parameters) processing 512-token documents on a single A100 GPU, throughput is approximately 500--1,000 documents per second. For a 10M-document archive this implies 3--6 hours of GPU time per full pass.
+Batch inference processes a fixed corpus offline. The bottleneck is GPU throughput. For a FinBERT-scale model (110M parameters) processing 512-token documents on a single A100 GPU, throughput is typically in the hundreds of documents per second; a large multi-million-document archive can be processed in a matter of hours with a single GPU, though exact figures depend on batch size, hardware generation, and precision settings.
 
 Efficiency optimisations include:
 \begin{itemize}
@@ -510,7 +510,7 @@ Efficiency optimisations include:
 
 Streaming inference processes documents as they arrive, with a latency requirement. For FOMC statement analysis, the target latency is under 100 milliseconds from publication to scored output. For earnings call transcripts, near-real-time scoring of the live audio transcription is desirable.
 
-The standard architecture is an event-driven pipeline: a Kafka or Kinesis stream receives raw documents; a pool of inference workers (running ONNX-exported models for maximum throughput) score each document within a time budget; the scored events are published to a downstream stream for aggregation and signal computation. In Python, the \texttt{onnxruntime} library with quantised model weights can achieve single-sentence latencies of 5--10 milliseconds on modern CPUs, sufficient for most event-driven applications.
+The standard architecture is an event-driven pipeline: a Kafka or Kinesis stream receives raw documents; a pool of inference workers (running ONNX-exported models for maximum throughput) score each document within a time budget; the scored events are published to a downstream stream for aggregation and signal computation. In Python, the \texttt{onnxruntime} library with quantised model weights can achieve single-sentence latencies well below 100 milliseconds on modern CPUs, making real-time classification feasible.
 
 % ---------------------------------------------------------------
 \subsection{Evaluation: Krippendorff's Alpha, Precision, Recall, and F1}
@@ -560,7 +560,7 @@ For a $k$-class classifier, the standard metrics are computed per class and then
   F1_c               &= \frac{2 \cdot \text{Precision}_c \cdot \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c}
 \end{align}
 
-where $TP_c$, $FP_c$, $FN_c$ are true positives, false positives, and false negatives for class $c$ respectively. Macro-averaged F1 (unweighted mean across classes) is the standard reporting metric for financial sentiment, as it treats each class equally regardless of its frequency. This matters because the ``neutral'' class often comprises 50--60\% of financial sentences; an accuracy-maximising model that over-predicts neutral can achieve high accuracy while failing systematically on the economically important positive and negative classes.
+where $TP_c$, $FP_c$, $FN_c$ are true positives, false positives, and false negatives for class $c$ respectively. Macro-averaged F1 (unweighted mean across classes) is the standard reporting metric for financial sentiment, as it treats each class equally regardless of its frequency. This matters because the `neutral' class often comprises the majority of financial sentences---on the \emph{Financial PhraseBank}~\citep{malo2014phrasebank}, neutral sentences account for roughly half the corpus; an accuracy-maximising model that over-predicts neutral can achieve high accuracy while failing systematically on the economically important positive and negative classes.
 
 \subsubsection*{Economic Validity}
 

@@ -132,8 +132,7 @@ only whether individual decisions can be explained but whether the model, taken 
 exhibits systematic disparate impact along protected-class lines. This requires
 interpretations of global model behaviour---which features does the model rely on most
 heavily?---as well as the ability to audit specific cases when complaints are filed. The
-CFA Institute's 2025 report on AI in investment management \cite{cfainstitute2025xai}
-found that institutional investors increasingly require explainability assurances before
+According to the CFA Institute \cite{cfainstitute2025xai}, institutional investors increasingly require explainability assurances before
 deploying third-party AI systems for portfolio construction.
 
 \emph{Internal auditors and model validators} occupy an intermediate position. They need
@@ -612,9 +611,7 @@ specifically rather than generally.
 
 There are two distinct failure modes that LLM-generated denial letters must avoid.
 
-The first is \emph{vagueness}. Regulators have sanctioned lenders for denial letters
-that state reasons in overly general terms---``your credit profile did not meet our
-criteria'' is not a specific reason. An LLM generation step must produce concrete,
+The first is \emph{vagueness}. Regulation~B's specificity requirement means that denial letters stating reasons in overly general terms---such as \emph{`your credit profile did not meet our criteria'}---may be insufficient~\citep{cfpb2013ecoa}. An LLM generation step must produce concrete,
 quantified reasons: ``your debt-to-income ratio of 54\% exceeded our maximum of 45\%''
 is compliant; ``your financial situation presented concerns'' is not.
 
@@ -697,8 +694,8 @@ The generation pipeline:
 \end{itemize}
 
 A compliance officer reviews a random 2\% sample of generated disclosures each quarter.
-Over the first year of operation, the review identified a 0.3\% rate of outputs requiring
-revision, all attributable to edge cases in the prompt where the client's stated
+For illustration, suppose the review identified a rate of outputs requiring revision of around 0.3\%,
+all attributable to edge cases in the prompt where the client's stated
 objective and the recommended product's objectives were in mild tension.
 \end{example}
 

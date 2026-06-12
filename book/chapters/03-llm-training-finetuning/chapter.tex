@@ -1030,10 +1030,7 @@ PhraseBank dataset \cite{malo2014financial}, with three-class labels (Positive,
 Neutral, Negative).  Training for 10 epochs with learning rate $3 \times 10^{-4}$
 and LoRA rank 8.
 
-On the held-out Financial PhraseBank test set, the two-stage approach achieves
-accuracy 94.2\% versus 88.7\% for Stage 2 fine-tuning alone and 79.3\% for
-zero-shot prompting --- a clear hierarchy consistent with the adaptation spectrum
-of Section~\ref{subsec:adaptation-spectrum}.
+For illustration, suppose the two-stage approach achieves accuracy of approximately 94\% on a held-out Financial PhraseBank test set, compared with roughly 89\% for Stage~2 fine-tuning alone and 79\% for zero-shot prompting (exact figures vary with corpus, hardware, and random seed).
 \end{example}
 
 \end{deepdive}
@@ -1070,14 +1067,8 @@ with the original WordPiece vocabulary unchanged; gains arise from weight update
 that shift representations toward financial vocabulary and discourse, not from
 vocabulary expansion.
 
-The key empirical finding of \citet{yang2020finbert} is that domain-adaptive
-pre-training improves substantially over standard BERT fine-tuning across
-three financial NLP tasks:
-\begin{itemize}
-  \item \emph{Financial sentiment analysis:} accuracy 88.5\% (FinBERT) vs 80.7\% (BERT).
-  \item \emph{ESG category classification:} macro-F1 78.3\% vs 71.2\%.
-  \item \emph{Forward-looking statement detection:} F1 91.3\% vs 85.6\%.
-\end{itemize}
+On the \emph{Financial PhraseBank} sentiment task, \citet{yang2020finbert} report accuracy of 88.5\% for FinBERT versus 80.7\% for a general BERT baseline. Performance on other financial classification tasks---such as ESG category labelling or forward-looking statement detection---varies by corpus and annotation scheme; typical FinBERT gains over general BERT are in the 5--15 percentage-point range on in-domain data.
+
 These gains arise from two mechanisms.  First, continued pre-training on
 financial text produces richer contextual representations of financial
 terminology within the unchanged WordPiece vocabulary, effectively teaching
@@ -1159,7 +1150,7 @@ inherently bounded.
 
 On financial benchmarks (FPB sentiment, FiQA-SA, Headline, NER, ConvFinQA),
 BloombergGPT outperforms GPT-NeoX-20B (a general-purpose open-source model)
-by 10--20\% on average, demonstrating the value of in-domain pre-training.
+by 10--20\% on average~\citep{wu2023bloomberggpt}, demonstrating the value of in-domain pre-training.
 On general NLP benchmarks (MMLU, BIG-bench), BloombergGPT performs comparably
 to GPT-NeoX-20B, confirming that the general-text component of the corpus
 preserved broad capabilities.
@@ -1367,10 +1358,7 @@ requiring multi-step numerical reasoning over earnings reports.  Each example
 consists of a financial document (containing both text and tables), a question,
 a gold numerical answer, and a gold reasoning program (sequence of arithmetic
 operations).  FinQA tests three skills simultaneously: information extraction
-from heterogeneous sources, multi-hop reasoning, and arithmetic.  Current
-state-of-the-art models achieve roughly 75\% execution accuracy (percentage of
-examples where the model's arithmetic program produces the correct numerical
-answer), compared with human accuracy of 91\%.
+from heterogeneous sources, multi-hop reasoning, and arithmetic.  At the time of the benchmark's introduction, \citet{chen2021finqa} reported human execution accuracy of 91\%; top neural systems at that time achieved roughly 68--75\%. Current leaderboard figures should be consulted directly, as the field advances rapidly.
 
 \emph{FiQA-SA} \cite{maia2018fiqa} (Financial Question Answering -- Sentiment
 Analysis) consists of financial microblogs and news headlines annotated with
@@ -1468,7 +1456,7 @@ industry are the governance requirements more stringent or the potential for har
 more immediate.  A language model deployed in a trading system can move markets.
 A model used to screen loan applications can perpetuate discrimination at scale.
 A model used to generate research notes can violate research independence rules
-under MiFID II Article 37.  Understanding these risks --- and the mitigations
+under Article~37 of Commission Delegated Directive (EU) 2017/593~\citep{esma2018mifid2}, which implements MiFID~II research independence requirements.  Understanding these risks --- and the mitigations
 available --- is as fundamental to the financial NLP practitioner as understanding
 the training objectives and architectures described in earlier sections.
 
@@ -1572,7 +1560,7 @@ suitability assessment, and research independence on financial intermediaries.
 LLMs used in investment contexts must comply with these requirements, and
 compliance creates specific technical obligations.
 
-\emph{Research independence (Article 37).}  Under MiFID II, firms that produce
+\emph{Research independence (Article~37 of Commission Delegated Directive (EU) 2017/593~\citep{esma2018mifid2}).}  Under MiFID~II, firms that produce
 investment research must maintain independence from trading desks.  An LLM that
 generates investment commentary and is simultaneously used to inform trading
 decisions risks violating this independence principle if its training data

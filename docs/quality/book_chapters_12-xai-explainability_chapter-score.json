@@ -1,0 +1,21 @@
+{
+  "file": "book/chapters/12-xai-explainability/chapter.tex",
+  "date": "2026-05-31",
+  "scores": {
+    "clarity": 9,
+    "rigor": 8,
+    "completeness": 8,
+    "pedagogy": 9,
+    "style": 8
+  },
+  "justifications": {
+    "clarity": "The opening loan-officer vignette (lines 29-38) immediately grounds the abstract explainability problem in a concrete regulatory scenario, and every subsequent section builds on that frame with well-signposted transitions; the only friction is a dense cluster of regulatory acronyms (ECOA, FCRA, GDPR, MiFID II) introduced in rapid succession at lines 97-100 without a consolidated glossary.",
+    "rigor": "The Shapley value formula (Eq. 12.1) is axiomatically grounded and the LIME and faithfulness metrics are formally specified, but the counterfactual generation algorithm for discrete text inputs (lines 479-486) is described only in narrative prose — 'identify the feature dimensions... then articulate those perturbations' — without any algorithmic pseudocode or complexity analysis, leaving the core technical procedure underspecified.",
+    "completeness": "All six stated learning objectives are addressed, and the three case studies cover credit scoring, ECOA denial letters, and MiFID II suitability; however, Integrated Gradients is invoked as the preferred audit-grade method (lines 392-396 and line 688) without ever being formally defined or exemplified, and global XAI measures relevant to SR 11-7 model documentation (PDP, global SHAP summaries) are entirely absent.",
+    "pedagogy": "Learning objectives are enumerated at the outset, difficulty escalates from regulatory context through formal methods to applied case studies, and the three worked examples scaffold each other effectively; the sole structural weakness is the complete absence of end-of-chapter exercises, which the book convention requires in [B]/[I]/[A] difficulty tiers.",
+    "style": "Notation ($\\phi_i$, $f(x)$, $\\mathcal{G}$, $\\pi_x$) is consistent throughout and the prose avoids AI-sounding padding, but the bibliography key 'sundararajan2020shapley' misidentifies the Integrated Gradients paper (whose title is 'Axiomatic Attribution for Deep Networks'), and the \\textbf{Stage N} inline headers inside the hybrid-pipeline example (lines 556-558) inconsistently replicate a paragraph-labelling style that the rest of the chapter deliberately avoids."
+  },
+  "overall": 8.4,
+  "pass": true,
+  "threshold": 8
+}

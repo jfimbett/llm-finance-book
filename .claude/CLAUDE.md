@@ -84,6 +84,7 @@ Common entry points:
 - `/split-dual-mode [chNN]` — wrap each section in a context or deepdive box
 - `/topic-status` — print the status of all chapters
 - `/ssrn-enrich [chNN]` — search SSRN for recent working papers and weave them into the chapter
+- `/audit-hallucinations` — detect fabricated content and synthetic data across all chapters in parallel
 
 ---
 

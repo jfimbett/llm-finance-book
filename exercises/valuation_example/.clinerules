@@ -1,0 +1,42 @@
+# Cline Project Rules — AAPL Equity Valuation
+
+## Project Purpose
+Compute Apple Inc. (AAPL) intrinsic equity value per share using FY2024 SEC EDGAR data.
+Target: within 10% of $226.84 (AAPL close, September 27, 2024).
+
+## How to Use This Project with Cline
+
+1. **Read CLAUDE.md** for full project overview.
+2. **Read the relevant agent file** in `.claude/agents/` before starting any task.
+3. **Follow the skill steps** in `.claude/skills/*/SKILL.md` for each workflow stage.
+4. **Save all data** to `data/` and all results to `results/`.
+
+## Workflow Order
+
+Step 1: Read `.claude/agents/edgar-fetcher.md` and execute fetch steps
+         → saves `data/aapl_fy2024.json`
+Step 2: Read `.claude/agents/financial-analyst.md` and compute FCF history
+         → saves `data/fcf_history.json`
+Step 3: Read `.claude/agents/wacc-estimator.md` and estimate WACC
+         → saves `data/wacc.json`
+Step 4: Read `.claude/agents/dcf-modeler.md` and run DCF
+         → saves `results/dcf_result.json`
+Step 5: Read `.claude/agents/comps-analyst.md` and run comparables
+         → saves `results/comps_result.json`
+Step 6: Read `.claude/agents/accuracy-checker.md` and validate
+         → saves `results/accuracy.json`
+Step 7: If error > 10%, read `.claude/agents/assumption-auditor.md` and adjust
+
+## Key Constants
+
+- AAPL CIK: 0000320193
+- Reference price: $226.84
+- Acceptable error: ≤ 10%
+- EDGAR XBRL: https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json
+
+## Rules
+
+- Always fetch live EDGAR data before falling back to hardcoded values.
+- Every assumption must be justified with an external data source or calculation.
+- Write intermediate results to JSON files so each step is resumable.
+- Report error as: |estimate - 226.84| / 226.84 × 100%.

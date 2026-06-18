@@ -1,0 +1,46 @@
+{
+  "company": "Apple Inc.",
+  "ticker": "AAPL",
+  "valuation_date": "2024-09-28",
+  "methodology": "CAPM-based WACC",
+
+  "inputs": {
+    "risk_free_rate": 0.0378,
+    "risk_free_rate_note": "US 10-year Treasury yield on 2024-09-27 (post-Fed 50bps cut on 2024-09-18)",
+    "beta": 1.24,
+    "beta_note": "5-year monthly beta per Yahoo Finance Statistics as of Sep 2024",
+    "erp": 0.0423,
+    "erp_note": "Damodaran implied ERP (FCFE method) as of January 2025",
+    "pre_tax_cost_of_debt": 0.0290,
+    "pre_tax_cost_of_debt_note": "Weighted average coupon on AAPL bonds outstanding (issued 2013-2022 at low rates)",
+    "tax_rate": 0.241,
+    "tax_rate_note": "Effective tax rate FY2024: provision $29,749M / pre-tax income $123,485M"
+  },
+
+  "capital_structure": {
+    "share_price_usd": 226.84,
+    "shares_outstanding_millions": 15408.09,
+    "market_cap_millions": 3495171,
+    "total_debt_millions": 96662,
+    "total_debt_note": "Long-term debt $85,750M + current portion $10,912M per FY2024 10-K",
+    "total_capital_millions": 3591833,
+    "equity_weight": 0.973088,
+    "debt_weight": 0.026912
+  },
+
+  "results": {
+    "cost_of_equity": 0.090252,
+    "cost_of_equity_pct": 9.0252,
+    "after_tax_cost_of_debt": 0.022011,
+    "after_tax_cost_of_debt_pct": 2.2011,
+    "wacc": 0.088416,
+    "wacc_pct": 8.8416
+  },
+
+  "sources": [
+    "US Treasury Daily Par Yield Curve Rates, September 2024",
+    "Yahoo Finance AAPL Key Statistics (5Y Monthly Beta)",
+    "Damodaran, A. Historical Implied ERP, pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/histimpl.html",
+    "Apple Inc. Form 10-K FY2024 (SEC Filing 0000320193-24-000123)"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "reference_price": 226.84,
+  "dcf_value": 225.00,
+  "comps_value": 217.09,
+  "triangulated_value": 221.04,
+  "absolute_error": 5.80,
+  "relative_error_pct": 2.56,
+  "pass": true,
+  "target_tolerance_pct": 10.0,
+  "acceptable_range": [204.16, 249.52],
+  "iterations_needed": 0,
+  "verdict": "PASS: $221.04/share is 2.6% from reference $226.84",
+  "method_weights": {
+    "dcf": 0.50,
+    "comps": 0.50
+  },
+  "assumptions_summary": {
+    "fcf_base_per_share": 7.0617,
+    "wacc": 0.0884,
+    "stage1_growth": 0.172,
+    "terminal_growth": 0.03,
+    "fy2025e_eps": 7.26,
+    "ntm_pe_multiple": 31.5,
+    "ev_ebitda_multiple": 24.0,
+    "ebitda_b": 134.7,
+    "shares_m": 15408.09
+  },
+  "data_sources": {
+    "financials": "SEC EDGAR XBRL API (CIK 0000320193)",
+    "risk_free_rate": "US Treasury 10Y / FRED (~3.78% Sep 2024)",
+    "beta": "Yahoo Finance 5yr monthly (~1.24)",
+    "erp": "Damodaran implied ERP (~4.60% Sep 2024)",
+    "peer_multiples": "Public market data Sep 2024"
+  },
+  "report": "results/final-report.md",
+  "generated": "2026-06-18"
+}

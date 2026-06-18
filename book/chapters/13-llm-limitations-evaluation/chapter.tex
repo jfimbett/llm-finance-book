@@ -206,7 +206,7 @@ Three post-hoc recalibration techniques are well-established in the broader mach
 learning literature and applicable to LLM outputs.
 
 \emph{Temperature scaling} is the simplest \cite{guo2017calibration}. Given a logit
-vector $\mathbf{z}$, the calibrated probability is $\sigma(\mathbf{z}/T)$, where $T > 1$
+vector $\mathbf{z}$, the calibrated probability is $\operatorname{softmax}(\mathbf{z}/T)$, where $T > 1$
 spreads the softmax distribution (reducing overconfidence) and $T < 1$ sharpens it.
 The temperature $T$ is a single scalar learned on a held-out calibration set by
 minimising the negative log-likelihood. Temperature scaling preserves the ordering of
@@ -355,7 +355,7 @@ Choose cutoff times $T_1 < T_2$ and gap $\Delta > 0$. Define:
   \mathcal{D}_{\text{test}} &= \{(x_t, y_t) : t \geq T_2\}.
   \label{eq:ch13-temporal-split}
 \end{align}
-The gap $\Delta$ should be chosen to be at least as long as the outcome window (e.g.\
+The gap $\Delta$ should be chosen to be at least as long as the prediction horizon $h$ (e.g.\
 one month for monthly return prediction) plus an additional buffer for publication lag.
 \end{definition}
 
@@ -660,7 +660,7 @@ accumulating data (as with fine-tuning) and is the standard protocol in the
 financial machine learning literature \cite{lopezdeprado2018advances}.
 
 Both protocols require a \emph{purge period}: a gap between the end of the training
-window and the beginning of the evaluation window, equivalent to the embargo in
+window and the beginning of the evaluation window, equivalent to the gap $\Delta$ in
 Definition~\ref{def:ch13-temporal-split}. The purge period must be at least as long
 as the prediction horizon to prevent any individual observation from appearing in both
 training and evaluation windows through overlapping label windows.
@@ -671,7 +671,7 @@ Let $h$ be the prediction horizon and $\Delta_{\text{purge}}$ be the purge gap.
 At iteration $k$, the training set is $\mathcal{D}_{\text{train}}^{(k)} =
 \{(x_t, y_t) : t \leq kh - \Delta_{\text{purge}}\}$ and the evaluation set is
 $\mathcal{D}_{\text{eval}}^{(k)} = \{(x_t, y_t) : kh \leq t \leq (k+1)h - 1\}$.
-The model is retrained from scratch (or adapted via PEFT) at each iteration $k$.
+The model is retrained from scratch (or adapted via PEFT (parameter-efficient fine-tuning, e.g., LoRA; see Chapter~\ref{ch:llm-training-finetuning})) at each iteration $k$.
 \end{definition}
 
 The walk-forward protocol makes an implicit assumption about model persistence: the
@@ -706,10 +706,11 @@ trade. A strategy requiring daily rebalancing based on news sentiment can incur 
 bps per day in transaction costs, eliminating any statistical edge.
 
 \emph{Capacity analysis} asks how much capital the strategy can absorb before market
-impact destroys its edge. The Almgren-Chriss framework provides a principled model:
+impact destroys its edge. The Almgren-Chriss framework \citep{almgren2001optimal} provides a principled model:
 the linear temporary impact of trading $q$ shares in a stock with daily volume $V$
-and price $P$ is approximately $\eta \cdot (q / V)$ per share, where $\eta$ is a
-market-impact coefficient estimated empirically. A strategy that is profitable at
+and price $P$ is approximately $\eta \cdot (q / V)$ per share, where $\eta$ is an
+empirically estimated market-impact coefficient, $q$ the number of shares traded,
+$V$ the daily volume, and $P$ the price. A strategy that is profitable at
 \$10M in assets may be unprofitable at \$1B if it trades in less liquid securities.
 
 \emph{Drawdown analysis} measures the maximum cumulative loss from peak to trough.

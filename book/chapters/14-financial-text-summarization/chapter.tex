@@ -201,6 +201,7 @@ as we discuss in Section~\ref{sec:ch14-evaluation-benchmarks}.
 \label{sec:ch14-named-entity-recognition}
 % ===========================================================================
 
+A \emph{token} is the atomic unit of text produced by a tokenizer (typically a sub-word piece); see Chapter~\ref{ch:llm-foundations} for a formal definition.
 Named entity recognition (NER) is the foundational IE task: given a sequence of tokens,
 label each token with its entity type or mark it as non-entity. In general-domain NLP,
 the standard CoNLL-2003 benchmark defines entity types \textsc{Person}, \textsc{Location},
@@ -278,7 +279,7 @@ labels and $\mathbf{b} \in \mathbb{R}^C$ is a bias. Labels follow the BIO (Begin
 Inside, Outside) convention: each token receives a label from
 $\{B\text{-}e, I\text{-}e, O : e \in \mathcal{E}\}$ where $\mathcal{E}$ is the set of
 entity types. The model is fine-tuned end-to-end by minimising the token-level cross-
-entropy loss.
+entropy loss ($\mathcal{L} = -\sum_t \log p(\hat{y}_t = y_t)$).
 
 Which encoder to use matters significantly. \citet{yang2020finbert} show that FinBERT
 (BERT pretrained on financial corpora) outperforms vanilla BERT on financial sentiment
@@ -339,15 +340,14 @@ The joint entity-and-relation extraction approach, exemplified by models such as
 DyGIE++ \citep{wadden2019dygiepp}, simultaneously predicts entity spans and the
 relations between them. For a pair of entity spans $(e_i, e_j)$, the model computes a
 relation score:
-
+Let $\mathbf{h}_{e_i} \in \mathbb{R}^d$ denote the span representation of entity $e_i$, typically the mean or endpoint of the encoder's hidden states over the entity span.
 \begin{equation}
 \label{eq:relation-score}
 s(e_i, r, e_j) = f\bigl(\mathbf{h}_{e_i}, \mathbf{h}_{e_j}, \mathbf{r}\bigr),
 \end{equation}
 
 where $\mathbf{h}_{e_i}$ and $\mathbf{h}_{e_j}$ are span representations (typically
-the mean or endpoint representations from the encoder), $\mathbf{r}$ is a learned
-relation embedding, and $f$ is a bilinear or feedforward scorer. The model is trained to
+the mean or endpoint representations from the encoder), and $\mathbf{r} \in \mathbb{R}^{d_r}$ is a learned relation-type embedding vector, and $f$ is a bilinear or feedforward scorer. The model is trained to
 predict, for each ordered pair of extracted entity spans, the relation type $r$ from a
 predefined set $\mathcal{R} \cup \{\text{None}\}$.
 
@@ -724,6 +724,7 @@ systems that are eloquent but dangerous in a financial decision context.
 summarisation evaluation. ROUGE-$N$ computes the $n$-gram recall of the candidate
 summary against one or more reference summaries:
 
+An \emph{$n$-gram} is a contiguous sequence of $n$ tokens; for a sequence $y$, the multiset $\mathcal{G}_N(y)$ contains all contiguous $N$-token subsequences.
 \begin{equation}
 \label{eq:rouge-n}
 \text{ROUGE-}N = \frac{\sum_{s \in \mathcal{R}} \sum_{g \in \mathcal{G}_N(s)}
@@ -772,7 +773,7 @@ their findings directly inform quality-assurance design for production informati
 extraction systems by cataloguing the conditions under which outputs are stable and where
 stochastic variation undermines reliability. \textbf{Factual consistency metrics} are designed to catch
 these errors. The FactCC model \citep{kryscinski2020evaluating} trains a natural language
-inference (NLI) classifier to predict whether each claim in the candidate summary is
+inference (NLI: the task of classifying whether a hypothesis is entailed by, contradicts, or is neutral with respect to a premise) classifier to predict whether each claim in the candidate summary is
 \emph{entailed} by the source document. For financial summaries, entailment can be
 strengthened by grounding numerical claims against the extracted XBRL data: any
 numerical claim in the summary that cannot be verified against the structured data is

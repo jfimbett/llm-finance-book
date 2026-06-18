@@ -48,7 +48,7 @@ The inference channel is operationally easier to mitigate — institutional cont
 
 \begin{definition}[Memorisation]
 \label{def:memorisation}
-A language model $\mathcal{M}$ \emph{memorises} a string $s$ if there exists a prompt $p$ such that $\mathcal{M}(p)$ generates $s$ with probability above a threshold $\tau$. Exact memorisation requires $s$ to match verbatim; approximate memorisation allows a bounded edit distance.
+A language model $\mathcal{M}$ \emph{memorises} a string $s$ if there exists a prompt $p$ such that $\mathcal{M}(p)$ generates $s$ with probability above a threshold $\tau$, where $\tau \in (0,1]$ is a user-specified generation probability threshold. Exact memorisation requires $s$ to match verbatim; approximate memorisation allows a bounded edit distance (Levenshtein edit distance: the minimum number of single-character insertions, deletions, or substitutions to transform one string into the other).
 \end{definition}
 
 \subsection{Regulatory Landscape: GDPR, CCPA, MiFID II, and DORA}
@@ -281,7 +281,7 @@ Differential privacy (DP) is a mathematical framework for bounding the informati
 
 \begin{definition}[($\varepsilon$, $\delta$)-Differential Privacy]
 \label{def:dp}
-A randomised mechanism $\mathcal{M}: \mathcal{X} \to \mathcal{Y}$ satisfies $(\varepsilon, \delta)$-differential privacy if, for all pairs of adjacent datasets $D, D' \in \mathcal{X}$ differing in exactly one record, and for all measurable output sets $S \subseteq \mathcal{Y}$:
+A randomised mechanism $\mathcal{M}: \mathcal{X} \to \mathcal{Y}$ satisfies $(\varepsilon, \delta)$-differential privacy if, for all pairs of adjacent datasets $D, D' \in \mathcal{X}$ differing in exactly one record (i.e., one record is either added, removed, or substituted), and for all measurable output sets $S \subseteq \mathcal{Y}$:
 \begin{equation}
   \label{eq:ch15-dp}
   \Pr[\mathcal{M}(D) \in S] \leq e^{\varepsilon} \cdot \Pr[\mathcal{M}(D') \in S] + \delta.
@@ -312,7 +312,7 @@ DP-SGD, introduced by \citet{abadi2016deep}, applies the Gaussian mechanism to s
   \item \emph{Noise addition}: Gaussian noise $\mathcal{N}(0, \sigma^2 C^2 I)$ is added to the sum of clipped gradients before the parameter update. The noise scale $\sigma$ is chosen to satisfy the target $(\varepsilon, \delta)$ guarantee over the full training run.
 \end{enumerate}
 
-The privacy guarantee is computed using the moments accountant or the R\'enyi DP composition theorem, which track the cumulative privacy loss across all gradient steps more tightly than the basic composition theorem~\citep{abadi2016deep}.
+The privacy guarantee is computed using the moments accountant (the moments accountant tracks the log-moment generating function of the privacy loss random variable to give tight composition bounds) or the R\'enyi DP composition theorem, which track the cumulative privacy loss across all gradient steps more tightly than the basic composition theorem~\citep{abadi2016deep}.
 
 The primary cost of DP-SGD is utility degradation. Adding noise to gradients slows convergence and may prevent the model from reaching the same loss as non-private training. The trade-off is characterised by the privacy--utility curve: for a given $\delta$, the test accuracy of the DP model is plotted as a function of $\varepsilon$. Typical values in the literature range from $\varepsilon = 1$ (strong privacy, significant utility cost) to $\varepsilon = 10$ (weak privacy, small utility cost) for large language model fine-tuning. The parameter-efficient fine-tuning methods of Chapter~\ref{ch:llm-training-finetuning} (LoRA, adapters) are particularly compatible with DP-SGD because they reduce the number of trainable parameters, which reduces the effective sensitivity and therefore the required noise scale.
 
@@ -329,7 +329,7 @@ For small $\varepsilon$ (i.e.\ $e^{\varepsilon} - 1 \approx \varepsilon$), the s
 Proposition~\ref{prop:composition} has an important operational implication: every time a DP mechanism is applied during training, it consumes part of the institution's privacy budget. An organisation that plans to fine-tune a model multiple times on sensitive data must account for the cumulative privacy loss across all training runs. Once the budget is exhausted, further training on the sensitive data would violate the privacy guarantee, requiring either a fresh model or a new data collection with a separate budget allocation.
 
 \begin{proof}[Proof sketch]
-For basic composition, the key tool is the post-processing immunity lemma: any deterministic or randomised function of the output of a DP mechanism satisfies at least the same DP guarantee. Let $D$ and $D'$ be adjacent datasets. The composition $(\mathcal{M}_1(D), \mathcal{M}_2(D))$ can be analysed by first applying the $(\varepsilon_1, \delta_1)$-DP guarantee of $\mathcal{M}_1$ to bound the change in the joint distribution, then noting that the conditional distribution of $\mathcal{M}_2$'s output given $\mathcal{M}_1$'s output satisfies the $(\varepsilon_2, \delta_2)$ bound by the DP guarantee of $\mathcal{M}_2$. Chaining the two bounds via a union argument yields the $(\varepsilon_1 + \varepsilon_2, \delta_1 + \delta_2)$ guarantee. The advanced composition bound follows from the moments accountant analysis, which tracks the R\'enyi divergence between the distributions of outputs on $D$ and $D'$ rather than the multiplicative distance; see \citet{dwork2014algorithmic} for the full derivation.
+For basic composition, the key tool is the post-processing immunity lemma: any deterministic or randomised function of the output of a DP mechanism satisfies at least the same DP guarantee. Let $D$ and $D'$ be adjacent datasets. The composition $(\mathcal{M}_1(D), \mathcal{M}_2(D))$ can be analysed by first applying the $(\varepsilon_1, \delta_1)$-DP guarantee of $\mathcal{M}_1$ to bound the change in the joint distribution, then noting that the conditional distribution of $\mathcal{M}_2$'s output given $\mathcal{M}_1$'s output satisfies the $(\varepsilon_2, \delta_2)$ bound by the DP guarantee of $\mathcal{M}_2$. Chaining the two bounds via a union argument yields the $(\varepsilon_1 + \varepsilon_2, \delta_1 + \delta_2)$ guarantee. The advanced composition bound follows from the moments accountant analysis, which tracks the R\'enyi divergence between the distributions of outputs on $D$ and $D'$ (the Rényi divergence of order $\alpha > 1$ is $D_\alpha(P\|Q) = \frac{1}{\alpha-1}\log\sum_x P(x)^\alpha Q(x)^{1-\alpha}$; Rényi DP ($\varepsilon_\alpha$-RDP) bounds $D_\alpha(\mathcal{M}(D)\|\mathcal{M}(D'))$ for all adjacent datasets) rather than the multiplicative distance; see \citet{dwork2014algorithmic} for the full derivation.
 \end{proof}
 
 \subsection{Federated Learning for Distributed Financial Data}
@@ -341,7 +341,7 @@ Federated learning, formalised by the FedAvg algorithm of \citet{mcmahan2017comm
 
 \begin{definition}[Federated Averaging]
 \label{def:fedavg}
-Let $K$ clients each hold a local dataset $D_k$ with $n_k$ examples. Let $n = \sum_{k=1}^K n_k$. The FedAvg objective is to minimise
+Let $\ell: \mathcal{Y} \times \mathcal{Y} \to \mathbb{R}_{\geq 0}$ be a per-example loss (e.g., cross-entropy). Let $K$ clients each hold a local dataset $D_k$ with $n_k$ examples. Let $n = \sum_{k=1}^K n_k$. The FedAvg objective is to minimise
 \begin{equation}
   \label{eq:ch15-fedavg-obj}
   F(\theta) = \sum_{k=1}^K \frac{n_k}{n} F_k(\theta),

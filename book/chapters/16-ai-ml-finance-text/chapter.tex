@@ -17,6 +17,7 @@ After completing this chapter, the reader should be able to:
   \item State the scaled dot-product attention formula and explain why the
         transformer architecture is particularly suited to financial text.
 \end{enumerate}
+(Key terms --- token, vocabulary, attention --- are defined in Sections~\ref{subsec:llms-special-case} and~\ref{subsec:transformer-revolution} of this chapter.)
 \end{remark}
 
 % --- Section: Artificial Intelligence ---
@@ -70,6 +71,7 @@ in this book, we treat AI as the broad enterprise of building systems that
 perform cognitive tasks, machine learning as the dominant contemporary
 methodology for building such systems, and deep learning and large language
 models as particular implementations of that methodology.
+(These terms are formally defined in Sections~\ref{sec:ai-ml-dl-hierarchy}--\ref{subsec:llms-special-case} below.)
 \end{remark}
 
 \subsection{Symbolic vs.\ Statistical AI}
@@ -134,6 +136,7 @@ distribution.
 
 \begin{definition}[Supervised Learning]
 \label{def:supervised-learning}
+Let $\mathcal{X}$ be the input space, $\mathcal{Y}$ the output space (e.g., $\mathbb{R}^p$ and $\{0,1\}$ for binary classification), $\theta \in \Theta$ the model parameters, and $\ell: \mathcal{Y}\times\mathcal{Y}\to\mathbb{R}_{\geq 0}$ a per-sample loss (e.g., cross-entropy or squared error).
 In \emph{supervised learning} an algorithm is given a training set
 $\{(\mathbf{x}_i, y_i)\}_{i=1}^n$ of input--output pairs and learns a
 function $f_\theta : \mathcal{X} \to \mathcal{Y}$ by minimizing a loss
@@ -204,6 +207,7 @@ add several that are specific to their scale and modality.
 
 \begin{definition}[Large Language Model]
 \label{def:llm}
+A \emph{token} is the atomic unit of text (a sub-word piece, word, or character); the \emph{vocabulary} $\mathcal{V}$ is the finite set of all such units used by the model.
 A \emph{large language model} is a neural network with billions of
 parameters, trained on a corpus of hundreds of billions of tokens,
 whose primary objective is to assign probabilities to token sequences.
@@ -270,7 +274,7 @@ imaging.
 \label{ex:algo-trading}
 A market-making algorithm must quote bid and ask prices for a security at
 high frequency, earning the spread while managing inventory risk.  A
-deep reinforcement learning agent can be trained to optimize this
+deep reinforcement learning (an agent trained via reinforcement learning with a deep neural network policy to maximise cumulative reward) agent can be trained to optimize this
 objective across millions of simulated market episodes, learning execution
 strategies that adapt to changing liquidity conditions.  The agent's
 actions, however, affect the order book, which in turn affects the signals
@@ -572,7 +576,8 @@ a weighted sum of value vectors $\mathbf{v}_j$ at all positions $j$:
   \mathrm{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V})
   = \mathrm{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V},
 \]
-where $\mathbf{Q}$ and $\mathbf{K}$ are linear projections of the input
+where $\operatorname{softmax}(\mathbf{z})_i = \exp(z_i)/\sum_j\exp(z_j)$,
+$\mathbf{Q}$ and $\mathbf{K}$ are linear projections of the input
 sequence into query and key spaces of dimension $d_k$, and $\mathbf{V}$
 is a linear projection into a value space of dimension $d_v$ (in the
 standard single-head presentation $d_v = d_k$ is assumed for notational

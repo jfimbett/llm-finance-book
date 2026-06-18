@@ -34,6 +34,13 @@ hallucination mitigation, and regulatory constraints
 Readers who are already comfortable with document-level representations may proceed
 directly to Section~\ref{sec:sequential}.
 
+\begin{remark}[Notation inherited from Chapter~\ref{ch:intro}]
+\label{rem:ch2-notation}
+Throughout this chapter, $\mathcal{V}$ denotes the token vocabulary and a token is an
+atomic unit of text (sub-word piece), as formally defined in Chapter~\ref{ch:intro}
+(Definition~\ref{def:corpus-vocab}).
+\end{remark}
+
 % --- moved from ch01 ---
 \section{Document-Level Representations}
 \label{sec:doc-repr}
@@ -56,8 +63,8 @@ The simplest aggregation is the unweighted arithmetic mean.
 
 \begin{definition}[Mean Embedding]
 \label{def:mean-embedding}
-Let $d = (w_1, w_2, \dots, w_n)$ be a document of $n$ tokens and let
-$\varphi : \mathcal{V} \to \mathbb{R}^d$ be a word embedding.
+Let $\varphi : \mathcal{V} \to \mathbb{R}^d$ be a word embedding (see Chapter~\ref{ch:intro}, Definition~\ref{def:word-embedding}).
+Let $d = (w_1, w_2, \dots, w_n)$ be a document of $n$ tokens.
 The \emph{mean embedding} of $d$ is
 \begin{equation}
   \bar{\boldsymbol{\varphi}}(d)
@@ -236,6 +243,8 @@ semantically equivalent (entailment), contradictory, or unrelated,
 using a classification head over the concatenation
 $[\mathbf{u};\, \mathbf{v};\, |\mathbf{u} - \mathbf{v}|]$.
 
+Here $d_{\mathrm{model}}$ denotes the hidden dimension of the encoder (formally introduced in Definition~\ref{def:scaled-dot-product-attn}).
+
 \begin{definition}[Mean Pooling in SBERT]
 \label{def:sbert-pool}
 Let $\mathbf{H} = [\mathbf{h}_1, \mathbf{h}_2, \dots, \mathbf{h}_n]
@@ -366,6 +375,7 @@ $\mathbf{b} \in \mathbb{R}^{d_h}$ and $\mathbf{b}_y \in \mathbb{R}^{d_y}$ are
 bias vectors, and $\sigma$ is an element-wise nonlinearity (sigmoid or $\tanh$).
 The initial hidden state $\mathbf{h}_0$ is either $\mathbf{0}$ or a learnable
 parameter.
+Here $\operatorname{softmax}(\mathbf{z})_i = \exp(z_i)/\sum_j \exp(z_j)$.
 \end{definition}
 
 The recurrence in~\eqref{eq:rnn-hidden} allows information to propagate across time
@@ -1177,7 +1187,7 @@ depends on all that precedes it.
 
 Standard autoregressive generation produces output token by token in a \emph{single
 chain of forward passes}: given a prompt of $L$ tokens, the model runs $L$ attention
-computations in parallel (using a KV-cache for efficiency) to generate each successive
+computations in parallel (using a KV-cache (a cache of previously computed key and value vectors for each attention layer, avoiding recomputation during generation) for efficiency) to generate each successive
 output token.  For many financial NLP tasks---sentiment labelling, named-entity
 recognition, brief summarisation---this single-pass regime is entirely adequate.
 
@@ -2107,6 +2117,8 @@ label of the correct token.  Even the near-zero probabilities assigned to incorr
 tokens encode the teacher's implicit similarity structure: the teacher assigns more
 probability to semantically related tokens than to unrelated ones, and this
 information is invisible in the hard label.
+
+Recall that the KL divergence between distributions $p$ and $q$ over a finite set is $\mathrm{KL}(p\|q) = \sum_i p_i \log(p_i/q_i)$, and the cross-entropy loss for hard label $y$ is $\mathcal{L}_{\mathrm{CE}}(p, y) = -\log p_y$.
 
 \begin{definition}[Knowledge Distillation]
 \label{def:kd}

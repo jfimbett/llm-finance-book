@@ -115,7 +115,7 @@ Practitioners frequently face the question of which LLM deployment pattern to ad
 
 \begin{definition}[LLM Deployment Patterns]
 \label{def:deployment-patterns}
-Let $\mathcal{T}$ denote a finance task characterised by input distribution $\mathcal{X}$, output space $\mathcal{Y}$, and required knowledge $\mathcal{K}$.
+Let a finance task be characterised by an input distribution $\mathcal{X}$, an output space $\mathcal{Y}$, and a required knowledge base $\mathcal{K}$; a document corpus $\mathcal{D}$ and retrieval function $R$ are used where indicated. Let $\mathcal{T}$ denote a finance task characterised by input distribution $\mathcal{X}$, output space $\mathcal{Y}$, and required knowledge $\mathcal{K}$.
 \begin{itemize}
   \item \emph{Zero-shot prompting} applies a general-purpose model $M$ directly: $\hat{y} = M(\text{prompt}(x))$ for $x \in \mathcal{X}$. No task-specific training or retrieval occurs.
   \item \emph{Retrieval-augmented generation} augments the prompt with retrieved context: $\hat{y} = M(\text{prompt}(x, \mathcal{R}(x, \mathcal{D})))$, where $\mathcal{R}$ is a retrieval function over document corpus $\mathcal{D}$ \cite{lewis2020rag}.
@@ -153,7 +153,7 @@ A complementary decision concerns the \emph{model architecture family} rather th
 The four families relevant to finance NLP tasks are:
 \begin{enumerate}
   \item \emph{Encoder-only} (BERT, RoBERTa, FinBERT): bidirectional Transformer producing contextual representations without generation. Trained by masked language modelling; fine-tuned with a classification or regression head.
-  \item \emph{Decoder-only} (GPT-4, LLaMA, Mistral): autoregressive Transformer generating text token by token. Aligned with instruction tuning and RLHF; the dominant family for general-purpose financial NLP today.
+  \item \emph{Decoder-only} (GPT-4, LLaMA, Mistral): autoregressive Transformer generating text token by token. Aligned with instruction tuning and reinforcement learning from human feedback (RLHF); the dominant family for general-purpose financial NLP today.
   \item \emph{Encoder-decoder} (T5, FLAN-T5, BART): sequence-to-sequence Transformer with separate encoder and decoder. Natural for summarisation, structured extraction, and translation tasks.
   \item \emph{Agentic system}: a generative model augmented with a planning loop (e.g.\ ReAct) that interleaves reasoning steps with calls to external tools — databases, APIs, code executors. Appropriate when task completion requires retrieving or manipulating external state.
 \end{enumerate}
@@ -269,12 +269,12 @@ A financial research assistant is a system that accepts natural-language queries
 
 \begin{definition}[Research Assistant Architecture]
 \label{def:ra-architecture}
-A \emph{financial research assistant} $\mathcal{A}$ is a tuple $(\mathcal{R}, \mathcal{M}, \mathcal{K}, \mathcal{T}, \mathcal{I})$ where:
+A \emph{financial research assistant} $\mathcal{A}$ is a tuple $(\mathcal{R}, \mathcal{M}, \mathcal{K}, \Lambda, \mathcal{I})$ where:
 \begin{itemize}
   \item $\mathcal{R}$ is a \emph{retrieval engine} that, given a query $q$, returns a ranked list of document passages $\{d_1, \ldots, d_k\}$ from a corpus $\mathcal{D}$.
   \item $\mathcal{M}$ is an \emph{LLM reader} that synthesises a response $r$ from the query and retrieved passages: $r = \mathcal{M}(q, d_1, \ldots, d_k)$.
   \item $\mathcal{K}$ is a \emph{persistent memory} layer that stores user preferences, conversation history, and portfolio context across sessions.
-  \item $\mathcal{T}$ is a \emph{tool layer} providing access to external data sources (market data APIs, filing databases, calculators).
+  \item $\Lambda$ is a \emph{tool layer} providing access to external data sources (market data APIs, filing databases, calculators).
   \item $\mathcal{I}$ is an \emph{interface layer} that handles input (natural language, voice, structured commands) and output (text, tables, visualisations).
 \end{itemize}
 \end{definition}
@@ -376,9 +376,11 @@ that LLMs, trained on human-generated text, reproduce reliably.
 
 Quantifying bias requires choosing a fairness criterion, and the choice of criterion is not neutral---it encodes assumptions about what counts as equitable treatment \cite{mehrabi2021survey}. Three criteria are most relevant to finance applications.
 
+Throughout Definitions~\ref{def:demographic-parity}--\ref{def:calibration}, let $\hat{Y} \in \{0,1\}$ be a binary decision (e.g., loan approval), $A$ a sensitive attribute (e.g., race, gender), $Y$ the true outcome, and $\hat{P} \in [0,1]$ the predicted probability.
+
 \begin{definition}[Demographic Parity]
 \label{def:demographic-parity}
-Let $\hat{Y}$ be a binary decision (e.g., loan approval) and $A$ a sensitive attribute (e.g., race, gender). A model satisfies \emph{demographic parity} if
+A model satisfies \emph{demographic parity} if
 \[
 \Pr(\hat{Y} = 1 \mid A = a) = \Pr(\hat{Y} = 1 \mid A = b)
 \]
@@ -396,7 +398,6 @@ for $y \in \{0, 1\}$ and all values $a, b$ of $A$. Both true positive rates and 
 
 \begin{definition}[Calibration Within Group]
 \label{def:calibration}
-Let $\hat{P} \in [0,1]$ denote the model's predicted probability of a positive outcome.
 A model is \emph{calibrated within group} with respect to attribute $A$ if
 \[
 \Pr(Y = 1 \mid \hat{P} = p, A = a) = p
@@ -406,7 +407,7 @@ for all $p \in [0,1]$ and all values $a$ of $A$. Predicted probabilities are equ
 
 \begin{proposition}[Impossibility of Simultaneous Fairness]
 \label{prop:fairness-impossibility}
-When base rates differ across groups---that is, $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$---a non-trivial classifier cannot simultaneously satisfy all of the following:
+When base rates differ across groups---that is, $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$---a classifier that does not output the same prediction for all inputs (non-trivial) cannot simultaneously satisfy all of the following:
 (i) demographic parity, (ii) equalized odds, and (iii) calibration within group.
 Specifically, \citet{chouldechova2017fair} show that demographic parity and calibration within group are mutually incompatible whenever base rates differ; independently, satisfying equalized odds and calibration within group simultaneously requires equal base rates across groups.
 \end{proposition}

@@ -82,7 +82,7 @@ The \textbf{income approach} values a firm by the present value of the economic 
 it will generate for its owners. The canonical implementation is the
 \emph{discounted cash flow} (DCF) model. Let $\mathrm{FCF}_t$ denote the free cash
 flow generated in period $t$, $n$ the explicit forecast horizon, and $\mathrm{WACC}$
-the weighted-average cost of capital. The enterprise value is
+the weighted-average cost of capital (weighted-average cost of capital: $\mathrm{WACC} = w_E r_E + w_D r_D(1-\tau)$, where $w_E, w_D$ are equity and debt weights and $r_E, r_D$ their costs). The enterprise value is
 
 \begin{equation}
 \label{eq:dcf}
@@ -90,7 +90,7 @@ V = \sum_{t=1}^{n} \frac{\mathrm{FCF}_t}{(1+\mathrm{WACC})^t}
     + \frac{TV}{(1+\mathrm{WACC})^n},
 \end{equation}
 
-where $TV$ is the \emph{terminal value}, representing cash flows beyond the explicit
+where $\mathrm{FCF}_t$ denotes the free cash flow in period $t$ (formally defined as FCFF in Definition~\ref{def:fcff}), and $TV$ is the \emph{terminal value}, representing cash flows beyond the explicit
 horizon. Under the Gordon Growth Model assumption that free cash flows grow at a
 constant perpetual rate $g < \mathrm{WACC}$ after period $n$,
 
@@ -352,7 +352,7 @@ issued minus debt repaid in period $t$).
 
 \begin{proposition}[Relationship Between FCFF and FCFE]
 \label{prop:fcff-fcfe-relation}
-Under the Modigliani-Miller framework with corporate taxes,
+Under the Modigliani-Miller framework with corporate taxes (which establishes that firm value is invariant to capital structure except for the tax shield on debt interest),
 \begin{equation}
 \label{eq:fcff-fcfe}
 \mathrm{FCFE}_t = \mathrm{FCFF}_t - \mathrm{InterestExp}_t \times (1 - \tau) + \mathrm{NB}_t.
@@ -590,7 +590,7 @@ test set of $n$ observations. The \emph{mean absolute percentage error} is
 
 \begin{definition}[Root Mean Squared Error]
 \label{def:rmse}
-The \emph{root mean squared error} is
+Using the notation of Definition~\ref{def:mape} ($y_t$ realised values, $\hat{y}_t$ predicted values, $n$ test-set size), the \emph{root mean squared error} is
 \begin{equation}
 \label{eq:rmse}
 \mathrm{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}(y_t - \hat{y}_t)^2}.
@@ -782,7 +782,7 @@ this distribution by sampling from parametric distributions over the key inputs.
 \begin{definition}[Monte Carlo DCF]
 \label{def:monte-carlo-dcf}
 Let $\mathrm{WACC} \sim \mathcal{N}(\mu_\mathrm{WACC}, \sigma^2_\mathrm{WACC})$
-and $g \sim \mathcal{N}(\mu_g, \sigma^2_g)$ (truncated to ensure $g < \mathrm{WACC}$).
+and $g \sim \mathcal{N}(\mu_g, \sigma^2_g)$ (truncated to ensure $g < \mathrm{WACC}$; truncated so that draws outside the valid range are rejected and redrawn).
 For $M$ simulation paths indexed by $m = 1, \ldots, M$, draw
 $(\mathrm{WACC}^{(m)}, g^{(m)})$ and compute the enterprise value
 \begin{equation}
@@ -912,6 +912,8 @@ The limitation of prompt-based comparable selection is that it relies on the mod
 parametric memory of company names, which may be stale or incomplete for smaller
 companies. Embedding-based approaches address this by directly measuring semantic
 similarity between financial text representations.
+
+An \emph{embedding} is a function $\phi: \mathcal{D} \to \mathbb{R}^d$ that maps a document to a dense vector produced by a neural encoder.
 
 \begin{definition}[Cosine Similarity]
 \label{def:cosine-similarity}

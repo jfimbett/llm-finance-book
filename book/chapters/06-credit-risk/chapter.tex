@@ -157,7 +157,7 @@ Let $n_+$ and $n_-$ denote the number of positive (default) and negative (non-de
   w_+ = \frac{n}{2 \, n_+},
   \label{eq:class-weight}
 \end{equation}
-and correspondingly $w_- = n / (2 n_-)$. Using these weights in the binary cross-entropy loss gives each class equal aggregate influence on the gradient, regardless of the class ratio.
+and correspondingly $w_- = n / (2 n_-)$. Using these weights in the binary cross-entropy loss $\mathcal{L} = -[y \log \hat{p} + (1-y)\log(1-\hat{p})]$ gives each class equal aggregate influence on the gradient, regardless of the class ratio.
 \end{definition}
 
 \subsubsection*{Missing Data}
@@ -225,7 +225,7 @@ Reduced-form (intensity-based) models, surveyed in \cite{duffie2003credit}, aban
   S(t, T) = \mathbb{E}\!\left[\exp\!\left(-\int_t^T \lambda_s \, ds\right) \bigg| \mathcal{F}_t\right].
   \label{eq:survival-prob}
 \end{equation}
-The intensity $\lambda_t$ is a latent process typically modelled as a function of macroeconomic covariates and firm characteristics. Reduced-form models fit observed credit spread term structures more tractably than structural models, at the cost of economic interpretability.
+where $\mathcal{F}_t$ is the natural filtration (the information set available at time $t$). The intensity $\lambda_t$ is a latent process typically modelled as a function of macroeconomic covariates and firm characteristics. Reduced-form models fit observed credit spread term structures more tractably than structural models, at the cost of economic interpretability.
 
 \subsubsection*{Machine Learning: Gradient Boosting}
 
@@ -376,7 +376,7 @@ This approach is simpler but coarser: it collapses the continuous default probab
 \subsection{Probability Calibration: Isotonic Regression and Platt Scaling}
 \label{subsec:calibration}
 
-A model is said to be \emph{well-calibrated} if, among all applications scored with predicted probability $\hat{p}$, the fraction that actually defaults is approximately $\hat{p}$. Calibration is distinct from discrimination: a model can rank borrowers correctly (high AUROC) while systematically over- or under-predicting default probabilities (poor calibration). For credit applications, calibration matters because expected loss calculations and regulatory capital requirements depend on the absolute value of the probability of default, not merely the ranking.
+A model is said to be \emph{well-calibrated} if, among all applications scored with predicted probability $\hat{p}$, the fraction that actually defaults is approximately $\hat{p}$. Calibration is distinct from discrimination: a model can rank borrowers correctly (high AUROC (defined in Section~\ref{subsec:credit-metrics} below)) while systematically over- or under-predicting default probabilities (poor calibration). For credit applications, calibration matters because expected loss calculations and regulatory capital requirements depend on the absolute value of the probability of default, not merely the ranking.
 
 \begin{definition}[Calibration]
 \label{def:calibration}
@@ -711,10 +711,14 @@ The Gini coefficient (also called the accuracy ratio in credit scoring) is defin
   \label{eq:gini}
 \end{equation}
 
+The \emph{Cumulative Accuracy Profile} (CAP) curve plots the fraction of all applicants (sorted by score, highest first) on the x-axis against the fraction of all defaulters captured on the y-axis.
+
 \begin{proof}
 The Gini coefficient in this context is defined as the ratio of the area between the Lorenz curve (CAP curve) and the diagonal to the area of the perfect model's CAP curve above the diagonal. The CAP (Cumulative Accuracy Profile) curve plots the fraction of the population captured (sorted by score, highest first) against the fraction of all defaulters captured.
 
-Let $F_-$ be the CDF of the non-default score distribution and $F_+$ the CDF of the default score distribution. For a threshold $t$, the fraction of the total population at or above $t$ is $1 - [\pi_+ F_+(t) + \pi_- F_-(t)]$ where $\pi_+ = P(Y=1)$ and $\pi_- = P(Y=0)$ are the class prevalences. The fraction of defaulters captured at this threshold is $1 - F_+(t)$.
+Let $\pi_+ = P(Y=1)$ and $\pi_- = P(Y=0)$ denote the class prevalences.
+
+Let $F_-$ be the CDF of the non-default score distribution and $F_+$ the CDF of the default score distribution. For a threshold $t$, the fraction of the total population at or above $t$ is $1 - [\pi_+ F_+(t) + \pi_- F_-(t)]$. The fraction of defaulters captured at this threshold is $1 - F_+(t)$.
 
 The Lorenz curve for the CAP traces $(1 - [\pi_+ F_+(t) + \pi_- F_-(t)], 1 - F_+(t))$ as $t$ decreases from 1 to 0. It can be shown by change of variables that the area under the CAP Lorenz curve equals $\pi_- \cdot \text{AUROC} + \tfrac{1}{2}\pi_+$. The area under the diagonal (random model) is $\tfrac{1}{2}$. The area under the perfect model's CAP (capturing all $\pi_+$ defaulters first) is $1 - \tfrac{1}{2}\pi_+$. Therefore:
 \begin{equation}

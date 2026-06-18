@@ -199,6 +199,8 @@ tokeniser is the function that maps a Unicode string to a sequence of integers
 $t_1, t_2, \ldots, t_T$ where each $t_i \in \{0, 1, \ldots, |\mathcal{V}|-1\}$,
 and its inverse maps the sequence back to a string.
 
+A \emph{corpus} is a finite collection of text documents used as training data.
+
 \begin{definition}[Byte-Pair Encoding]
 \label{def:bpe}
 Let $\Sigma$ be the set of bytes (values 0--255).  The Byte-Pair Encoding (BPE)
@@ -280,11 +282,13 @@ computes locality-sensitive hash fingerprints of each document's shingles (overl
 n-gram sequences) and groups near-duplicates for removal.  Exact deduplication
 handles byte-identical copies.
 
+A \emph{$k$-shingle} (or $k$-gram) of a document is a contiguous sequence of $k$ tokens; the shingle set $\mathcal{S}_k(d)$ is the set of all such sequences in document $d$.
+
 \begin{definition}[MinHash similarity]
 \label{def:minhash}
 Let $A$ and $B$ be two documents represented as sets of $k$-shingles.
 The Jaccard similarity is $J(A, B) = |A \cap B| / |A \cup B|$.
-For a random hash function $h$ drawn from a min-wise independent family,
+For a random hash function $h$ drawn from a min-wise independent family (a family of hash functions such that $\Pr[\min_h h(A) = h(x)] = 1/|A|$ for any set $A$ and element $x \in A$),
 \begin{equation}
   \Pr\!\left[\min_{x \in A} h(x) = \min_{x \in B} h(x)\right] = J(A, B).
   \label{eq:minhash}
@@ -935,7 +939,7 @@ three-stage pipeline:
   \item \emph{Reward model training}: Train a reward model $r_\phi(x, y)$
         to predict human preference scores.  Specifically, given pairs of
         model outputs $(y_1, y_2)$ for the same prompt $x$, humans label which
-        output is preferred.  The reward model is trained with the
+        output is preferred.  The Bradley-Terry model assigns probability $P(y_w \succ y_l) = \sigma(r(y_w) - r(y_l))$ to output $y_w$ being preferred over $y_l$, where $\sigma(z)=1/(1+e^{-z})$ is the sigmoid and $r(\cdot)$ is a scalar reward.  The reward model is trained with the
         Bradley-Terry objective:
         \begin{equation}
           \mathcal{L}_{\mathrm{RM}}(\phi) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}}
@@ -944,9 +948,9 @@ three-stage pipeline:
         \end{equation}
         where $y_w$ is the preferred (``winner'') output, $y_l$ is the less
         preferred (``loser'') output, and $\sigma$ is the sigmoid function.
-  \item \emph{PPO fine-tuning}: Optimise the SFT model using Proximal Policy
+  \item \emph{PPO fine-tuning}: We frame the language model as a \emph{policy} $\pi_\theta(y \mid x)$: a conditional distribution over output sequences $y$ given input $x$, parameterised by $\theta$. The environment is the reward model, and the goal is to find $\theta$ maximising expected reward while staying close to the supervised baseline $\pi_{\mathrm{SFT}}$.  Optimise the SFT model using Proximal Policy
         Optimisation (PPO) to maximise the expected reward, regularised by a
-        KL penalty toward the SFT model:
+        KL penalty toward the SFT model.  Here $\mathrm{KL}(\pi \| \pi') = \mathbb{E}_{y \sim \pi}[\log(\pi(y)/\pi'(y))]$ is the KL divergence.
         \begin{equation}
           \mathcal{J}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)}
             \!\left[r_\phi(x, y) - \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{SFT}}(y \mid x)}\right],
@@ -1295,6 +1299,8 @@ data contamination --- rather than as a deployment metric.
 For classification tasks (sentiment, NER, intent detection), standard metrics
 apply:
 
+For class $c$, let $\mathrm{TP}^{(c)}, \mathrm{FP}^{(c)}, \mathrm{FN}^{(c)}$ denote true positives, false positives, and false negatives respectively. Then $\mathrm{Precision}^{(c)} = \mathrm{TP}^{(c)}/(\mathrm{TP}^{(c)}+\mathrm{FP}^{(c)})$ and $\mathrm{Recall}^{(c)} = \mathrm{TP}^{(c)}/(\mathrm{TP}^{(c)}+\mathrm{FN}^{(c)})$.
+
 \begin{definition}[Macro-F1]
 \label{def:macro-f1}
 For a $C$-class classification problem, macro-F1 is the unweighted average of
@@ -1312,7 +1318,7 @@ alerts, covenant violations) are as important as common ones.
 \end{definition}
 
 For generation tasks (summarisation, question answering), ROUGE is the
-standard automatic metric.  ROUGE-N measures n-gram overlap between a generated
+standard automatic metric.  An \emph{$N$-gram} is a contiguous sequence of $N$ tokens; $\mathcal{G}_N(y)$ denotes the multiset of all such subsequences in sequence $y$.  ROUGE-N measures n-gram overlap between a generated
 summary $\hat{y}$ and a reference summary $y$:
 \begin{equation}
   \mathrm{ROUGE}\text{-}N = \frac{\displaystyle\sum_{g \in \mathcal{G}_N(y)} \mathrm{count}_{\mathrm{match}}(g,\, \hat{y},\, y)}

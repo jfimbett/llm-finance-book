@@ -170,7 +170,7 @@ merely view providers.
 Suppose an LLM processes Apple's quarterly earnings call and outputs a probability of
 $0.72$ that Apple will beat consensus EPS estimates next quarter. We translate this into
 an \emph{absolute view}: $\mathbf{P} = \mathbf{e}_{\text{AAPL}}^\top$ (a row vector
-selecting Apple), $q = 1\%$ (an expected monthly excess return), and $\Omega_{11} =
+selecting Apple, where $\mathbf{e}_i$ denotes the $i$-th standard basis vector in $\mathbb{R}^N$), $q = 1\%$ (an expected monthly excess return), and $\Omega_{11} =
 (0.5\%)^2$ (reflecting moderate confidence).
 
 Before this view, the equilibrium implied return for Apple might be $\Pi_{\text{AAPL}} =
@@ -349,6 +349,8 @@ LLMs enable the construction of \emph{text-based factors}---long-short portfolio
 formed on signals derived from unstructured text. The construction mirrors classical
 accounting factors. Define the LLM sentiment score for firm $i$ at time $t$ as $s_{i,t}
 \in \mathbb{R}$. A \emph{language factor} (LF) is constructed as follows:
+
+We normalise raw scores cross-sectionally by subtracting the period mean: $s_{i,t} \leftarrow s_{i,t} - \frac{1}{N}\sum_{i=1}^N s_{i,t}$.
 
 \begin{definition}[Language Factor]
 \label{def:language-factor}
@@ -730,18 +732,19 @@ scalar derived from LLM processing of news at time $t$ that captures the intensi
 risk-relevant language (references to uncertainty, litigation, credit deterioration,
 sovereign risk, etc.). A conditionally heteroskedastic return model augmented with the
 textual signal is:
+We model return variance via a GARCH(1,1) process \citep{bollerslev1986}, in which variance evolves as a weighted average of a long-run level, the previous squared shock, and the previous conditional variance.
 \begin{equation}
   r_t = \mu + \varepsilon_t, \quad \varepsilon_t = \sigma_t z_t, \quad z_t \sim F(0, 1),
   \label{eq:ch10-risk-model-1}
 \end{equation}
 \begin{equation}
-  \sigma_t^2 = \omega + \alpha_1 \varepsilon_{t-1}^2 + \beta_1 \sigma_{t-1}^2
+  \sigma_t^2 = \omega + \varphi_1 \varepsilon_{t-1}^2 + \beta_1 \sigma_{t-1}^2
                + \kappa v_{t-1},
   \label{eq:ch10-risk-model-2}
 \end{equation}
 where equations~\eqref{eq:ch10-risk-model-1}--\eqref{eq:ch10-risk-model-2} define a
 GARCH(1,1) model augmented by the textual signal through the coefficient $\kappa$
-(here $\alpha_1$ is the ARCH coefficient, not to be confused with the CVaR confidence
+(here $\varphi_1$ is the ARCH coefficient, not to be confused with the CVaR confidence
 level $\alpha$).
 Positive $\kappa$ means that elevated textual risk language forecasts higher return
 variance---and thus fatter tails---in the next period.
@@ -898,7 +901,7 @@ equally-spaced periods. The permanent impact coefficient is $\gamma = 2.5 \times
 per-period time step is $\tau = 0.2$ days, return volatility is $\sigma = 0.02$
 (per day), and risk aversion is $\lambda = 10^{-6}$.
 (\textit{a})~Compute the Almgren-Chriss optimal trading trajectory using the standard
-three-term cost function from Section~\ref{sec:ch10-execution}. (\textit{b})~Plot
+three-term cost function from Section~\ref{sec:ch10-rl-order-execution}. (\textit{b})~Plot
 remaining inventory $x_k$ against period $k$. (\textit{c})~An LLM monitoring news
 wires detects a negative sentiment spike at $k=2$, suggesting the permanent impact
 coefficient will double for the remaining periods. Recompute the optimal trajectory

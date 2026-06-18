@@ -129,10 +129,10 @@ These systems have a structural problem: the false-positive rate. A large intern
 
 \begin{definition}[False Positive Rate in AML Screening]
 \label{def:fp-rate-aml}
-Let $P$ be the set of genuine positive cases (true matches to sanctions or watchlists) and $N$ the set of true negatives (non-matches). Let $\hat{P}$ be the set flagged by the screening system. The false positive rate (FPR) and the precision (positive predictive value, PPV) are:
+Let $\mathcal{P}$ be the set of genuine positive cases (true matches to sanctions or watchlists) and $\mathcal{N}$ the set of true negatives (non-matches). Let $\hat{P}$ be the set flagged by the screening system. The false positive rate (FPR) and the precision (positive predictive value, PPV) are:
 \begin{equation}
 \label{eq:fpr-aml}
-\mathrm{FPR} = \frac{|\hat{P} \cap N|}{|N|}, \qquad \mathrm{PPV} = \frac{|\hat{P} \cap P|}{|\hat{P}|}.
+\mathrm{FPR} = \frac{|\hat{P} \cap \mathcal{N}|}{|\mathcal{N}|}, \qquad \mathrm{PPV} = \frac{|\hat{P} \cap \mathcal{P}|}{|\hat{P}|}.
 \end{equation}
 In practice, AML screening systems operate with $\mathrm{FPR}$ values between 95\% and 99\%, meaning fewer than one in twenty flagged alerts correspond to genuine matches~\cite{fincen2020aml}. This alert noise is not merely inefficient; it trains compliance staff to treat alerts as noise, creating the risk that genuine matches are cleared without adequate scrutiny.
 \end{definition}
@@ -173,15 +173,15 @@ A RAG-based adverse media pipeline has five components: an ingestion pipeline, a
 
 \textbf{Ingestion pipeline.} News articles, court filings, regulatory press releases, and other source documents are collected continuously from subscribed feeds. Each document is chunked into passages of 200--400 tokens with overlap, embedded using a sentence encoder, and stored in a vector database alongside structured metadata (source URL, publication date, source credibility tier, named entities). The metadata fields are critical: they enable post-retrieval filtering that reduces the ranking burden on the LLM.
 
-\textbf{Vector store.} The vector store holds both dense embeddings (for semantic search) and the original text (for BM25 sparse retrieval). Hybrid retrieval, combining dense and sparse signals via reciprocal rank fusion~\cite{cormack2009reciprocal}, consistently outperforms either modality alone in legal and news document retrieval tasks. The store must support incremental updates (new articles arrive daily) and selective deletion (GDPR Article 17 compliance).
+\textbf{Vector store.} The vector store holds both dense embeddings (for semantic search) and the original text (for BM25 sparse retrieval; BM25 is a term-frequency/inverse-document-frequency-based scoring function defined in Chapter~\ref{ch:llm-foundations}). Hybrid retrieval, combining dense and sparse signals via reciprocal rank fusion~\cite{cormack2009reciprocal}, consistently outperforms either modality alone in legal and news document retrieval tasks. The store must support incremental updates (new articles arrive daily) and selective deletion (GDPR Article 17 compliance).
 
 \textbf{Retriever.} Given a subject query, the retriever performs hybrid search and returns the top-$k$ candidate passages. The retrieval query should be expanded: rather than searching for the exact input name, the system should generate multiple query variants covering name transliterations, associated companies, and known aliases.
 
 \begin{equation}
 \label{eq:rrf-fusion}
-\mathrm{RRF}(d) = \sum_{r \in R} \frac{1}{k + \mathrm{rank}_r(d)},
+\mathrm{RRF}(d) = \sum_{r \in R} \frac{1}{\kappa + \mathrm{rank}_r(d)},
 \end{equation}
-where $R$ is the set of ranking functions (dense, sparse), $k$ is a smoothing constant (typically 60), and $\mathrm{rank}_r(d)$ is the rank of document $d$ under ranking function $r$. Documents not retrieved by a particular ranker are assigned rank $\infty$.
+where $R$ is the set of ranking functions (dense, sparse), $\kappa$ is a smoothing constant (typically 60), and $\mathrm{rank}_r(d)$ is the rank of document $d$ under ranking function $r$. Documents not retrieved by a particular ranker are assigned rank $\infty$.
 
 \textbf{Reader/ranker.} The LLM reader receives the top-$k$ passages and the subject query, and performs two tasks: cross-passage entity disambiguation (is this passage about the same individual?) and relevance classification (does this passage contain material AML risk evidence?). Cross-encoder reranking~\cite{reimers2019} scores each passage against the query with full attention across the passage-query pair, providing higher-quality relevance estimates than the bi-encoder retriever at the cost of higher latency.
 
@@ -203,7 +203,7 @@ Let $D = \{d_1, \ldots, d_n\}$ be the set of documents retrieved for subject $s$
   \item $r_i \in [0,1]$ be the relevance score (is this document about the subject?),
   \item $c_i \in [0,1]$ be the credibility weight of the source,
   \item $\mathbf{e}_i \in \{0,1\}^K$ be a $K$-dimensional binary vector indicating which of $K$ offence categories are evidenced (e.g.\ corruption, sanctions violation, fraud, terrorism financing),
-  \item $t_i$ be the recency weight, typically $t_i = e^{-\lambda(T - T_i)}$ where $T$ is the current date and $T_i$ is the publication date.
+  \item $t_i$ be the recency weight, typically $t_i = e^{-\lambda(T - T_i)}$ where $T$ is the current date, $T_i$ is the publication date, and $\lambda > 0$ is a decay rate hyperparameter (e.g., $\lambda = 0.01$ per day).
 \end{itemize}
 The Adverse Media Index for subject $s$ is:
 \begin{equation}
@@ -248,7 +248,7 @@ Second, LLMs can use auxiliary context to resolve ambiguity. Given two records -
 
 \begin{definition}[Entity Resolution as Pair Classification]
 \label{def:entity-resolution}
-Given two entity records $x_1$ and $x_2$, entity resolution is the binary classification problem of determining whether they refer to the same real-world entity. A well-calibrated classifier produces $P(\hat{y} = 1 \mid x_1, x_2)$, which can be thresholded for binary decisions or used as a soft similarity score. For sanctions screening, the threshold should be set to ensure near-100\% recall (missing a true sanctions hit carries regulatory and reputational consequences far exceeding the cost of a false positive review).
+Given two entity records $x_1$ and $x_2$, entity resolution is the binary classification problem of determining whether they refer to the same real-world entity. A well-calibrated classifier (a classifier is well-calibrated if its predicted probability reflects the empirical frequency of true matches among cases assigned that score) produces $P(\hat{y} = 1 \mid x_1, x_2)$, which can be thresholded for binary decisions or used as a soft similarity score. For sanctions screening, the threshold should be set to ensure near-100\% recall (missing a true sanctions hit carries regulatory and reputational consequences far exceeding the cost of a false positive review).
 \end{definition}
 
 In practice, entity resolution for large screening workloads requires a two-stage pipeline. A fast blocking stage uses approximate nearest-neighbour search over name embeddings to reduce the comparison space from $O(n^2)$ to $O(nk)$ candidates. A precise scoring stage applies a cross-encoder or LLM-based classifier to the candidate pairs. This pattern mirrors the retriever-ranker architecture in RAG systems~\cite{gao2024retrieval}.
@@ -301,9 +301,9 @@ The challenge is the size of the taxonomy space. The US GAAP taxonomy contains o
 
 \begin{equation}
 \label{eq:xbrl-retrieval-score}
-\hat{c}^* = \arg\max_{c \in \mathcal{C}} \left[ \lambda \cdot \cos(\mathbf{e}_{\text{item}}, \mathbf{e}_c) + (1-\lambda) \cdot P_{\text{LLM}}(c \mid \text{item}, \text{context}) \right],
+\hat{c}^* = \arg\max_{c \in \mathcal{C}} \left[ \lambda \cdot \cos(\mathbf{v}_{\text{item}}, \mathbf{v}_c) + (1-\lambda) \cdot P_{\text{LLM}}(c \mid \text{item}, \text{context}) \right],
 \end{equation}
-where $\mathcal{C}$ is the XBRL concept space, $\mathbf{e}_{\text{item}}$ and $\mathbf{e}_c$ are embedding vectors, $\cos(\cdot, \cdot)$ denotes cosine similarity, and $P_{\text{LLM}}(c \mid \text{item}, \text{context})$ is the LLM's posterior probability for concept $c$ given the financial statement context. The interpolation parameter $\lambda$ can be cross-validated on labelled historical filings.
+where $\mathcal{C}$ is the XBRL concept space, $\mathbf{v}_{\text{item}}$ and $\mathbf{v}_c$ are embedding vectors, $\cos(\cdot, \cdot)$ denotes cosine similarity, and $P_{\text{LLM}}(c \mid \text{item}, \text{context})$ is the LLM's posterior probability for concept $c$ given the financial statement context. The interpolation parameter $\lambda$ can be cross-validated on labelled historical filings.
 
 \subsection{Suspicious activity report (SAR) drafting}
 \label{sec:ch11-sar-drafting}

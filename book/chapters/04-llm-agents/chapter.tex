@@ -206,6 +206,8 @@ each trajectory, the agent generates a verbal critique of its own performance an
 this critique as a persistent memory entry, allowing it to improve on subsequent
 episodes without gradient-based learning.
 
+Let $\mathcal{Y}$ denote the space of task outcomes and $\mathcal{L}$ the space of natural-language critiques or lessons.
+
 \begin{definition}[Reflexion Loop]
 \label{def:reflexion-loop}
 A \emph{Reflexion loop} augments the PRA loop with a \emph{reflection function}
@@ -271,7 +273,7 @@ We distinguish three types of agent memory:
         context window. Fast to access (zero retrieval latency), strictly bounded by
         context length, and discarded at session end.
   \item \emph{Retrieval-augmented memory}: information stored externally (e.g., in a
-        vector database) and retrieved by approximate nearest-neighbour search at query
+        vector database (an external store supporting approximate nearest-neighbour search; see Section~\ref{subsec:vector-db})) and retrieved by approximate nearest-neighbour search at query
         time. Effectively unbounded in size, but subject to retrieval latency and
         retrieval error.
   \item \emph{Long-term persistent memory}: structured or unstructured information
@@ -294,7 +296,7 @@ trade-off} inherent in approximate retrieval. Suppose the agent's memory store c
 $N$ documents $\{d_1, \ldots, d_N\}$, each embedded as a vector $\mathbf{v}_i \in
 \mathbb{R}^D$. A query $q$ is embedded as $\mathbf{q} \in \mathbb{R}^D$, and the
 retrieval function returns the $k$ documents with highest cosine similarity to
-$\mathbf{q}$.
+$\mathbf{q}$. The cosine similarity between vectors $\mathbf{u},\mathbf{v}$ is $\cos(\mathbf{u},\mathbf{v}) = \mathbf{u}^\top\mathbf{v}/(\|\mathbf{u}\|\|\mathbf{v}\|)$.
 The returned set may be irrelevant if the query semantics are not well captured by the
 embedding space, or relevant documents may be missed if their surface form differs
 significantly from the query. This retrieval error propagates into the agent's
@@ -351,7 +353,7 @@ execution environment invokes the function and returns the result to the model.
 \label{def:tool}
 A \emph{tool} is a triple $\mathcal{T} = (\textit{name}, \textit{schema}, f)$ where:
 \begin{itemize}
-  \item $\textit{name} \in \Sigma^*$ is a unique identifier;
+  \item $\textit{name} \in \Sigma^*$ (the set of all finite strings over an implicit alphabet) is a unique identifier;
   \item $\textit{schema}$ is a JSON Schema specification of the input domain
         $\mathcal{D}$ and output co-domain $\mathcal{R}$;
   \item $f: \mathcal{D} \to \mathcal{R} \cup \{\textsc{Error}\}$ is the underlying
@@ -759,6 +761,7 @@ domain-specific applications including finance \cite{gao2024retrieval}.
 
 \begin{definition}[Retrieval-Augmented Generation]
 \label{def:rag}
+Let $\mathcal{Q}$ be a space of natural-language queries.
 Let $\mathcal{D} = \{d_1, \ldots, d_N\}$ be a corpus of documents, $q$ a query, and
 $R: \mathcal{Q} \times \mathcal{D} \to 2^{\mathcal{D}}$ a retrieval function that
 returns a subset of relevant documents. A \emph{retrieval-augmented generator} produces
@@ -891,7 +894,7 @@ We distinguish three chunking families relevant to financial documents:
 
 \begin{enumerate}
   \item \emph{Fixed-size chunking} divides documents into chunks of $L$ tokens with an
-        overlap of $\delta$ tokens. The overlap prevents information loss at chunk
+        overlap of $\delta_o$ tokens. The overlap prevents information loss at chunk
         boundaries. This approach is simple and parallelisable but ignores document
         structure.
 
@@ -913,7 +916,7 @@ A \emph{chunking strategy} is a function $\chi: \mathcal{D} \to 2^{\mathcal{P}}$
 that maps a document $d \in \mathcal{D}$ to a set of passages $\mathcal{P}(d)$ such
 that (i) $\bigcup_{p \in \mathcal{P}(d)} \text{tokens}(p) = \text{tokens}(d)$ (coverage),
 (ii) each $p$ fits within a maximum token budget $L_{\max}$, and (iii) adjacent passages
-may share up to $\delta$ tokens of overlap.
+may share up to $\delta_o$ tokens of overlap.
 \end{definition}
 
 For SEC 10-K filings specifically, the recommended chunking strategy combines semantic
@@ -1416,7 +1419,8 @@ $\mathcal{A} = (r_1, r_2, \ldots, r_T)$ where each record $r_t = (t_t, \text{typ
 \text{payload}_t, \text{hash}_t)$ contains: a timestamp $t_t$; a record type (tool
 call, LLM generation, human approval, error); a payload containing the full input
 and output of the recorded action; and a cryptographic hash $\text{hash}_t =
-H(\text{payload}_t \| \text{hash}_{t-1})$ that makes the trail tamper-evident.
+H(\text{payload}_t \| \text{hash}_{t-1})$ that makes the trail tamper-evident,
+where $H:\{0,1\}^* \to \{0,1\}^n$ is a collision-resistant cryptographic hash function (e.g., SHA-256) and $\|$ denotes concatenation.
 \end{definition}
 
 The chained hash structure in Definition~\ref{def:audit-trail} provides tamper

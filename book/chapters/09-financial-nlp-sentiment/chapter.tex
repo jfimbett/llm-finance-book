@@ -142,7 +142,7 @@ The choice of dictionary is consequential. The Harvard General Inquirer (GI), a 
 
 \begin{definition}[Loughran--McDonald Finance Dictionary]
 \label{def:lm-dictionary}
-The Loughran--McDonald (LM) dictionary \cite{loughran2011liability} is a set of word lists constructed from the vocabulary of SEC 10-K filings. The primary lists classify words as: \textit{negative} (2,355 words), \textit{positive} (354 words), \textit{uncertainty} (297 words), \textit{litigious} (903 words), \textit{strong modal} (19 words), and \textit{weak modal} (27 words). The dictionaries are based on manual review of the most common non-trivial words in a large 10-K corpus.
+The Loughran--McDonald (LM) dictionary \cite{loughran2011liability} is a set of word lists constructed from the vocabulary (the set of distinct tokens present in a corpus) of SEC 10-K filings. The primary lists classify words as: \textit{negative} (2,355 words), \textit{positive} (354 words), \textit{uncertainty} (297 words), \textit{litigious} (903 words), \textit{strong modal} (19 words), and \textit{weak modal} (27 words). The dictionaries are based on manual review of the most common non-trivial words in a large 10-K corpus.
 \end{definition}
 
 The LM dictionary's negative list avoids the false positives of GI by excluding words that are semantically negative in everyday English but neutral in financial contracts (``liability'', ``expense'', ``tax''). The uncertainty list captures hedging language (``approximately'', ``could'', ``uncertain'') that financial economists interpret as a signal of managerial ambiguity rather than negative sentiment per se. \citet{li2010information} showed that forward-looking statements with more uncertain language are associated with lower earnings persistence, consistent with uncertainty language capturing genuine economic ambiguity.
@@ -187,7 +187,7 @@ The FinBERT fine-tuning objective is standard: for a three-class problem (positi
   P(y = c \mid d) = \text{softmax}(\mathbf{W}_c \mathbf{h} + \mathbf{b}_c), \quad c \in \{\text{pos}, \text{neu}, \text{neg}\}
 \end{equation}
 
-where $\mathbf{W}_c \in \mathbb{R}^{3 \times d}$ and $\mathbf{b}_c \in \mathbb{R}^3$ are learned classification parameters. The predicted label is $\hat{y} = \arg\max_c P(y = c \mid d)$.
+where $\mathbf{h} \in \mathbb{R}^d$ is the representation of the special [CLS] token produced by the final transformer layer (see Chapter~\ref{ch:llm-foundations} for the BERT architecture), $\mathbf{W}_c \in \mathbb{R}^{3 \times d}$ and $\mathbf{b}_c \in \mathbb{R}^3$ are learned classification parameters. The predicted label is $\hat{y} = \arg\max_c P(y = c \mid d)$.
 
 The key advantage over lexicons is context-sensitivity: the embedding $\mathbf{h}$ is computed from the full sequence, so negation (``not confident''), rhetorical hedging (``while challenges persist, we remain confident''), and entity-specific qualifications (``Apple's earnings were strong but guidance disappointed'') are handled implicitly.
 
@@ -297,7 +297,7 @@ Suppose a practitioner wishes to build a classifier that labels each sentence of
 \begin{enumerate}
   \item \textbf{Data preparation.} Download 10,000 earnings call transcripts from a vendor API. Segment each transcript into sentences using a sentence splitter trained on financial text (vanilla spaCy works reasonably well; punkt tokenizer requires customization for financial abbreviations such as ``Q3'' or ``FY2024'').
 
-  \item \textbf{Labelling.} Draw a stratified random sample of 3,000 sentences. Have three annotators with finance training label each sentence. Retain the 75\%-agreement subset (approximately 2,200 sentences). Measure inter-annotator agreement using Krippendorff's alpha (defined in Section~\ref{sec:ch09-evaluation}).
+  \item \textbf{Labelling.} Draw a stratified random sample of 3,000 sentences. Have three annotators with finance training label each sentence. Retain the 75\%-agreement subset (approximately 2,200 sentences). Measure inter-annotator agreement using Krippendorff's alpha ($\alpha_K = 1 - D_o/D_e$, where $D_o$ is observed and $D_e$ expected disagreement; see Section~\ref{sec:ch09-evaluation} for the full definition).
 
   \item \textbf{Model initialisation.} Load \texttt{yiyanghkust/finbert-tone} (Huang et al.'s FinBERT checkpoint) from the Hugging Face Hub. Attach a fresh three-way classification head.
 
@@ -408,7 +408,7 @@ The event study framework \cite{fama1970efficient} tests whether a class of even
 
 \begin{definition}[Cumulative Abnormal Return (CAR)]
 \label{def:car}
-Let $R_{i,\tau}$ denote the return of firm $i$ on day $\tau$ relative to event date $\tau=0$, and $\hat{R}_{i,\tau}$ the expected return from a benchmark model (e.g., CAPM). The abnormal return is $AR_{i,\tau} = R_{i,\tau} - \hat{R}_{i,\tau}$. The cumulative abnormal return over a window $[a,b]$ is:
+Let $R_{i,\tau}$ denote the return of firm $i$ on day $\tau$ relative to event date $\tau=0$, and $\hat{R}_{i,\tau}$ the expected return from a benchmark model (e.g., the Capital Asset Pricing Model: $\mathbb{E}[R_i] = r_f + \beta_i(\mathbb{E}[R_m]-r_f)$). The abnormal return is $AR_{i,\tau} = R_{i,\tau} - \hat{R}_{i,\tau}$. The cumulative abnormal return over a window $[a,b]$ is:
 \begin{equation}
   \label{eq:car}
   \mathrm{CAR}_{i}[a,b] = \sum_{\tau=a}^{b} AR_{i,\tau}
@@ -423,7 +423,7 @@ For earnings call text, a standard event study conditions on the standardised un
   \mathrm{CAR}_{i}[1,60] = \alpha + \beta_1 \cdot \mathrm{SUE}_{i,0} + \beta_2 \cdot \tilde{S}_{i,0} + \varepsilon_{i,0}
 \end{equation}
 
-should yield a statistically significant $\hat{\beta}_2 > 0$.
+where $\mathrm{SUE}_{i,0} = (\mathrm{EPS}_{i,0} - \widehat{\mathrm{EPS}}_{i,0})/\hat{\sigma}_i$ is the analyst-forecast earnings surprise scaled by its historical standard deviation, should yield a statistically significant $\hat{\beta}_2 > 0$.
 
 \subsubsection*{High-Frequency FOMC Studies}
 

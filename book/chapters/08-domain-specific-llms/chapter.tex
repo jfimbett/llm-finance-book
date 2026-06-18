@@ -174,8 +174,8 @@ is any $m \in \mathcal{M}$ for which at least one of the following holds:
 \begin{enumerate}
   \item The pre-training corpus includes a significant fraction of financial text
         (news, filings, analyst reports, or financial reference data).
-  \item The model has been fine-tuned or instruction-tuned on financial NLP tasks
-        (sentiment, NER, summarisation, numerical QA).
+  \item The model has been fine-tuned or instruction-tuned (supervised fine-tuning on formatted prompt--response pairs) on financial NLP tasks
+        (sentiment, named entity recognition (NER), summarisation, numerical QA).
   \item The model's tokeniser has been trained on or extended for financial vocabulary.
 \end{enumerate}
 Financial LLMs are further classified by architecture as \emph{encoder-only}
@@ -407,6 +407,7 @@ demonstrate through a Japanese financial LLM that continual pre-training on a
 domain-specific corpus consistently improves performance on financial benchmarks,
 confirming that the gains documented for English in \citet{gururangan2020dont}
 generalise across languages and financial sub-domains.
+We use MLM (masked language modelling) for encoder models and CLM (causal language modelling) for decoder models as introduced in Chapters~\ref{ch:intro} and~\ref{ch:llm-foundations}.
 
 \begin{definition}[Domain-Adaptive Pre-training]
 \label{def:ch08-dapt}
@@ -419,7 +420,7 @@ let $\mathcal{D}_\mathrm{domain}$ denote an unlabelled corpus from the target do
 \end{equation}
 where $\mathcal{L}_\mathrm{PT}$ is the pre-training loss (MLM or CLM) and the
 optimisation is initialised at $\theta_0$ with a reduced learning rate to
-mitigate catastrophic forgetting of the original model's representations.
+mitigate catastrophic forgetting (the degradation of the model's general capabilities when trained exclusively on narrow-domain data) of the original model's representations.
 The resulting model $M^\star(\theta^\star)$ is then fine-tuned on labelled task
 data for downstream evaluation.
 \end{definition}
@@ -603,13 +604,13 @@ where existing public benchmarks may not align with the target task distribution
 \label{def:ch08-execution-accuracy}
 For a numerical reasoning benchmark such as FinQA, \emph{execution accuracy}
 is defined as the fraction of questions for which the model's predicted numerical
-answer matches the gold answer within a tolerance $\epsilon$:
+answer matches the correct (ground-truth) answer $a_q$ within a tolerance $\epsilon$:
 \begin{equation}
   \mathrm{EA} = \frac{1}{|\mathcal{Q}|} \sum_{q \in \mathcal{Q}}
   \mathbf{1}\!\left[\,\left|\hat{a}_q - a_q\right| \leq \epsilon\right],
   \label{eq:ch08-execution-accuracy}
 \end{equation}
-where $\hat{a}_q$ is the model's predicted answer and $a_q$ is the gold answer
+where $\hat{a}_q$ is the model's predicted answer and $a_q$ is the correct (ground-truth) answer
 for question $q$.  The tolerance $\epsilon$ is typically set to zero for
 exact-match evaluation or to a small relative threshold (e.g., $1\%$) to allow
 for rounding differences.

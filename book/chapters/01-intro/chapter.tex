@@ -572,8 +572,9 @@ throughout this book.
 \begin{definition}[Textual Signal]
 \label{def:textual-signal}
 Let $\mathcal{D}$ denote the space of documents (finite sequences of tokens drawn from
-a vocabulary $\mathcal{V}$).  Let $(\Omega, \mathcal{F}, \mathbb{P})$ be a probability
-space on which all random variables are defined.  A \emph{textual signal} is a
+a vocabulary $\mathcal{V}$; both terms are formally defined in
+Definition~\ref{def:corpus-vocab}).  Let $(\Omega, \mathcal{F}, \mathbb{P})$ be a
+probability space on which all random variables are defined.  A \emph{textual signal} is a
 measurable function
 \[
   f \colon \mathcal{D} \to \mathbb{R}^k,
@@ -610,7 +611,8 @@ under a linear factor model:
 the coefficient $\beta$ captures the marginal predictive content of the signal.  The
 signal is \emph{economically significant} if $|\beta| > 0$ \emph{after} controlling for
 known return predictors (size, value, momentum, and so forth), and if the associated
-Sharpe ratio exceeds plausible transaction costs.
+Sharpe ratio (mean excess return divided by its standard deviation, annualised by
+$\sqrt{252}$) exceeds plausible transaction costs.
 
 \begin{remark}[Identification challenges]
 \label{rem:identification}
@@ -1552,6 +1554,8 @@ Training by backpropagation requires computing the Jacobian product
 
 \begin{theorem}[Vanishing Gradient Bound]
 \label{thm:vanishing-gradient}
+Let $\|\mathbf{A}\|_2 = \max_{\|\mathbf{x}\|=1}\|\mathbf{A}\mathbf{x}\|_2$ denote the
+spectral (operator) norm of a matrix.
 Let $\alpha = \max_t \|\operatorname{diag}(1-\mathbf{h}_t^2)\|_2 < 1$
 be the maximum $\tanh$-derivative magnitude.  Then
 \begin{equation}
@@ -1697,6 +1701,8 @@ $\mathbf{V} \in \mathbb{R}^{n \times d_v}$ via learned linear maps.
 \end{equation}
 The $(i,j)$ entry of the softmax argument, $q_i^{\top} k_j / \sqrt{d_k}$,
 is the \emph{attention score} of position $i$ towards position $j$.
+Here $\operatorname{softmax}(\mathbf{M})_{ij} = \exp(M_{ij})/\sum_{l}\exp(M_{il})$
+applies the normalised exponential row-wise.
 \end{definition}
 
 \subsection{Why Divide by \texorpdfstring{$\sqrt{d_k}$}{sqrt(d\_k)}: A Variance Derivation}
@@ -1741,6 +1747,8 @@ moving away from RNNs in the first place.
 A single attention head captures one type of pairwise relationship.
 \emph{Multi-head attention} runs $h$ independent attention operations
 in lower-dimensional subspaces and concatenates their outputs.
+Let $d_{\mathrm{model}}$ denote the model's hidden dimension (the input and output
+width of each Transformer layer).
 
 \begin{definition}[Multi-Head Attention]
 \label{def:multihead}

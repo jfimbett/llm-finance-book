@@ -166,3 +166,4 @@
 | 2026-06-12 | 24 files | docs: hallucination audit report — 16 chapters, 64 findings;chore: session log 2026-06-12;chore: session log 2026-06-11; | — |
 | 2026-06-12 | 5 files | docs: post-fix hallucination audit — all 16 chapters clean;fix(ch12): remove two remaining fabricated CFA Institute study attributions;fix(ch13): remove '84 studies' count from Further Reading section; | — |
 | 2026-06-12 | 10 files | feat(ch16): add Data Lab section -- EDGAR exercises [B/I/A];feat(ch15): add Data Lab section -- EDGAR exercises [B/I/A];feat(ch14): add Data Lab section -- EDGAR exercises [B/I/A]; | — |
+| 2026-06-18 | 76 files | feat(ch01): add AI/jobs/tasks section, EDGAR text growth, and two new appendices;feat: add agents, skills, hooks, quality reports, cover images, lecture PDFs, and plans;chore: session log 2026-06-12; | — |

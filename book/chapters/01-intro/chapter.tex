@@ -4,6 +4,10 @@
 \begin{remark}[Learning Objectives]
 After completing this chapter, the reader should be able to:
 \begin{enumerate}
+  \item Explain the task-based view of artificial intelligence's labour-market
+        impact, distinguish tasks of high and low AI exposure within a finance
+        career, and articulate why reallocation to low-exposure tasks preserves
+        and amplifies professional value.
   \item Describe the evolution of textual analysis in finance from dictionary methods
         to large language models and situate key milestones in that history.
   \item Construct and interpret classical text representations (bag-of-words, one-hot
@@ -22,6 +26,139 @@ After completing this chapter, the reader should be able to:
         relevant regulatory landscape.
 \end{enumerate}
 \end{remark}
+
+% ---------------------------------------------------------------
+\section{Artificial Intelligence, Jobs, and Tasks}
+\label{sec:ai-jobs-tasks}
+
+\begin{context}
+Consider a finance professor at a research university.  Her professional
+duties span a wide range of activities: preparing lecture notes and slides,
+grading exams and student work, supervising doctoral students, conducting
+original research, analysing data, building quantitative models, hiring and
+managing research assistants, attending conferences, discussing working papers
+with colleagues, navigating reimbursement systems, managing travel logistics,
+directing a master's programme, refereeing manuscripts for journals, and
+applying for research grants.  Each of these activities calls on a different
+mix of domain knowledge, creativity, social judgment, and routine processing.
+They are, in the language of labour economics, \emph{tasks}---discrete units
+of work---and a professorship is nothing more than a bundle of them.
+
+This observation is the starting point for understanding the economic impact
+of large language models on professional labour.  The question is not whether
+AI will ``replace'' the finance professor, but rather: for which tasks within
+her bundle does AI offer a substitution technology, and for which tasks does
+it instead amplify human performance?  These two effects have opposite
+implications for labour demand and professional value creation.
+
+\subsection{The Task-Based Framework}
+\label{sec:tasks-framework}
+
+The insight that automation's impact depends on the distribution of tasks
+within occupations---not on the occupation label itself---dates to the
+foundational work of \citet{autor2003skill}.
+% [CITE: Autor, D., Levy, F. & Murnane, R.J. (2003). The Skill Content of Recent Technological Change. QJE, 118(4), 1279–1333.]
+\citeauthor{acemoglu2019automation} formalised this into a general-equilibrium
+framework in which automation displaces labour from tasks that capital can perform
+more cheaply while simultaneously creating demand for new, complementary tasks that
+require human input \cite{acemoglu2019automation}.
+% [CITE: Acemoglu, D. & Restrepo, P. (2019). Automation and New Tasks. JEP, 33(2), 3–30.]
+
+Recent empirical work applies this framework specifically to artificial
+intelligence.  \citet{hampole2025ai} construct occupation-level AI exposure
+scores by matching AI and machine-learning patent text to the task descriptions
+of occupations from the O*NET database, and then link these scores to
+firm-level payroll and employment records over 2010--2023.  Their principal
+findings are:
+
+\begin{enumerate}
+  \item A one standard-deviation increase in task-level AI exposure reduces
+        relative labour demand by approximately 2\%---a modest aggregate effect
+        that is nevertheless concentrated among workers whose entire job consists
+        of highly exposed tasks.
+  \item When AI exposure is near-complete---when virtually all tasks within an
+        occupation are susceptible to substitution, leaving no room for
+        reallocation---employment declines by approximately 14\%.
+  \item Workers who can \emph{reallocate} effort toward tasks where they retain
+        a comparative advantage---judgment, relationship management, creative
+        problem-setting, domain-specific synthesis---are insulated from and may
+        even benefit from AI-driven productivity improvements in the rest of their
+        bundle.
+\end{enumerate}
+
+The mechanism is intuitive: when AI substitutes for task $A$ (say, routine
+data collection), a worker who also performs tasks $B$ and $C$ (say, client
+relationship management and research synthesis) can redirect the time freed up
+from $A$ toward $B$ and $C$.  The aggregate employment effect depends on whether
+the productivity gain in $B$ and $C$ generates new demand for the worker's
+services---a question that turns on the elasticity of demand for the outputs
+of those tasks.
+
+\citet{felten2021occupational} offer a complementary measure: their AI
+Occupational Exposure (AIOE) index links ten AI application types to 52 human
+abilities via O*NET, finding that high-skill, high-wage white-collar
+occupations---including finance professionals, analysts, and managers---exhibit
+the greatest AI exposure.
+% [CITE: Felten, E., Raj, M. & Seamans, R. (2021). SMJ, 42(12), 2195–2217.]
+This does not imply that these workers are most at risk; rather, it implies that
+AI offers the greatest productivity amplification precisely for the occupations
+where human cognition was already doing the most work.
+
+\subsection{Implications for Finance Professionals}
+\label{sec:tasks-finance}
+
+Applied to the finance profession, the task-based lens yields a nuanced but
+actionable picture.  Tasks such as managing expense submissions, scheduling
+meetings, retrieving and cleaning data from public sources, formatting references
+in a bibliography, and producing boilerplate disclosures are characterised by
+high AI exposure: they are rule-bound, data-rich, and require no professional
+judgment.  Large language models and AI agents already perform these tasks
+competently, and the time savings are real.
+
+By contrast, tasks such as formulating a novel research hypothesis, providing
+mentorship feedback tailored to a specific doctoral student, chairing a
+conference session and synthesising divergent empirical presentations,
+exercising editorial judgment on a subtle identification strategy, or
+negotiating with a portfolio company's management team---these require
+contextual understanding, domain expertise, and relational sensitivity that
+LLMs lack reliably.  They are the tasks that define a professional's
+comparative advantage.
+
+The implication is not passivity.  Finance professionals who invest in learning
+to use AI tools for high-exposure tasks gain a compound advantage: they recover
+time from low-value activities and can direct it toward high-value tasks where
+human comparative advantage is greatest.  A finance professor who uses AI to
+manage her travel reimbursements, draft referee reports from her marginal notes,
+and produce first-pass data visualisations, can work on three papers
+simultaneously rather than one---not because she works more hours, but because
+AI compresses the high-exposure tasks that previously consumed a large fraction
+of her week.
+
+The same logic applies throughout finance.  An equity analyst who uses AI to
+screen earnings call transcripts and extract structured financial data can
+cover twice as many companies with equal or greater depth.  A compliance officer
+whose AI agent monitors regulatory updates and flags potential violations can
+focus human attention on the ambiguous cases requiring genuine legal judgment.
+A quantitative researcher who uses AI to translate a mathematical strategy into
+a first-draft implementation can iterate on model design rather than on syntax.
+In each case, AI is not the analyst, officer, or researcher---it is the
+infrastructure that makes scarce professional time go further.
+
+\begin{remark}[This Book as a Case Study]
+\label{rem:this-book-ai}
+This book was written partly \emph{using} the tools it describes.  Large
+portions of the exposition, code, exercises, and bibliographic research were
+drafted or verified by AI assistants operating under human authorial supervision.
+The experience of writing with AI illustrates the task-based argument directly:
+drafting structured prose from an outline, searching the literature for a
+specific citation, and generating syntactically correct \LaTeX{} for a matrix
+equation are tasks the AI performs well.  Deciding whether a proof is
+genuinely illuminating, choosing which financial example will resonate with
+a mixed audience, and judging when the exposition is complete rather than
+merely extensive---these remain firmly human.
+\end{remark}
+
+\end{context}
 
 % ---------------------------------------------------------------
 \section{A Brief History of Textual Analysis in Finance}
@@ -247,6 +384,54 @@ shorter.  The count of hedge words---\emph{approximately}, \emph{roughly},
 \emph{we believe}---ticking upward.  None of this information lives in the
 earnings per share figure.  All of it lives in the transcript.  This section
 asks why that matters, and how we know it does.
+
+% ---------------------------------------------------------------
+\subsection{The Quantitative Growth of Financial Text}
+\label{sec:motivation-growth}
+
+Before examining what text contains, it is worth establishing how much of it
+exists and how the quantity is changing.  The SEC's Electronic Data Gathering,
+Analysis, and Retrieval (EDGAR) database provides a natural laboratory:
+virtually every public company in the United States has filed annual reports
+(10-Ks) electronically since 1993, giving researchers a three-decade panel of
+machine-readable corporate disclosures.
+
+A striking empirical regularity emerges from this corpus: the textual content
+of annual filings has grown substantially over time, both in absolute length
+and as a share of total filing content.  The mean word count of a 10-K filing
+roughly tripled between 1993 and 2023 \citep{loughran2020textual},
+driven by expansions in the risk factors section (introduced as a mandatory
+disclosure by SEC Release 33-8591 in 2005), the Management's Discussion and
+Analysis narrative, and increasingly detailed litigation and regulatory
+commentary.  Computing the fraction of non-numeric characters---a proxy for
+narrative versus tabular content---reveals that the textual proportion of a
+typical annual filing has risen steadily, even as the underlying financial
+statements have remained roughly constant in size.
+
+\begin{figure}[htbp]
+  \centering
+  \textit{[Figure generated by \texttt{code/notebooks/01-intro/edgar\_text\_growth.ipynb}:
+  mean non-numeric character count per 10-K filing by year, 1993--2023.]}
+  \caption{Growth of narrative text in SEC 10-K annual filings, 1993--2023.
+           Each point represents the mean count of non-numeric characters
+           (letters, spaces, and punctuation) per filing in that calendar year.
+           The steady upward trend reflects both longer filings and a rising
+           share of narrative versus tabular disclosure.
+           Source: SEC EDGAR full-text index; author calculations.}
+  \label{fig:edgar-text-growth}
+\end{figure}
+
+This growth matters for three reasons.  First, it implies that the information
+set available from textual sources is expanding: there is simply more text to
+analyse, and that text is increasingly being written to convey strategic
+intent rather than to satisfy a rigid template.  Second, the expansion places
+growing demands on human readers---an analyst who could read every 10-K filed
+in the early 1990s cannot do so today---which is precisely where NLP tools
+add value by compressing large volumes of text into actionable signals.
+Third, the upward trend in textual content shows no sign of abating; as
+AI-generated text becomes cheaper to produce, the volume of financial
+disclosure is likely to continue rising, reinforcing the case for AI-based
+tools to read it.
 
 % ---------------------------------------------------------------
 \subsection{The Information Content of Earnings Calls, News, and Filings}

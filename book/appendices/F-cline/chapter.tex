@@ -1,0 +1,520 @@
+\chapter{Cline: A Practitioner's Reference}
+\label{app:cline}
+
+\begin{remark}[Learning Objectives]
+After working through this appendix, the reader should be able to:
+\begin{enumerate}
+  \item Install Cline as a VS Code extension, configure an LLM provider API key,
+        and start a first task session.
+  \item Explain Cline's Plan/Act execution model and use Plan Mode to review
+        a proposed plan before any files are modified.
+  \item Configure a \texttt{.clinerules} file to encode project-specific
+        conventions into every Cline session.
+  \item Use Cline's checkpoint system to inspect and roll back AI-generated
+        changes to any prior state within a session.
+  \item Select an appropriate LLM provider and model tier for a given finance
+        research task, balancing accuracy, context length, and API cost.
+  \item Identify at least three quantitative-finance research tasks that map
+        naturally to Cline workflows, and describe how to structure the
+        corresponding prompts and permission settings.
+\end{enumerate}
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{What is Cline}
+\label{app:cline:overview}
+
+\begin{context}
+Cline is an open-source autonomous AI coding agent delivered as a Visual Studio
+Code extension.  It was created by developer Saoud Rizwan and first released in
+June 2024 under the name \emph{Claude Dev} as part of Anthropic's ``Build with
+Claude'' contest.  In October 2024 the project was renamed \emph{Cline} (version
+2.0), incorporated as Cline Bot Inc., and opened to the broader AI community.
+By mid-2026, the extension had accumulated over 8 million installs across VS Code
+and JetBrains, with contributions from more than 250 open-source contributors.
+The full source code is available at \url{https://github.com/cline/cline} under
+the Apache 2.0 licence.
+
+The defining characteristic of Cline is its \emph{model-agnostic} architecture:
+unlike Claude Code, which is tied to Anthropic models, Cline treats the LLM
+as a replaceable component and supports more than thirty provider backends,
+including Anthropic, OpenAI, Google, AWS Bedrock, Azure OpenAI, DeepSeek, and
+local models via Ollama.  The developer supplies their own API key; there is no
+bundled model subscription.
+
+For finance researchers, this design has two practical implications.  First, it
+makes Cline suitable for environments where model-provider choice is constrained
+by institutional compliance policy.  Second, it exposes the per-session token
+cost directly: every API call is visible, attributable, and billable, which
+encourages token-efficient prompting.
+\end{context}
+
+\subsection{Positioning Among AI Coding Assistants}
+\label{app:cline:positioning}
+
+Table~\ref{tab:cline-vs-claude-code} compares Cline and Claude Code across
+the dimensions most relevant to academic finance research.
+
+\begin{table}[ht]
+\centering
+\caption{Cline versus Claude Code: key dimensions for finance research use.}
+\label{tab:cline-vs-claude-code}
+\begin{tabular}{lll}
+\toprule
+\textbf{Dimension} & \textbf{Cline} & \textbf{Claude Code} \\
+\midrule
+Interface          & VS Code extension; JetBrains; CLI & Terminal (CLI), IDE panels \\
+LLM support        & 30+ providers (model-agnostic) & Anthropic models only \\
+Licence            & Apache 2.0 open source & Proprietary (Anthropic) \\
+Pricing            & Free extension; BYOK API usage & \$20/mo Max or API usage \\
+Browser automation & Yes (Puppeteer/Computer Use) & No \\
+MCP support        & Yes (first-class) & Yes \\
+Checkpoints        & Shadow Git repo per tool call & Session-scoped snapshots \\
+Codebase indexing  & None (dynamic file reads) & Whole-project read on start \\
+\texttt{.rules} file & \texttt{.clinerules} per workspace & \texttt{CLAUDE.md} per project \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Many practitioners use both tools: Cline for IDE-embedded development with
+visual diff review and browser-verified UI work; Claude Code for complex
+terminal-native tasks that benefit from its whole-project context and richer
+skill system.
+
+% ---------------------------------------------------------------
+\section{Installation and Setup}
+\label{app:cline:install}
+
+\subsection{Prerequisites}
+\label{app:cline:prereqs}
+
+Cline requires:
+\begin{itemize}
+  \item Visual Studio Code 1.84 or later (download from \url{https://code.visualstudio.com}).
+  \item An API key from at least one supported LLM provider.
+  \item (Optional) Node.js 18+ if you plan to use the Cline CLI separately.
+\end{itemize}
+
+\subsection{Installing the Extension}
+\label{app:cline:vscode-install}
+
+Install Cline from the VS Code Marketplace:
+
+\begin{enumerate}
+  \item Open VS Code and press \texttt{Ctrl+Shift+X} (Windows/Linux) or
+        \texttt{Cmd+Shift+X} (macOS) to open the Extensions panel.
+  \item Search for \textbf{Cline} (publisher ID: \texttt{saoudrizwan.claude-dev}).
+  \item Click \textbf{Install}.
+\end{enumerate}
+
+Alternatively, install from the command line:
+
+\begin{minted}{bash}
+code --install-extension saoudrizwan.claude-dev
+\end{minted}
+
+After installation, the Cline icon appears in the VS Code activity bar.
+Click it to open the Cline panel.
+
+\subsection{Configuring a Provider}
+\label{app:cline:provider}
+
+On first launch, Cline prompts for an API provider and key.  Click the settings
+gear in the Cline panel to open the provider configuration:
+
+\begin{enumerate}
+  \item Select a provider from the dropdown (e.g.\ \textbf{Anthropic}).
+  \item Enter your API key (e.g.\ \texttt{sk-ant-\ldots}).
+  \item Select the model (e.g.\ \texttt{claude-sonnet-4-6}).
+  \item Click \textbf{Save}.
+\end{enumerate}
+
+API keys are stored in VS Code's secret storage (OS keychain), not in plain
+text on disk.  For team environments, use a \texttt{.env} file and configure
+Cline to read it from the project root.
+
+Table~\ref{tab:cline-providers} summarises the most commonly used providers
+for finance research workloads.
+
+\begin{table}[ht]
+\centering
+\caption{Selected LLM providers available in Cline, with notes for finance
+research use.}
+\label{tab:cline-providers}
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{Provider} & \textbf{Models} & \textbf{Notes} \\
+\midrule
+Anthropic   & Claude Sonnet, Opus, Haiku & Strongest reasoning; 200K token context; BYOK \\
+OpenAI      & GPT-4o, o1, o3-mini        & Broad library support; function calling \\
+Google      & Gemini 1.5 Pro/Flash       & 1M token context; useful for very long filings \\
+DeepSeek    & DeepSeek-V3, R1            & Low cost; strong at code generation \\
+Ollama      & Any GGUF model             & Fully local; no data leaves the machine \\
+AWS Bedrock & Claude, Llama, Titan       & VPC-isolated; suitable for regulated data \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{The Plan/Act Execution Model}
+\label{app:cline:plan-act}
+
+\begin{context}
+Cline's most important safety feature is its \emph{Plan/Act} distinction.
+Before making any change to the file system or running any command, Cline
+can operate in Plan Mode, where it reads files and reasons about what it
+would do---without doing it.  The developer reviews and approves the plan,
+then switches to Act Mode to execute.  This separation is especially
+valuable for finance research, where a misunderstood task can corrupt a
+dataset or delete months of carefully assembled code.
+\end{context}
+
+\subsection{Plan Mode}
+\label{app:cline:plan-mode}
+
+Enable Plan Mode by toggling the \textbf{Plan} button in the Cline panel
+before submitting a task.  In Plan Mode, Cline:
+
+\begin{itemize}
+  \item Reads all files it determines are relevant to the task.
+  \item Constructs a step-by-step plan describing every file it intends to
+        create, modify, or delete and every command it intends to run.
+  \item Presents the plan as a structured document in the chat panel.
+  \item Takes no action on the file system.
+\end{itemize}
+
+Review the plan carefully.  Common issues to check:
+\begin{itemize}
+  \item Does the plan modify files outside the expected scope?
+  \item Does it propose to run commands that could have side effects
+        (deleting data, pushing to remote, installing packages globally)?
+  \item Are the proposed file paths consistent with the project structure?
+\end{itemize}
+
+Once the plan is satisfactory, click \textbf{Approve} (or toggle to Act Mode
+and submit).  Cline executes the plan step by step, pausing for approval
+at each tool call if the \textbf{Auto-approve} setting is off.
+
+\subsection{Act Mode and Tool Calls}
+\label{app:cline:act-mode}
+
+In Act Mode, Cline issues \emph{tool calls} to interact with the environment.
+Each tool call is displayed in the Cline panel before execution, giving the
+developer an opportunity to approve or reject it.  The built-in tools are:
+
+\begin{description}
+  \item[\texttt{read\_file}] Read the content of a file.  Cline uses this
+        extensively to understand the codebase before making changes.
+
+  \item[\texttt{write\_file}] Write a new file or overwrite an existing one.
+        Cline shows the proposed content in a diff view; the developer approves
+        or edits before the file is written.
+
+  \item[\texttt{replace\_in\_file}] Make targeted edits to an existing file
+        using \texttt{<\!SEARCH\!>}/\texttt{<\!REPLACE\!>} blocks, analogous
+        to Claude Code's Edit tool.
+
+  \item[\texttt{execute\_command}] Run a shell command.  Output is streamed
+        in real time.  Cline iterates on failures by reading error output and
+        attempting corrections.
+
+  \item[\texttt{browser\_action}] Launch a headless Chromium browser, navigate
+        to a URL, click elements, take screenshots, and read the rendered page.
+        This enables automated testing of web-based dashboards and data portals.
+
+  \item[\texttt{use\_mcp\_tool}] Call a tool exposed by any connected MCP server,
+        extending Cline's reach to external databases, APIs, and custom tools.
+\end{description}
+
+\subsection{Auto-Approve Settings}
+\label{app:cline:auto-approve}
+
+In the Cline settings panel, individual tool categories can be set to
+auto-approve, reducing friction for trusted operations:
+
+\begin{itemize}
+  \item \textbf{Read files}: safe to auto-approve for most projects.
+  \item \textbf{Write files}: approve manually during early exploration;
+        auto-approve after establishing trust in the agent's file-scope
+        discipline.
+  \item \textbf{Execute commands}: approve manually unless the command set
+        is tightly constrained by a \texttt{.clinerules} allowlist.
+  \item \textbf{Browser actions}: approve manually; browser automation
+        can interact with authenticated sessions and is high-consequence.
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{Project Configuration with \texttt{.clinerules}}
+\label{app:cline:clinerules}
+
+The \texttt{.clinerules} file, placed at the project root, is injected into
+Cline's system prompt at the start of every session.  It is the Cline
+equivalent of Claude Code's \texttt{CLAUDE.md}.  Use it to encode:
+
+\begin{itemize}
+  \item Project structure and conventions (file naming, directory layout).
+  \item Coding standards (PEP~8 for Python, type hints, docstring format).
+  \item Constraints on AI behaviour (``never modify files in \texttt{data/raw/}'',
+        ``always run \texttt{pytest} before committing'').
+  \item Domain context (``this project uses BibTeX for references'',
+        ``financial figures are always in USD millions unless noted'').
+\end{itemize}
+
+\begin{minted}{markdown}
+# Finance Research Lab — Cline Rules
+
+## Project Structure
+- `src/` — production Python modules
+- `notebooks/` — Jupyter exploratory notebooks (never import from here)
+- `data/raw/` — read-only; never modify or delete
+- `data/processed/` — output of pipeline scripts
+- `tests/` — pytest suite; maintain >80% coverage
+
+## Coding Standards
+- Python 3.11+; use type hints on all public functions
+- Format with `black`; lint with `ruff`
+- Run `pytest` before any commit
+
+## Constraints
+- Do not install packages not already in `requirements.txt`
+  without explicit approval
+- Do not push to remote without explicit instruction
+- Do not write API keys or credentials into any file
+
+## Domain Context
+- All monetary amounts in USD millions unless stated otherwise
+- EDGAR filings are retrieved via the SEC REST API; respect 10 req/s rate limit
+- Citation format is BibTeX authoryear (biblatex)
+\end{minted}
+
+% ---------------------------------------------------------------
+\section{Checkpoints and Recovery}
+\label{app:cline:checkpoints}
+
+Every time Cline writes or modifies a file, it records a \emph{checkpoint}
+in an internal shadow Git repository maintained inside the VS Code extension's
+data directory.  Checkpoints are independent of the project's own Git repository.
+
+To use checkpoints:
+
+\begin{enumerate}
+  \item In the Cline chat history, each tool call that modified a file shows
+        a \textbf{View diff} link.  Click it to see exactly what the tool call
+        changed.
+  \item To revert the project to the state before a specific tool call, click
+        the \textbf{Restore checkpoint} button next to that tool call.
+  \item All file writes made after that tool call are undone; the project
+        returns to exactly the checkpoint state.
+\end{enumerate}
+
+\begin{remark}[Checkpoints vs.\ project Git history]
+\label{rem:cline-checkpoints-vs-git}
+Cline's checkpoints are granular (one per tool call) and scoped to the current
+VS Code window.  They are a session-level safety net, not a long-term audit
+trail.  After a session, commit the desired changes to the project repository
+with a descriptive message that attributes the AI contribution.  The project
+Git history is the durable record; checkpoints are disposable scaffolding.
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{Context Management}
+\label{app:cline:context}
+
+Cline does not index the codebase upfront or build a vector store.  Instead,
+it reads files dynamically as needed---an explicit architectural choice modelled
+on how a senior engineer would approach an unfamiliar repository.  When the
+context window fills, Cline truncates the oldest messages.  The developer can
+also trigger manual context management:
+
+\begin{description}
+  \item[\texttt{/newtask}] Summarises the current conversation into a structured
+        handoff note (plan, work completed, files changed, next steps) and starts
+        a fresh session with a clean context window.  Use this when a long session
+        is approaching the context limit or when switching to a new sub-task.
+
+  \item[\texttt{/smol}] Compresses the chat history by summarising older turns
+        without starting a new task.
+\end{description}
+
+\begin{remark}[Token costs for finance workloads]
+\label{rem:cline-costs}
+A typical Cline session on a finance data pipeline project---reading several
+Python modules, running tests, and iterating on a bug fix---uses between
+50{,}000 and 200{,}000 tokens.  At Claude Sonnet rates (approximately \$3/M
+input, \$15/M output as of mid-2026), this corresponds to roughly \$0.50--\$2.00
+per session.  Heavy users find flat-rate subscriptions more economical; light
+academic users benefit from the pay-as-you-go model.
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{Slash Commands and Context Injection}
+\label{app:cline:commands}
+
+\begin{table}[ht]
+\centering
+\caption{Commonly used Cline slash commands and context operators.}
+\label{tab:cline-commands}
+\begin{tabular}{ll}
+\toprule
+\textbf{Command / Operator} & \textbf{Effect} \\
+\midrule
+\texttt{/newtask}    & Summarise session and start fresh (preserves handoff note) \\
+\texttt{/smol}       & Compress context in place \\
+\texttt{/newrule}    & Open the \texttt{.clinerules} file for editing \\
+\texttt{/reportbug}  & Open a GitHub issue on the Cline repository \\
+\texttt{@\textit{file}} & Include a specific file in the next message context \\
+\texttt{@\textit{folder}} & Include all files in a folder \\
+\texttt{@url}        & Fetch and include the content of a URL \\
+\texttt{@problems}   & Include the current VS Code diagnostics (linter errors) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The \texttt{@problems} operator is particularly useful in finance data pipelines:
+pasting the current set of type errors or linter warnings as context often
+allows Cline to fix them in a single tool call without reading the entire file.
+
+% ---------------------------------------------------------------
+\section{MCP Integration}
+\label{app:cline:mcp}
+
+Cline supports the Model Context Protocol (MCP), a standard interface for
+connecting AI agents to external tools, databases, and APIs.  MCP servers
+can be installed from the Cline MCP marketplace (accessible from the settings
+panel) or configured manually in \texttt{cline\_mcp\_settings.json}.
+
+Finance-relevant MCP servers include:
+
+\begin{description}
+  \item[EDGAR MCP] Queries the SEC EDGAR REST API and returns structured filing
+        data---accession numbers, document links, XBRL financial statements---
+        directly into the Cline context.
+
+  \item[SQL MCP] Connects to a local or remote database (PostgreSQL, DuckDB,
+        SQLite) and executes queries on behalf of the AI agent, enabling
+        Cline to explore and transform financial datasets without writing
+        data to intermediate files.
+
+  \item[Bloomberg Terminal MCP] (enterprise) Routes Bloomberg BQL queries
+        through the MCP interface, providing real-time market data to the
+        agent within a session.
+\end{description}
+
+% ---------------------------------------------------------------
+\section{Finance Research Workflows}
+\label{app:cline:finance}
+
+\begin{context}
+The following examples illustrate how Cline's features combine into coherent
+research workflows.  Each workflow begins with a task description submitted
+in the Cline chat panel.
+\end{context}
+
+\subsection{EDGAR Data Pipeline}
+\label{app:cline:finance-edgar}
+
+\textbf{Task prompt:}
+\begin{minted}{text}
+Using the SEC EDGAR REST API, build a Python function that:
+1. Accepts a list of CIK numbers and a date range
+2. Retrieves all 10-K filings for each company in that range
+3. Extracts the MD&A section (Item 7) from the HTML filing
+4. Returns a pandas DataFrame with columns: cik, filing_date, mda_text
+Respect the 10 req/s rate limit. Write unit tests.
+\end{minted}
+
+\textbf{Expected Cline actions:} (in Plan Mode)
+\begin{enumerate}
+  \item Read \texttt{src/edgar.py} (if it exists) to understand existing helpers.
+  \item Read \texttt{requirements.txt} to check available libraries.
+  \item Propose creating \texttt{src/edgar\_mda.py} with the function and
+        \texttt{tests/test\_edgar\_mda.py} with unit tests.
+  \item No files modified until plan approved.
+\end{enumerate}
+
+\subsection{LLM Sentiment Evaluation}
+\label{app:cline:finance-sentiment}
+
+\textbf{Task prompt:}
+\begin{minted}{text}
+Evaluate three sentiment models on the Financial PhraseBank dataset:
+FinBERT (local via transformers), GPT-4o-mini (API), and a zero-shot
+Claude Haiku prompt. Report accuracy, macro-F1, and cost per 1,000 sentences.
+\end{minted}
+
+\textbf{Cline advantage over a static notebook:}  Cline can interleave code
+execution with plan refinement.  If the FinBERT model raises an out-of-memory
+error on the test machine, Cline reads the error output and proposes batching
+or an alternative model---within the same session, without manual intervention.
+
+\subsection{Automated Replication Check}
+\label{app:cline:finance-replication}
+
+\textbf{Task prompt:}
+\begin{minted}{text}
+Replicate Table 3 of Loughran & McDonald (2011) using the EDGAR full-text
+search index. Use the LM sentiment dictionary from their website. Compare
+your coefficients to the published values and flag any discrepancy > 10%.
+\end{minted}
+
+This workflow benefits from Cline's browser automation: it can navigate the
+LM dictionary download page, trigger the download, verify the file integrity,
+and proceed with the analysis---all in a single session.
+
+% ---------------------------------------------------------------
+\section{Security Considerations}
+\label{app:cline:security}
+
+\begin{enumerate}
+  \item \textbf{Never store API keys in \texttt{.clinerules}.}  That file is
+        committed to the repository.  Use environment variables or VS Code's
+        secret storage.
+
+  \item \textbf{Review every \texttt{execute\_command} call before approval.}
+        Commands can exfiltrate data, install packages, or push code to remotes.
+        Enable manual approval for all shell commands in Cline settings.
+
+  \item \textbf{Use Ollama for sensitive data.}  When working with non-public
+        client data or proprietary trading signals, configure Cline to use a
+        locally hosted model via Ollama.  No tokens leave the machine.
+
+  \item \textbf{Audit the MCP server list.}  Each MCP server has access to
+        the tools it exposes.  Only install MCP servers from trusted sources
+        and review their source code before connecting them to sessions that
+        handle sensitive financial data.
+\end{enumerate}
+
+\begin{exercise}[First Cline session]
+\label{ex:cline-b}
+\textbf{[B]} Install Cline, configure it with an Anthropic or OpenAI API key,
+and create a \texttt{.clinerules} file for a hypothetical finance research project.
+Submit the following task in Plan Mode: ``Write a Python function that retrieves
+the five most recent 10-K filings for a given ticker from EDGAR and returns a
+list of (date, accession\_number) tuples.''  Review the plan and describe in
+one paragraph what Cline proposed to do and what you would verify before
+approving.
+\end{exercise}
+
+\begin{exercise}[Checkpoint recovery]
+\label{ex:cline-i}
+\textbf{[I]} Start a Cline session in Act Mode with auto-approve enabled for
+write operations.  Ask Cline to add type hints to all functions in a Python
+module of your choice.  After it completes, identify one type annotation that
+is incorrect or imprecise (e.g.\ \texttt{Any} where a more specific type
+applies), use the checkpoint viewer to locate the specific tool call that
+introduced it, and restore the checkpoint to the state before that tool call.
+Then re-submit the task with an explicit instruction to avoid the
+imprecision you identified.
+\end{exercise}
+
+\begin{exercise}[Multi-provider cost comparison]
+\label{ex:cline-a}
+\textbf{[A]} Configure Cline with two providers: Claude Sonnet and DeepSeek-V3.
+Run identical sessions---same task, same project, same \texttt{.clinerules}---with
+each provider.  Record the token counts (input and output) reported by Cline's
+cost tracker for each session.  Evaluate the quality of the outputs on three
+criteria: correctness of generated code (does it run and pass tests?), adherence
+to \texttt{.clinerules} conventions, and appropriateness of the generated
+commit message.  Present a cost-quality trade-off analysis and recommend a
+provider configuration for a research group with a \$50/month AI budget.
+\end{exercise}

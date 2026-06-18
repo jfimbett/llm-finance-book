@@ -1,0 +1,484 @@
+\chapter{Git and GitHub: Version Control for AI-Assisted Projects}
+\label{app:git}
+
+\begin{remark}[Learning Objectives]
+After working through this appendix, the reader should be able to:
+\begin{enumerate}
+  \item Explain why version control is especially important when working with
+        AI coding assistants, and describe the specific failure modes it mitigates.
+  \item Initialise a Git repository, stage and commit changes, and interpret
+        the output of \texttt{git status}, \texttt{git log}, and \texttt{git diff}.
+  \item Use branching and merging to isolate AI-generated work from stable code,
+        and recover from unwanted AI changes using \texttt{git checkout} and
+        \texttt{git revert}.
+  \item Push a repository to GitHub, open a pull request, and link AI commit
+        history to project milestones.
+  \item Apply a disciplined commit-per-step workflow that makes AI contributions
+        reviewable, attributable, and reversible.
+\end{enumerate}
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{Why Version Control Matters for AI-Assisted Work}
+\label{app:git:why}
+
+\begin{context}
+AI coding assistants---Claude Code, Cline, GitHub Copilot, and their
+successors---share a property that distinguishes them from human collaborators:
+they can generate large volumes of code changes in seconds, across many files
+simultaneously, with plausible-looking output that may nonetheless contain
+subtle errors.  A traditional code review catches one human's typo or logic
+error across a handful of files.  An AI session might touch fifty files in
+three minutes.  Without version control, reviewing, attributing, and reversing
+those changes is nearly impossible.
+
+Version control systems record the \emph{history} of every change to every
+file in a project.  Git, the dominant distributed version control system,
+does this by storing a directed acyclic graph of \emph{commits}---snapshots
+of the project at a point in time---linked by parent pointers.  Each commit
+carries a message, an author, a timestamp, and a cryptographic hash of the
+entire project state.  The result is an audit log: one can determine exactly
+what changed, when, and in which session---including AI-assisted sessions.
+
+This audit log serves four functions when working with AI:
+
+\begin{enumerate}
+  \item \textbf{Reversibility.}  If an AI agent introduces a regression---a
+        previously passing test now fails, or a file is unintentionally
+        overwritten---\texttt{git revert} or \texttt{git reset} can restore
+        any prior state in seconds.  Without Git, recovery requires manual
+        reconstruction.
+
+  \item \textbf{Attribution.}  Knowing that a specific function was written
+        by an AI in session~7 of a project, rather than by a human collaborator,
+        carries interpretive weight during code review.  AI-generated code
+        deserves additional scrutiny for hallucinated API calls, incorrect
+        assumptions about library versions, and subtle logic errors that read
+        fluently but execute incorrectly.
+
+  \item \textbf{Incremental review.}  A commit containing ten lines of change
+        is reviewable in minutes.  A commit containing two thousand lines across
+        thirty files is not.  Disciplined small commits---one per completed
+        sub-task---keep AI contributions within human review bandwidth.
+
+  \item \textbf{Collaboration.}  Multiple researchers working in parallel on
+        different parts of a project, some using AI assistants and some not,
+        can merge their work without conflict using Git's branch-and-merge
+        model.
+\end{enumerate}
+
+\begin{remark}[Git is not a backup system]
+\label{rem:git-not-backup}
+Git tracks changes to text files efficiently but is not designed for large
+binary files (datasets, compiled models, PDF outputs).  For research projects,
+keep \texttt{*.csv}, \texttt{*.parquet}, \texttt{*.pkl}, and \texttt{*.h5}
+files out of the repository by listing them in \texttt{.gitignore}, and store
+them separately in a data store (institutional storage, S3, DVC).  This keeps
+repositories fast and readable.
+\end{remark}
+\end{context}
+
+% ---------------------------------------------------------------
+\section{Installation and First Repository}
+\label{app:git:install}
+
+\subsection{Installing Git}
+\label{app:git:install-git}
+
+Git is pre-installed on macOS (via Xcode Command Line Tools) and most Linux
+distributions.  On Windows, download Git for Windows from
+\url{https://git-scm.com} or install via \texttt{winget}:
+
+\begin{minted}{bash}
+winget install --id Git.Git -e --source winget
+\end{minted}
+
+Verify the installation:
+
+\begin{minted}{bash}
+git --version
+\end{minted}
+
+Configure your identity---every commit is tagged with these values:
+
+\begin{minted}{bash}
+git config --global user.name  "Jane Smith"
+git config --global user.email "jane.smith@finance-lab.edu"
+\end{minted}
+
+\subsection{Initialising a Repository}
+\label{app:git:init}
+
+To place an existing project directory under version control:
+
+\begin{minted}{bash}
+cd my-finance-project
+git init
+\end{minted}
+
+This creates a hidden \texttt{.git/} directory that stores the entire history.
+The working directory is unchanged.
+
+For a new project, it is more common to create the repository on GitHub first
+and then clone it locally (Section~\ref{app:git:github}).
+
+% ---------------------------------------------------------------
+\section{The Core Workflow: Stage, Commit, Push}
+\label{app:git:workflow}
+
+\begin{context}
+The fundamental Git loop is:
+
+\begin{enumerate}
+  \item \textbf{Work.}  Edit files in the working directory---or let an AI
+        assistant edit them.
+  \item \textbf{Stage.}  Select the changes you want to record with
+        \texttt{git add}.
+  \item \textbf{Commit.}  Snapshot the staged changes with a descriptive
+        message using \texttt{git commit}.
+  \item \textbf{Push.}  Upload commits to a remote (typically GitHub) with
+        \texttt{git push}.
+\end{enumerate}
+
+This cycle should be tight when working with AI.  The recommended discipline
+is: \emph{commit after every completed sub-task}, not after every session.
+If an AI agent refactors a function, add and commit before asking it to do
+the next task.  This makes each commit small, reviewable, and reversible.
+\end{context}
+
+\subsection{Checking Status and Inspecting Changes}
+\label{app:git:status}
+
+\begin{minted}{bash}
+git status           # which files have changed since last commit?
+git diff             # show unstaged line-level changes
+git diff --staged    # show staged line-level changes
+\end{minted}
+
+The output of \texttt{git diff} is a \emph{unified diff}: lines prefixed with
+\texttt{-} were removed, lines prefixed with \texttt{+} were added.  This is
+the primary interface for reviewing AI-generated changes before committing them.
+
+\subsection{Staging and Committing}
+\label{app:git:commit}
+
+Stage specific files (preferred) or all changed files:
+
+\begin{minted}{bash}
+git add src/sentiment.py tests/test_sentiment.py   # specific files
+git add .                                           # all changes (use with care)
+\end{minted}
+
+Commit with a message that explains \emph{why} the change was made, not just
+what:
+
+\begin{minted}{bash}
+git commit -m "feat: replace regex tokeniser with spaCy for sentence splitting"
+\end{minted}
+
+A widely adopted convention for commit message prefixes is:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Prefix & Meaning \\
+\midrule
+\texttt{feat:}   & New feature or capability \\
+\texttt{fix:}    & Bug fix \\
+\texttt{refine:} & Improvement without new functionality \\
+\texttt{chore:}  & Maintenance (dependencies, config) \\
+\texttt{docs:}   & Documentation only \\
+\texttt{test:}   & Tests only \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+When using AI assistants, add a \texttt{Co-Authored-By} trailer to the commit
+message to attribute the AI contribution:
+
+\begin{minted}{bash}
+git commit -m "feat: add FinBERT sentiment pipeline
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+\end{minted}
+
+\subsection{Viewing History}
+\label{app:git:log}
+
+\begin{minted}{bash}
+git log --oneline          # compact one-line summary per commit
+git log --stat             # show files changed per commit
+git log -p                 # show full diff for each commit
+git log --author="Claude"  # filter by author (or Co-Authored-By)
+\end{minted}
+
+Table~\ref{tab:git-log-example} shows a representative \texttt{git log --oneline}
+output from a finance research project that used an AI assistant.
+
+\begin{table}[ht]
+\centering
+\caption{Example \texttt{git log} output from an AI-assisted finance project.
+Each short hash identifies a unique commit; messages distinguish human-authored
+from AI-assisted work.}
+\label{tab:git-log-example}
+\begin{tabular}{ll}
+\toprule
+Hash    & Message \\
+\midrule
+\texttt{a3f7c2e} & feat: add FactSet API integration (human) \\
+\texttt{9b1d04a} & feat: extend sentiment model to earnings calls (AI-assisted) \\
+\texttt{3e8c17f} & fix: correct EDGAR filing date parsing for 10-Qs (AI-assisted) \\
+\texttt{c2a5b89} & chore: update requirements.txt \\
+\texttt{7f3d12e} & feat: initial FinBERT pipeline scaffold (AI-assisted) \\
+\texttt{b0f9e3c} & chore: git init, add .gitignore \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Undoing Changes}
+\label{app:git:undo}
+
+\begin{context}
+Undoing changes is one of the most important capabilities for AI-assisted
+development.  AI agents occasionally produce code that passes a superficial
+review but fails in production, or silently introduces incorrect logic.  The
+ability to return to a known good state---without manual reconstruction---is
+what makes it safe to let an AI agent work autonomously for an extended period.
+\end{context}
+
+\subsection{Before Staging: Discarding Working-Directory Changes}
+
+\begin{minted}{bash}
+git restore path/to/file.py          # discard one file's changes
+git restore .                        # discard all unstaged changes
+\end{minted}
+
+These commands are \emph{destructive}: unsaved working-directory changes are
+gone permanently.  Use them when an AI has produced a bad edit and you want
+to start over.
+
+\subsection{After Committing: Reverting and Resetting}
+
+\begin{minted}{bash}
+# Safe: create a new commit that undoes the changes of commit <hash>
+git revert <hash>
+
+# More powerful: move HEAD back to <hash>, discarding later commits
+# --soft keeps changes staged; --mixed keeps them unstaged; --hard discards them
+git reset --hard <hash>
+\end{minted}
+
+Prefer \texttt{git revert} for work that has been pushed to a shared remote,
+because it adds to history without rewriting it.  Use \texttt{git reset} only
+on local-only commits.
+
+\begin{remark}[Checkpoint discipline with Claude Code]
+\label{rem:checkpoint-claude}
+Claude Code takes a Git snapshot before and after every tool call that writes
+a file.  These checkpoints are stored in a shadow repository inside the
+session directory and can be browsed with \texttt{/diff} and restored with
+\texttt{/revert} within a session.  However, they are \emph{not} visible to
+ordinary \texttt{git log} commands on the project repository.  The recommended
+practice is to commit to the project repository at meaningful boundaries---not
+to rely on Claude Code's internal checkpoints as the sole audit trail.
+\end{remark}
+
+% ---------------------------------------------------------------
+\section{Branches}
+\label{app:git:branches}
+
+A \emph{branch} is a named pointer to a commit.  Creating a branch is
+instantaneous and costs nothing; it is the standard mechanism for isolating
+experimental or AI-generated work from stable code.
+
+\begin{minted}{bash}
+git branch ai/edgar-sentiment   # create a branch
+git switch ai/edgar-sentiment   # move to it (also: git checkout)
+# ... let the AI work here ...
+git switch main                 # return to main
+git merge ai/edgar-sentiment    # merge if the work is good
+git branch -d ai/edgar-sentiment   # delete the branch
+\end{minted}
+
+The naming convention \texttt{ai/<task>} clearly marks branches that contain
+primarily AI-generated work and flags them for extra scrutiny during review.
+
+If a merge produces \emph{conflicts}---both the branch and main modified the
+same lines---Git marks the file with conflict markers:
+
+\begin{minted}{text}
+<<<<<<< HEAD
+return df.groupby("ticker").mean()          # your version
+=======
+return df.groupby("ticker").mean(numeric_only=True)  # AI version
+>>>>>>> ai/edgar-sentiment
+\end{minted}
+
+Edit the file to the correct result, remove the markers, stage the file, and
+complete the merge with \texttt{git commit}.
+
+% ---------------------------------------------------------------
+\section{GitHub: Remote Repositories and Collaboration}
+\label{app:git:github}
+
+GitHub (\url{https://github.com}) hosts Git repositories in the cloud and
+adds collaboration features: pull requests, code review, issue tracking, and
+CI/CD integration.
+
+\subsection{Creating a Repository on GitHub}
+
+\begin{enumerate}
+  \item Log into GitHub and click \textbf{New repository}.
+  \item Choose a name, select \textbf{Private} for unpublished research, and
+        optionally add a \texttt{README.md} and \texttt{.gitignore}.
+  \item Copy the HTTPS or SSH remote URL.
+\end{enumerate}
+
+Link the local repository to the remote and push:
+
+\begin{minted}{bash}
+git remote add origin https://github.com/username/finance-project.git
+git push -u origin main
+\end{minted}
+
+Subsequently, \texttt{git push} and \texttt{git pull} require no further
+arguments (the tracking branch is set by \texttt{-u}).
+
+\subsection{Pull Requests}
+\label{app:git:pr}
+
+A \emph{pull request} (PR) is a GitHub interface for proposing that a branch
+be merged into another.  For AI-assisted work, the PR is the natural review
+checkpoint:
+
+\begin{enumerate}
+  \item Push the AI-work branch to GitHub: \texttt{git push -u origin ai/edgar-sentiment}.
+  \item Open a PR on GitHub: \textbf{Compare \& pull request} → write a
+        description of what the AI produced and what you verified.
+  \item Review the diff: every file touched by the AI is visible side-by-side
+        with the previous version.  Add line-level comments where behaviour is
+        unclear.
+  \item Merge when satisfied; delete the branch.
+\end{enumerate}
+
+The PR thread becomes a permanent record of what the AI produced, what questions
+were raised during review, and what changes were requested before merge.
+
+\subsection{The .gitignore File}
+\label{app:git:gitignore}
+
+The \texttt{.gitignore} file tells Git to ignore matching paths.  A sensible
+starting template for a Python finance project:
+
+\begin{minted}{text}
+# Python artefacts
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (store externally)
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.h5
+
+# API keys and secrets
+.env
+secrets.toml
+*.key
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+\end{minted}
+
+Never commit files containing API keys, passwords, or proprietary data.
+Use environment variables or a secrets manager instead.
+
+% ---------------------------------------------------------------
+\section{A Disciplined Workflow for AI-Assisted Finance Research}
+\label{app:git:discipline}
+
+\begin{context}
+The following workflow synthesises the preceding sections into a repeatable
+practice for using AI coding assistants on research projects.
+\end{context}
+
+\begin{enumerate}
+  \item \textbf{Start on a branch.}  Before starting an AI session, create a
+        branch: \texttt{git switch -c ai/\textit{task-name}}.  The branch name
+        documents the purpose of the session.
+
+  \item \textbf{State the task clearly.}  Write the task description in the
+        AI prompt and also in a commit message or issue.  A clear record of
+        what the AI was asked to do is as important as a record of what it did.
+
+  \item \textbf{Commit after each sub-task.}  When the AI completes a
+        self-contained piece of work---a function, a test, a data pipeline
+        step---stop, review the diff (\texttt{git diff}), and commit.
+        Do not let uncommitted AI changes accumulate across long sessions.
+
+  \item \textbf{Review before merging.}  Open a PR even when working alone.
+        The GitHub diff view is the most effective format for reviewing AI-generated
+        code because it enforces line-by-line attention.
+
+  \item \textbf{Tag stable milestones.}  Use \texttt{git tag v1.0} to mark
+        commits that correspond to submitted paper drafts, reproducibility
+        checkpoints, or data collection cut-offs.  Tags survive branch deletion
+        and provide unambiguous version references for citations and replication.
+
+  \item \textbf{Document the AI tools used.}  Add a short \texttt{AI.md} file
+        to the repository noting which AI tools were used, for which tasks, and
+        during which date ranges.  As AI tool capabilities evolve rapidly,
+        future readers will benefit from knowing which version of which tool
+        produced which parts of the codebase.
+\end{enumerate}
+
+\begin{exercise}[Initialising a versioned finance project]
+\label{ex:git-b}
+\textbf{[B]} Create a new directory called \texttt{edgar-sentiment-lab}.
+Initialise a Git repository, add a Python script that downloads the most recent
+10-K filing for one company from EDGAR, commit it with a meaningful message,
+and push it to a new private GitHub repository.  Then create a branch
+\texttt{ai/add-sentiment}, use an AI assistant to add FinBERT-based sentiment
+scoring, commit the AI-generated code, and open a pull request.  Write a
+two-sentence PR description explaining what the AI produced and what you
+manually verified before merging.
+\end{exercise}
+
+\begin{exercise}[Recovering from a bad AI edit]
+\label{ex:git-i}
+\textbf{[I]} Suppose an AI assistant has modified \texttt{data\_loader.py}
+and \texttt{models.py} in a single session, but you notice that the
+\texttt{models.py} changes broke an existing unit test while the
+\texttt{data\_loader.py} changes are correct.  Using only Git commands,
+describe step by step how you would: (a)~commit the \texttt{data\_loader.py}
+changes; (b)~discard the \texttt{models.py} changes and restore the file to
+its pre-session state; and (c)~re-run the AI session with an explicit
+instruction to fix only the test-breaking issue.
+\end{exercise}
+
+\begin{exercise}[Audit trail for reproducible research]
+\label{ex:git-a}
+\textbf{[A]} A finance paper uses AI-generated code to construct a
+sentiment-weighted momentum signal from 20 years of earnings call transcripts.
+Design a Git workflow that: (a)~distinguishes AI-assisted from human-authored
+commits; (b)~links each commit to the data snapshot it was run against
+(using Git tags or a \texttt{data\_manifest.json} committed alongside the
+code); (c)~enables a reader to reproduce the signal by checking out a specific
+tag and following a documented sequence of commands; and (d)~ensures that
+no proprietary data or API keys are present in the repository history.
+Describe the \texttt{.gitignore} entries, branch naming conventions, and
+tagging scheme you would use.
+\end{exercise}

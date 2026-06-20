@@ -196,14 +196,14 @@ FinBERT and the family of domain-adapted financial encoders are treated as
 domain-specific models in \Cref{ch:domain-specific-llms}; here we consider only their
 use as sentiment classifiers. \citet{araci2019finbert} was among the first to demonstrate that further pre-training BERT on a financial corpus improves sentiment classification accuracy. The model was further developed by \citet{huang2023finbert}, who pre-trained on a corpus of financial news and SEC filings before fine-tuning on three labelled datasets (the Financial PhraseBank, analyst report excerpts, and earnings call sentences) to produce a model that substantially outperforms both GI lexicon, LM lexicon, and generic BERT across all three tasks.
 
-The FinBERT fine-tuning objective is standard: for a three-class problem (positive/neutral/negative), the model minimises cross-entropy loss over labelled examples. Given a document $d$ represented by its \texttt{[CLS]} embedding $\mathbf{h} \in \mathbb{R}^d$, the classifier computes:
+The FinBERT fine-tuning objective is standard: for a three-class problem (positive/neutral/negative), the model minimises cross-entropy loss over labelled examples. Given a document $d$ represented by its \texttt{[CLS]} embedding $\mathbf{h} \in \mathbb{R}^{d_h}$, the classifier computes:
 
 \begin{equation}
   \label{eq:finbert-classifier}
   P(y = c \mid d) = \text{softmax}(\mathbf{W}_c \mathbf{h} + \mathbf{b}_c), \quad c \in \{\text{pos}, \text{neu}, \text{neg}\}
 \end{equation}
 
-where $\mathbf{h} \in \mathbb{R}^d$ is the representation of the special [CLS] token produced by the final transformer layer (see \Cref{ch:llm-foundations} for the BERT architecture), $\mathbf{W}_c \in \mathbb{R}^{3 \times d}$ and $\mathbf{b}_c \in \mathbb{R}^3$ are learned classification parameters. The predicted label is $\hat{y} = \arg\max_c P(y = c \mid d)$.
+where $\mathbf{h} \in \mathbb{R}^{d_h}$ is the representation of the special [CLS] token produced by the final transformer layer (see \Cref{ch:llm-foundations} for the BERT architecture), $\mathbf{W}_c \in \mathbb{R}^{3 \times d_h}$ and $\mathbf{b}_c \in \mathbb{R}^3$ are learned classification parameters. The predicted label is $\hat{y} = \arg\max_c P(y = c \mid d)$.
 
 The key advantage over lexicons is context-sensitivity: the embedding $\mathbf{h}$ is computed from the full sequence, so negation (``not confident''), rhetorical hedging (``while challenges persist, we remain confident''), and entity-specific qualifications (``Apple's earnings were strong but guidance disappointed'') are handled implicitly.
 

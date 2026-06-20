@@ -1049,7 +1049,7 @@ represented by geometrically close vectors.
 \begin{deepdive}
 
 The Bag-of-Words and TF-IDF representations introduced in
-Section~\ref{sec:classical} treat every word as an isolated symbol.
+\Cref{sec:classical} treat every word as an isolated symbol.
 Two terms that never co-occur with each other but share essentially
 the same contextual neighbours — \emph{equity} and \emph{stock}, for
 instance — receive orthogonal vectors with cosine similarity exactly
@@ -1765,7 +1765,7 @@ multi-GPU inference pipelines.
 \label{sec:llm-apis}
 
 \begin{context}
-Every model family discussed in Section~\ref{sec:llm-families} is
+Every model family discussed in \Cref{sec:llm-families} is
 accessible via a Python API.  For practitioners, the three most relevant
 are the OpenAI API (GPT family), the Anthropic API (Claude family), and
 the HuggingFace \texttt{transformers} library (open-weight models
@@ -1784,7 +1784,19 @@ OpenAI exposes models through a REST API wrapped by the
 \emph{chat completion}: a list of role-tagged messages is sent to the
 model and the response is returned as a structured JSON object.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/01-intro/exercises.ipynb}.}
+\begin{minted}{python}
+import openai
+
+client = openai.OpenAI()  # reads OPENAI_API_KEY from the environment
+resp = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "system", "content": "You are a financial analyst."},
+        {"role": "user", "content": "Sentiment of 'Revenue fell 12%.'? One word."},
+    ],
+)
+print(resp.choices[0].message.content)  # -> 'Negative'
+\end{minted}
 
 \subsection{The Anthropic API}
 \label{sec:api-anthropic}
@@ -1809,21 +1821,28 @@ resp = client.messages.create(
 print(resp.content[0].text)  # -> 'Negative'
 \end{minted}
 
-\noindent The OpenAI and HuggingFace equivalents follow the same shape; the full set is
-developed as an exercise in the chapter notebook \texttt{code/notebooks/01-intro/exercises.ipynb}.
+\noindent The two proprietary APIs share the same request shape; richer prompt templates
+are developed as an exercise in the chapter notebook \texttt{code/notebooks/01-intro/exercises.ipynb}.
 
 \subsection{HuggingFace \texttt{transformers}: Open-Weight Inference}
 \label{sec:api-huggingface}
 
 For open-weight models (LLaMA, FinBERT, T5-finance), the HuggingFace
-\texttt{transformers} library provides a unified interface.
+\texttt{transformers} library provides a unified interface that runs the model locally
+rather than over a network API:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/01-intro/exercises.ipynb}.}
+\begin{minted}{python}
+from transformers import pipeline
+
+clf = pipeline("text-classification", model="ProsusAI/finbert")
+print(clf("Revenue fell 12% on weak demand."))
+# -> [{'label': 'negative', 'score': 0.95}]
+\end{minted}
 
 \subsection{Token Costs and Latency Trade-offs}
 \label{sec:api-costs}
 
-API calls to proprietary models are billed per token.  Table~\ref{tab:api-costs}
+API calls to proprietary models are billed per token.  \Cref{tab:api-costs}
 summarises representative pricing and latency benchmarks as of 2024.
 
 \begin{center}
@@ -1846,13 +1865,13 @@ summarises representative pricing and latency benchmarks as of 2024.
 \end{center}
 
 \begin{remark}[Note on Pricing Data]
-The figures in Table~\ref{tab:api-costs} are approximate list prices and throughput benchmarks as of early 2024; these change frequently. Verify current rates at provider pricing pages before any production deployment~\citep{anthropic2025api}.
+The figures in \Cref{tab:api-costs} are approximate list prices and throughput benchmarks as of early 2024; these change frequently. Verify current rates at provider pricing pages before any production deployment~\citep{anthropic2025api}.
 \end{remark}
 
 For high-frequency applications (real-time news classification of thousands
 of headlines per minute), the cost difference between \texttt{gpt-4o}
 and \texttt{gpt-4o-mini} is economically material: classifying one million
-headlines with a 100-token context costs roughly \$250 with a frontier model versus \$15 with a lightweight alternative (at the illustrative prices in Table~\ref{tab:api-costs}).  In
+headlines with a 100-token context costs roughly \$250 with a frontier model versus \$15 with a lightweight alternative (at the illustrative prices in \Cref{tab:api-costs}).  In
 batch analytical applications where latency is less critical (overnight
 processing of 10-K filings), the smaller latency advantage of smaller
 models is less relevant and accuracy differences dominate.
@@ -2037,7 +2056,7 @@ mechanism previewed here in Section~\ref{sec:attention} reappears there with a
 complete treatment of causal masking and key-value caching.  Fine-tuning, instruction tuning, and
 parameter-efficient adaptation (LoRA, prefix tuning) are taken up in the chapters
 on domain adaptation, where the domain-specific models surveyed in
-Section~\ref{sec:llm-families} are evaluated empirically.
+\Cref{sec:llm-families} are evaluated empirically.
 The hallucination taxonomy of Section~\ref{sec:llm-limitations} is revisited
 with formal metrics and mitigation benchmarks in the chapter on evaluation.
 

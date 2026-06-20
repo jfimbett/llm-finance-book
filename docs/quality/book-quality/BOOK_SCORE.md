@@ -12,18 +12,20 @@
   (620 pp; 0 duplicate labels, 0 undefined refs, 0 undefined cites, 0 biber-missing).
 - The independent re-audits show **7–10 of 14 dimensions now pass per chapter** (up from
   the iteration-0 lows), driven by the label/ref/citation/SSOT fixes.
-- **0 / 16 chapters pass the all-14-≥90 gate — for one structural reason:** every chapter
-  is held below the gate by **`reproducibility` (<90)** and, for the figure-less chapters
-  (ch08–16), **`code_figure_correctness` (<90)**. These require real figures + non-stub
-  notebooks + data snapshots — the large-engineering/human-gated work in
-  `GOAL_STATUS.md §5`, not targeted prose edits.
+- **1 / 16 chapters now pass** (ch05 — first to clear all 14, after its DCF figure was
+  made deterministic). The other 15 are held below the gate by **`reproducibility` (<90)**
+  and, for the figure-less chapters (ch08–16), **`code_figure_correctness` (<90)**.
+- **Demonstrated path:** ch05 passed by replacing its live-`yfinance` figure with a
+  committed, deterministic, network-free generator (`gen_dcf_sensitivity.py`). The same
+  method applies to the other figure-having chapters (ch01–07); ch08–16 additionally need
+  figures created. This is the remaining lever (see `GOAL_STATUS.md §5`).
 
 ## Independently re-audited chapters (VERIFIED 2026-06-20, post-fix)
 
 | Read# | Chapter | dims ≥90 | Still <90 (why) | Pass |
 |-------|---------|----------|------------------|------|
 | 3 | 02-llm-foundations | 10/14 | code_figure 60, reproducibility 55 (no new data figures; demo stub), progressive 88, pedagogy 89, citation_accuracy 88 | ❌ |
-| 9 | 05-business-valuation | 12/14 | reproducibility 78 (live-yfinance figure, no committed snapshot), code_figure 89 (same figure illustrative) | ❌ |
+| 9 | 05-business-valuation | **14/14** | — (DCF figure made deterministic via committed `gen_dcf_sensitivity.py`: reproducibility 96, code_figure 95) | ✅ **PASS** |
 | 12 | 11-regtech-compliance-aml | 9/14 | code_figure 78 (only the new schematic; RRF/AMI/XBRL undemonstrated), reproducibility 58, concept_sep 89, non_repetition 88, citation_accuracy 89 (chen2025aml unverified) | ❌ |
 | 13 | 12-xai-explainability | 9/14 | reproducibility 65, code_figure 80 (empty figures/), concept_sep 88, concept_ordering 86, non_repetition 86, completeness 88, pedagogy 89 | ❌ |
 

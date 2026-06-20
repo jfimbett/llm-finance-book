@@ -43,7 +43,7 @@ The book has developed its argument across six interconnected themes. \Cref{ch:i
 
 Each chapter has also been a case study in a recurring design challenge: bridging the gap between what a language model can do in a research prototype and what a production finance system must do. That design challenge---reliable, auditable, compliant, and economically rational deployment of LLMs---is the organising thread of this final chapter.
 
-Table~\ref{tab:chapter-map} provides a bird's-eye view of the book's journey, mapping each chapter to its primary LLM technique and the canonical finance application that chapter develops.
+\Cref{tab:chapter-map} provides a bird's-eye view of the book's journey, mapping each chapter to its primary LLM technique and the canonical finance application that chapter develops.
 
 \end{context}
 
@@ -142,7 +142,7 @@ Practitioners frequently face the question of which LLM deployment pattern to ad
 
 \begin{definition}[LLM Deployment Patterns]
 \label{def:deployment-patterns}
-Let a finance task be characterised by an input distribution $\mathcal{X}$, an output space $\mathcal{Y}$, and a required knowledge base $\mathcal{K}$; a document corpus $\mathcal{D}$ and retrieval function $R$ are used where indicated. Let $\mathcal{T}$ denote a finance task characterised by input distribution $\mathcal{X}$, output space $\mathcal{Y}$, and required knowledge $\mathcal{K}$.
+Let a finance task $\mathcal{T}$ be characterised by an input distribution $\mathcal{X}$, an output space $\mathcal{Y}$, and a required knowledge base $\mathcal{K}$; a document corpus $\mathcal{D}$ and retrieval function $R$ are used where indicated.
 \begin{itemize}
   \item \emph{Zero-shot prompting} applies a general-purpose model $M$ directly: $\hat{y} = M(\text{prompt}(x))$ for $x \in \mathcal{X}$. No task-specific training or retrieval occurs.
   \item \emph{Retrieval-augmented generation} augments the prompt with retrieved context: $\hat{y} = M(\text{prompt}(x, \mathcal{R}(x, \mathcal{D})))$, where $\mathcal{R}$ is a retrieval function over document corpus $\mathcal{D}$ \cite{lewis2020rag}.
@@ -150,7 +150,7 @@ Let a finance task be characterised by an input distribution $\mathcal{X}$, an o
 \end{itemize}
 \end{definition}
 
-Table~\ref{tab:deployment-heuristics} summarises the practical selection heuristics derived from the preceding chapters and the broader empirical literature.
+\Cref{tab:deployment-heuristics} summarises the practical selection heuristics derived from the preceding chapters and the broader empirical literature.
 
 \end{context}
 
@@ -173,7 +173,7 @@ Fine-tuning & Domain jargon, consistent format & Labelled pairs & Low (inference
 
 Three additional heuristics structure the decision in practice. First, prefer RAG over fine-tuning when the task requires grounding in specific, updatable documents (current regulatory texts, recent filings, live prices), because fine-tuning embeds knowledge statically while RAG can retrieve the latest version. Second, fine-tuning is justified when the output format is highly structured (e.g., populating a fixed schema of financial ratios from a filing) and consistency across thousands of calls matters more than generality. Third, zero-shot prompting with a frontier model is a reasonable baseline for any task before investing in more expensive approaches; the FinanceBench benchmark \cite{zhang2024financebench} shows that frontier models correctly answer a substantial majority (in early evaluations, roughly 80\%) of financial QA questions on the first attempt, setting a high bar for more elaborate systems to clear.
 
-A complementary decision concerns the \emph{model architecture family} rather than the deployment pattern. Four families are relevant: encoder-only models (BERT-class, e.g.\ FinBERT), decoder-only models (GPT-class), encoder-decoder models (T5-class), and agentic systems that wrap a generative model with a tool-calling loop. Table~\ref{tab:arch-decision} frames the selection across six task properties that characterise the large majority of finance NLP problems.
+A complementary decision concerns the \emph{model architecture family} rather than the deployment pattern. Four families are relevant: encoder-only models (BERT-class, e.g.\ FinBERT), decoder-only models (GPT-class), encoder-decoder models (T5-class), and agentic systems that wrap a generative model with a tool-calling loop. \Cref{tab:arch-decision} frames the selection across seven task properties that characterise the large majority of finance NLP problems.
 
 \begin{definition}[LLM Architecture Families]
 \label{def:arch-families}
@@ -186,7 +186,7 @@ The four families relevant to finance NLP tasks are:
 \end{enumerate}
 \end{definition}
 
-Table~\ref{tab:arch-decision} provides the complete selection guide across task properties.
+\Cref{tab:arch-decision} provides the complete selection guide across task properties.
 
 \end{context}
 
@@ -216,7 +216,7 @@ Task spans multiple steps or documents & Weak   & Weak   & Weak   & Strong \\
 
 \begin{context}
 
-The two decisions — deployment pattern (Table~\ref{tab:deployment-heuristics}) and architecture family (Table~\ref{tab:arch-decision}) — combine naturally. A trade surveillance classifier will use an encoder-only architecture with fine-tuning; a regulatory filing summariser will use a decoder-only or encoder-decoder model with RAG; an autonomous due-diligence agent will use an agentic system with zero-shot or few-shot prompting. When the two tables give conflicting signals, the latency and interpretability requirements of the task are usually the tiebreakers: real-time, high-stakes applications should default to the simplest, most auditable approach.
+The two decisions — deployment pattern (\Cref{tab:deployment-heuristics}) and architecture family (\Cref{tab:arch-decision}) — combine naturally. A trade surveillance classifier will use an encoder-only architecture with fine-tuning; a regulatory filing summariser will use a decoder-only or encoder-decoder model with RAG; an autonomous due-diligence agent will use an agentic system with zero-shot or few-shot prompting. When the two tables give conflicting signals, the latency and interpretability requirements of the task are usually the tiebreakers: real-time, high-stakes applications should default to the simplest, most auditable approach.
 
 \end{context}
 
@@ -232,6 +232,7 @@ The two decisions — deployment pattern (Table~\ref{tab:deployment-heuristics})
 
 A \emph{financial workflow} is a sequence of processing steps that transforms raw inputs---market data, regulatory filings, client communications, trade records---into actionable outputs such as reports, alerts, recommendations, or compliance records. The defining characteristic that distinguishes a workflow from a single model call is the presence of dependencies between steps: the output of one step is the input to the next, and the system as a whole must handle failures, delays, and branch conditions.
 
+\begin{deepdive}
 \begin{definition}[Financial Workflow as a DAG]
 \label{def:workflow-dag}
 A \emph{financial workflow} is a directed acyclic graph $W = (T, E)$ where:
@@ -242,6 +243,7 @@ A \emph{financial workflow} is a directed acyclic graph $W = (T, E)$ where:
 \end{itemize}
 An \emph{execution} of $W$ is a topological ordering of $T$ consistent with $E$.
 \end{definition}
+\end{deepdive}
 
 Three automation patterns map onto this structure with different concurrency and coordination characteristics.
 
@@ -265,7 +267,7 @@ SEC EDGAR publishes an RSS feed of new filings within minutes of acceptance. An 
 \subsubsection*{Trade Surveillance Narrative}
 When a rule-based surveillance system flags an unusual order pattern---potential front-running, spoofing, or wash trading---a compliance analyst must produce a written narrative justifying either escalation or clearance. An LLM-assisted surveillance tool retrieves news articles, regulatory announcements, and social media from the hour preceding the flagged trades; searches internal communications for relevant context; and drafts a structured narrative that situates the trading pattern in its market context. The draft is reviewed by the analyst, who approves, edits, or rejects it. This human-in-the-loop design is deliberate: the LLM handles the time-consuming information aggregation while the analyst provides the regulatory judgment.
 
-Below is a representative Python implementation of an event-triggered pipeline that monitors EDGAR and classifies incoming 8-K filings.
+A representative Python implementation of an event-triggered pipeline that monitors EDGAR and classifies incoming 8-K filings is provided in the companion notebook.
 
 \textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
 
@@ -351,7 +353,7 @@ The \emph{portfolio Q\&A skill} loads the user's portfolio from a local CSV file
 The \emph{macro digest skill} assembles a morning briefing from multiple sources: central bank speech summaries, overnight market moves, key data releases, and selected news headlines. The briefing is delivered at a configurable time via the user's preferred channel.
 \end{example}
 
-The skill definition mechanism is deliberately simple: a Python function with a descriptive docstring is sufficient for the framework to expose it as a callable tool. The following listing shows a minimal skill definition.
+The skill definition mechanism is deliberately simple: a Python function with a descriptive docstring is sufficient for the framework to expose it as a callable tool, as the companion notebook illustrates.
 
 \textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
 
@@ -427,6 +429,7 @@ A model is \emph{calibrated within group} with respect to attribute $A$ if
 for all $p \in [0,1]$ and all values $a$ of $A$. Predicted probabilities are equally reliable across groups: a predicted 70\% approval probability corresponds to a 70\% true approval rate separately for each group.
 \end{definition}
 
+\begin{deepdive}
 \begin{proposition}[Impossibility of Simultaneous Fairness]
 \label{prop:fairness-impossibility}
 When base rates differ across groups---that is, $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$---a classifier that does not output the same prediction for all inputs (non-trivial) cannot simultaneously satisfy all of the following:
@@ -436,6 +439,7 @@ Specifically, \citet{chouldechova2017fair} show that demographic parity and cali
 
 This impossibility result, formalised by \citet{chouldechova2017fair}
 and discussed at length in \cite{kearns2019ethical}, is not a technical limitation to be overcome. It is a statement that fairness is not a single concept but a family of criteria that make different distributional demands. Choosing a criterion is a policy choice, not a technical one, and in regulated finance it is a choice that must be made explicitly and justified to regulators.
+\end{deepdive}
 
 \subsection{Mitigation Strategies: Debiasing, Auditing, and Human Oversight}
 \label{subsec:af-ethics-mitigation}
@@ -461,7 +465,7 @@ The \emph{EU AI Act} \cite{euaiact2024}, adopted in 2024, establishes a risk-bas
 
 The \emph{US Equal Credit Opportunity Act} (ECOA) and the \emph{Fair Housing Act} prohibit discriminatory lending on the basis of protected characteristics and impose adverse action notice requirements: when credit is denied or terms are less favourable, the creditor must provide the principal reasons. This requirement is in tension with the opacity of large language models; the explanations required by ECOA must be specific and accurate, not generic recitations of feature importance. \Cref{ch:credit-risk} addressed this requirement in detail.
 
-The \emph{Financial Stability Board}'s 2023 report on AI in finance identified systemic risk concerns arising from the concentration of AI capabilities among a small number of providers, the potential for herding behaviour when many institutions use similar models, and the opacity of model behaviour under stress conditions \cite{fsb2023ai}. These macro-prudential concerns were sharpened in its landmark 2024 follow-up report \citep{FSB2024stability}, which documented AI's capacity to amplify third-party concentration risk, increase market correlations through algorithmic herding, and generate financial disinformation via generative models. The 2024 report calls on authorities to assess whether existing regulatory frameworks are sufficiently comprehensive and to develop AI-powered supervisory tools of their own---an acknowledgement that the regulator and the regulated are both racing to absorb the same capability leap. These macro-prudential concerns supplement the micro-level fairness concerns and motivate the call for regulatory monitoring of AI adoption at the system level, not merely firm-by-firm.
+The \emph{Financial Stability Board}'s 2023 report on AI in finance identified systemic risk concerns arising from the concentration of AI capabilities among a small number of providers, the potential for herding behaviour when many institutions use similar models, and the opacity of model behaviour under stress conditions \cite{fsb2023ai}. These macro-prudential concerns were sharpened in its 2024 follow-up report \citep{FSB2024stability}, which argues that AI can amplify third-party concentration risk, increase market correlations through algorithmic herding, and generate financial disinformation via generative models. The 2024 report calls on authorities to assess whether existing regulatory frameworks are sufficiently comprehensive and to develop AI-powered supervisory tools of their own---an acknowledgement that the regulator and the regulated are both racing to absorb the same capability leap. These macro-prudential concerns supplement the micro-level fairness concerns and motivate the call for regulatory monitoring of AI adoption at the system level, not merely firm-by-firm.
 
 \end{context}
 
@@ -508,7 +512,7 @@ Two regulatory instruments impose the most material privacy constraints on LLM d
 
 \emph{MiFID~II} imposes record-keeping obligations on investment firms that extend to LLM-generated outputs~\citep{esma2018mifid2}. Practitioners typically capture the prompt, the model version, the output, and the time of generation to satisfy the spirit of these obligations, though regulators have not yet enumerated LLM-specific fields explicitly. Firms must be able to demonstrate, in the event of a regulatory inquiry, that recommendations generated by an LLM were appropriate for the client and consistent with the firm's suitability assessment.
 
-The practical implication for system design is that on-premise or private-cloud deployment is strongly preferred for any application that processes personal financial data or generates client-specific recommendations. Sending client data to a third-party LLM API endpoint creates a data processor relationship that requires a Data Processing Agreement, exposes the firm to the provider's data retention policies, and may conflict with client confidentiality obligations. The OpenClaw framework described in Section~\ref{sec:af-research-assistant} is one architectural response to this constraint; private cloud deployments of open-weight models on the firm's own infrastructure are another.
+The practical implication for system design is that on-premise or private-cloud deployment is strongly preferred for any application that processes personal financial data or generates client-specific recommendations. Sending client data to a third-party LLM API endpoint creates a data processor relationship that requires a Data Processing Agreement, exposes the firm to the provider's data retention policies, and may conflict with client confidentiality obligations. The OpenClaw framework described in \Cref{sec:af-research-assistant} is one architectural response to this constraint; private cloud deployments of open-weight models on the firm's own infrastructure are another.
 
 \subsection{Incident Response and Model Monitoring}
 \label{subsec:af-deployment-monitoring}
@@ -539,8 +543,9 @@ Incident response for LLM systems follows a pattern analogous to software securi
 
 \begin{illustration}[LLM Benchmark Comparison]
 \label{ex:ch07-illustration}
-The companion notebook reproduces Figure~\ref{fig:ch07-illustration} from the
-hardcoded benchmark scores reported in the published papers, then extends the
+The deterministic script \texttt{gen\_benchmark\_comparison.py} reproduces
+\Cref{fig:ch07-illustration} from the fixed benchmark scores reported in the published
+papers (no data or network dependence); the companion notebook then extends the
 comparison along three dimensions. It adds a sixth model (Llama-3 70B) drawn
 from its technical report and redraws the bar chart, illustrating how a new
 entrant slots into the existing ranking. It interprets the resulting pattern:
@@ -568,7 +573,7 @@ The models described in this book process text. The financial data that matters 
 
 Multimodal LLMs, which jointly encode and reason over text, images, audio, and structured data, represent a qualitative expansion of the capability frontier. A multimodal model ingesting a quarterly earnings presentation can simultaneously process the management narrative, the revenue trend chart, and the restructured balance sheet table---linking observations across modalities in ways that sequential unimodal processing cannot. Early evidence from benchmark evaluations suggests that multimodal models outperform text-only models on financial QA tasks that require interpreting charts and tables embedded in PDFs, which constitute a large fraction of the documents in a typical financial research workflow \cite{zhang2024financebench}.
 
-Long-context models represent a complementary capability improvement. As context windows expand from the original 4,096 tokens of early GPT models to hundreds of thousands of tokens, the chunking-and-retrieval architecture described in Section~\ref{sec:af-research-assistant} becomes partially redundant for single-document tasks. An entire 10-K filing can be processed in a single forward pass, allowing the model to reason across sections---connecting a risk factor disclosure in Item~1A to the legal proceedings section in Item~3 to the management commentary in Item~7---without losing context between chunks. The challenge is that long-context models exhibit the ``lost in the middle'' phenomenon: recall accuracy degrades for passages positioned far from either end of a long context, a limitation that retrieval-augmented approaches do not share. The optimal architecture likely combines long-context reasoning for intra-document tasks with retrieval for multi-document synthesis.
+Long-context models represent a complementary capability improvement. As context windows expand from the original 4,096 tokens of early GPT models to hundreds of thousands of tokens, the chunking-and-retrieval architecture described in \Cref{sec:af-research-assistant} becomes partially redundant for single-document tasks. An entire 10-K filing can be processed in a single forward pass, allowing the model to reason across sections---connecting a risk factor disclosure in Item~1A to the legal proceedings section in Item~3 to the management commentary in Item~7---without losing context between chunks. The challenge is that long-context models exhibit the ``lost in the middle'' phenomenon: recall accuracy degrades for passages positioned far from either end of a long context, a limitation that retrieval-augmented approaches do not share. The optimal architecture likely combines long-context reasoning for intra-document tasks with retrieval for multi-document synthesis.
 
 \subsection{Autonomous Financial Agents: Opportunities and Risks}
 \label{subsec:af-future-autonomous}
@@ -586,13 +591,13 @@ The governance of autonomous agents in finance requires a principle that does no
 
 The applications in this book have solved real problems, but they have also exposed limitations that define the frontier of productive research. Five open problems stand out as both theoretically interesting and practically important.
 
-\emph{Calibrated uncertainty quantification for LLM-generated forecasts.} The models in Chapters~\ref{ch:business-valuation} and~\ref{ch:credit-risk} produce point estimates or distributions over financial quantities. The uncertainty associated with those estimates---arising from model uncertainty, input noise, and irreducible forecast variance---is not well characterised by existing methods. Conformal prediction provides distribution-free coverage guarantees for any model, but its application to the autoregressive outputs of LLMs requires careful handling of the sequential nature of token generation and the structured output format. A promising approach uses the conditional output probabilities of the model itself as calibrated uncertainty signals: \citet{chen2024uncertainty} show that the distribution an LLM assigns over its plausible completions, measured from token-level log-probabilities, provides a principled and tractable uncertainty estimate that outperforms post-hoc sampling methods on financial question-answering tasks. Well-calibrated uncertainty estimates are essential for risk-adjusted decision-making and for satisfying regulatory documentation requirements.
+\emph{Calibrated uncertainty quantification for LLM-generated forecasts.} The models in Chapters~\ref{ch:business-valuation} and~\ref{ch:credit-risk} produce point estimates or distributions over financial quantities. The uncertainty associated with those estimates---arising from model uncertainty, input noise, and irreducible forecast variance---is not well characterised by existing methods. Conformal prediction provides distribution-free coverage guarantees for any model, but its application to the autoregressive outputs of LLMs requires careful handling of the sequential nature of token generation and the structured output format. A promising approach uses the conditional output probabilities of the model itself as calibrated uncertainty signals: \citet{chen2024uncertainty} report that the distribution an LLM assigns over its plausible completions, measured from token-level log-probabilities, provides a principled and tractable uncertainty estimate that, in their evaluation, outperforms post-hoc sampling methods on financial question-answering tasks. Well-calibrated uncertainty estimates are essential for risk-adjusted decision-making and for satisfying regulatory documentation requirements.
 
 \emph{Robust comparable company selection in thin markets.} \Cref{ch:business-valuation} addressed comparables selection in liquid US public markets. For private companies, international markets with thin coverage, and sectors with few public peers, the comparables problem is harder: the embedding-based similarity measures trained on US financial text are systematically biased toward US market characteristics. Cross-market comparables selection requires embedding spaces that are invariant to market-level characteristics while remaining sensitive to firm-level fundamental differences---a representation learning challenge that has not been satisfactorily solved.
 
 \emph{Cross-lingual finance LLMs for non-English regulatory filings.} Regulatory filings in Japan, Germany, France, Brazil, and China are not simply English filings translated: they reflect different accounting standards (IFRS versus J-GAAP versus local GAAP variants), different disclosure norms, and different regulatory philosophies. Current LLMs, even multilingual ones, perform substantially worse on these filings than on equivalent English-language materials. Building or adapting finance LLMs for non-English regulatory environments requires corpora that are not currently publicly available and evaluation frameworks that do not yet exist.
 
-\emph{Detecting and mitigating feedback loops and memorisation in LLM-influenced markets.} The feedback loop bias discussed in Section~\ref{sec:af-ethics} is not merely a fairness concern; it is a market stability concern. When LLM-generated signals are reflected in prices, the informational efficiency of prices changes in ways that are not well understood. A related and equally underappreciated problem is look-ahead bias arising from an LLM's training corpus: a model whose pretraining data includes post-hoc financial analyses and news coverage may appear to ``predict'' market outcomes it has, in fact, already encountered. \citet{didisheim2025memory} formalise this phenomenon---what they call the LLM's predictable memory---and show that look-ahead bias is most severe at low frequencies and for large models trained on broad corpora, providing a practical methodology to quantify and adjust for this inflation in apparent forecast performance. Empirical identification of LLM-driven feedback loops requires distinguishing LLM-influenced price formation from price formation driven by other correlated factors---a causal inference problem complicated by the simultaneity of model deployment and market activity. Developing credible identification strategies and theoretical models of feedback dynamics is an important open problem.
+\emph{Detecting and mitigating feedback loops and memorisation in LLM-influenced markets.} The feedback loop bias discussed in \Cref{sec:af-ethics} is not merely a fairness concern; it is a market stability concern. When LLM-generated signals are reflected in prices, the informational efficiency of prices changes in ways that are not well understood. A related and equally underappreciated problem is look-ahead bias arising from an LLM's training corpus: a model whose pretraining data includes post-hoc financial analyses and news coverage may appear to ``predict'' market outcomes it has, in fact, already encountered. \citet{didisheim2025memory} formalise this phenomenon---what they call the LLM's predictable memory---and report that look-ahead bias is most severe at low frequencies and for large models trained on broad corpora, proposing a methodology to quantify and adjust for this inflation in apparent forecast performance. Empirical identification of LLM-driven feedback loops requires distinguishing LLM-influenced price formation from price formation driven by other correlated factors---a causal inference problem complicated by the simultaneity of model deployment and market activity. Developing credible identification strategies and theoretical models of feedback dynamics is an important open problem.
 
 \emph{Formal verification of chain-of-thought financial reasoning.} Chain-of-thought outputs provide a trace of the model's reasoning, but there is no guarantee that the stated reasoning is the actual computation that produced the output---a phenomenon sometimes called \emph{unfaithful reasoning}. For financial decisions where the reasoning trace must be defensible to regulators, the gap between stated and actual reasoning is a legal and operational risk. Developing methods to verify the consistency between a model's chain-of-thought and its output, and to detect when the stated reasoning could not have produced the stated conclusion, is an open technical problem with direct regulatory relevance.
 
@@ -616,4 +621,22 @@ The combination of LLM capability and professional expertise, applied with rigou
 \begin{remark}[A Note on Model Versions and Reproducibility]
 The code examples throughout this book use specific model identifiers (e.g., \texttt{claude-opus-4-5}). Model providers update and retire models continuously; readers implementing the examples should consult current provider documentation for the appropriate model identifier and adapt prompt templates as necessary for the model's instruction format. The underlying techniques---chain-of-thought prompting, tool use, RAG, agent orchestration---are architecture-level patterns that generalise across model versions. Specific prompt templates and API call structures may require adjustment.
 \end{remark}
+
+\subsection*{Exercises}
+
+\begin{enumerate}
+  \item \textbf{[B]} Using the architecture-family decision table (\Cref{tab:arch-decision}),
+        classify three finance NLP tasks of your choice (e.g.\ 10-K risk-factor tagging,
+        earnings-call Q\&A, real-time headline routing) and justify the recommended family
+        for each across the seven task properties.
+  \item \textbf{[I]} Instantiate the workflow DAG of \Cref{def:workflow-dag} for the
+        nightly earnings-briefing pipeline described in \Cref{sec:af-workflows}: list the
+        tasks, draw the dependency edges, and give a valid topological execution order.
+  \item \textbf{[A]} Take the fairness impossibility result (\Cref{prop:fairness-impossibility})
+        and argue, for a specific credit-scoring deployment with unequal base rates, which
+        single fairness criterion you would prioritise and how you would justify that policy
+        choice to a regulator. Then reproduce \Cref{fig:ch07-illustration} with
+        \texttt{gen\_benchmark\_comparison.py} and add one further model from its technical
+        report, discussing where it lands in the ranking.
+\end{enumerate}
 

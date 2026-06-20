@@ -6,12 +6,18 @@
 > unnecessary repeated derivations, or orphaned finance examples.
 >
 > **Date:** 2026-06-20 · **Mode:** targeted, auditable edits (chapter order from
-> `book/main.tex`) · **Goal passed:** **NO** — every structural/citation/correctness
-> blocker is cleared, the authorised reproducibility prose fix is done, and the book
-> compiles cleanly (620 pp). The residual gap to all-chapter ≥90 is **figure generation
-> for ch08–16 + notebook content-filling + data-snapshot infrastructure + external
-> numeric verification** — large-engineering and human-gated work, not targeted prose
-> edits (see §5). **All targeted-edit tractable work is complete.**
+> `book/main.tex`) · **Goal passed:** **NO (1/16 chapters pass)** — every
+> structural/citation/correctness blocker is cleared, the book compiles cleanly (620 pp),
+> and **ch05 is the first chapter to clear all 14 dimensions** after its figure was made
+> deterministic. Independent re-audits (ch02/05/11/12) show 9–14 of 14 dimensions now pass
+> per chapter. The residual gap is **deterministic figures for ch01–07 + figure creation
+> for ch08–16 + non-stub notebooks + external numeric verification** (see §5).
+>
+> **Demonstrated path to passing (ch05):** replace a live-data figure with a committed,
+> deterministic, network-free generator. `gen_dcf_sensitivity.py` regenerates the DCF
+> heatmap from a fixed documented FCF (no `yfinance`), lifting reproducibility 78→96 and
+> code_figure 89→95. The same method applies to the other figure-having chapters; ch08–16
+> additionally need figures authored.
 
 ---
 

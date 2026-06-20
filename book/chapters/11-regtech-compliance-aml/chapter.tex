@@ -159,7 +159,7 @@ Consider a compliance agent tasked with screening the individual ``Carlos Fernan
   \item \textbf{Evidence extraction.} For relevant documents, the agent extracts: the alleged offence type (corruption, embezzlement, sanctions violation, etc.); the geographic jurisdiction; the date of the alleged conduct; the legal status (alleged vs. convicted); and the source type (court document, government press release, investigative journalism, tabloid).
   \item \textbf{Risk scoring.} The agent produces a structured output including a risk tier (low/medium/high/critical), a summary of findings, and cited evidence. The output is designed to be directly actionable by a human reviewer.
 \end{enumerate}
-The entire pipeline runs in minutes rather than hours, and the structured output facilitates consistent review and easy escalation~\cite{chen2025aml}.
+The entire pipeline runs in minutes rather than hours, and the structured output facilitates consistent review and easy escalation.
 \end{example}
 
 The design of such an agent involves several non-trivial choices. Tool selection determines which data sources are available (news APIs, regulatory databases, beneficial ownership registries). Memory management determines how context from earlier search steps informs later queries --- a key challenge when the relevant information is spread across many documents. Error handling must address cases where the same name refers to multiple individuals, a systematic challenge for common names in large populations. \Cref{ch:llm-agents} discusses the ReAct framework~\cite{yao2022react} and multi-step reasoning patterns applicable here. \citet{Ngam2026} demonstrates how an agentic LLM architecture built around a Perceive-Reason-Act loop can autonomously compile regulatory text into executable AML detection features, directly closing the traceability gap between compliance rules and model outputs that generic agentic designs often leave open.
@@ -215,7 +215,17 @@ A RAG-based adverse media pipeline has five components: an ingestion pipeline, a
 \label{eq:rrf-fusion}
 \mathrm{RRF}(d) = \sum_{r \in R} \frac{1}{\kappa + \mathrm{rank}_r(d)},
 \end{equation}
-where $R$ is the set of ranking functions (dense, sparse), $\kappa$ is a smoothing constant (typically 60), and $\mathrm{rank}_r(d)$ is the rank of document $d$ under ranking function $r$. Documents not retrieved by a particular ranker are assigned rank $\infty$.
+where $R$ is the set of ranking functions (dense, sparse), $\kappa$ is a smoothing constant (typically 60), and $\mathrm{rank}_r(d)$ is the rank of document $d$ under ranking function $r$. Documents not retrieved by a particular ranker are assigned rank $\infty$. \Cref{fig:ch11-rrf} works \eqref{eq:rrf-fusion} through a small example: a passage ranked highly by \emph{both} retrievers is promoted above one that any single retriever ranks first, which is the property that makes hybrid retrieval robust.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\textwidth]{chapters/11-regtech-compliance-aml/figures/fig_rrf}
+  \caption{Reciprocal rank fusion (\Cref{eq:rrf-fusion}, $\kappa = 60$) applied to five
+           candidate passages, each with its rank under a dense and a sparse retriever.
+           The fused order rewards passages ranked highly by both signals. Generated
+           deterministically by \texttt{gen\_rrf\_fusion.py}.}
+  \label{fig:ch11-rrf}
+\end{figure}
 
 \textbf{Reader/ranker.} The LLM reader receives the top-$k$ passages and the subject query, and performs two tasks: cross-passage entity disambiguation (is this passage about the same individual?) and relevance classification (does this passage contain material AML risk evidence?). Cross-encoder reranking~\cite{reimers2019} scores each passage against the query with full attention across the passage-query pair, providing higher-quality relevance estimates than the bi-encoder retriever at the cost of higher latency.
 
@@ -228,7 +238,7 @@ Latency and throughput constraints matter in production. For real-time onboardin
 \subsection{Adverse Media Index: quantitative risk scoring from text}
 \label{sec:ch11-adverse-media-index}
 
-A binary low/high risk classification of adverse media is insufficient for risk-based AML. What is needed is a continuous risk score that can be compared across subjects, tracked over time, and integrated into quantitative risk models. The Adverse Media Index (AMI) formalises this~\cite{chen2025aml}.
+A binary low/high risk classification of adverse media is insufficient for risk-based AML. What is needed is a continuous risk score that can be compared across subjects, tracked over time, and integrated into quantitative risk models. The Adverse Media Index (AMI), which we formalise below, captures this requirement.
 
 \begin{definition}[Adverse Media Index]
 \label{def:adverse-media-index}
@@ -462,7 +472,7 @@ This chapter has examined the application of large language models to regulatory
 
 The regulatory framework for AI in financial services is evolving rapidly. The text of the EU AI Act \cite{euaiact2024} should be read alongside the guidance notes issued by the European AI Office and national competent authorities, which provide interpretation of the high-level statutory requirements. The Federal Reserve's SR~11-7 guidance \cite{sr117} remains the definitive US reference for model risk management, and the Financial Stability Board's 2024 report \cite{FSB2024stability} provides a global overview of emerging supervisory expectations for AI in finance.
 
-On the AML side, the FATF guidance on AI in AML/CFT \cite{fatf2021aml} is essential reading for practitioners, as it defines the international standard-setter's expectations for AI-enabled compliance programmes. \citet{chen2025aml} provide a detailed technical treatment of LLM-based adverse media screening, including the Adverse Media Index formalisation developed in this chapter.
+On the AML side, the FATF guidance on AI in AML/CFT \cite{fatf2021aml} is essential reading for practitioners, as it defines the international standard-setter's expectations for AI-enabled compliance programmes. The Adverse Media Index formalisation developed in this chapter is intended as a practical template; practitioners should calibrate its weights and thresholds against their own labelled case outcomes before relying on it.
 
 For the technical foundations of retrieval-augmented generation, \citet{lewis2020rag} is the original RAG paper. \citet{gao2024retrieval} provide a comprehensive survey of RAG architectures including hybrid retrieval and reranking. \citet{cormack2009reciprocal} introduce the reciprocal rank fusion algorithm used in hybrid retrieval.
 

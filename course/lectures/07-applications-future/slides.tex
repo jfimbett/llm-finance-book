@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Lecture 7: Other Applications in Finance and Future Trends}
 \subtitle{Large Language Models in Finance}
@@ -67,11 +53,12 @@
 \end{center}
 
 \medskip
-\begin{block}{The through-line}
+\begin{bigpicture}
+  The through-line.
   Early chapters: lightweight representations, large corpora, modest compute.\\
   Later chapters: generative and agent-based models, multi-step reasoning.\\
   This chapter: cross-cutting concerns of \textbf{deployment, governance, and frontier capability}.
-\end{block}
+\end{bigpicture}
 \end{frame}
 
 % ============================================================
@@ -234,47 +221,6 @@ Rule-based system flags unusual order pattern $\to$ LLM retrieves news + social 
 \end{frame}
 
 % ============================================================
-% FRAME 9: EDGAR monitor code
-% ============================================================
-\begin{frame}[fragile]
-\frametitle{Event-Triggered EDGAR Monitor: Code Sketch}
-
-\begin{lstlisting}
-CLASSIFICATION_PROMPT = """Classify this newly filed SEC 8-K.
-Company: {company}
-Filing description: {description}
-
-Respond with valid JSON:
-{"materiality_score": 1-5, "event_type": "earnings|merger_acquisition|...",
- "summary": "..."}"""
-
-def classify_filing(client, company, description):
-    message = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=256,
-        messages=[{"role": "user", "content":
-                   CLASSIFICATION_PROMPT.format(
-                       company=company, description=description)}]
-    )
-    return json.loads(message.content[0].text)
-
-def monitor_edgar(poll_interval=300):
-    seen_ids = set()
-    while True:
-        feed = feedparser.parse(EDGAR_RSS)
-        for entry in feed.entries:
-            if entry.id not in seen_ids:
-                seen_ids.add(entry.id)
-                result = classify_filing(client,
-                    entry.get("edgar_companyname"),
-                    entry.get("summary"))
-                if result["materiality_score"] >= 3:
-                    dispatch_alert(result)
-        time.sleep(poll_interval)
-\end{lstlisting}
-\end{frame}
-
-% ============================================================
 \section{Building a Financial Research Assistant}
 % ============================================================
 
@@ -304,12 +250,13 @@ Semantic search alone fails on:
   \item Exact-term queries (``Article 22 GDPR'', ``IFRS 9 ECL'')
 \end{itemize}
 
+\begin{underhood}
 \textbf{Reciprocal Rank Fusion:}
 \[
   s_{\text{RRF}}(q, d_i) = \frac{1}{k + r_{\text{dense}}(d_i)} + \frac{1}{k + r_{\text{sparse}}(d_i)}, \quad k = 60
 \]
-
 Parameter-free; robust to different score scales of dense and sparse systems.
+\end{underhood}
 \end{frame}
 
 % ============================================================
@@ -345,40 +292,6 @@ Parameter-free; robust to different score scales of dense and sparse systems.
   LLM predictive accuracy follows an inverted-U in context length.
   Excessive context degrades performance. Mirrors cognitive overload in human analysts.
 \end{block}
-\end{frame}
-
-% ============================================================
-% FRAME 12: OpenClaw
-% ============================================================
-\begin{frame}
-\frametitle{OpenClaw: Local Personal AI for Finance Professionals}
-
-\textbf{Design principles:}
-\begin{enumerate}
-  \item \textbf{Privacy by default}: all processing local; financial data never leaves the machine
-  \item \textbf{Meet users where they work}: queries via WhatsApp, Telegram, Slack, Signal
-  \item \textbf{Model flexibility}: cloud (Claude, GPT-4) for capability; local (Llama, Mistral) for sensitivity
-  \item \textbf{Extensibility through skills}: a Python function with a descriptive docstring becomes a callable tool
-\end{enumerate}
-
-\medskip
-\textbf{Finance-specific skills:}
-\begin{center}
-\small
-\begin{tabular}{ll}
-\toprule
-Skill & What it does \\
-\midrule
-\texttt{/earnings AAPL} & Guidance summary vs.\ consensus from most recent transcript \\
-Filing monitor & Daily digest of new SEC filings from watchlist \\
-Portfolio Q\&A & Natural-language questions about local CSV portfolio \\
-Macro digest & Morning briefing from central bank speeches + market moves \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\medskip
-\textbf{Self-modification}: the assistant can itself write new skills. ``Write me a skill that monitors short interest changes above 5\%'' $\to$ new Python file, user reviews, permanently extends capabilities.
 \end{frame}
 
 % ============================================================
@@ -418,14 +331,15 @@ $\Pr(\hat{Y} = 1 \mid Y = y, A = a) = \Pr(\hat{Y} = 1 \mid Y = y, A = b)$ for $y
 $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
 
 \medskip
-\begin{alertblock}{Chouldechova (2017) Impossibility Theorem}
+\begin{underhood}
+  \textbf{Chouldechova (2017) Impossibility Theorem.}
   When base rates differ across groups --- $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$ ---
   a non-trivial classifier \textbf{cannot simultaneously} satisfy demographic parity,
   equalized odds, and calibration within group.
 
   Demographic parity and calibration within group are mutually incompatible
   whenever base rates differ.
-\end{alertblock}
+\end{underhood}
 
 \medskip
 \begin{block}{Implication}
@@ -554,12 +468,14 @@ $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
 \begin{frame}
 \frametitle{Multimodal LLMs and Long-Context Models}
 
-\textbf{The limitation of text-only models in finance:}
+\begin{bigpicture}
+The limitation of text-only models in finance:
 \begin{itemize}
   \item Earnings presentations contain charts visualising trends
   \item Annual reports embed tables organising financial statements
   \item Earnings calls carry prosodic cues (hesitation, urgency) lost in transcription
 \end{itemize}
+\end{bigpicture}
 
 \textbf{Multimodal models} jointly encode text, images, audio, and structured data. Early benchmark evidence: multimodal models outperform text-only on financial QA tasks requiring chart and table interpretation.
 
@@ -631,12 +547,13 @@ $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
 \begin{frame}
 \frametitle{The Path Forward: Three Disciplines}
 
-\begin{block}{Why capability and responsibility are jointly necessary}
+\begin{bigpicture}
+  Why capability and responsibility are jointly necessary.
   An LLM credit model that discriminates unlawfully misallocates capital.\\
   A trading system amplifying volatility damages market infrastructure.\\
   A valuation agent that hallucinates financial figures undermines the professional
   standards that give financial analysis its social function.
-\end{block}
+\end{bigpicture}
 
 \medskip
 \textbf{Three disciplines that separate successful deployments from failures:}
@@ -656,10 +573,87 @@ $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
 \end{frame}
 
 % ============================================================
-% FRAME 23: Course summary
+% APPENDIX
 % ============================================================
-\begin{frame}
-\frametitle{Course Summary: The LLM Finance Stack}
+\appendixstart{Extra Material: Code Sketch, Local AI, Course Map}
+
+% ============================================================
+% APPENDIX FRAME: EDGAR monitor code (relocated from core deck)
+% ============================================================
+\begin{frame}[fragile,noframenumbering]{Event-Triggered EDGAR Monitor: Code Sketch}
+
+\begin{lstlisting}
+CLASSIFICATION_PROMPT = """Classify this newly filed SEC 8-K.
+Company: {company}
+Filing description: {description}
+
+Respond with valid JSON:
+{"materiality_score": 1-5, "event_type": "earnings|merger_acquisition|...",
+ "summary": "..."}"""
+
+def classify_filing(client, company, description):
+    message = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=256,
+        messages=[{"role": "user", "content":
+                   CLASSIFICATION_PROMPT.format(
+                       company=company, description=description)}]
+    )
+    return json.loads(message.content[0].text)
+
+def monitor_edgar(poll_interval=300):
+    seen_ids = set()
+    while True:
+        feed = feedparser.parse(EDGAR_RSS)
+        for entry in feed.entries:
+            if entry.id not in seen_ids:
+                seen_ids.add(entry.id)
+                result = classify_filing(client,
+                    entry.get("edgar_companyname"),
+                    entry.get("summary"))
+                if result["materiality_score"] >= 3:
+                    dispatch_alert(result)
+        time.sleep(poll_interval)
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+% APPENDIX FRAME: OpenClaw (relocated from core deck)
+% ============================================================
+\begin{frame}[noframenumbering]{OpenClaw: Local Personal AI for Finance Professionals}
+
+\textbf{Design principles:}
+\begin{enumerate}
+  \item \textbf{Privacy by default}: all processing local; financial data never leaves the machine
+  \item \textbf{Meet users where they work}: queries via WhatsApp, Telegram, Slack, Signal
+  \item \textbf{Model flexibility}: cloud (Claude, GPT-4) for capability; local (Llama, Mistral) for sensitivity
+  \item \textbf{Extensibility through skills}: a Python function with a descriptive docstring becomes a callable tool
+\end{enumerate}
+
+\medskip
+\textbf{Finance-specific skills:}
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+Skill & What it does \\
+\midrule
+\texttt{/earnings AAPL} & Guidance summary vs.\ consensus from most recent transcript \\
+Filing monitor & Daily digest of new SEC filings from watchlist \\
+Portfolio Q\&A & Natural-language questions about local CSV portfolio \\
+Macro digest & Morning briefing from central bank speeches + market moves \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Self-modification}: the assistant can itself write new skills. ``Write me a skill that monitors short interest changes above 5\%'' $\to$ new Python file, user reviews, permanently extends capabilities.
+\end{frame}
+
+% ============================================================
+% APPENDIX FRAME: Course summary (relocated from core deck)
+% ============================================================
+\begin{frame}[noframenumbering]{Course Summary: The LLM Finance Stack}
 
 \begin{center}
 \small

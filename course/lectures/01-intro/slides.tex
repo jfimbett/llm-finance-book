@@ -1,8 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath, amssymb}
-\usepackage{booktabs}
-\usepackage{xcolor}
+\input{../_style/finance-beamer.tex}
 
 \title{From Text to Signals in Finance}
 \subtitle{Lecture 1 — Introduction}
@@ -39,10 +36,10 @@
     \item High/low negativity $\Rightarrow$ high next-day trading volume
   \end{itemize}
   \medskip
-  \begin{alertblock}{The core insight}
+  \begin{bigpicture}
     Human language can be turned into a quantitative return-predicting signal.
     The reversal tells us it reflects sentiment, not fundamental news.
-  \end{alertblock}
+  \end{bigpicture}
 \end{frame}
 
 \begin{frame}{Dictionary Methods: Harvard IV-4 and LM}
@@ -67,28 +64,6 @@
     Static, order-invariant.
     ``Earnings did \emph{not} decline'' $=$ ``Earnings \emph{did} decline'' unless negation is hard-coded.
   \end{alertblock}
-\end{frame}
-
-\begin{frame}{From Dictionaries to Neural Methods: A Timeline}
-  \begin{center}
-  \begin{tabular}{@{}lll@{}}
-    \toprule
-    Year & Method & Key advance \\
-    \midrule
-    1966       & General Inquirer       & Systematic word counting \\
-    2003       & LDA (topic models)     & Data-driven topics, no labels needed \\
-    2011       & LM Dictionary          & Financial-domain sentiment \\
-    2013       & Word2Vec / GloVe       & Dense embeddings, semantic geometry \\
-    1997/2015  & LSTM / Attention       & Sequential context, negation \\
-    2017       & Transformer            & Parallel self-attention, massive scale \\
-    2018--19   & BERT / FinBERT         & Pre-train then fine-tune \\
-    2020+      & GPT-4, Claude, Llama   & Instruction-following, reasoning \\
-    \bottomrule
-  \end{tabular}
-  \end{center}
-  \medskip
-  Each generation addresses the core limitation of the previous one.\\
-  Understanding this history explains \emph{why} LLMs behave the way they do.
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -125,8 +100,10 @@
           Information leaks through word choice, omissions, and rhetorical structure.}
   \end{enumerate}
   \medskip
-  \small Text analysis adds value not because markets are irrational, but because
-  \emph{information extraction from text is genuinely costly}.
+  \begin{bigpicture}
+    Text analysis adds value not because markets are irrational, but because
+    \emph{information extraction from text is genuinely costly}.
+  \end{bigpicture}
 \end{frame}
 
 \begin{frame}{Four Empirical Regularities}
@@ -269,14 +246,15 @@
   \]
   BoW = sum of one-hot vectors of constituent tokens.
   \medskip
-  \begin{block}{The problem: orthogonality}
+  \begin{underhood}
+    \textbf{The problem: orthogonality.}
     \[
       \mathbf{e}_j^\top \mathbf{e}_k = \mathbb{1}[j=k]
       \quad \Rightarrow \quad
       \mathrm{sim}(\text{revenue},\, \text{income}) = 0
       = \mathrm{sim}(\text{revenue},\, \text{penguin})
     \]
-  \end{block}
+  \end{underhood}
   \medskip
   Every pair of distinct words is equally dissimilar --- the \emph{discrete metric}.\\
   This is semantically incorrect: financial analysts know that ``revenue'' and ``income''
@@ -315,33 +293,6 @@
   \]
 \end{frame}
 
-\begin{frame}{TF-IDF: Worked Example}
-  Three pre-processed financial sentences ($N=3$, $V=8$):
-  \medskip
-  \begin{center}
-  \begin{tabular}{@{}cl@{}}
-    \toprule
-    $d$ & Tokens \\
-    \midrule
-    $d_1$ & \texttt{revenue grew strong earnings} \\
-    $d_2$ & \texttt{earnings declined weak guidance} \\
-    $d_3$ & \texttt{revenue guidance raised strong} \\
-    \bottomrule
-  \end{tabular}
-  \end{center}
-  \medskip
-  $\mathrm{idf}(\texttt{declined}) = \mathrm{idf}(\texttt{grew}) = \mathrm{idf}(\texttt{raised})
-  = \mathrm{idf}(\texttt{weak}) = \ln(3) \approx 1.099$\\
-  $\mathrm{idf}(\texttt{earnings}) = \mathrm{idf}(\texttt{guidance}) = \mathrm{idf}(\texttt{revenue})
-  = \mathrm{idf}(\texttt{strong}) = \ln(3/2) \approx 0.405$
-  \medskip
-  \begin{block}{Cosine similarities}
-    $\mathrm{sim}(d_1, d_3) \approx 0.213$ (shared: \texttt{revenue, strong})\\
-    $\mathrm{sim}(d_1, d_2) \approx 0.106$ (shared: \texttt{earnings} only)
-  \end{block}
-  Full computation in Practical Session 1.
-\end{frame}
-
 \begin{frame}{Limitations of Classical Methods}
   Despite TF-IDF's improvements over raw counts, all classical methods share:
   \medskip
@@ -367,12 +318,11 @@
 \section{Word Embeddings}
 
 \begin{frame}{The Distributional Hypothesis}
-  \begin{block}{J.R.\ Firth (1957)}
-    \emph{``You shall know a word by the company it keeps.''}
-  \end{block}
-  \medskip
-  Words with similar meanings appear in similar contexts.\\
-  Capture contextual co-occurrence $\Rightarrow$ capture semantic similarity.
+  \begin{bigpicture}
+    \emph{``You shall know a word by the company it keeps.''} --- J.R.\ Firth (1957)\\[2pt]
+    Words with similar meanings appear in similar contexts.
+    Capture contextual co-occurrence $\Rightarrow$ capture semantic similarity.
+  \end{bigpicture}
   \medskip
   \begin{block}{Definition: Word Embedding}
     An injective map $\varphi : \mathcal{V} \to \mathbb{R}^d$ with $d \ll V$.\\
@@ -402,10 +352,11 @@
     = \frac{\exp\!\bigl(\mathbf{v}_{w_{t+k}}^{\top} \hat{\mathbf{v}}_{w_t}\bigr)}
            {\sum_{w=1}^{V} \exp\!\bigl(\mathbf{v}_{w}^{\top} \hat{\mathbf{v}}_{w_t}\bigr)}
   \]
-  \begin{alertblock}{The computational problem}
+  \begin{underhood}
+    \textbf{The computational problem.}
     Normalising constant sums over all $V \approx 10^4$--$10^5$ words \emph{at every gradient step}.
     For 1 billion tokens: intractable.
-  \end{alertblock}
+  \end{underhood}
   Two embedding matrices: \emph{centre-word} vectors $\hat{\mathbf{v}}_w$ and \emph{context-word} vectors $\mathbf{v}_w$.
 \end{frame}
 
@@ -431,30 +382,6 @@
   negative sample vectors are pushed \emph{away}.\\[4pt]
   \textbf{Efficiency:} only $K{+}1$ rows of $\mathbf{W}$ touched per step, not all $V$.\\
   Recommended: $K = 5$--$20$; $P_n(w) \propto \mathrm{freq}(w)^{3/4}$.
-\end{frame}
-
-\begin{frame}{GloVe: Global Co-occurrence Factorisation}
-  \textbf{Co-occurrence matrix} $X_{ij}$ = times word $j$ appears in context of word $i$ across the full corpus.
-  \medskip
-  \textbf{Key insight:} the \emph{ratio} $P_{ik}/P_{jk}$ encodes relational meaning more faithfully than raw probabilities.
-  \medskip
-  GloVe minimises:
-  \[
-    J_{\mathrm{GloVe}}
-    = \sum_{i,j=1}^{V}
-      f(X_{ij})
-      \Bigl(\mathbf{w}_i^{\top} \tilde{\mathbf{w}}_j + b_i + \tilde{b}_j - \log X_{ij}\Bigr)^{2}
-  \]
-  with weighting function $f(x) = (x/x_{\max})^{\alpha}$ for $x < x_{\max}$, else 1.
-  Recommended: $\alpha = 0.75$, $x_{\max} = 100$.
-  \medskip
-  \begin{block}{GloVe vs.\ Word2Vec}
-    \begin{tabular}{@{}ll@{}}
-      GloVe & single-pass WLS over precomputed counts; faster with stored matrix \\
-      Word2Vec & online SGD; scales to streaming corpora \\
-    \end{tabular}\\
-    Similar embedding quality in practice.
-  \end{block}
 \end{frame}
 
 \begin{frame}{Finance-Specific Domain Adaptation}
@@ -483,29 +410,6 @@
   \end{enumerate}
 \end{frame}
 
-\begin{frame}{Case Study: PCA on Financial Vocabulary}
-  Project 30 financial terms into 2D via PCA on GloVe vectors.
-  Colour by semantic group:
-  \textcolor{blue}{rates \& macro} $\cdot$
-  \textcolor{green!60!black}{equities \& returns} $\cdot$
-  \textcolor{red}{risk} $\cdot$
-  \textcolor{orange}{corporate actions \& derivatives}
-  \medskip
-  \begin{block}{Consistent patterns across pre-trained models}
-    \begin{itemize}
-      \item \textit{option, futures, derivative} $\to$ tight cluster
-      \item \textit{default, credit} $\to$ cluster together, away from equities
-      \item \textit{merger, acquisition} $\to$ nearly identical vectors
-      \item \textit{alpha, beta, factor} $\to$ cluster (shared asset-pricing origin)
-      \item Rates cluster (\textit{yield, spread, inflation, interest rate}) $\to$ most cohesive
-    \end{itemize}
-  \end{block}
-  \begin{alertblock}{Caution on axis interpretation}
-    PCA axes $\mathbf{p}_1, \mathbf{p}_2$ are \emph{not} interpretable as named financial concepts without further validation.
-  \end{alertblock}
-  Full code: \texttt{code/notebooks/01-intro/demo.ipynb}
-\end{frame}
-
 % ---------------------------------------------------------------
 \section{Looking Ahead}
 
@@ -531,6 +435,106 @@
   \medskip
   \small \textbf{Key refs:} Tetlock (2007) $\cdot$ LM (2011) $\cdot$ Mikolov (2013)
   $\cdot$ Pennington (2014) $\cdot$ Lopez-Lira \& Tang (2023)
+\end{frame}
+
+% ===============================================================
+\appendixstart{Extended Examples, Timeline, and GloVe}
+% ===============================================================
+
+\begin{frame}[noframenumbering]{From Dictionaries to Neural Methods: A Timeline}
+  \begin{center}
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    Year & Method & Key advance \\
+    \midrule
+    1966       & General Inquirer       & Systematic word counting \\
+    2003       & LDA (topic models)     & Data-driven topics, no labels needed \\
+    2011       & LM Dictionary          & Financial-domain sentiment \\
+    2013       & Word2Vec / GloVe       & Dense embeddings, semantic geometry \\
+    1997/2015  & LSTM / Attention       & Sequential context, negation \\
+    2017       & Transformer            & Parallel self-attention, massive scale \\
+    2018--19   & BERT / FinBERT         & Pre-train then fine-tune \\
+    2020+      & GPT-4, Claude, Llama   & Instruction-following, reasoning \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  Each generation addresses the core limitation of the previous one.\\
+  Understanding this history explains \emph{why} LLMs behave the way they do.
+\end{frame}
+
+\begin{frame}[noframenumbering]{TF-IDF: Worked Example}
+  Three pre-processed financial sentences ($N=3$, $V=8$):
+  \medskip
+  \begin{center}
+  \begin{tabular}{@{}cl@{}}
+    \toprule
+    $d$ & Tokens \\
+    \midrule
+    $d_1$ & \texttt{revenue grew strong earnings} \\
+    $d_2$ & \texttt{earnings declined weak guidance} \\
+    $d_3$ & \texttt{revenue guidance raised strong} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  $\mathrm{idf}(\texttt{declined}) = \mathrm{idf}(\texttt{grew}) = \mathrm{idf}(\texttt{raised})
+  = \mathrm{idf}(\texttt{weak}) = \ln(3) \approx 1.099$\\
+  $\mathrm{idf}(\texttt{earnings}) = \mathrm{idf}(\texttt{guidance}) = \mathrm{idf}(\texttt{revenue})
+  = \mathrm{idf}(\texttt{strong}) = \ln(3/2) \approx 0.405$
+  \medskip
+  \begin{block}{Cosine similarities}
+    $\mathrm{sim}(d_1, d_3) \approx 0.213$ (shared: \texttt{revenue, strong})\\
+    $\mathrm{sim}(d_1, d_2) \approx 0.106$ (shared: \texttt{earnings} only)
+  \end{block}
+  Full computation in Practical Session 1.
+\end{frame}
+
+\begin{frame}[noframenumbering]{GloVe: Global Co-occurrence Factorisation}
+  \textbf{Co-occurrence matrix} $X_{ij}$ = times word $j$ appears in context of word $i$ across the full corpus.
+  \medskip
+  \textbf{Key insight:} the \emph{ratio} $P_{ik}/P_{jk}$ encodes relational meaning more faithfully than raw probabilities.
+  \medskip
+  GloVe minimises:
+  \[
+    J_{\mathrm{GloVe}}
+    = \sum_{i,j=1}^{V}
+      f(X_{ij})
+      \Bigl(\mathbf{w}_i^{\top} \tilde{\mathbf{w}}_j + b_i + \tilde{b}_j - \log X_{ij}\Bigr)^{2}
+  \]
+  with weighting function $f(x) = (x/x_{\max})^{\alpha}$ for $x < x_{\max}$, else 1.
+  Recommended: $\alpha = 0.75$, $x_{\max} = 100$.
+  \medskip
+  \begin{block}{GloVe vs.\ Word2Vec}
+    \begin{tabular}{@{}ll@{}}
+      GloVe & single-pass WLS over precomputed counts; faster with stored matrix \\
+      Word2Vec & online SGD; scales to streaming corpora \\
+    \end{tabular}\\
+    Similar embedding quality in practice.
+  \end{block}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Case Study: PCA on Financial Vocabulary}
+  Project 30 financial terms into 2D via PCA on GloVe vectors.
+  Colour by semantic group:
+  \textcolor{blue}{rates \& macro} $\cdot$
+  \textcolor{green!60!black}{equities \& returns} $\cdot$
+  \textcolor{red}{risk} $\cdot$
+  \textcolor{orange}{corporate actions \& derivatives}
+  \medskip
+  \begin{block}{Consistent patterns across pre-trained models}
+    \begin{itemize}
+      \item \textit{option, futures, derivative} $\to$ tight cluster
+      \item \textit{default, credit} $\to$ cluster together, away from equities
+      \item \textit{merger, acquisition} $\to$ nearly identical vectors
+      \item \textit{alpha, beta, factor} $\to$ cluster (shared asset-pricing origin)
+      \item Rates cluster (\textit{yield, spread, inflation, interest rate}) $\to$ most cohesive
+    \end{itemize}
+  \end{block}
+  \begin{alertblock}{Caution on axis interpretation}
+    PCA axes $\mathbf{p}_1, \mathbf{p}_2$ are \emph{not} interpretable as named financial concepts without further validation.
+  \end{alertblock}
+  Full code: \texttt{code/notebooks/01-intro/demo.ipynb}
 \end{frame}
 
 \end{document}

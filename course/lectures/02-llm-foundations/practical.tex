@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Practical Session 2: Transformers, APIs, and RAG}
 \subtitle{Hands-On: Attention by Hand, Cost Estimation, and a Minimal RAG Pipeline}
@@ -23,7 +9,7 @@
 
 \begin{document}
 
-\maketitle
+\begin{frame}\titlepage\end{frame}
 
 % ============================================================
 % FRAME 1: Overview
@@ -329,13 +315,6 @@ question to Claude with no context. Does the model still produce an answer?
   \item Restore retrieval. Which mitigation technique from the lecture does RAG implement?
   \item Name one additional mitigation you would apply for a production compliance pipeline.
 \end{itemize}
-
-\medskip
-\begin{block}{Optional extension}
-Add a sixth passage: \texttt{"The company's debt-to-equity ratio is 1.8 as of year-end."}
-Formulate a query that retrieves \emph{only} this passage. What makes a query specific
-enough to target a single passage in a dense retrieval system?
-\end{block}
 \end{frame}
 
 % ============================================================
@@ -481,6 +460,30 @@ O \approx \begin{pmatrix}0.800&0.800\\0.781&0.439\\0.740&0.740\end{pmatrix}
 Practical Session 3: Fine-tuning FinBERT on FinancialPhraseBank and comparing
 zero-shot GPT-4o against a fine-tuned encoder model on the all-agree split.
 \end{block}
+\end{frame}
+
+% ============================================================
+\appendixstart{Stretch Problem}
+% ============================================================
+
+% --- Optional extension (relocated from the Case Study frame) ---
+\begin{frame}[noframenumbering]{Stretch Problem: Targeting a Single Passage}
+
+\begin{block}{Optional extension}
+Add a sixth passage: \texttt{"The company's debt-to-equity ratio is 1.8 as of year-end."}
+Formulate a query that retrieves \emph{only} this passage. What makes a query specific
+enough to target a single passage in a dense retrieval system?
+\end{block}
+
+\medskip
+\textbf{Things to consider:}
+\begin{itemize}
+  \item How distinctive is the vocabulary of this passage (``debt-to-equity'',
+        ``ratio'') relative to the other five?
+  \item Does adding numeric or lexical anchors (e.g.\ ``1.8'', ``year-end'')
+        sharpen the dense similarity score for this passage?
+  \item Where would BM25 (sparse) help target an exact term that SBERT blurs?
+\end{itemize}
 \end{frame}
 
 \end{document}

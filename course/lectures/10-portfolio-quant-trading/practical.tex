@@ -1,0 +1,361 @@
+\documentclass{beamer}
+\input{../_style/finance-beamer.tex}
+
+\title{Practical Session 10: Portfolios, Views, and Backtests}
+\subtitle{Hands-On --- Efficient Frontier, BL Views, and a Cost-Aware Walk-Forward}
+\author{Juan F.\ Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}\titlepage\end{frame}
+
+% ============================================================
+\begin{frame}{Session Overview}
+\textbf{Duration:} 1 hour (50 min problems $+$ 10 min debrief)
+
+\medskip
+\textbf{Agenda:}
+\begin{enumerate}
+  \item \textbf{Recap} (5 min): mean-variance, BL posterior, OOS Sharpe, turnover cost.
+  \item \textbf{Problem 1} (12 min): two-asset frontier --- minimum-variance \& tangency weights.
+  \item \textbf{Problem 2} (12 min): map an LLM sentiment score to a Black--Litterman view.
+  \item \textbf{Problem 3} (10 min): does a daily signal survive transaction costs?
+  \item \textbf{Case study} (15 min): walk-forward backtest of a sentiment factor in Python
+        (\texttt{code/notebooks/10-portfolio-quant-trading/}).
+  \item \textbf{Discussion} (6 min): when is an LLM signal worth deploying?
+\end{enumerate}
+
+\medskip
+\begin{block}{Goal}
+Leave able to translate a textual signal into a portfolio weight \emph{and} to judge,
+quantitatively, whether the resulting strategy is deployable.
+\end{block}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Recap: The Four Formulas You Will Use}
+\begin{underhood}
+\textbf{Mean-variance:} $\mu_p=\boldsymbol{\mu}^\top\mathbf{w}$,\;
+$\sigma_p^2=\mathbf{w}^\top\boldsymbol{\Sigma}\mathbf{w}$;\quad
+tangency $\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$.
+\end{underhood}
+
+\medskip
+\textbf{Black--Litterman posterior mean:}
+\[
+\hat{\boldsymbol{\mu}}=
+\bigl[(\tau\boldsymbol{\Sigma})^{-1}+\mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{P}\bigr]^{-1}
+\bigl[(\tau\boldsymbol{\Sigma})^{-1}\boldsymbol{\Pi}+\mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{q}\bigr],
+\quad q_i=\alpha s_i+\Pi_i.
+\]
+
+\textbf{Out-of-sample Sharpe (annualised):}
+\[
+\text{SR}^{\text{OOS}}=\frac{\bar r_p^{\text{OOS}}}{\hat\sigma_p^{\text{OOS}}}\sqrt{252}.
+\]
+
+\textbf{Turnover transaction cost:}
+\[
+\text{TC}_t=c\sum_i|\Delta w_{i,t}|,\qquad \Delta w_{i,t}=w_{i,t}-w_{i,t-1}.
+\]
+\end{frame}
+
+% ============================================================
+\begin{frame}{Problem 1: Two-Asset Frontier --- Setup}
+\textbf{Two assets} (monthly excess returns), annualise where noted:
+\[
+\boldsymbol{\mu}=\begin{pmatrix}0.8\%\\0.4\%\end{pmatrix},\qquad
+\boldsymbol{\Sigma}=\begin{pmatrix}0.0036 & 0.0009\\ 0.0009 & 0.0016\end{pmatrix}.
+\]
+So $\sigma_1=6\%$, $\sigma_2=4\%$, correlation $\rho=\dfrac{0.0009}{0.06\cdot0.04}=0.375$.
+
+\medskip
+\textbf{Tasks:}
+\begin{itemize}
+  \item[\textbf{A.}] Minimum-variance weights for a long-only fully-invested portfolio,
+        $\mathbf{w}=(w,1-w)$. Use
+        $w^\star=\dfrac{\sigma_2^2-\sigma_{12}}{\sigma_1^2+\sigma_2^2-2\sigma_{12}}$.
+  \item[\textbf{B.}] The (unconstrained) tangency direction
+        $\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$, then normalise to sum 1.
+  \item[\textbf{C.}] Compare to $1/N=(0.5,0.5)$. Which is closest to tangency? Comment in light
+        of DeMiguel et al.\ (2009).
+\end{itemize}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Problem 2: From LLM Score to a BL View}
+\textbf{Setup.} An LLM scores firm $i$'s earnings call: $s_i=+0.6$ (bullish).
+Equilibrium prior $\Pi_i=0.30\%$ monthly. Calibration constant $\alpha=0.8\%$;
+view-noise scale $\sigma_q^2=(0.5\%)^2$.
+
+\medskip
+\textbf{Tasks:}
+\begin{itemize}
+  \item[\textbf{A.}] Compute the view value $q_i=\alpha s_i+\Pi_i$.
+  \item[\textbf{B.}] Compute the view uncertainty $\Omega_{ii}=\sigma_q^2(1-|s_i|)$.
+  \item[\textbf{C.}] A second firm scores $s_j=+0.05$ (near-neutral).
+        Compute $q_j,\ \Omega_{jj}$. Which view will move the posterior more, and why?
+  \item[\textbf{D.}] \emph{Conceptual:} you accidentally calibrate $\alpha$ on the same
+        window you evaluate on. Name the bias and the fix.
+\end{itemize}
+
+\medskip
+\begin{block}{Hint}
+Posterior pull toward a view scales with view \emph{precision} $\Omega_{ii}^{-1}$.
+Strong signal $\Rightarrow$ small $\Omega_{ii}\Rightarrow$ large precision.
+\end{block}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Problem 3: Does the Signal Survive Costs?}
+\textbf{Setup.} A daily long-short sentiment strategy with:
+\begin{itemize}
+  \item Gross (pre-cost) annualised return $4.0\%$, volatility $8.0\%$.
+  \item Average \emph{one-way} daily turnover $20\%$; cost $c=0.04\%$ per unit turnover.
+  \item 252 trading days.
+\end{itemize}
+
+\medskip
+\textbf{Tasks:}
+\begin{itemize}
+  \item[\textbf{A.}] Annualised transaction cost
+        $\approx \text{turnover}\times 252\times c$.
+  \item[\textbf{B.}] Net annualised return $=$ gross $-$ cost. Net Sharpe (assume vol unchanged).
+  \item[\textbf{C.}] By how much must one-way turnover fall to keep net return $\ge 2\%$,
+        holding $c$ fixed?
+  \item[\textbf{D.}] \emph{Capacity:} the strategy wants \$10M in a stock with \$50M ADV.
+        What participation rate is that, and does it breach the $5$--$10\%$ guideline?
+\end{itemize}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Case Study: Walk-Forward Sentiment Backtest}
+\textbf{Goal.} Run a leakage-free walk-forward backtest of a language factor and
+read off the out-of-sample, cost-adjusted Sharpe.
+
+\medskip
+\textbf{Notebook:} \texttt{code/notebooks/10-portfolio-quant-trading/demo.ipynb}\\
+\textbf{Frontier figure:} \texttt{gen\_efficient\_frontier.py} (deterministic, no network).
+
+\medskip
+\textbf{What you will do:}
+\begin{enumerate}
+  \item Build quintile language-factor returns from per-firm sentiment scores.
+  \item Slide the walk-forward window; \emph{fit calibration on train, evaluate on test}.
+  \item Subtract turnover costs; compute $\text{SR}^{\text{OOS}}$.
+  \item Answer three diagnostic questions about leakage and decay.
+\end{enumerate}
+
+\medskip
+\begin{alertblock}{Discipline}
+Any parameter ($\alpha$, $\lambda$, $W_{\max}$) touched by the test window invalidates the result.
+\end{alertblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{Case Study: The Code}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+import numpy as np, pandas as pd
+def language_factor(scores, fwd_ret):     # firms x dates, scores in [-1,1]
+    """Top-minus-bottom quintile return from demeaned sentiment."""
+    s = scores.sub(scores.mean(axis=0), axis=1)   # cross-sectional demean
+    lf = {}
+    for t in s.columns:
+        q = s[t].rank(pct=True)
+        top, bot = q >= 0.8, q <= 0.2
+        lf[t] = fwd_ret.loc[top, t].mean() - fwd_ret.loc[bot, t].mean()
+    return pd.Series(lf)
+
+def walk_forward_sharpe(lf, train=252, step=21, turnover=0.15, c=5e-4):
+    oos = []
+    for m in range(0, len(lf) - train - step, step):
+        test = lf.iloc[m + train : m + train + step]  # never seen in fit
+        oos.append(test - turnover * c)               # cost-adjust
+    r = pd.concat(oos)
+    return float(r.mean() / r.std() * np.sqrt(252))
+# sharpe = walk_forward_sharpe(language_factor(scores, fwd_ret))
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Case Study: Diagnostic Questions}
+Run the notebook, then answer:
+
+\medskip
+\textbf{Q1 (leakage).} The demean step uses \texttt{scores.mean(axis=0)} --- a
+\emph{cross-sectional} (per-date) mean. Why is that safe, whereas a \emph{time-series}
+mean over all dates would leak?
+
+\medskip
+\textbf{Q2 (decay).} Replace raw scores with EWMA-decayed scores
+($\lambda\in\{0.1,0.3,0.5\}$). How does $\text{SR}^{\text{OOS}}$ move? Relate to the
+1--7 day half-life rule.
+
+\medskip
+\textbf{Q3 (costs).} Sweep $c\in\{0,\,5,\,10\}$ bps. At what cost does the
+Sharpe cross below the $1.5$ paper-trading threshold? Connect to the capacity constraint.
+
+\medskip
+\begin{block}{Optional extension}
+Feed the per-firm view $q_i=\alpha s_i+\Pi_i$ into a Black--Litterman optimizer instead of
+the raw quintile sort. Does BL's prior shrinkage raise or lower turnover? Why?
+\end{block}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Discussion: Is This Signal Worth Deploying?}
+For each scenario, decide \emph{go / no-go} and justify with the lecture's criteria.
+
+\medskip
+\begin{enumerate}
+  \item A large-cap US equity sentiment signal: OOS Sharpe $1.7$ in-backtest, but
+        decays within 2 days and the desk runs \$2B. Crowding? Capacity?
+  \item A small-cap emerging-market filing signal: OOS Sharpe $1.2$, low coverage,
+        wide spreads (tens of bps). Grossman--Stiglitz niche?
+  \item A real-time 8-K risk-alert system: no return claim, but cuts tail losses.
+        How would you value it, and audit it under SR 11-7?
+\end{enumerate}
+
+\medskip
+\begin{block}{Frame your answer around}
+OOS Sharpe \emph{and} $T^*$, transaction costs, capacity / ADV, crowding,
+auditability, and whether the LLM is acting as an extractor or (wrongly) as an optimizer.
+\end{block}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Solution: Problem 1 --- Two-Asset Frontier}
+\textbf{A. Minimum-variance} ($\sigma_1^2=0.0036$, $\sigma_2^2=0.0016$, $\sigma_{12}=0.0009$):
+\[
+w^\star=\frac{0.0016-0.0009}{0.0036+0.0016-2(0.0009)}=\frac{0.0007}{0.0034}\approx 0.206
+\;\Rightarrow\; \mathbf{w}_{\min}\approx(0.21,\,0.79).
+\]
+
+\textbf{B. Tangency direction} $\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$
+($\det=4.95\times10^{-6}$):
+\[
+\begin{pmatrix}0.0016 & -0.0009\\ -0.0009 & 0.0036\end{pmatrix}
+\begin{pmatrix}0.008\\0.004\end{pmatrix}
+=\begin{pmatrix}9.2\\6.7\end{pmatrix}\!\times\!10^{-6}
+\;\Rightarrow\; \mathbf{w}^{\text{SR}}\approx(0.58,\,0.42).
+\]
+
+\textbf{C.} $1/N=(0.5,0.5)$ sits very close to tangency $(0.58,0.42)$ --- and far cheaper
+to estimate. With noisy $\boldsymbol{\mu}$, the small optimization gain is easily swamped
+by estimation error (DeMiguel et al., 2009).
+\end{frame}
+
+% ============================================================
+\begin{frame}{Solution: Problem 2 --- LLM Score to BL View}
+\textbf{Firm $i$ ($s_i=0.6$):}
+\[
+q_i=0.8\%\times0.6+0.30\%=0.48\%+0.30\%=\mathbf{0.78\%},
+\quad
+\Omega_{ii}=(0.5\%)^2(1-0.6)=0.4\times2.5\times10^{-5}=\mathbf{1.0\times10^{-5}}.
+\]
+
+\textbf{Firm $j$ ($s_j=0.05$):}
+\[
+q_j=0.8\%\times0.05+0.30\%=\mathbf{0.34\%},
+\quad
+\Omega_{jj}=(0.5\%)^2(1-0.05)=\mathbf{2.375\times10^{-5}}.
+\]
+
+\textbf{C.} View $i$ moves the posterior more: it has both a larger deviation from the
+prior ($0.78\%$ vs.\ $0.34\%$) \emph{and} higher precision ($\Omega_{ii}^{-1}$ is
+$\approx2.4\times$ larger). The near-neutral signal $j$ lets the prior dominate --- exactly
+the intended behaviour of $\Omega_{ii}=\sigma_q^2(1-|s_i|)$.
+
+\medskip
+\textbf{D.} Calibrating $\alpha$ on the evaluation window is \emph{model-selection
+look-ahead leakage}. Fix: estimate $\alpha$ only on data predating each test window
+(walk-forward).
+\end{frame}
+
+% ============================================================
+\begin{frame}{Solution: Problem 3 --- Survive Costs?}
+\textbf{A. Annualised cost:}
+\[
+0.20\times252\times0.04\%=0.20\times252\times0.0004=\mathbf{2.016\%}\ \text{p.a.}
+\]
+
+\textbf{B. Net return / Sharpe:}
+\[
+\text{net}=4.0\%-2.016\%\approx\mathbf{1.98\%},\quad
+\text{net SR}=\frac{1.98\%}{8.0\%}\approx\mathbf{0.25}\ \text{(vs.\ gross }0.50).
+\]
+Costs \emph{halve} the Sharpe --- a marginal signal is nearly destroyed.
+
+\medskip
+\textbf{C. Turnover for net $\ge2\%$:} need cost $\le 2.0\%$, i.e.
+\[
+\text{turnover}\times252\times0.0004\le0.02
+\Rightarrow \text{turnover}\le\frac{0.02}{0.1008}\approx\mathbf{19.8\%}.
+\]
+Barely below the current $20\%$ --- essentially no slack; the strategy is cost-bound.
+
+\medskip
+\textbf{D. Capacity:} \$10M / \$50M ADV $=\mathbf{20\%}$ participation ---
+\emph{double} the $5$--$10\%$ guideline. Expect material price impact; scale the book down.
+\end{frame}
+
+% ============================================================
+\begin{frame}{Wrap-Up: Key Takeaways}
+\begin{itemize}
+  \item \textbf{P1:} On two assets, $1/N$ already sits near tangency --- the optimization
+        prize is small once $\boldsymbol{\mu}$ is estimated.
+  \item \textbf{P2:} The map $q_i=\alpha s_i+\Pi_i$, $\Omega_{ii}=\sigma_q^2(1-|s_i|)$
+        turns a raw LLM score into a confidence-weighted BL view; neutral signals defer to the prior.
+  \item \textbf{P3:} Transaction costs and turnover are first-order --- a 4\% gross
+        strategy can net 2\% and lose half its Sharpe; watch ADV participation.
+  \item \textbf{Case study:} Walk-forward $+$ cross-sectional demean $+$ cost adjustment
+        is the minimal honest backtest; leakage is the silent killer.
+\end{itemize}
+
+\medskip
+\begin{block}{Next practical}
+Practical 11: regulatory \& compliance applications --- structured extraction, auditability,
+and SR 11-7 model-risk obligations for LLM outputs.
+\end{block}
+\end{frame}
+
+% ============================================================
+\appendixstart{Stretch Problems}
+% ============================================================
+
+\begin{frame}[noframenumbering]{Appendix: Stretch Problem A --- CVaR Budget}
+A position has daily returns approximated by a fat-tailed distribution with
+$\text{VaR}_{0.05}=-3.0\%$ and an expected shortfall (CVaR) of $-4.5\%$ in the worst 5\%.
+
+\medskip
+\begin{itemize}
+  \item[\textbf{A.}] Interpret both numbers in one sentence each.
+  \item[\textbf{B.}] A textual risk signal $v_{t-1}$ spikes; the GARCH update
+        $\sigma_t^2=\omega+\varphi_1\varepsilon_{t-1}^2+\beta_1\sigma_{t-1}^2+\kappa v_{t-1}$
+        with $\kappa>0$ raises $\sigma_t$ by 20\%. Qualitatively, what happens to
+        $\text{CVaR}_{0.05}$ and to the CVaR-constrained weight on this position?
+  \item[\textbf{C.}] Why is CVaR preferred to VaR for \emph{optimization}?
+        (Hint: coherence; convex/LP-representable.)
+\end{itemize}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix: Stretch Problem B --- Minimum Track Record}
+Using the minimum track record length
+\[
+T^*=1+\Bigl(1-\gamma_1\text{SR}^*+\tfrac{\gamma_2-1}{4}(\text{SR}^*)^2\Bigr)\frac{Z_{1-\alpha}^2}{(\text{SR}^*)^2},
+\]
+with a \emph{per-observation} (daily) $\text{SR}^*=0.08$, skewness $\gamma_1=-0.5$,
+kurtosis $\gamma_2=6$, and $Z_{0.95}=1.645$:
+
+\begin{itemize}
+  \item[\textbf{A.}] Compute $T^*$ in trading days, then in years ($\approx252$/yr).
+  \item[\textbf{B.}] Repeat for a symmetric, normal benchmark ($\gamma_1=0,\gamma_2=3$).
+        How much does the fat left tail inflate the required record?
+  \item[\textbf{C.}] What does a multi-year $T^*$ imply for a strategy backed by only
+        18 months of OOS data?
+\end{itemize}
+\end{frame}
+
+\end{document}

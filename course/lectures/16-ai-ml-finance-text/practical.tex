@@ -1,0 +1,442 @@
+\documentclass{beamer}
+\input{../_style/finance-beamer.tex}
+
+\title{Practical Session 16: AI/ML Foundations for Financial Text}
+\subtitle{Hands-On: Lexicon Sentiment, BoW vs.\ Embeddings, and a Mini Attention Trace}
+\author{Juan F.\ Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}\titlepage\end{frame}
+
+% =====================================================================
+% FRAME: Session Overview
+% =====================================================================
+\begin{frame}{Session Overview}
+
+\textbf{Duration:} 1 hour (50 min activities + 10 min debrief)
+
+\medskip
+\begin{enumerate}
+  \item \textbf{Recap} (5 min): the AI/ML/DL/LLM hierarchy; the attention formula.
+  \item \textbf{Problem 1} (12 min): Loughran--McDonald dictionary sentiment on a
+        filing snippet --- by hand --- and why a \emph{general} lexicon misleads.
+  \item \textbf{Problem 2} (10 min): Show that mean BoW pooling is order-blind on
+        a financial sentence; quantify the failure.
+  \item \textbf{Problem 3} (8 min): Trace a $3\times3$ self-attention step on a
+        financial sequence (uses the recap formula).
+  \item \textbf{Case Study} (15 min): Python --- dictionary vs.\ embedding sentiment on
+        SEC snippets (\texttt{code/notebooks/16-ai-ml-finance-text/}).
+\end{enumerate}
+
+\medskip
+\begin{block}{Discussion (10 min)}
+When is a 1990s-vintage dictionary still the \emph{right} tool, and when must you
+reach for an embedding or an LLM?
+\end{block}
+\end{frame}
+
+% =====================================================================
+% FRAME: Recap 1
+% =====================================================================
+\begin{frame}{Recap: The Hierarchy and Where Text Fits}
+
+\begin{bigpicture}
+AI $\supset$ ML $\supset$ DL $\supset$ LLM. \textbf{Statistical} AI (learn
+parameters from data) dominates finance over \textbf{symbolic} AI (hand-coded
+rules) because markets are data-rich --- but symbolic rules return for compliance
+and interpretability.
+\end{bigpicture}
+
+\medskip
+\textbf{Why text is hard (carry into the problems):}
+\begin{itemize}
+  \item \textbf{Ambiguous:} $\sim$3/4 of general ``negative'' words are
+        neutral/positive in filings $\Rightarrow$ use a \emph{finance} lexicon.
+  \item \textbf{Sparse:} 50k-word vocabulary $\gg$ observations.
+  \item \textbf{Strategic:} disclosures written by lawyers --- not unbiased signals.
+\end{itemize}
+\end{frame}
+
+% =====================================================================
+% FRAME: Recap 2
+% =====================================================================
+\begin{frame}{Recap: Two Formulas You Will Use}
+
+\textbf{Dictionary sentiment} of a document:
+\[
+  \mathrm{Sentiment} = \frac{\#\text{positive words} - \#\text{negative words}}
+                            {\#\text{total words}}.
+\]
+
+\medskip
+\textbf{Mean bag-of-words embedding} (order-blind by construction):
+\[
+  \bar{\varphi}(d) = \frac{1}{n}\sum_{i=1}^{n}\varphi(w_i).
+\]
+
+\medskip
+\textbf{Scaled dot-product attention} (Problem 3):
+\[
+  \mathrm{Attention}(Q,K,V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V,
+  \qquad
+  \mathrm{softmax}(\mathbf{x})_i = \frac{e^{x_i}}{\sum_j e^{x_j}}.
+\]
+
+\medskip
+\emph{Tip:} subtract $\max(\mathbf{x})$ before exponentiating for numerical stability.
+\end{frame}
+
+% =====================================================================
+% FRAME: Problem 1
+% =====================================================================
+\begin{frame}{Problem 1: Dictionary Sentiment, and Why Domain Matters}
+
+\textbf{Snippet} (10-K Risk Factors, stylised):
+\begin{quote}\small
+``Demand remained \textbf{positive}, but \textbf{litigation} exposure and
+macroeconomic \textbf{uncertainty} could adversely affect results; management
+believes the outlook is \textbf{strong}.''
+\end{quote}
+
+\medskip
+\textbf{Task A.} Using Loughran--McDonald's 6 categories
+(negative, positive, uncertainty, litigious, strong/weak modal), classify the
+four bold words. Which category does ``litigation'' / ``uncertainty'' fall into?
+
+\medskip
+\textbf{Task B.} A \emph{general} (Harvard Inquirer) dictionary tags
+``litigation,'' ``liability,'' and ``tax'' as negative. The chapter notes
+$\sim$3/4 of Harvard ``negative'' words are neutral/positive in filings.
+What does that imply for a naive negative-word count on legal-heavy filings?
+
+\medskip
+\textbf{Task C.} Compute the net sentiment $(\#\text{pos}-\#\text{neg})/\#\text{total}$
+for the snippet (10 words after dropping stop-words), using a finance lexicon
+where only \emph{negative} \& \emph{positive} categories count toward polarity.
+\end{frame}
+
+% =====================================================================
+% FRAME: Problem 2
+% =====================================================================
+\begin{frame}{Problem 2: Mean Pooling is Order-Blind}
+
+\textbf{Two sentences with opposite meaning:}
+\begin{itemize}
+  \item $A$: ``Revenue rose, costs fell.''
+  \item $B$: ``Costs rose, revenue fell.''
+\end{itemize}
+
+\medskip
+\textbf{Task A.} The two sentences contain the \emph{same multiset of words}.
+Show that the mean BoW embedding $\bar\varphi(A)=\bar\varphi(B)$ exactly. Why?
+
+\medskip
+\textbf{Task B.} A long-only equity signal goes \emph{long} on positive-sentiment
+filings. If your representation cannot distinguish $A$ from $B$, what failure mode
+appears on filings where the \emph{subject} of ``rose'' vs.\ ``fell'' matters?
+
+\medskip
+\textbf{Task C.} Name the architectural ingredient (from the lecture) that
+restores order sensitivity, and state in one line \emph{why} it can connect
+``revenue'' to ``rose'' across a long sentence where an RNN struggles.
+\end{frame}
+
+% =====================================================================
+% FRAME: Problem 3
+% =====================================================================
+\begin{frame}{Problem 3: A $3\times3$ Self-Attention Trace}
+
+\textbf{Sequence:} \texttt{"risk"}, \texttt{"increased"}, \texttt{"materially"}.
+\quad Head dimension $d_k = 2$.
+
+\medskip
+\[
+Q = \begin{pmatrix} 1 & 0 \\ 1 & 1 \\ 0 & 1 \end{pmatrix},\quad
+K = \begin{pmatrix} 1 & 0 \\ 1 & 1 \\ 0 & 1 \end{pmatrix},\quad
+V = \begin{pmatrix} 2 & 0 \\ 0 & 2 \\ 1 & 1 \end{pmatrix}
+\]
+
+\medskip
+\textbf{Task A.} Compute $S = QK^\top$ (entry $(i,j)=\mathbf{q}_i^\top\mathbf{k}_j$).
+
+\textbf{Task B.} Scale: $\tilde S = S/\sqrt{2}$ (two decimals).
+
+\textbf{Task C.} Softmax row-wise $\to A$; \quad
+\textbf{Task D.} output $O = AV$.
+
+\medskip
+\textbf{Discussion:} Which token does \texttt{"risk"} attend to most? If we set
+$d_k=64$ with the same raw dot products, are the weights \emph{sharper} or flatter?
+\end{frame}
+
+% =====================================================================
+% FRAME: Case Study Intro
+% =====================================================================
+\begin{frame}{Case Study: Dictionary vs.\ Embedding Sentiment}
+
+\textbf{Goal:} on a handful of SEC-style snippets, compare a
+\textbf{Loughran--McDonald-style dictionary} score against a \textbf{transformer
+embedding} similarity score, and see where they disagree.
+
+\medskip
+\textbf{Stack:}
+\begin{itemize}
+  \item \texttt{sentence\_transformers} --- contextual embeddings (SBERT).
+  \item A small finance positive/negative word list --- the dictionary baseline.
+\end{itemize}
+
+\medskip
+\textbf{Notebook:} \texttt{code/notebooks/16-ai-ml-finance-text/demo.ipynb}
+
+\medskip
+\begin{alertblock}{Setup}
+\texttt{pip install sentence-transformers}\\
+No API key needed --- embeddings run locally on CPU.
+\end{alertblock}
+\end{frame}
+
+% =====================================================================
+% FRAME: Case Study Code
+% =====================================================================
+\begin{frame}[fragile]{Case Study: The Code}
+
+\begin{lstlisting}
+from sentence_transformers import SentenceTransformer, util
+
+SNIPPETS = [
+    "Revenue rose 12% and margins expanded.",          # clearly positive
+    "Litigation exposure and uncertainty increased.",  # negative, legal-heavy
+    "Costs fell, revenue fell, outlook unchanged.",     # order-sensitive
+]
+POS = {"rose", "expanded", "growth", "strong", "gain"}
+NEG = {"fell", "litigation", "uncertainty", "loss", "decline"}
+
+def dict_sentiment(text):
+    w = text.lower().replace(",", " ").replace(".", " ").split()
+    return (sum(t in POS for t in w) - sum(t in NEG for t in w)) / len(w)
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+anchor = model.encode("This is good news for shareholders.",
+                      normalize_embeddings=True)
+for s in SNIPPETS:
+    d = dict_sentiment(s)
+    emb = model.encode(s, normalize_embeddings=True)
+    sim = float(util.cos_sim(emb, anchor))
+    print(f"dict={d:+.3f}  embed_sim={sim:+.3f}  | {s}")
+\end{lstlisting}
+\end{frame}
+
+% =====================================================================
+% FRAME: Case Study Questions
+% =====================================================================
+\begin{frame}{Case Study: Diagnostic Questions}
+
+\textbf{Q1.} For each snippet, report the dictionary score and the embedding
+similarity. Where do the two \emph{disagree} in sign or ranking?
+
+\medskip
+\textbf{Q2.} Snippet 3 (``Costs fell, revenue fell\dots'') contains the
+\emph{negative} word ``fell'' twice. Does the dictionary call it negative? Is that
+correct, given costs falling is \emph{good}? What does this reveal about
+\textbf{context}-free scoring?
+
+\medskip
+\textbf{Q3.} Replace ``uncertainty'' with ``opportunity'' in snippet 2. Does the
+dictionary score flip? Does the embedding similarity move \emph{more} or
+\emph{less} than the dictionary? Why?
+
+\medskip
+\begin{block}{Optional extension}
+Add ``positive'' once to snippet 2 (recall ``positive'' is \emph{cautious} in
+credit-rating language). Does the dictionary over-credit it? Sketch how you would
+disambiguate using the document's genre.
+\end{block}
+\end{frame}
+
+% =====================================================================
+% FRAME: Discussion
+% =====================================================================
+\begin{frame}{Discussion: Dictionary vs.\ Embedding vs.\ LLM}
+
+For each scenario, pick \textbf{dictionary}, \textbf{embedding/encoder}, or
+\textbf{LLM}, and justify on cost, auditability, label availability, and context.
+
+\medskip
+\begin{enumerate}
+  \item A regulator must \emph{reproduce} a sentiment score from a published,
+        auditable rule on 200k filings --- transparency is mandatory.
+  \item A desk wants to rank 50k earnings-call paragraphs by similarity to a
+        ``supply-chain risk'' theme, with no labeled training data.
+  \item An analyst asks: ``Summarize how this 10-K's risk language changed
+        versus last year, and flag any new litigation exposure.''
+\end{enumerate}
+
+\medskip
+\begin{block}{Frame your answer around}
+Transparency / reproducibility, context sensitivity, labeled-data needs,
+generation vs.\ scoring, cost, and the strategic production of the text.
+\end{block}
+\end{frame}
+
+% =====================================================================
+% FRAME: Solution 1
+% =====================================================================
+\begin{frame}{Solution: Problem 1 --- Dictionary Sentiment}
+
+\textbf{Task A --- categories:}
+``positive'' $\to$ \emph{positive}; ``strong'' $\to$ \emph{strong modal} (and
+positive-leaning); ``litigation'' $\to$ \emph{litigious}; ``uncertainty'' $\to$
+\emph{uncertainty}. Note: litigious and uncertainty are \emph{not} polarity-negative
+per se --- they are their own categories.
+
+\medskip
+\textbf{Task B:} A general dictionary tags ``litigation'' as negative, so a naive
+negative count \alert{systematically over-penalises legal-heavy filings} ---
+precisely the Loughran--McDonald finding ($\sim$3/4 of Harvard negatives are
+neutral/positive in filings).
+
+\medskip
+\textbf{Task C:} With only \emph{positive}/\emph{negative} counting toward polarity:
+positives $=\{$positive, strong$\}=2$, negatives $=0$ (litigious/uncertainty
+excluded). Net $=(2-0)/10 = \mathbf{+0.20}$. A general dictionary would instead
+score this \emph{negative} --- the wrong sign.
+\end{frame}
+
+% =====================================================================
+% FRAME: Solution 2
+% =====================================================================
+\begin{frame}{Solution: Problem 2 --- Order-Blindness}
+
+\textbf{Task A:} Mean pooling sums per-word embeddings then divides by $n$.
+Addition is commutative, so any permutation of the \emph{same} words yields the
+\emph{identical} mean. $A$ and $B$ share the multiset
+$\{$revenue, rose, costs, fell$\}$ $\Rightarrow \bar\varphi(A)=\bar\varphi(B)$ exactly.
+
+\medskip
+\textbf{Task B:} A sentiment-driven long-only signal cannot tell ``revenue rose''
+(bullish) from ``revenue fell'' (bearish): it would take the \emph{same} position
+on opposite fundamentals --- a sign error that no amount of training fixes if the
+representation discards order.
+
+\medskip
+\textbf{Task C:} \textbf{Self-attention} restores order sensitivity (with
+positional information). It can directly connect ``revenue'' to ``rose'' because
+every position attends to every other in one step --- no sequential path to
+decay, unlike an RNN whose gradient vanishes over long spans.
+\end{frame}
+
+% =====================================================================
+% FRAME: Solution 3
+% =====================================================================
+\begin{frame}{Solution: Problem 3 --- Attention Trace}
+
+Here $K=Q$, so $S=QQ^\top$:
+\[
+S = \begin{pmatrix} 1 & 1 & 0 \\ 1 & 2 & 1 \\ 0 & 1 & 1 \end{pmatrix},
+\qquad
+\tilde S = S/\sqrt{2} \approx
+\begin{pmatrix} 0.71 & 0.71 & 0.00 \\ 0.71 & 1.41 & 0.71 \\ 0.00 & 0.71 & 0.71 \end{pmatrix}.
+\]
+
+\textbf{Row-wise softmax} ($\approx$):
+\[
+A \approx
+\begin{pmatrix} 0.422 & 0.422 & 0.156 \\ 0.270 & 0.461 & 0.270 \\ 0.156 & 0.422 & 0.422 \end{pmatrix}.
+\]
+
+\textbf{Output} $O = AV$, with $V=\big[(2,0),(0,2),(1,1)\big]^\top$:
+\[
+O \approx
+\begin{pmatrix} 1.00 & 1.00 \\ 0.81 & 1.19 \\ 0.73 & 1.27 \end{pmatrix}.
+\]
+
+\textbf{Discussion:} \texttt{"risk"} attends most to itself and \texttt{"increased"}
+(tied at $0.422$). At $d_k=64$ the same raw dot products are divided by a larger
+$\sqrt{d_k}$ \emph{only if unscaled} --- but with the same \emph{pre-scaling}
+magnitudes the larger logits make softmax \alert{sharper}; the $\sqrt{d_k}$ scaling
+exists precisely to counter that saturation.
+\end{frame}
+
+% =====================================================================
+% FRAME: Wrap-up
+% =====================================================================
+\begin{frame}{Wrap-Up: Key Takeaways}
+
+\textbf{From Problem 1:} a \emph{domain} lexicon (Loughran--McDonald) avoids the
+systematic negative bias a general dictionary inflicts on legal-heavy filings ---
+the canonical motivation for finance-specific NLP.
+
+\medskip
+\textbf{From Problem 2:} bag-of-words mean pooling is provably order-blind;
+opposite-meaning sentences collapse to one vector. Order matters in finance, and
+self-attention is the fix.
+
+\medskip
+\textbf{From Problem 3:} attention is a weighted average of value vectors; weights
+are softmaxed scaled dot products; $\sqrt{d_k}$ keeps the softmax out of its
+saturated, vanishing-gradient regime.
+
+\medskip
+\textbf{From the Case Study:} dictionary and embedding scores disagree exactly
+where \emph{context} matters (``costs fell'' is good; ``positive'' is cautious in
+ratings) --- the case for moving up the ladder to encoders and LLMs.
+
+\medskip
+\begin{block}{Next practical}
+Building the transformer block end-to-end (LLM-foundations): multi-head
+attention, positional encoding, and a first fine-tuning pass.
+\end{block}
+\end{frame}
+
+% =====================================================================
+\appendixstart{Stretch Problems}
+% =====================================================================
+
+\begin{frame}[noframenumbering]{Stretch Problem A: tf-idf by Hand}
+
+Three one-sentence ``documents'':
+\begin{itemize}
+  \item $d_1$: ``revenue revenue growth''
+  \item $d_2$: ``revenue decline''
+  \item $d_3$: ``growth growth growth''
+\end{itemize}
+
+\medskip
+\textbf{Task.} With $\mathrm{tf}$ = raw count and
+$\mathrm{idf}(w)=\log\frac{N}{df(w)}$ ($N=3$), compute the tf-idf weight of
+``revenue'' in $d_1$ and of ``growth'' in $d_3$. Which term is up-weighted, and why
+does tf-idf \emph{down-weight} a word appearing in every document?
+
+\medskip
+\begin{block}{Point}
+tf-idf rewards rare, document-specific words --- the BoW refinement that made
+1990s filing analysis workable before embeddings existed.
+\end{block}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Stretch Problem B: Reflexivity in a Backtest}
+
+A text-based ``negative-sentiment $\Rightarrow$ short'' signal backtests with a
+Sharpe of 1.4 over 2015--2019.
+
+\medskip
+\textbf{Task A.} Name two reasons the live Sharpe may be far lower: (i) the signal
+becomes \emph{public}; (ii) the strategy's own trades move prices (reflexivity).
+
+\medskip
+\textbf{Task B.} The chapter warns LLMs can \emph{reconstruct historical series
+from parametric memory}, producing spurious predictability. If your sentiment
+model was pre-trained on data \emph{overlapping} the backtest window, what bias
+contaminates the result, and how would you guard against it?
+
+\medskip
+\begin{block}{Point}
+AI systems in finance are \emph{actors within} the market, not observers ---
+look-ahead and reflexivity are first-order design concerns, not footnotes.
+\end{block}
+\end{frame}
+
+\end{document}

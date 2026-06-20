@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Lecture 6: LLMs for Credit Risk Analysis}
 \subtitle{Large Language Models in Finance}
@@ -71,9 +57,12 @@
 \end{itemize}
 
 \medskip
-\begin{block}{The core tension}
-  Predictive accuracy and regulatory defensibility must be achieved simultaneously.
-\end{block}
+\begin{bigpicture}
+  \textbf{The core tension.} Credit is the one domain where predictive accuracy and
+  regulatory defensibility must be achieved \emph{simultaneously}. Text-native signals
+  (loan-purpose statements, officer notes) can sharpen the model, but every gain has to
+  survive Fair Lending scrutiny. That is the lens for everything that follows.
+\end{bigpicture}
 \end{frame}
 
 % ============================================================
@@ -241,14 +230,15 @@ Still used as a benchmark today.
 \end{center}
 
 \medskip
-\textbf{Parameter-efficient fine-tuning (LoRA):}
-
-Constrain weight update to low-rank factorisation:
-\[
-  \Delta W = B A, \quad B \in \mathbb{R}^{d \times r}, \; A \in \mathbb{R}^{r \times d}, \quad r \ll d
-\]
-With $r = 8$, $d = 768$: $\approx$48$\times$ fewer trainable parameters than full fine-tuning.
-$W_0$ frozen; only $A$ and $B$ trained.
+\begin{underhood}
+  \textbf{Parameter-efficient fine-tuning (LoRA).} Constrain the weight update to a
+  low-rank factorisation:
+  \[
+    \Delta W = B A, \quad B \in \mathbb{R}^{d \times r}, \; A \in \mathbb{R}^{r \times d}, \quad r \ll d
+  \]
+  With $r = 8$, $d = 768$: $\approx$48$\times$ fewer trainable parameters than full
+  fine-tuning. $W_0$ frozen; only $A$ and $B$ trained.
+\end{underhood}
 \end{frame}
 
 % ============================================================
@@ -263,6 +253,7 @@ $W_0$ frozen; only $A$ and $B$ trained.
 \end{block}
 
 \medskip
+\begin{underhood}
 \textbf{Constrained decoding} (\texttt{outlines} library, Willard et al.\ 2023):
 \begin{enumerate}
   \item Define an output grammar: JSON object with one key \texttt{"pd"} mapped to a float in $[0, 1]$
@@ -272,8 +263,8 @@ $W_0$ frozen; only $A$ and $B$ trained.
 \[
   P_{\text{constrained}}(x_{t+1} = v \mid x_{1:t}) = \frac{\exp(\ell_v) \cdot \mathbf{1}[v \in \mathcal{V}_{\text{valid}}]}{\sum_{u \in \mathcal{V}_{\text{valid}}} \exp(\ell_u)}
 \]
-
 The model generates \texttt{\{"pd": } then produces the float \emph{digit by digit}. If it generates \texttt{0.23}, the implied default probability is $\hat{p} = 0.23$.
+\end{underhood}
 
 \medskip
 \begin{alertblock}{Key point}
@@ -342,9 +333,13 @@ but needs more data.
 \end{enumerate}
 
 \medskip
-\textbf{Simon's bounded rationality}: agents satisfice rather than optimise.
-They search through alternatives until a solution meets a threshold of acceptability, then stop.
-The threshold itself is adaptive to recent outcomes.
+\begin{bigpicture}
+  \textbf{Simon's bounded rationality.} Households do not solve the optimisation; they
+  \emph{satisfice} --- searching through alternatives until one meets a threshold of
+  acceptability, then stopping. The threshold itself adapts to recent outcomes. This is
+  why an LLM that simply hands back the ``optimal'' choice misses the point: the value is
+  in widening the set of alternatives a boundedly-rational household actually considers.
+\end{bigpicture}
 \end{frame}
 
 % ============================================================
@@ -381,41 +376,6 @@ Dialogue manager & Conversational trade-off presentation \\
   household autonomy when stated and revealed preferences diverge. The goal is \emph{extension},
   not replacement, of the household's cognitive frontier.
 \end{alertblock}
-\end{frame}
-
-% ============================================================
-% FRAME 13: Utility theory and preference elicitation
-% ============================================================
-\begin{frame}
-\frametitle{Utility-Theoretic Framing}
-
-\textbf{Expected utility}: household with wealth $W_0$ selects:
-\[
-  a^* = \underset{k}{\arg\max} \; \mathbb{E}[U(W_0 + \Delta W_k)]
-\]
-
-\textbf{CRRA utility} (most common parameterisation):
-\[
-  U(W) = \frac{W^{1-\gamma}}{1-\gamma}, \quad \gamma > 0
-\]
-
-$\gamma = 1$: log utility; $\gamma = 2$: moderate risk aversion; $\gamma > 5$: high risk aversion.
-
-\medskip
-\textbf{LLM-based preference elicitation:}
-\begin{enumerate}
-  \item Present a sequence of binary lottery choices to identify indifference points
-  \item Extract the stated indifference points from the conversation
-  \item Fit CRRA utility to the elicited data by minimising:
-    \[
-      \hat{\gamma} = \underset{\gamma}{\arg\min} \sum_{j=1}^{J} \left( U_\gamma(c_j) - \lambda_j U_\gamma(g_j) - (1-\lambda_j) U_\gamma(\varepsilon) \right)^2
-    \]
-  \item Use $\hat{\gamma}$ to evaluate alternatives
-\end{enumerate}
-
-\medskip
-The quality of elicitation depends critically on the LLM's ability to conduct a coherent
-multi-turn dialogue without anchoring the household's responses.
 \end{frame}
 
 % ============================================================
@@ -488,40 +448,6 @@ fixed obligations. I'd choose Option B and set aside the monthly difference into
 \end{frame}
 
 % ============================================================
-% FRAME 16: Population simulation and calibration
-% ============================================================
-\begin{frame}
-\frametitle{Multi-Persona Simulation and Calibration}
-
-\textbf{Synthetic population}: run $N$ personas drawn from target population distribution $\mathcal{P}$:
-\[
-  \hat{P}(d = k) = \frac{1}{N} \sum_{i=1}^{N} \mathbf{1}[d_i = k]
-\]
-
-Identifies which subgroups are sensitive to which product features.
-
-\medskip
-\textbf{Applications:}
-\begin{itemize}
-  \item \textbf{Loan uptake}: estimate take-up rates as function of APR before live A/B test
-  \item \textbf{Mortgage suitability}: identify which products create distress risk for which persona types
-  \item \textbf{Retirement planning}: test auto-enrolment schemes for low-literacy households
-\end{itemize}
-
-\medskip
-\textbf{Calibration against survey data} (ECB HFCS, US SCF):
-\begin{enumerate}
-  \item \textbf{Population alignment}: post-stratification weights so joint attribute distribution matches target survey
-  \item \textbf{Behavioural alignment}: compare simulation vs.\ survey decision distributions using calibration loss $\mathcal{L} = \sum_k (\hat{P}_{\text{sim}} - \hat{P}_{\text{survey}})^2$
-  \item \textbf{Prompt refinement}: iterate when calibration loss is high
-\end{enumerate}
-
-\medskip
-A validated simulation explaining 60--70\% of cross-sectional variation is useful.
-An uncalibrated simulation that claims to predict population behaviour is not.
-\end{frame}
-
-% ============================================================
 \section{Evaluation and Model Risk Management}
 % ============================================================
 
@@ -531,11 +457,11 @@ An uncalibrated simulation that claims to predict population behaviour is not.
 \begin{frame}
 \frametitle{Credit-Specific Performance Metrics}
 
+\begin{underhood}
 \textbf{AUROC}: probability that a randomly drawn defaulter scores higher than a randomly drawn non-defaulter:
 \[
   \text{AUROC} = P(S_+ > S_-)
 \]
-
 \textbf{KS Statistic}: maximum separation between CDFs of defaulter and non-defaulter scores:
 \[
   \text{KS} = \sup_{s} |F_+(s) - F_-(s)|
@@ -543,15 +469,14 @@ An uncalibrated simulation that claims to predict population behaviour is not.
 In practice: sort all scores, compute cumulative defaulter and non-defaulter fractions,
 read off maximum vertical gap. \textbf{KS $>$ 0.40} is good; \textbf{KS $>$ 0.60} is excellent.
 
-\medskip
 \textbf{Gini Coefficient} (accuracy ratio):
 \[
   \text{Gini} = 2 \cdot \text{AUROC} - 1
 \]
-
 This identity is \emph{exact}, not an approximation. Derivable from the relationship between
 the CAP curve and the ROC curve. Range: 0 (random model) to 1 (perfect model).
 Retail credit models typically achieve Gini 0.40--0.70.
+\end{underhood}
 
 \medskip
 \begin{center}
@@ -743,32 +668,6 @@ Using raw SHAP values in consumer-facing communications creates confusion, not t
 \end{frame}
 
 % ============================================================
-% FRAME 23: Through-the-cycle validation
-% ============================================================
-\begin{frame}
-\frametitle{Through-the-Cycle Validation and Backtesting}
-
-\textbf{Two types of temporal model degradation:}
-\begin{itemize}
-  \item \textbf{Concept drift}: the feature $\to$ default relationship changes as the economy evolves. A model trained on 2015--2019 data may underestimate recession-period default risk.
-  \item \textbf{Population drift}: the applicant distribution shifts (new marketing strategy, regulatory change).
-\end{itemize}
-
-\medskip
-\textbf{Vintage analysis}: group loans by origination quarter; track AUROC and KS as
-outcomes mature; check for time trends in discrimination power.
-
-\medskip
-\textbf{Point-in-time (PIT) vs.\ through-the-cycle (TTC):}
-\begin{itemize}
-  \item Basel III Pillar 1 requires TTC PD estimates (long-run average default rates)
-  \item LLMs trained on recent data tend to produce PIT estimates
-  \item Conversion: apply Platt scaling calibrated on a dataset spanning $\geq$1 full credit cycle (7--10 years)
-  \item The parameters $a$ and $b$ in $\hat{p}_{\text{TTC}} = \sigma(a \cdot f(x) + b)$ absorb both overconfidence correction and cycle-position adjustment simultaneously
-\end{itemize}
-\end{frame}
-
-% ============================================================
 % FRAME 24: LLM failure modes in credit
 % ============================================================
 \begin{frame}
@@ -818,6 +717,103 @@ Documentation & MDR + MVR + GDPR Art.~22 plain-language \\
   Every design choice, from the loss function to the API schema, has implications for
   fairness, explainability, and regulatory compliance.
 \end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX
+% ============================================================
+\appendixstart{Extended Material: Utility Elicitation, Population Simulation, TTC Validation}
+
+% ------------------------------------------------------------
+% APPENDIX A: Utility theory and preference elicitation
+% ------------------------------------------------------------
+\begin{frame}[noframenumbering]{Appendix A --- Utility-Theoretic Framing}
+
+\textbf{Expected utility}: household with wealth $W_0$ selects:
+\[
+  a^* = \underset{k}{\arg\max} \; \mathbb{E}[U(W_0 + \Delta W_k)]
+\]
+
+\textbf{CRRA utility} (most common parameterisation):
+\[
+  U(W) = \frac{W^{1-\gamma}}{1-\gamma}, \quad \gamma > 0
+\]
+
+$\gamma = 1$: log utility; $\gamma = 2$: moderate risk aversion; $\gamma > 5$: high risk aversion.
+
+\medskip
+\textbf{LLM-based preference elicitation:}
+\begin{enumerate}
+  \item Present a sequence of binary lottery choices to identify indifference points
+  \item Extract the stated indifference points from the conversation
+  \item Fit CRRA utility to the elicited data by minimising:
+    \[
+      \hat{\gamma} = \underset{\gamma}{\arg\min} \sum_{j=1}^{J} \left( U_\gamma(c_j) - \lambda_j U_\gamma(g_j) - (1-\lambda_j) U_\gamma(\varepsilon) \right)^2
+    \]
+  \item Use $\hat{\gamma}$ to evaluate alternatives
+\end{enumerate}
+
+\medskip
+The quality of elicitation depends critically on the LLM's ability to conduct a coherent
+multi-turn dialogue without anchoring the household's responses.
+\end{frame}
+
+% ------------------------------------------------------------
+% APPENDIX B: Population simulation and calibration
+% ------------------------------------------------------------
+\begin{frame}[noframenumbering]{Appendix B --- Multi-Persona Simulation and Calibration}
+
+\textbf{Synthetic population}: run $N$ personas drawn from target population distribution $\mathcal{P}$:
+\[
+  \hat{P}(d = k) = \frac{1}{N} \sum_{i=1}^{N} \mathbf{1}[d_i = k]
+\]
+
+Identifies which subgroups are sensitive to which product features.
+
+\medskip
+\textbf{Applications:}
+\begin{itemize}
+  \item \textbf{Loan uptake}: estimate take-up rates as function of APR before live A/B test
+  \item \textbf{Mortgage suitability}: identify which products create distress risk for which persona types
+  \item \textbf{Retirement planning}: test auto-enrolment schemes for low-literacy households
+\end{itemize}
+
+\medskip
+\textbf{Calibration against survey data} (ECB HFCS, US SCF):
+\begin{enumerate}
+  \item \textbf{Population alignment}: post-stratification weights so joint attribute distribution matches target survey
+  \item \textbf{Behavioural alignment}: compare simulation vs.\ survey decision distributions using calibration loss $\mathcal{L} = \sum_k (\hat{P}_{\text{sim}} - \hat{P}_{\text{survey}})^2$
+  \item \textbf{Prompt refinement}: iterate when calibration loss is high
+\end{enumerate}
+
+\medskip
+A validated simulation explaining 60--70\% of cross-sectional variation is useful.
+An uncalibrated simulation that claims to predict population behaviour is not.
+\end{frame}
+
+% ------------------------------------------------------------
+% APPENDIX C: Through-the-cycle validation
+% ------------------------------------------------------------
+\begin{frame}[noframenumbering]{Appendix C --- Through-the-Cycle Validation and Backtesting}
+
+\textbf{Two types of temporal model degradation:}
+\begin{itemize}
+  \item \textbf{Concept drift}: the feature $\to$ default relationship changes as the economy evolves. A model trained on 2015--2019 data may underestimate recession-period default risk.
+  \item \textbf{Population drift}: the applicant distribution shifts (new marketing strategy, regulatory change).
+\end{itemize}
+
+\medskip
+\textbf{Vintage analysis}: group loans by origination quarter; track AUROC and KS as
+outcomes mature; check for time trends in discrimination power.
+
+\medskip
+\textbf{Point-in-time (PIT) vs.\ through-the-cycle (TTC):}
+\begin{itemize}
+  \item Basel III Pillar 1 requires TTC PD estimates (long-run average default rates)
+  \item LLMs trained on recent data tend to produce PIT estimates
+  \item Conversion: apply Platt scaling calibrated on a dataset spanning $\geq$1 full credit cycle (7--10 years)
+  \item The parameters $a$ and $b$ in $\hat{p}_{\text{TTC}} = \sigma(a \cdot f(x) + b)$ absorb both overconfidence correction and cycle-position adjustment simultaneously
+\end{itemize}
 \end{frame}
 
 \end{document}

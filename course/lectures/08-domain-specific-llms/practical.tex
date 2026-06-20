@@ -1,0 +1,324 @@
+\documentclass{beamer}
+\input{../_style/finance-beamer.tex}
+
+\title{Practical Session 08: Building \& Choosing Financial LLMs}
+\subtitle{Hands-On: DAPT Budgeting, Hybrid Routing, and a FinBERT vs.\ LLM Bench}
+\author{Juan F. Imbet}
+\institute{Paris Dauphine -- PSL University}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}\titlepage\end{frame}
+
+\begin{frame}{Outline}\tableofcontents\end{frame}
+
+% ============================================================
+\section{Session Overview \& Recap}
+% ============================================================
+
+\begin{frame}{Session Overview}
+\textbf{Duration:} $\sim$1 hour (50 min work + 10 min debrief)
+
+\medskip
+\begin{block}{Timed agenda}
+\begin{enumerate}
+  \item \textbf{Recap} (8 min): the DAPT objective + the effective-cost formula.
+  \item \textbf{Problem 1} (12 min): size a DAPT corpus and budget for a FinBERT-scale
+        encoder.
+  \item \textbf{Problem 2} (15 min): find the cost-optimal \textbf{hybrid routing}
+        fraction $\rho$ for a filing classifier.
+  \item \textbf{Case Study} (15 min): run a FinBERT-style vs.\ general-model
+        sentiment comparison in Python (\texttt{code/notebooks/08-domain-specific-llms/}).
+  \item \textbf{Discussion} (10 min): choose an architecture for three real briefs.
+\end{enumerate}
+\end{block}
+\end{frame}
+
+\begin{frame}{Recap: the Two Formulas You Will Use}
+\begin{underhood}
+\textbf{DAPT objective.} From general weights $\theta_0$, continue pre-training on a
+domain corpus $\mathcal{D}_{\text{domain}}$:
+\[
+  \theta^\star = \arg\min_\theta \mathcal{L}_{\text{PT}}(\theta;\mathcal{D}_{\text{domain}}),
+  \quad \mathcal{L}_{\text{PT}} \in \{\text{MLM},\ \text{CLM}\},
+\]
+reduced LR ($\sim 10\times$) to limit catastrophic forgetting.
+\end{underhood}
+
+\medskip
+\begin{underhood}
+\textbf{Effective cost per correct output.}
+\[
+  C_{\text{eff}}(m,\rho) = \frac{c_m + \rho\,c_h}{p_m + \rho(1-p_m)},
+\]
+$c_m$ = model cost/query, $c_h$ = human-review cost, $p_m$ = model correctness,
+$\rho$ = fraction routed to review. Constraint: $p_m + \rho(1-p_m) \ge p^\star$.
+\end{underhood}
+
+\medskip
+\footnotesize \textbf{Rule of thumb:} encoders need 1--5B domain tokens; the first
+$\sim$1B yields most of the gain (diminishing returns).
+\end{frame}
+
+% ============================================================
+\section{Guided Problems}
+% ============================================================
+
+\begin{frame}{Problem 1: Sizing a DAPT Corpus}
+\textbf{Scenario.} You will DAPT a BERT-base encoder (110M params) for SEC-filing NER,
+then fine-tune. You can draw from:
+\begin{itemize}
+  \item SEC EDGAR ($\sim$50B tokens, open)
+  \item Reuters TRC2 ($\sim$2B, licensed)
+  \item General replay data (Pile, $\sim$unlimited)
+\end{itemize}
+
+\medskip
+\textbf{Tasks.}
+\begin{enumerate}
+  \item[\textbf{A.}] Given diminishing returns, what domain-token budget do you target,
+        and why not just use all 50B?
+  \item[\textbf{B.}] You worry about catastrophic forgetting. Propose a \emph{replay}
+        ratio (general:domain) and justify it.
+  \item[\textbf{C.}] Should you set the DAPT learning rate above or below the original
+        pre-training LR? By roughly how much, and what failure does this prevent?
+  \item[\textbf{D.}] Would TAPT help here? What additional data would it require?
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Problem 2: Optimal Hybrid Routing}
+\textbf{Scenario.} A FinBERT classifier costs $c_m=\$0.0002$/query at $p_m=0.88$.
+Hard queries route to a human at $c_h=\$2.00$/query (assume review fixes all errors).
+Target accuracy $p^\star = 0.95$.
+
+\medskip
+\textbf{Tasks.}
+\begin{enumerate}
+  \item[\textbf{A.}] Write the achieved accuracy as a function of $\rho$ and find the
+        \emph{minimum} $\rho$ that meets $p^\star$.
+  \item[\textbf{B.}] Evaluate $C_{\text{eff}}$ at that $\rho$.
+  \item[\textbf{C.}] Compare against routing \emph{everything} to the human ($\rho=1$).
+        What is the cost ratio?
+  \item[\textbf{D.}] Qualitatively: if $p_m$ rose to $0.95$ via DAPT, what happens to
+        the required $\rho$ and to $C_{\text{eff}}$?
+\end{enumerate}
+
+\medskip
+\begin{block}{Hint}
+Achieved accuracy $= p_m + \rho(1-p_m)$ because review recovers the $(1-p_m)$ errors
+on the routed fraction.
+\end{block}
+\end{frame}
+
+% ============================================================
+\section{Python Case Study}
+% ============================================================
+
+\begin{frame}{Case Study: FinBERT-style vs.\ General Sentiment}
+\textbf{Goal.} Demonstrate \emph{polarity inversion} --- the single clearest reason
+finance needs its own models --- on a few labelled financial sentences.
+
+\medskip
+\textbf{Notebook:} \texttt{code/notebooks/08-domain-specific-llms/demo.ipynb}
+
+\medskip
+\textbf{Stack:}
+\begin{itemize}
+  \item \texttt{transformers} --- load \texttt{ProsusAI/finbert} (the Araci FinBERT)
+        and a general sentiment model.
+  \item A handful of finance sentences where general English polarity is misleading.
+\end{itemize}
+
+\medskip
+\begin{alertblock}{Prerequisites}
+\texttt{pip install transformers torch}. First run downloads model weights
+($\sim$440MB for FinBERT). No GPU required for a few sentences.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Case Study: The Code}
+\begin{lstlisting}
+from transformers import pipeline
+
+# Domain-specific encoder (Araci FinBERT) vs. general sentiment
+finbert = pipeline("text-classification", model="ProsusAI/finbert")
+general = pipeline("sentiment-analysis")  # default SST-2 model
+
+SENTENCES = [
+    "The firm took on additional liability to fund the acquisition.",
+    "We are cautiously optimistic but flag meaningful headwinds.",
+    "Leverage increased to 3.2x following the debt issuance.",
+    "Unprecedented demand drove revenue above guidance.",
+]
+
+for s in SENTENCES:
+    f = finbert(s)[0]
+    g = general(s)[0]
+    print(f"{s[:48]:48s} | FinBERT={f['label']:8s} "
+          f"| General={g['label']}")
+\end{lstlisting}
+
+\medskip
+\footnotesize Run it, then fill in the table on the next slide.
+\end{frame}
+
+\begin{frame}{Case Study: Diagnostic Questions}
+\textbf{Q1.} For ``additional \emph{liability}'' and ``\emph{leverage} increased'',
+what does the general model predict vs.\ FinBERT? Which is right \emph{for a financial
+reader}, and why does the general model err?
+
+\medskip
+\textbf{Q2.} ``\emph{Cautiously optimistic} but \dots headwinds'' --- which label is
+appropriate? Connect this to the FinBERT-tone earnings-call example from the lecture.
+
+\medskip
+\textbf{Q3.} ``\emph{Unprecedented} demand \dots'' is genuinely positive here. Does
+FinBERT over-correct? What does this tell you about \emph{context}-dependence of
+financial polarity?
+
+\medskip
+\begin{block}{Q4 --- tie to the chapter}
+Of the four general-model failure modes (polarity inversion, numerical hallucination,
+table-parsing, regulatory ambiguity), which one does this experiment isolate? Which
+\emph{cannot} be diagnosed by a sentence-level sentiment test, and why?
+\end{block}
+\end{frame}
+
+% ============================================================
+\section{Discussion}
+% ============================================================
+
+\begin{frame}{Discussion: Pick an Architecture for Each Brief}
+For each, state the model family + training strategy and justify on accuracy, cost,
+latency, governance, and traceability.
+
+\medskip
+\begin{enumerate}
+  \item A bank must label \textbf{50{,}000 headlines/day} as material / non-material
+        for insider-trading surveillance. Latency $<$50ms; 10k labelled examples.
+  \item A research desk needs \textbf{hawkish/dovish} scoring of every new FOMC
+        statement, with the precise monetary-policy vocabulary.
+  \item A compliance team must answer questions about \textbf{any 10-K} in a
+        2{,}000-name portfolio, citing the exact source paragraph for audit.
+\end{enumerate}
+
+\medskip
+\begin{block}{Frame your answer}
+Encoder vs.\ decoder? From-scratch vs.\ DAPT vs.\ fine-tune-only? Single model vs.\
+hybrid routing vs.\ RAG? Where does the LM dictionary / register argument bite?
+\end{block}
+\end{frame}
+
+% ============================================================
+% SOLUTIONS
+% ============================================================
+
+\begin{frame}{Solution: Problem 1 --- DAPT Corpus}
+\begin{block}{A --- Budget}
+Target $\sim$\textbf{3--5B} EDGAR tokens. Most of the gain is in the first $\sim$1B;
+beyond $\sim$5B the marginal downstream improvement for a 110M encoder is small and
+not worth the compute or the added risk of forgetting.
+\end{block}
+\textbf{B --- Replay.} Mix in $\sim$5--10\% general (Pile) tokens. Enough to preserve
+broad language ability, small enough that the domain still dominates the update.
+
+\medskip
+\textbf{C --- Learning rate.} \emph{Below} the original PT rate, by $\sim 10\times$.
+This prevents catastrophic forgetting --- a large LR would overwrite the general
+representations DAPT is meant to \emph{reuse}.
+
+\medskip
+\textbf{D --- TAPT.} Yes: a further continued-PT pass on the \emph{unlabelled} text of
+the NER dataset (same distribution as the labelled set), before supervised fine-tuning.
+Requires task-distribution unlabelled data, which here we have.
+\end{frame}
+
+\begin{frame}{Solution: Problem 2 --- Optimal Routing}
+\textbf{A --- Required $\rho$.} Achieved accuracy $= p_m + \rho(1-p_m) = 0.88 + 0.12\rho$.
+Set $\ge 0.95$:
+\[
+  0.88 + 0.12\rho \ge 0.95 \;\Rightarrow\; \rho \ge \tfrac{0.07}{0.12} \approx \mathbf{0.583}.
+\]
+
+\textbf{B --- $C_{\text{eff}}$ at $\rho=0.583$:}
+\[
+  C_{\text{eff}} = \frac{0.0002 + 0.583\cdot 2.00}{0.88 + 0.583\cdot 0.12}
+  = \frac{1.1662}{0.95} \approx \mathbf{\$1.23}\ \text{per correct output.}
+\]
+
+\textbf{C --- All-human ($\rho=1$):} $C_{\text{eff}} = (0.0002+2.00)/1.0 \approx \$2.00$.
+Hybrid is $\approx$\textbf{1.6$\times$ cheaper} at the \emph{same} 95\% target.
+
+\medskip
+\textbf{D --- If DAPT lifts $p_m$ to 0.95.} Required $\rho = 0$ (target already met),
+so $C_{\text{eff}} \approx c_m/p_m = 0.0002/0.95 \approx \$0.0002$ --- four orders of
+magnitude cheaper. \emph{Investing in the model collapses the human-review bill.}
+\end{frame}
+
+\begin{frame}{Wrap-Up: What This Session Showed}
+\begin{itemize}
+  \item \textbf{Problem 1:} DAPT is a budgeting exercise --- a few billion domain
+        tokens, a reduced LR, and a replay ratio buy most of the gain. More data is
+        not always better.
+  \item \textbf{Problem 2:} hybrid routing meets an accuracy target at a fraction of
+        all-human cost --- and the value of \emph{model} improvement (DAPT raising
+        $p_m$) is dominated by the human-review savings it unlocks.
+  \item \textbf{Case study:} polarity inversion is real and visible in four sentences
+        --- the cleanest empirical motivation for domain-specific models.
+  \item \textbf{Discussion:} architecture choice follows the task's label space,
+        vocabulary sensitivity, latency, and \emph{auditability} requirements.
+\end{itemize}
+
+\medskip
+\begin{block}{Next}
+Financial NLP \& sentiment in depth: fine-tuning FinBERT end-to-end and benchmarking
+it against zero-shot frontier models.
+\end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX
+% ============================================================
+\appendixstart{Stretch Problems}
+
+\begin{frame}[noframenumbering]{Appendix --- Stretch Problem 1: Contamination}
+A vendor claims their 70B model scores 0.97 F1 on Financial PhraseBank --- above any
+published FinBERT.
+
+\medskip
+\textbf{Tasks.}
+\begin{enumerate}
+  \item Why is this number \emph{not} immediately trustworthy?
+  \item Design a contamination-controlled evaluation: what temporal property must the
+        test set satisfy relative to the model's knowledge cutoff?
+  \item PhraseBank predates almost every frontier model. What kind of held-out set
+        would you construct instead, and from what source?
+\end{enumerate}
+
+\medskip
+\footnotesize \textit{Key idea:} a benchmark in the pre-training corpus measures
+memorisation, not generalisation. Require test data postdating the cutoff.
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix --- Stretch Problem 2: RAG vs.\ Bigger Model}
+A 7B decoder + EDGAR RAG vs.\ a 50B ungrounded decoder, both for ``extract the FY
+revenue from this 10-K''.
+
+\medskip
+\textbf{Tasks.}
+\begin{enumerate}
+  \item On which axis does RAG win even if the 50B model is slightly more accurate
+        ungrounded? (Hint: SR 11-7.)
+  \item Sketch why grounding reduces \emph{numerical} hallucination specifically.
+  \item Give one task where the 50B model would still be preferable, and say why
+        retrieval does not help there.
+\end{enumerate}
+
+\medskip
+\footnotesize \textit{Expected:} RAG wins on traceability + cost; grounding pins
+figures to retrieved text; the big model still wins on open-ended reasoning that no
+single passage supports.
+\end{frame}
+
+\end{document}

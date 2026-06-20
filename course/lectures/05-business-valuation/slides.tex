@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Lecture 5: LLMs for Business Valuation}
 \subtitle{Large Language Models in Finance}
@@ -65,11 +51,11 @@
 \end{itemize}
 
 \medskip
-\begin{alertblock}{The core challenge}
+\begin{bigpicture}
   Valuation is forward-looking. A balance sheet records historical cost;
   the market prices a claim on \emph{future} earnings.
   Translating current information into a credible forward estimate is where LLMs add the most value.
-\end{alertblock}
+\end{bigpicture}
 \end{frame}
 
 % ============================================================
@@ -124,9 +110,11 @@ Report generation & Analyst writing & LLM first-draft synthesis \\
 \end{center}
 
 \medskip
+\begin{bigpicture}
 \textbf{Key principle}: LLMs are most valuable where the task is
 \emph{qualitative reasoning over text} and least reliable where the task
 is \emph{numerical computation}. Route arithmetic to a code interpreter.
+\end{bigpicture}
 \end{frame}
 
 % ============================================================
@@ -172,6 +160,7 @@ LLM parsing fills the gap for non-standard layouts, merged cells, and extension 
 inside cells, non-standard layouts. Classical parsers break on the long tail.
 
 \medskip
+\begin{underhood}
 \textbf{LLM extraction pattern:}
 \begin{enumerate}
   \item Extract raw HTML of candidate table with BeautifulSoup
@@ -179,6 +168,7 @@ inside cells, non-standard layouts. Classical parsers break on the long tail.
   \item Send to LLM with structured extraction prompt requesting JSON schema
   \item Validate output against schema; retry on parse failure
 \end{enumerate}
+\end{underhood}
 
 \medskip
 \textbf{Design principles:}
@@ -205,6 +195,7 @@ Using fiscal year end in a backtest can include information not yet available.
 \begin{frame}
 \frametitle{Free Cash Flow: Two Canonical Definitions}
 
+\begin{underhood}
 \textbf{Free Cash Flow to Firm (FCFF):}
 \[
   \text{FCFF}_t = \text{EBIT}_t(1-\tau) + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t
@@ -219,6 +210,7 @@ Using fiscal year end in a backtest can include information not yet available.
 \[
   \text{FCFE}_t = \text{FCFF}_t - \text{InterestExp}_t(1-\tau) + \text{NB}_t
 \]
+\end{underhood}
 
 \medskip
 \begin{center}
@@ -587,11 +579,13 @@ A 100-bps error in terminal growth $\to$ \textbf{15--18\% error in enterprise va
 \textit{Mandatory}: validate every ticker against a securities master.
 
 \medskip
+\begin{underhood}
 \textbf{Embedding-based}: embed the MD\&A of all companies in the universe; retrieve top-$k$ by cosine similarity.
 \[
   \text{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|}
 \]
 Empirical result: embedding-based peers have lower IQR of EV/EBITDA and lower deviation from transaction prices vs.\ SIC-based peers.
+\end{underhood}
 \end{frame}
 
 % ============================================================
@@ -661,72 +655,6 @@ Always run Monte Carlo simulation; always present percentile ranges.
 \end{frame}
 
 % ============================================================
-% FRAME 22: Case study
-% ============================================================
-\begin{frame}
-\frametitle{Case Study: Mid-Cap SaaS Company}
-
-\textbf{Profile:} Revenue \$4.2B (+12\% YoY), EBIT margin 20\%, D\&A \$310M,
-CapEx \$180M, net debt \$800M, 280M shares outstanding.
-
-\medskip
-\textbf{After normalisation:} EBIT = \$915M, FCFF = \$789M
-(two non-recurring items: \$45M restructuring + \$30M acquired intangible amortisation).
-
-\medskip
-\begin{center}
-\begin{tabular}{lrr}
-\toprule
-\textbf{Method} & \textbf{Enterprise Value} & \textbf{Equity/share} \\
-\midrule
-DCF (WACC 9\%, $g$ 3\%) & \$17.0B & \$57.9 \\
-Comparables (EV/EBITDA 24.5$\times$) & \$29.9B & --- \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\medskip
-DCF vs.\ comparables gap: sector trading at elevated growth multiples.
-Both are informative; neither is definitive.
-
-\medskip
-\textbf{Monte Carlo} (10{,}000 draws): mean \$17.2B, P10--P90 range \$12.5B--\$24.1B.
-The range quantifies the uncertainty a point estimate conceals.
-\end{frame}
-
-% ============================================================
-% FRAME 23: Agent orchestration
-% ============================================================
-\begin{frame}
-\frametitle{Multi-Agent Orchestration}
-
-\textbf{Why not a monolithic script?}
-A failure in step 6 (terminal value) requires rerunning all prior steps.
-A monolithic pipeline is also untestable in parts.
-
-\medskip
-\textbf{Orchestrator + specialists:}
-\begin{itemize}
-  \item \texttt{edgar\_agent}: retrieval and extraction
-  \item \texttt{fcf\_agent}: computation and normalisation
-  \item \texttt{forecast\_agent}: CoT projections
-  \item \texttt{comps\_agent}: comparable selection
-  \item \texttt{dcf\_agent}: final valuation and scenario synthesis
-\end{itemize}
-
-\medskip
-\textbf{Parallelism}: comparable selection has no dependency on the FCF forecast ---
-both can run concurrently, reducing end-to-end latency.
-
-\medskip
-\begin{block}{Production latency}
-6 LLM calls $\times$ 1--5 seconds each + parallelisation $\approx$
-\textbf{15--30 seconds end-to-end} per company valuation.
-Cost: \$0.50--\$3.00 per company at 2024 frontier-model pricing.
-\end{block}
-\end{frame}
-
-% ============================================================
 % FRAME 24: Best practices
 % ============================================================
 \begin{frame}
@@ -783,6 +711,71 @@ Governance & HITL review; hallucination guards; audit trail \\
 Chapter 6 applies the same data extraction and forecasting tools to credit risk ---
 where target variables are probability of default and loss given default, and regulatory
 constraints on model transparency are stricter.
+\end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX
+% ============================================================
+\appendixstart{Worked Case Study and Production Orchestration}
+
+% FRAME (appendix): Case study --- relocated from core deck
+\begin{frame}[noframenumbering]{Case Study: Mid-Cap SaaS Company}
+
+\textbf{Profile:} Revenue \$4.2B (+12\% YoY), EBIT margin 20\%, D\&A \$310M,
+CapEx \$180M, net debt \$800M, 280M shares outstanding.
+
+\medskip
+\textbf{After normalisation:} EBIT = \$915M, FCFF = \$789M
+(two non-recurring items: \$45M restructuring + \$30M acquired intangible amortisation).
+
+\medskip
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Method} & \textbf{Enterprise Value} & \textbf{Equity/share} \\
+\midrule
+DCF (WACC 9\%, $g$ 3\%) & \$17.0B & \$57.9 \\
+Comparables (EV/EBITDA 24.5$\times$) & \$29.9B & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+DCF vs.\ comparables gap: sector trading at elevated growth multiples.
+Both are informative; neither is definitive.
+
+\medskip
+\textbf{Monte Carlo} (10{,}000 draws): mean \$17.2B, P10--P90 range \$12.5B--\$24.1B.
+The range quantifies the uncertainty a point estimate conceals.
+\end{frame}
+
+% FRAME (appendix): Agent orchestration --- relocated from core deck
+\begin{frame}[noframenumbering]{Multi-Agent Orchestration}
+
+\textbf{Why not a monolithic script?}
+A failure in step 6 (terminal value) requires rerunning all prior steps.
+A monolithic pipeline is also untestable in parts.
+
+\medskip
+\textbf{Orchestrator + specialists:}
+\begin{itemize}
+  \item \texttt{edgar\_agent}: retrieval and extraction
+  \item \texttt{fcf\_agent}: computation and normalisation
+  \item \texttt{forecast\_agent}: CoT projections
+  \item \texttt{comps\_agent}: comparable selection
+  \item \texttt{dcf\_agent}: final valuation and scenario synthesis
+\end{itemize}
+
+\medskip
+\textbf{Parallelism}: comparable selection has no dependency on the FCF forecast ---
+both can run concurrently, reducing end-to-end latency.
+
+\medskip
+\begin{block}{Production latency}
+6 LLM calls $\times$ 1--5 seconds each + parallelisation $\approx$
+\textbf{15--30 seconds end-to-end} per company valuation.
+Cost: \$0.50--\$3.00 per company at 2024 frontier-model pricing.
 \end{block}
 \end{frame}
 

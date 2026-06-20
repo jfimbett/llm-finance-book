@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Practical Session 7: Applications, Governance, and Future Trends}
 \subtitle{Large Language Models in Finance}
@@ -310,6 +296,37 @@ $d_1$: $1/61 + 1/64 \approx 0.01639 + 0.01563 = 0.03202$. $d_2$: $1/62 + 1/61 \a
 
   \item \textbf{The tools are new; the standards are not}: document honestly, validate independently, escalate appropriately, and retire models when their limitations prove material.
 \end{enumerate}
+\end{frame}
+
+% ============================================================
+% APPENDIX: stretch problem
+% ============================================================
+\appendixstart{Stretch Problem: Effective-Cost Routing}
+
+\begin{frame}[noframenumbering]{Stretch Problem: Hybrid Routing Economics}
+
+A bank deploys a small FinLLM that answers $p_m = 80\%$ of filing-QA queries
+correctly at model cost $c_m = \$0.01$ per query. Low-confidence queries are
+routed (fraction $\rho$) to a human reviewer at cost $c_h = \$5.00$ per query,
+who recovers all errors. The effective cost per correct output is
+\[
+  C_{\text{eff}}(\rho) = \frac{c_m + \rho\,c_h}{p_m + \rho(1-p_m)}.
+\]
+
+\medskip
+\textbf{Part A}: Evaluate $C_{\text{eff}}$ at $\rho = 0$ (no routing) and at
+$\rho = 0.20$. Which is cheaper per \emph{correct} output?
+
+\textbf{Part B}: The compliance team requires an effective correctness
+$p_m + \rho(1-p_m) \ge 0.95$. What is the minimum routed fraction $\rho^\star$?
+
+\textbf{Part C}: At $\rho^\star$, what is $C_{\text{eff}}$? Discuss the trade-off
+between cost and the regulatory correctness floor.
+
+\medskip
+\begin{block}{Hint}
+  Solve $0.80 + \rho(0.20) \ge 0.95$ for Part B, then substitute back.
+\end{block}
 \end{frame}
 
 \end{document}

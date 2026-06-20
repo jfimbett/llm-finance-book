@@ -1,6 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
+\input{../_style/finance-beamer.tex}
 
 \title{Lecture 2: Large Language Models\\Architecture and Practice}
 \author{Juan F.\ Imbet}
@@ -9,7 +8,9 @@
 
 \begin{document}
 
-\maketitle
+\begin{frame}\titlepage\end{frame}
+
+\begin{frame}{Outline}\tableofcontents\end{frame}
 
 % ============================================================
 \section{From Sequences to Attention}
@@ -64,7 +65,8 @@ Mean embedding ignores word order.
   \prod_{k=t}^{s-1} \frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}
 \]
 
-\begin{alertblock}{Proposition (Vanishing \& Exploding Gradients)}
+\begin{underhood}
+\textbf{Proposition (Vanishing \& Exploding Gradients).}
 Let $\rho = \|W_h\|_2$, $M_\sigma = \sup_z |\sigma'(z)|$. Then
 \[
 \left\|\prod_{k=t}^{T-1}\frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}\right\|_2
@@ -72,7 +74,7 @@ Let $\rho = \|W_h\|_2$, $M_\sigma = \sup_z |\sigma'(z)|$. Then
 \]
 For logistic sigmoid: $M_\sigma = \tfrac{1}{4}$.
 If $M_\sigma\rho < 1$: \textcolor{blue}{gradients vanish exponentially.}
-\end{alertblock}
+\end{underhood}
 
 \textbf{Finance implication:} An earnings call of 10\,k tokens makes long-range
 dependencies (page 3 $\leftrightarrow$ page 20) practically unlearnable.
@@ -98,7 +100,8 @@ dependencies (page 3 $\leftrightarrow$ page 20) practically unlearnable.
   &&\text{hidden state}
 \end{align*}
 
-\begin{block}{Why the cell state avoids vanishing gradients}
+\begin{underhood}
+\textbf{Why the cell state avoids vanishing gradients.}
 \[
 \frac{\partial \mathcal{L}}{\partial \mathbf{c}_t}
 = \frac{\partial \mathcal{L}}{\partial \mathbf{c}_{t+1}} \odot \mathbf{f}_{t+1}
@@ -106,7 +109,7 @@ dependencies (page 3 $\leftrightarrow$ page 20) practically unlearnable.
 \]
 When $\mathbf{f}_{t+1} \approx \mathbf{1}$: gradient flows back undamped.\\
 (\emph{``Constant error carousel''} — Hochreiter \& Schmidhuber, 1997)
-\end{block}
+\end{underhood}
 
 GRU = 4 equations, $\approx$25\% fewer parameters. Preferred under compute constraints.
 \end{frame}
@@ -136,10 +139,10 @@ e_{t,i} = \mathbf{v}^\top \tanh\!\left(W_s\,\mathbf{s}_t + W_h\,\mathbf{h}_i\rig
 $\{\alpha_{t,i}\}$ form a probability distribution over encoder positions.
 \medskip
 
-\begin{block}{Finance intuition}
+\begin{bigpicture}
 Decoder generating a sentence about \emph{net income} assigns high $\alpha_{t,i}$
 to the tokens in the transcript where income figures appear. Attention is interpretable.
-\end{block}
+\end{bigpicture}
 
 \medskip
 \textbf{Next step:} apply attention \emph{within} a single sequence $\to$ self-attention $\to$ Transformer.
@@ -158,48 +161,21 @@ Given input matrix $X \in \mathbb{R}^{n \times d_{\text{model}}}$, project to qu
 Q = XW^Q,\quad K = XW^K,\quad V = XW^V
 \]
 
+\begin{underhood}
 \textbf{Attention formula:}
 \[
 \text{Attention}(Q, K, V)
 = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V
 \]
-
 \begin{itemize}
   \item $QK^\top \in \mathbb{R}^{n \times n}$: entry $(i,j) = \mathbf{q}_i^\top\mathbf{k}_j$
   \item Row-wise softmax $\to$ attention weights $A_{ij} > 0$, $\sum_j A_{ij} = 1$
   \item Output for token $i$: $\sum_j A_{ij}\,\mathbf{v}_j$ (convex combination of values)
 \end{itemize}
+\end{underhood}
 
 \medskip
 \textbf{Causal mask (decoder):} set $\tilde{S}_{ij} = -\infty$ for $j > i$ to prevent attending to future tokens.
-\end{frame}
-
-% --- Frame 6: Why √d_k ---
-\begin{frame}
-\frametitle{Why Divide by $\sqrt{d_k}$? The Variance Proof}
-
-\textbf{Setup:} suppose $q_\ell, k_\ell \overset{\text{i.i.d.}}{\sim} (0,1)$ for $\ell = 1,\ldots,d_k$.
-
-\medskip
-\textbf{Step 1.} Compute the variance of the dot product:
-\[
-\text{Var}\!\left(\mathbf{q}_i^\top \mathbf{k}_j\right) = \sum_{\ell=1}^{d_k} \text{Var}(q_\ell k_\ell) = d_k
-\]
-
-\textbf{Step 2.} For large $d_k$, logits concentrate near $\pm\sqrt{d_k}$:
-\[
-\text{softmax gradient:}\quad \sigma(z)(1-\sigma(z)) \approx 0 \text{ for large } |z|
-\]
-
-\textbf{Step 3.} Divide by $\sqrt{d_k}$ to normalise variance to 1:
-\[
-\text{Var}\!\left(\frac{\mathbf{q}_i^\top \mathbf{k}_j}{\sqrt{d_k}}\right) = 1
-\]
-
-\begin{block}{Consequence}
-Without scaling, the softmax saturates and gradients vanish — we reintroduce the
-same problem LSTMs were designed to fix, now inside the attention layer.
-\end{block}
 \end{frame}
 
 % --- Frame 7: Multi-Head Attention ---
@@ -230,39 +206,6 @@ Original Transformer: $h = 8$,\quad $d_k = d_v = 64$,\quad $d_{\text{model}} = 5
 \medskip
 \textbf{Complexity:} $O(n^2 d_{\text{model}})$ per layer. For $n = 4{,}096$ tokens:
 $\approx$134M values per layer. Motivates FlashAttention (Dao et al., 2022).
-\end{frame}
-
-% --- Frame 8: Positional Encoding + Rotation Property ---
-\begin{frame}
-\frametitle{Positional Encoding and the Rotation Property}
-
-Self-attention is permutation-equivariant $\Rightarrow$ position must be injected.
-
-\medskip
-\textbf{Sinusoidal positional encoding:}
-\[
-\text{PE}_{(\text{pos},2i)} = \sin\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right),
-\quad
-\text{PE}_{(\text{pos},2i+1)} = \cos\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right)
-\]
-
-Small $i$: high frequency (fine position). Large $i$: low frequency (coarse position).
-
-\medskip
-\textbf{Rotation property:} for any fixed offset $k$,
-\[
-\begin{pmatrix} \text{PE}_{(\text{pos}+k,2i)} \\ \text{PE}_{(\text{pos}+k,2i+1)} \end{pmatrix}
-=
-\begin{pmatrix} \cos\omega_i k & -\sin\omega_i k \\ \sin\omega_i k & \cos\omega_i k \end{pmatrix}
-\begin{pmatrix} \text{PE}_{(\text{pos},2i)} \\ \text{PE}_{(\text{pos},2i+1)} \end{pmatrix}
-\]
-
-The rotation matrix depends only on $k$, not on the absolute position $\Rightarrow$
-\textbf{relative positions are linearly decodable}.
-
-\medskip
-Modern variant: \textbf{RoPE} (Rotary Position Embeddings) embeds the rotation
-directly into query--key dot products. Used in Llama, Mistral, Qwen.
 \end{frame}
 
 % --- Frame 9: Full Encoder Block ---
@@ -325,10 +268,10 @@ Masking protocol:
 \textbf{Architecture:} encoder-only, fully bidirectional attention.
 
 \medskip
-\begin{block}{Best for}
-Classification (sentiment, credit rating), token-level extraction (NER, metric
+\begin{bigpicture}
+\textbf{Best for:} classification (sentiment, credit rating), token-level extraction (NER, metric
 extraction), semantic similarity. \textbf{Not for generation.}
-\end{block}
+\end{bigpicture}
 \end{frame}
 
 % --- Frame 11: GPT CLM + Encoder-Decoder Choice Table ---
@@ -390,35 +333,6 @@ BloombergGPT     & Bloomberg   & Decoder & 50B       & 2K    & Yes \\
   \item General frontier models at large scale often \emph{match} BloombergGPT --- scale compensates for domain specificity
   \item Open-weight models (Llama) enable on-premises deployment: no data-privacy risk
 \end{itemize}
-\end{frame}
-
-% --- Frame 13: Financial Benchmarks ---
-\begin{frame}
-\frametitle{Financial NLP Benchmarks}
-
-\small
-\begin{tabular}{llll}
-\toprule
-\textbf{Benchmark} & \textbf{Task} & \textbf{Size} & \textbf{Metric} \\
-\midrule
-FinancialPhraseBank & Sentiment (3-class)       & 4,840 sent.  & Accuracy \\
-FiQA SA / QA        & Opinion mining; Q\&A      & $\sim$1,200  & F1, NDCG \\
-ECTSum              & Earnings call summarisation & 2,425 docs  & ROUGE-L \\
-FinQA               & Numerical reasoning       & 8,281 Q\&A   & Exec. acc. \\
-FLUE                & Multi-task financial NLU  & Multi-task   & Task-specific \\
-\bottomrule
-\end{tabular}
-
-\normalsize
-\medskip
-\begin{alertblock}{Geographic bias}
-All five benchmarks are built from English-language, North American sources.
-Do not assume generalisation to European or Asian financial contexts.
-\end{alertblock}
-
-\medskip
-FinQA requires multi-step arithmetic over tables --- reasoning models dominate.\\
-ECTSum evaluates abstractive summarisation with expert-written gold summaries.
 \end{frame}
 
 % ============================================================
@@ -573,54 +487,20 @@ Same workload on Claude Haiku: $\approx$\$20 (20$\times$ cheaper).
 \end{enumerate}
 
 \medskip
+\begin{bigpicture}
 \textbf{Why RAG for finance?}
 \begin{itemize}
   \item Knowledge base updated by adding new filings — no retraining
   \item Every factual claim traceable to a retrieved passage (auditability)
   \item Dominant architecture for document Q\&A in production financial systems
 \end{itemize}
+\end{bigpicture}
 
 \medskip
 \begin{alertblock}{FinanceBench lesson (Zhang et al., 2024)}
 GPT-4-Turbo with a retrieval system \emph{incorrectly answers or refuses} 81\% of
 questions from SEC filings. Naive RAG is insufficient for high-stakes financial QA.
 \end{alertblock}
-\end{frame}
-
-% --- Frame 19: Dense vs. Sparse vs. Hybrid ---
-\begin{frame}
-\frametitle{Dense, Sparse, and Hybrid Retrieval}
-
-\textbf{Dense retrieval:}
-\[
-s_{\text{dense}}(q, d_i) = \frac{\phi(q)\cdot\phi(d_i)}{\|\phi(q)\|\|\phi(d_i)\|}
-\]
-SBERT bi-encoder; FAISS / HNSW for ANN search.
-
-\medskip
-\textbf{BM25 (sparse lexical):}
-Strong on exact matches (CUSIP numbers, filing section references, tickers).
-
-\medskip
-\textbf{Hybrid via Reciprocal Rank Fusion:}
-\[
-\text{RRF}(d) = \sum_{r \in \{\text{dense},\,\text{sparse}\}}
-\frac{1}{60 + \text{rank}_r(d)}
-\]
-Robust to score-scale differences; no learned weighting parameter.
-
-\medskip
-\begin{tabular}{lll}
-\toprule
-\textbf{Method} & \textbf{Strength} & \textbf{Weakness} \\
-\midrule
-Dense   & Semantic similarity & Exact-match failures \\
-BM25    & Exact-match recall  & Misses paraphrases \\
-Hybrid  & Both               & Slightly slower \\
-\midrule
-Re-ranker & High precision    & High latency \\
-\bottomrule
-\end{tabular}
 \end{frame}
 
 % --- Frame 20: Hallucination Taxonomy ---
@@ -736,6 +616,132 @@ Hallucination taxonomy $\cdot$ SelfCheckGPT $\cdot$ FActScore $\cdot$ 5-layer mi
 Lecture 3: Sentiment Analysis in Finance --- applying these foundations to
 FinancialPhraseBank, FinBERT fine-tuning, and LLM-based sentiment extraction.
 \end{block}
+\end{frame}
+
+% ============================================================
+\appendixstart{Extended Derivations, Encodings, and Benchmarks}
+% ============================================================
+
+% --- Appendix A: Why √d_k (relocated) ---
+\begin{frame}[noframenumbering]{Why Divide by $\sqrt{d_k}$? The Variance Proof}
+
+\textbf{Setup:} suppose $q_\ell, k_\ell \overset{\text{i.i.d.}}{\sim} (0,1)$ for $\ell = 1,\ldots,d_k$.
+
+\medskip
+\textbf{Step 1.} Compute the variance of the dot product:
+\[
+\text{Var}\!\left(\mathbf{q}_i^\top \mathbf{k}_j\right) = \sum_{\ell=1}^{d_k} \text{Var}(q_\ell k_\ell) = d_k
+\]
+
+\textbf{Step 2.} For large $d_k$, logits concentrate near $\pm\sqrt{d_k}$:
+\[
+\text{softmax gradient:}\quad \sigma(z)(1-\sigma(z)) \approx 0 \text{ for large } |z|
+\]
+
+\textbf{Step 3.} Divide by $\sqrt{d_k}$ to normalise variance to 1:
+\[
+\text{Var}\!\left(\frac{\mathbf{q}_i^\top \mathbf{k}_j}{\sqrt{d_k}}\right) = 1
+\]
+
+\begin{block}{Consequence}
+Without scaling, the softmax saturates and gradients vanish — we reintroduce the
+same problem LSTMs were designed to fix, now inside the attention layer.
+\end{block}
+\end{frame}
+
+% --- Appendix B: Positional Encoding + Rotation Property (relocated) ---
+\begin{frame}[noframenumbering]{Positional Encoding and the Rotation Property}
+
+Self-attention is permutation-equivariant $\Rightarrow$ position must be injected.
+
+\medskip
+\textbf{Sinusoidal positional encoding:}
+\[
+\text{PE}_{(\text{pos},2i)} = \sin\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right),
+\quad
+\text{PE}_{(\text{pos},2i+1)} = \cos\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right)
+\]
+
+Small $i$: high frequency (fine position). Large $i$: low frequency (coarse position).
+
+\medskip
+\textbf{Rotation property:} for any fixed offset $k$,
+\[
+\begin{pmatrix} \text{PE}_{(\text{pos}+k,2i)} \\ \text{PE}_{(\text{pos}+k,2i+1)} \end{pmatrix}
+=
+\begin{pmatrix} \cos\omega_i k & -\sin\omega_i k \\ \sin\omega_i k & \cos\omega_i k \end{pmatrix}
+\begin{pmatrix} \text{PE}_{(\text{pos},2i)} \\ \text{PE}_{(\text{pos},2i+1)} \end{pmatrix}
+\]
+
+The rotation matrix depends only on $k$, not on the absolute position $\Rightarrow$
+\textbf{relative positions are linearly decodable}.
+
+\medskip
+Modern variant: \textbf{RoPE} (Rotary Position Embeddings) embeds the rotation
+directly into query--key dot products. Used in Llama, Mistral, Qwen.
+\end{frame}
+
+% --- Appendix C: Financial Benchmarks (relocated) ---
+\begin{frame}[noframenumbering]{Financial NLP Benchmarks}
+
+\small
+\begin{tabular}{llll}
+\toprule
+\textbf{Benchmark} & \textbf{Task} & \textbf{Size} & \textbf{Metric} \\
+\midrule
+FinancialPhraseBank & Sentiment (3-class)       & 4,840 sent.  & Accuracy \\
+FiQA SA / QA        & Opinion mining; Q\&A      & $\sim$1,200  & F1, NDCG \\
+ECTSum              & Earnings call summarisation & 2,425 docs  & ROUGE-L \\
+FinQA               & Numerical reasoning       & 8,281 Q\&A   & Exec. acc. \\
+FLUE                & Multi-task financial NLU  & Multi-task   & Task-specific \\
+\bottomrule
+\end{tabular}
+
+\normalsize
+\medskip
+\begin{alertblock}{Geographic bias}
+All five benchmarks are built from English-language, North American sources.
+Do not assume generalisation to European or Asian financial contexts.
+\end{alertblock}
+
+\medskip
+FinQA requires multi-step arithmetic over tables --- reasoning models dominate.\\
+ECTSum evaluates abstractive summarisation with expert-written gold summaries.
+\end{frame}
+
+% --- Appendix D: Dense vs. Sparse vs. Hybrid (relocated) ---
+\begin{frame}[noframenumbering]{Dense, Sparse, and Hybrid Retrieval}
+
+\textbf{Dense retrieval:}
+\[
+s_{\text{dense}}(q, d_i) = \frac{\phi(q)\cdot\phi(d_i)}{\|\phi(q)\|\|\phi(d_i)\|}
+\]
+SBERT bi-encoder; FAISS / HNSW for ANN search.
+
+\medskip
+\textbf{BM25 (sparse lexical):}
+Strong on exact matches (CUSIP numbers, filing section references, tickers).
+
+\medskip
+\textbf{Hybrid via Reciprocal Rank Fusion:}
+\[
+\text{RRF}(d) = \sum_{r \in \{\text{dense},\,\text{sparse}\}}
+\frac{1}{60 + \text{rank}_r(d)}
+\]
+Robust to score-scale differences; no learned weighting parameter.
+
+\medskip
+\begin{tabular}{lll}
+\toprule
+\textbf{Method} & \textbf{Strength} & \textbf{Weakness} \\
+\midrule
+Dense   & Semantic similarity & Exact-match failures \\
+BM25    & Exact-match recall  & Misses paraphrases \\
+Hybrid  & Both               & Slightly slower \\
+\midrule
+Re-ranker & High precision    & High latency \\
+\bottomrule
+\end{tabular}
 \end{frame}
 
 \end{document}

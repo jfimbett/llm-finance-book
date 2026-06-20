@@ -1,72 +1,756 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath, amssymb}
-\usepackage{booktabs}
-\usepackage{xcolor}
+\input{../_style/finance-beamer.tex}
 
 \title{LLMs and Privacy}
-\subtitle{Lecture 15 — Local Deployments and Text De-identification}
-\author{Juan F. Imbet}
+\subtitle{Lecture 15 --- Local Deployments and Text De-identification}
+\author{Juan F.\ Imbet}
 \institute{Paris Dauphine -- PSL University}
 \date{\today}
 
 \begin{document}
 
-\begin{frame}
-  \titlepage
-\end{frame}
+\begin{frame}\titlepage\end{frame}
 
-\begin{frame}{Outline}
-  \tableofcontents
-\end{frame}
+\begin{frame}{Outline}\tableofcontents\end{frame}
 
-% ---------------------------------------------------------------
+% =====================================================================
 \section{The Privacy Imperative in Financial AI}
+% =====================================================================
 
-\begin{frame}{The Privacy Imperative in Financial AI}
-  [Placeholder]
+\begin{frame}{Why Privacy Is the Binding Constraint}
+\begin{bigpicture}
+January 2023: a major bank bans staff from pasting client data into ChatGPT after
+a leaked memo reveals loan applications, earnings transcripts, and merger term
+sheets crossing a public API. Weeks later, Samsung source code submitted to
+ChatGPT is retained for training. \textbf{Once data crosses the API boundary,
+there is no technical mechanism for recall.}
+\end{bigpicture}
+
+\medskip
+LLMs are useful \emph{because} they absorbed vast text --- but absorption plus cloud
+inference creates a privacy surface finance is poorly equipped to govern.
+
+\medskip
+\textbf{Four complementary engineering strategies} (the spine of this lecture):
+\begin{enumerate}
+  \item Local / self-hosted deployment --- remove the external boundary
+  \item Text anonymisation --- strip sensitive content before the model sees it
+  \item Privacy-preserving training (DP, federated learning) --- bound memorisation
+  \item Privacy-aware architecture (RAG, audit, access control) --- govern the system
+\end{enumerate}
 \end{frame}
 
-% ---------------------------------------------------------------
+\begin{frame}{What Data Do LLMs Expose? Two Channels}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{block}{Training channel}
+Information in the pre-training / fine-tuning corpus is reconstructable from
+\emph{parameters}.
+\begin{itemize}
+  \item Persists after the session ends
+  \item Any user may recover fragments
+  \item Fine-tune on proprietary docs $\Rightarrow$ permanent artefact
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{block}{Inference channel}
+Data in \emph{prompts} may be stored, logged, or trained on by the provider.
+\begin{itemize}
+  \item Operational; depends on the contract
+  \item Eliminated by on-premise deployment
+  \item Encountered first --- no skill needed to exploit it
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+
+\medskip
+\begin{alertblock}{Memorisation is real and quantifiable}
+Carlini et al.\ (2021): a 1.5B-param GPT-2 memorises verbatim sequences --- emails,
+phone numbers, identifiers seen \emph{once}. Larger models memorise more; repeated
+sequences memorised most. Carlini et al.\ (2022) formalise a per-example
+\emph{memorisation score}.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Definition: Memorisation}
+\begin{block}{Memorisation (Def.\ 15.1)}
+A language model $\mathcal{M}$ \emph{memorises} a string $s$ if there exists a
+prompt $p$ such that $\mathcal{M}(p)$ generates $s$ with probability above a
+threshold $\tau \in (0,1]$.
+\end{block}
+
+\medskip
+\begin{itemize}
+  \item \textbf{Exact} memorisation: $s$ reproduced verbatim.
+  \item \textbf{Approximate} memorisation: bounded Levenshtein edit distance
+        (min.\ single-character insert/delete/substitute edits).
+\end{itemize}
+
+\medskip
+\begin{underhood}
+Why rare sequences get memorised: the next-token objective rewards
+\emph{generalisable} features for common patterns, but for a rare pattern the only
+path to low loss is to store the specific sequence. A client name appearing once in
+a fine-tuning corpus is \emph{memorised}; the word ``the'' is \emph{learned}. The
+distinction is, in part, a function of frequency.
+\end{underhood}
+\end{frame}
+
+\begin{frame}{Regulatory Landscape: Four Frameworks at Once}
+\small
+\begin{tabular}{p{1.8cm}p{3.0cm}p{5.3cm}}
+\toprule
+\textbf{Framework} & \textbf{Scope} & \textbf{Key bite for LLMs} \\
+\midrule
+GDPR (2016/679) & Personal data of EEA individuals (broadest) &
+  Art.\ 22 (solely automated decisions), Art.\ 17 (erasure),
+  Art.\ 83 fines: higher of EUR\,20m / 4\% global turnover \\
+\addlinespace
+CCPA / CPRA & California residents &
+  Right to opt out of \emph{sale}; may cover sharing with model providers \\
+\addlinespace
+MiFID II (2014/65) & Investment services &
+  Record-keeping: 5 yr (services), 7 yr (orders), retrievable \\
+\addlinespace
+DORA (2022/2554) & ICT third parties (since Jan 2025) &
+  Critical-provider oversight; data location, audit rights, exit strategy \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\normalsize
+\begin{alertblock}{Compliance $\neq$ privacy}
+A GDPR-compliant cloud provider can still create client privacy risk; a technically
+private local model can still fail MiFID II record-keeping. \textbf{Assess the
+frameworks together, against each use case.}
+\end{alertblock}
+\end{frame}
+
+% =====================================================================
 \section{Privacy Risks in LLM Deployment}
+% =====================================================================
 
-\begin{frame}{Privacy Risks in LLM Deployment}
-  [Placeholder]
+\begin{frame}{The Three Risk Mechanisms}
+\begin{bigpicture}
+Privacy risks map onto the \emph{confidentiality} axis of the CIA triad --- but
+through mechanisms unlike a database breach. \textbf{No firewall stops membership
+inference; no encryption stops an LLM from reciting a training example.}
+Understanding the mechanism is a prerequisite for choosing the mitigation.
+\end{bigpicture}
+
+\medskip
+\begin{enumerate}
+  \item \textbf{Training-data memorisation \& leakage} --- extraction attacks recover
+        rare / repeated sequences from parameters.
+  \item \textbf{Inference attacks} --- membership and property inference leak
+        information \emph{without} verbatim memorisation.
+  \item \textbf{Prompt injection \& exfiltration} --- adversarial instructions in
+        retrieved / ingested content hijack the model.
+\end{enumerate}
 \end{frame}
 
-% ---------------------------------------------------------------
+\begin{frame}{Memorisation and Extraction Attacks}
+Neural LMs compress training data into parameters --- but compression is lossy only
+\emph{in aggregate}. Unusual, repeated, or long examples are retained with high fidelity.
+
+\medskip
+\begin{underhood}
+\textbf{Likelihood-ratio extraction} (Carlini et al., 2021):
+\begin{enumerate}
+  \item Generate many long continuations from varied prompts.
+  \item Rank by $\dfrac{\Pr_{\text{target}}(s)}{\Pr_{\text{reference}}(s)}$ --- target
+        vs.\ a smaller reference model.
+  \item High ratio $\Rightarrow$ disproportionately likely to be training data
+        (the reference has not seen the specific sequence).
+\end{enumerate}
+Recovered: verbatim emails, phone numbers, names, full PII-bearing examples.
+\end{underhood}
+
+\medskip
+\begin{alertblock}{Amplified in finance}
+Fine-tuning on internal research / deal docs / client comms is attractive --- and
+embeds those docs in parameters. A competitor querying the model can recover
+fragments \emph{even behind an access-controlled API}.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Inference Attacks: Membership and Property}
+\begin{block}{Membership Inference Advantage (Def.\ 15.2)}
+For model $\mathcal{M}$ trained on $D$ and adversary $\mathcal{A}$ observing a
+candidate $s$:
+\[
+\mathrm{Adv}(\mathcal{A}) = \bigl|\Pr[\mathcal{A}(\mathcal{M}, s){=}1 \mid s \in D]
+  - \Pr[\mathcal{A}(\mathcal{M}, s){=}1 \mid s \notin D]\bigr|
+\]
+$0$ = no discrimination; $1$ = perfect discrimination. Basis: models assign higher
+likelihood to training examples (Shokri et al., 2017).
+\end{block}
+
+\medskip
+\textbf{Financial consequence.} A bank fine-tunes on merger targets; an adversary
+queries each candidate name and reconstructs the \textbf{deal pipeline} with
+above-chance accuracy. Same logic leaks whether a specific credit file was in training.
+
+\medskip
+\textbf{Property inference} extends this to \emph{aggregates} (mean loan size,
+fraction delinquent) --- harder to detect, requires no example-level memorisation.
+\end{frame}
+
+\begin{frame}{Prompt Injection and Data Exfiltration}
+\textbf{Prompt injection} (Perez \& Ribeiro, 2022): malicious instructions embedded
+in processed content override system-level instructions. In RAG, retrieved documents
+are concatenated into the prompt --- whoever controls a document controls instructions.
+
+\medskip
+\begin{block}{Two finance-specific exposures}
+\begin{itemize}
+  \item \textbf{Adverse-media screening}: an attacker publishes an article with an
+        injection payload $\Rightarrow$ forces a favourable risk score or leaks the
+        screening criteria.
+  \item \textbf{Counterparty document ingestion}: loan applications, due-diligence
+        questionnaires, ISDA agreements carrying embedded instructions.
+\end{itemize}
+\end{block}
+
+\medskip
+\textbf{Mitigations} (no complete solution yet):
+structural separation of trusted vs.\ untrusted content $\cdot$ output sanitisation
+$\cdot$ rule-based / constitutional classifiers scanning output before delivery.
+\end{frame}
+
+% =====================================================================
 \section{Local and Self-Hosted LLM Deployments}
+% =====================================================================
 
-\begin{frame}{Local and Self-Hosted LLM Deployments}
-  [Placeholder]
+\begin{frame}{Keep Inference Inside the Perimeter}
+\begin{bigpicture}
+The simplest way to kill inference-time exfiltration: keep inference on the
+institution's own infrastructure. For many financial workflows the mix of
+regulation, contracts, and competitive sensitivity makes on-premise not merely
+preferable but \emph{mandatory}. Capable open-weight models (2023--2024) made this
+practically feasible for the first time.
+\end{bigpicture}
+
+\medskip
+\textbf{Open-weight} = parameters publicly released; inference needs no third-party
+API call. (Distinct from fully open-source --- weights yes, full training
+code / data often no.) What matters for privacy: \textbf{no data crosses an external
+boundary.}
 \end{frame}
 
-% ---------------------------------------------------------------
+\begin{frame}{Open-Weight Models: Llama, Mistral, Phi}
+\small
+\begin{tabular}{p{2.1cm}p{1.5cm}p{2.4cm}p{4.0cm}}
+\toprule
+\textbf{Family} & \textbf{Params} & \textbf{4-bit footprint} & \textbf{Niche} \\
+\midrule
+Llama 2 / 3 & 7B--70B &
+  7B: $\sim$8\,GB VRAM; 70B: $\sim$40\,GB &
+  Baseline capable open weights; multi-GPU at 70B \\
+\addlinespace
+Mistral 7B & 7B &
+  $\sim$7B-class &
+  GQA + sliding-window attention; matches Llama 2 13B at lower cost \\
+\addlinespace
+Phi-3-mini & 3.8B & laptop GPU &
+  Curated high-quality data; strong reasoning-per-param; edge / branch \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\normalsize
+\begin{alertblock}{Licences carry compliance obligations}
+\textbf{Llama 2 Community License}: restricts orgs $>$700M MAU; derivative names must
+include ``Meta Llama''.\quad\textbf{Mistral}: Apache 2.0 --- no such restriction.
+Review licence terms before production.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Infrastructure: On-Premise vs.\ Private Cloud}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{On-premise}
+\begin{itemize}
+  \item[+] No data leaves the perimeter (prompts, completions, metadata)
+  \item[--] GPU capex; ops burden; less elastic
+\end{itemize}
+\medskip
+\textbf{Private cloud}
+\begin{itemize}
+  \item Single-tenant / VPC, dedicated HW
+  \item AWS Outposts, Azure Gov, GCP Assured Workloads
+  \item[!] DPA must satisfy GDPR Art.\ 28 \& DORA Art.\ 30
+\end{itemize}
+\end{column}
+\begin{column}{0.52\textwidth}
+\begin{exampleblock}{Routing for a commercial bank}
+A lightweight classifier sorts each request:
+\begin{enumerate}
+  \item \textbf{Public}: no client IDs $\to$ cloud API
+  \item \textbf{Internal}: internal analysis, no PII $\to$ private-cloud single-tenant
+  \item \textbf{Client}: names / accounts / txns $\to$ on-prem, \emph{no external network}
+\end{enumerate}
+The classifier trains on internal data, calls no external API. Every routing
+decision is logged (timestamp + tier).
+\end{exampleblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Performance Trade-offs and Quantisation}
+\textbf{The cost of going local is capability}: best open weights (2025) $\approx$
+GPT-3.5-class; lag GPT-4 on complex reasoning and broad factual recall.
+
+\medskip
+\begin{underhood}
+\textbf{Quantisation} lowers weight precision (16/32-bit $\to$ 4-bit).
+\begin{itemize}
+  \item \textbf{GPTQ} (Frantar et al., 2022): block-wise 2nd-order reconstruction
+        using the Hessian; hours; needs a GPU.
+  \item \textbf{AWQ} (Lin et al., 2023): $\sim$1\% of weights are \emph{salient}
+        (large activations). Protect them with a per-channel scale; quantise the rest
+        uniformly. Minutes; no GPU needed.
+\end{itemize}
+Similar final perplexity. \textbf{The quant step uses only a small \emph{public}
+calibration set --- no client data, no added privacy risk.}
+\end{underhood}
+
+\medskip
+\begin{block}{Memory at 4-bit}
+7B $\approx$ \textbf{3.5\,GB} (less than a video game) $\cdot$ 13B $\approx$ 6.5\,GB
+--- fits a high-end consumer GPU. A fine-tuned model can be quantised on-prem in $<$1 hr.
+\end{block}
+\end{frame}
+
+% =====================================================================
 \section{Text Anonymisation and De-identification}
+% =====================================================================
 
-\begin{frame}{Text Anonymisation and De-identification}
-  [Placeholder]
+\begin{frame}{When Local Deployment Is Not Enough}
+\begin{bigpicture}
+When inference must pass through external systems, the alternative is to remove or
+obscure sensitive information \emph{before} the text reaches the model. The
+technique --- de-identification --- comes from clinical informatics; finance swaps
+diagnoses for client names, account numbers, LEIs, and trading positions.
+\end{bigpicture}
+
+\medskip
+\textbf{The challenge}: sensitive data sits in \emph{prose}, not labelled fields ---
+a loan officer's narrative, call notes, an analyst's draft. Removing a name without
+context breaks intelligibility; replacing it must be \emph{consistent} so
+co-references stay coherent.
 \end{frame}
 
-% ---------------------------------------------------------------
+\begin{frame}{NER for Sensitive Financial Data}
+Modern NER = pre-trained transformer encoders, fine-tuned; F1 $>$ 0.90 on standard
+entity types (person, org, location, date, money) in well-edited English.
+
+\medskip
+\textbf{Finance adds entity types general NER misses} --- detected by regex or a
+fine-tuned NER layer:
+\begin{itemize}
+  \item Account IDs: IBAN, SWIFT / BIC, account numbers
+  \item Securities: ISIN (12-char), CUSIP, tickers
+  \item Legal entities: LEI (20-char), registration numbers
+  \item Regulatory: passport, national ID, tax ID
+\end{itemize}
+
+\medskip
+\begin{block}{Production pipeline = two layers (spaCy, Honnibal \& Montani 2017)}
+\textbf{Learned model} for prose entities (names, orgs, locations) $+$
+\textbf{rule-based matcher} for structured identifiers (IBAN, ISIN, LEI).
+\end{block}
+\end{frame}
+
+\begin{frame}{Worked NER Example}
+\footnotesize
+\emph{``The credit committee reviewed the application of Antoine Dupont (NIF:
+12345678A) for a mortgage of EUR~320{,}000 on the property at 4 Avenue des
+Champs-\'Elys\'ees, Paris 75008, with IBAN FR76 3000 6000 0112 3456 7890 189.''}
+
+\medskip
+\begin{tabular}{lll}
+\toprule
+Span & Type & Method \\
+\midrule
+Antoine Dupont & PERSON & Learned model \\
+12345678A & TAX\_ID & Rule (NIF pattern) \\
+EUR 320,000 & MONEY & Learned model \\
+4 Avenue des Champs-\'Elys\'ees, Paris 75008 & ADDRESS & Learned model \\
+FR76 3000 6000 0112 3456 7890 189 & IBAN & Rule (IBAN pattern) \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\normalsize
+\textbf{After masking:} \emph{``\ldots application of [PERSON\_001] (NIF:
+[TAX\_ID\_001]) for a mortgage of [MONEY\_001] on the property at [ADDRESS\_001],
+with IBAN [IBAN\_001].''} --- interpretable for summarisation, contains no PII.
+\end{frame}
+
+\begin{frame}{Three Anonymisation Strategies + $k$-Anonymity}
+\begin{tabular}{p{2.2cm}p{4.0cm}p{4.0cm}}
+\toprule
+\textbf{Strategy} & \textbf{What it does} & \textbf{Trade-off} \\
+\midrule
+Masking & Typed placeholder \texttt{[PERSON\_001]} & Lossless structure; discards value \\
+\addlinespace
+Generalisation & Less specific value (75008 $\to$ Paris; EUR\,320k $\to$ EUR\,250--500k) & Keeps statistical content \\
+\addlinespace
+Suppression & Remove span entirely & Use when type itself is sensitive; can break coherence \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\begin{block}{$k$-Anonymity (Def.\ 15.3, Sweeney 2002)}
+$\mathcal{D}$ satisfies $k$-anonymity on quasi-identifiers $\mathcal{Q}$ if every
+record is indistinguishable from $\geq k-1$ others when restricted to $\mathcal{Q}$.
+For text: any output could plausibly come from $\geq k$ individuals. Masking
+trivially gives large $k$ --- \emph{but} surrounding context may still re-identify.
+\end{block}
+\end{frame}
+
+\begin{frame}{Pseudonymisation, Tokenisation, Re-identification}
+\textbf{Pseudonymisation}: replace each entity with a realistic \emph{fake}
+surrogate (``Marie Leclerc'' for ``Antoine Dupont''), consistent across the document.
+\begin{itemize}
+  \item[+] Reads natural --- LLM does not detect placeholders and degrade to generic output
+  \item[--] The mapping table is a \textbf{key}: GDPR Recital 26 treats pseudonymised
+        data as \emph{protected, not anonymised}. Hold the key separately,
+        access-controlled, encrypted at rest.
+\end{itemize}
+
+\medskip
+\textbf{Format-preserving tokenisation}: replace with a same-format token (valid-but-fake
+IBAN). Standard in PCI-DSS; now in LLM pipelines --- data \emph{looks} real without being real.
+
+\medskip
+\begin{alertblock}{Contextual re-identification}
+Even with all entities removed, a unique combination of dates, amount-ranges, and
+product types may match one client. Risk $\propto$ adversary background knowledge
+$\mathcal{K}$, which \emph{grows over time}. $\Rightarrow$ re-assess anonymisation
+adequacy on a periodic cycle, especially for long-lived archives.
+\end{alertblock}
+\end{frame}
+
+% =====================================================================
 \section{Privacy-Preserving Training Techniques}
+% =====================================================================
 
-\begin{frame}{Privacy-Preserving Training Techniques}
-  [Placeholder]
+\begin{frame}{Bounding What the Model Memorises}
+\begin{bigpicture}
+Anonymisation guards the \emph{inference} channel. This section guards the
+\emph{training} channel: limiting how much sensitive information becomes permanently
+embedded during fine-tuning. Two complementary techniques ---
+\textbf{differential privacy} bounds per-example contribution; \textbf{federated
+learning} keeps data in place.
+\end{bigpicture}
 \end{frame}
 
-% ---------------------------------------------------------------
-\section{Architectural Patterns for Privacy-Compliant LLM Systems}
+\begin{frame}{Differential Privacy: The Definition}
+\begin{block}{$(\varepsilon,\delta)$-Differential Privacy (Def.\ 15.4, Dwork \& Roth 2014)}
+A randomised $\mathcal{M}$ is $(\varepsilon,\delta)$-DP if for all adjacent datasets
+$D, D'$ (differing in one record) and all output sets $S$:
+\[
+\Pr[\mathcal{M}(D) \in S] \leq e^{\varepsilon}\,\Pr[\mathcal{M}(D') \in S] + \delta
+\]
+\end{block}
+\begin{itemize}
+  \item $\varepsilon \geq 0$ = \emph{privacy budget} (smaller = more private)
+  \item $\delta \geq 0$ = \emph{failure probability}; pure DP has $\delta = 0$
+\end{itemize}
 
-\begin{frame}{Architectural Patterns for Privacy-Compliant LLM Systems}
-  [Placeholder]
+\medskip
+\textbf{Intuition.} An adversary observing the output cannot confidently tell whether
+any record was in the input. Log-odds of distinguishing $D$ from $D'$ are bounded by
+$\varepsilon$ (exactly, with probability $1-\delta$).
 \end{frame}
 
-% ---------------------------------------------------------------
+\begin{frame}{The Gaussian Mechanism and DP-SGD}
+\begin{block}{Gaussian Mechanism (Thm.\ 15.1)}
+For $f$ with $\ell_2$-sensitivity $\Delta_2 f = \max_{D,D'}\|f(D)-f(D')\|_2$:
+\[
+\mathcal{M}(D) = f(D) + \mathcal{N}(0,\sigma^2 I_d),\quad
+\sigma = \frac{\Delta_2 f \cdot \sqrt{2\ln(1.25/\delta)}}{\varepsilon}
+\]
+is $(\varepsilon,\delta)$-DP for $\varepsilon,\delta \in (0,1)$.
+\end{block}
+
+\medskip
+\begin{underhood}
+\textbf{DP-SGD} (Abadi et al., 2016) --- three changes to SGD:
+\begin{enumerate}
+  \item \emph{Per-example gradients} $g_i$ (not minibatch sum).
+  \item \emph{Clip}: $\hat{g}_i = g_i / \max(1, \|g_i\|_2/C)$ --- bounds sensitivity to $C$.
+  \item \emph{Noise}: add $\mathcal{N}(0, \sigma^2 C^2 I)$ to the clipped sum before the update.
+\end{enumerate}
+Budget tracked by the \textbf{moments accountant} / R\'enyi-DP --- tighter than basic
+composition.
+\end{underhood}
+\end{frame}
+
+\begin{frame}{Privacy--Utility Trade-off and Composition}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\textbf{The cost of DP-SGD is utility.} Noise slows convergence.
+\begin{itemize}
+  \item $\varepsilon = 1$: strong privacy, larger utility cost
+  \item $\varepsilon = 10$: weak privacy, small cost
+\end{itemize}
+Accuracy rises with $\varepsilon$ and \emph{saturates} toward the non-private baseline.
+
+\medskip
+\textbf{LoRA / adapters pair well with DP-SGD}: fewer trainable params $\Rightarrow$
+lower sensitivity $\Rightarrow$ less noise.
+\end{column}
+\begin{column}{0.45\textwidth}
+\begin{block}{Composition (Prop.\ 15.1)}
+Sequential: $(\varepsilon_1{+}\varepsilon_2,\,\delta_1{+}\delta_2)$.\\[4pt]
+Advanced, $k$ steps:
+\[
+\varepsilon' \approx \varepsilon\sqrt{2k\ln(1/\delta')}
+\]
+\end{block}
+\end{column}
+\end{columns}
+
+\medskip
+\begin{alertblock}{Operational implication}
+Every DP fine-tune \emph{spends} budget. Plan cumulative loss across runs; once
+exhausted, further training violates the guarantee --- requiring a fresh model or a
+new budget allocation.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Federated Learning: FedAvg}
+\textbf{Different threat: data centralisation.} Data-residency rules may forbid
+moving client data across a jurisdiction --- even within one institution.
+
+\medskip
+\begin{block}{Federated Averaging (Def.\ 15.5, McMahan et al.\ 2017)}
+$K$ clients hold $D_k$ ($n_k$ examples, $n=\sum n_k$). Minimise
+$F(\theta)=\sum_k \frac{n_k}{n}F_k(\theta)$. Each round $t$: selected clients init
+with $\theta^t$, run $E$ local steps, return $\Delta_k^t$. Server aggregates:
+\[
+\theta^{t+1} = \theta^t + \sum_{k \in S_t}\frac{n_k}{\sum_{j\in S_t} n_j}\,\Delta_k^t
+\]
+\end{block}
+
+\medskip
+\textbf{Guarantee \& limit}: the aggregator sees only \emph{updates}, never raw data
+$\Rightarrow$ data-residency satisfied. But updates leak via \textbf{gradient
+inversion} --- combine with \emph{local} DP-SGD for both guarantees.
+
+\medskip
+\textbf{Finance use cases}: (1) multi-bank joint fraud / AML model without sharing
+data; (2) cross-border improvement of a single global model.
+\end{frame}
+
+% =====================================================================
+\section{Architectural Patterns for Privacy-Compliant Systems}
+% =====================================================================
+
+\begin{frame}{Privacy-Aware RAG}
+\textbf{RAG leaks at three points}: ingestion (embed \& store), retrieval (query
+embedding reaches the vector DB operator), inference (retrieved docs sit beside user data).
+
+\medskip
+\begin{block}{The systematic fix}
+\begin{itemize}
+  \item \textbf{Ingestion}: anonymise \emph{before} embedding; store only the
+        anonymised version; keep the mapping in an access-controlled store.
+  \item \textbf{Retrieval}: compute embeddings with a \emph{local} model --- query
+        never leaves the network.
+  \item \textbf{Inference}: scan retrieved chunks for residual PII before prompting.
+  \item \textbf{Access control}: row-level security --- each chunk carries an ACL;
+        retrieval is filtered by the user's clearance.
+\end{itemize}
+\end{block}
+
+\medskip
+\textbf{Why access control matters}: a junior analyst must not retrieve merger-target
+docs via an indirect question to the assistant.
+\end{frame}
+
+\begin{frame}{Audit Trails and Encrypted Pipelines}
+Regulators expect full reconstruction of any client-affecting decision: \emph{who}
+asked, \emph{what} was retrieved, \emph{what} was asked / answered, \emph{what} action followed.
+
+\medskip
+\begin{exampleblock}{Privacy-aware audit logging}
+Logging full prompt + completion is the most complete record --- but creates a
+\emph{secondary} PII store under GDPR retention + DORA resilience. Better: log a
+\textbf{hash} of the prompt (integrity, not content) plus structured metadata ---
+user ID, clearance, document IDs, model version, response time, outcome --- to an
+\emph{immutable} store.
+\end{exampleblock}
+
+\medskip
+\textbf{Encryption end-to-end}: at rest, in transit, ideally during inference.
+\begin{itemize}
+  \item \emph{Homomorphic encryption}: compute on ciphertext --- infeasible overhead
+        for transformer inference today.
+  \item \emph{Confidential computing} (TEE: Intel TDX, AMD SEV): practical;
+        blocks even the cloud operator during processing.
+\end{itemize}
+\end{frame}
+
+% =====================================================================
 \section{Evaluation and Compliance}
+% =====================================================================
 
-\begin{frame}{Evaluation and Compliance}
-  [Placeholder]
+\begin{frame}{Measuring Privacy Leakage Empirically}
+\begin{bigpicture}
+\textbf{Verify privacy --- do not take it on faith from the training algorithm.}
+Three standard quantitative tests, run after every fine-tune.
+\end{bigpicture}
+
+\medskip
+\begin{enumerate}
+  \item \textbf{Membership inference AUC}: hold out fine-tuning docs as negatives; run
+        the likelihood-ratio attack; AUC of distinguishing members from non-members.
+        $0.5$ = perfect privacy; $1.0$ = total failure. \textbf{$<0.6$ commonly
+        acceptable.}
+  \item \textbf{Verbatim extraction rate}: insert ``canary'' sensitive strings; measure
+        the fraction recovered. DP fine-tuning $\Rightarrow$ near-zero.
+  \item \textbf{Property inference accuracy}: train a meta-classifier on shadow models
+        to infer an aggregate property; compare to a random baseline.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Compliance Checklist (Selected Rows)}
+\footnotesize
+\begin{tabular}{p{2.7cm}p{1.9cm}p{2.7cm}p{2.6cm}}
+\toprule
+\textbf{Obligation} & \textbf{Source} & \textbf{Mitigation} & \textbf{Evidence} \\
+\midrule
+Restrict automated decisions & GDPR Art.\ 22 & Human-in-the-loop review & Workflow docs \\
+\addlinespace
+Right to erasure & GDPR Art.\ 17 & Exclude subject from fine-tune; use retrieval & Architecture docs \\
+\addlinespace
+Data minimisation & GDPR Art.\ 5 & Anonymise before embed; log hashes & Pipeline design \\
+\addlinespace
+DPIA (high risk) & GDPR Art.\ 35 & Conduct before deployment & Signed DPIA \\
+\addlinespace
+ICT third-party contract & DORA Art.\ 30 & DORA-compliant DPA & Signed contract \\
+\addlinespace
+Record-keeping & MiFID II & Immutable audit trail & Log samples \\
+\addlinespace
+Model risk mgmt & SR 11-7 / ECB & Model card, benchmarks, oversight & Model docs \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\normalsize
+A \textbf{DPIA} (GDPR Art.\ 35) must precede any LLM deployment processing personal
+financial data --- and must address memorisation risk, the third-party data-sharing
+model, and the erasure mechanism.
+\end{frame}
+
+\begin{frame}{Lecture 15 Summary: Mitigations by Threat}
+\begin{block}{Five strategies, complementary --- apply \emph{all} in production}
+\small
+\begin{tabular}{p{5.0cm}p{5.0cm}}
+\toprule
+\textbf{Threat} & \textbf{Mitigation} \\
+\midrule
+Inference-channel exfiltration & Local / private-cloud deployment \\
+Input disclosure via prompt & Text anonymisation / de-identification \\
+Training-channel memorisation & DP-SGD during fine-tuning \\
+Data-residency violation & Federated learning \\
+Prompt injection / access failure & Privacy-aware RAG + audit logging \\
+\bottomrule
+\end{tabular}
+\end{block}
+
+\medskip
+\normalsize
+\begin{alertblock}{The residual gap}
+\textbf{Right to erasure (GDPR Art.\ 17)}: excluding a subject from future
+fine-tuning is easy; \emph{removing} already-memorised information from a deployed
+model --- \textbf{machine unlearning} --- is an open research problem, not a solved
+control. Re-measure residual exposure (MI-AUC, canary rate) on a fixed cadence.
+\end{alertblock}
+\end{frame}
+
+% =====================================================================
+\appendixstart{Extended Derivations, Internals, and Edge Cases}
+% =====================================================================
+
+\begin{frame}[noframenumbering]{Appendix A --- Advanced Composition in Full}
+\begin{block}{Proposition 15.1 (full statement)}
+For $k$ mechanisms each $(\varepsilon,\delta)$-DP, the composite is
+$(\varepsilon', k\delta+\delta')$-DP for any $\delta'>0$ with
+\[
+\varepsilon' = \varepsilon\sqrt{2k\ln(1/\delta')} + k\varepsilon(e^{\varepsilon}-1).
+\]
+For small $\varepsilon$ ($e^{\varepsilon}-1\approx\varepsilon$) the second term is
+$O(k\varepsilon^2)$, often negligible vs.\ the first ($\Rightarrow$ the cited
+$\varepsilon'\approx\varepsilon\sqrt{2k\ln(1/\delta')}$).
+\end{block}
+
+\medskip
+\textbf{Proof sketch.} Basic composition uses post-processing immunity: any function
+of a DP output keeps the guarantee. Chain the two per-mechanism bounds via a union
+argument $\Rightarrow (\varepsilon_1{+}\varepsilon_2,\,\delta_1{+}\delta_2)$. The
+advanced bound follows from the moments accountant tracking the R\'enyi divergence
+$D_\alpha(P\|Q)=\frac{1}{\alpha-1}\log\sum_x P(x)^\alpha Q(x)^{1-\alpha}$ between
+output distributions on $D, D'$ rather than the multiplicative distance.
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix B --- AWQ vs.\ GPTQ Internals}
+\begin{underhood}
+The 16$\to$4-bit error is \emph{not uniform}. \textbf{AWQ}'s insight: $\sim$1\% of
+weights are salient (large activation magnitudes); aggressive quantisation of these
+causes large output errors. AWQ finds them from activation statistics on a small
+calibration set, then applies a per-channel \emph{scale} transformation that protects
+them without raising bit width; the other 99\% go uniform 4-bit with negligible loss.
+
+\medskip
+\textbf{GPTQ} instead solves a block-wise reconstruction per weight matrix,
+minimising quantisation error given the Hessian of outputs w.r.t.\ weights.
+
+\medskip
+Similar final perplexity; AWQ is faster (minutes vs.\ hours, 7B) and needs no GPU.
+\end{underhood}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix C --- Re-identification as Inference}
+Model re-identification as an inference problem: the adversary observes the
+anonymised document $\hat{d}$ and uses prior knowledge $\mathcal{K}$ to form
+\[
+\mathcal{P}(\text{individual} \mid \hat{d}, \mathcal{K}).
+\]
+\begin{itemize}
+  \item Posterior concentrated on one individual $\Rightarrow$ re-identification trivial.
+  \item Posterior uniform over a large set $\Rightarrow$ re-identification infeasible.
+\end{itemize}
+
+\medskip
+\textbf{Assessment by simulation}: apply the pipeline, then attempt re-identification
+using the institution's \emph{own} databases as $\mathcal{K}$. Success $\Rightarrow$
+pipeline insufficient; strengthen generalisation / suppression. Failure on all test
+cases $\Rightarrow$ adequate \emph{for that threat model}. Point-in-time only ---
+$\mathcal{K}$ grows; re-review on a cycle.
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix D --- Privacy-Aware RAG Walkthrough}
+\textbf{Credit analyst query:} ``Typical collateral structure for technology-sector LBO loans?''
+\begin{enumerate}
+  \item Query embedded \emph{locally} by a self-hosted model.
+  \item Top-5 chunks retrieved, filtered to the analyst's authorised set (policy docs,
+        sector reports, anonymised historical loan files).
+  \item Chunks scanned for PII --- none (pre-anonymised at ingestion).
+  \item Local LLM generates, citing retrieved content.
+  \item Logged: timestamp, user ID, \emph{query hash} (not the query), document IDs,
+        model version $\to$ immutable audit store.
+\end{enumerate}
+
+\medskip
+\textbf{Result}: no client-identifying information enters the prompt; no data crosses
+an external boundary.
 \end{frame}
 
 \end{document}

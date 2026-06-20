@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Practical Session 5: LLM-Assisted Business Valuation}
 \subtitle{Hands-On: FCFF Computation, CoT Forecasting, and Monte Carlo}
@@ -274,7 +260,7 @@ approximately double relative to the base-case DCF computed in Problem 1?
 
 \medskip
 \textbf{Question C:} Suppose a competitor is acquired at 12$\times$ EV/EBITDA.
-The company's EBITDA is EBIT + DA = $623M.
+The company's EBITDA is EBIT + DA = \$623M.
 Does the comparables-based EV fall within the Monte Carlo P10--P90 range?
 What does the gap (or lack of gap) tell you about market pricing?
 \end{frame}
@@ -428,6 +414,38 @@ agent should flag this as a tension requiring clarification.
         Validate every ticker; trace every financial figure to a specific accession number.
         A single hallucinated comparable can distort the entire multiple analysis.
 \end{enumerate}
+\end{frame}
+
+% ============================================================
+% APPENDIX --- stretch problem
+% ============================================================
+\appendixstart{Stretch Problem: Sensitivity Decomposition}
+
+\begin{frame}[noframenumbering]{Stretch Problem: Decompose the EV Variance}
+
+For students who finish early, extend the Monte Carlo case study.
+
+\medskip
+\textbf{Goal:} quantify how much of the variance in enterprise value is driven by
+each uncertain input (WACC, explicit growth, terminal growth).
+
+\medskip
+\textbf{Tasks:}
+\begin{enumerate}
+  \item Re-run the simulation three times, each time \emph{freezing} two of the
+        three inputs at their mean and letting only one vary.
+  \item Record $\mathrm{Var}(EV)$ for each single-input run; express each as a
+        fraction of the all-inputs-varying variance.
+  \item \textbf{Predict, then check:} which input dominates? Reconcile with the
+        analytic result $\frac{\partial V}{\partial g} = \frac{\text{FCF}_n(1+\text{WACC})}{(\text{WACC}-g)^2}$.
+\end{enumerate}
+
+\medskip
+\begin{block}{Expected finding}
+Terminal-growth uncertainty should dominate, consistent with the 15--18\% EV error
+per 100-bps $g$ shock from the recap. The decomposition makes the analytic
+sensitivity tangible.
+\end{block}
 \end{frame}
 
 \end{document}

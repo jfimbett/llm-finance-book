@@ -1,18 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath, amssymb}
-\usepackage{booktabs}
-\usepackage{listings}
-\usepackage{xcolor}
-
-\lstset{
-  basicstyle=\ttfamily\small,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  showstringspaces=false,
-  language=Python,
-  breaklines=true,
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Practical Session 1: From Text to Vectors}
 \subtitle{Hands-On: TF-IDF, Cosine Similarity, and Word Embeddings}
@@ -228,12 +215,9 @@ print(f"Top terms for doc {i}: {top_terms}")
     \medskip
     \item Change \texttt{max\_features} from 500 to 50. Does the ranking of most-similar
           pairs change? What does this tell you about the sensitivity of TF-IDF to vocabulary truncation?
-    \medskip
-    \item (Extension) Load \texttt{glove-wiki-gigaword-100} via \texttt{gensim}.
-          For each document, compute the average word embedding.
-          Does the embedding-based similarity ranking agree with the TF-IDF ranking?
-          What does disagreement tell you?
   \end{enumerate}
+  \medskip
+  \small A stretch extension comparing TF-IDF with averaged GloVe embeddings appears in the appendix.
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -308,6 +292,22 @@ print(f"Top terms for doc {i}: {top_terms}")
     Word2Vec/GloVe: semantic geometry, linear analogies, domain-specific adaptation needed.\\
     Next lecture: Transformers learn \emph{context-dependent} embeddings --- no static vectors.
   \end{block}
+\end{frame}
+
+% ---------------------------------------------------------------
+\appendixstart{Stretch Problem: TF-IDF vs.\ GloVe Embeddings}
+
+\begin{frame}[noframenumbering]{Stretch: TF-IDF vs.\ Averaged GloVe Embeddings}
+  \textbf{Extension (optional):} Load \texttt{glove-wiki-gigaword-100} via \texttt{gensim}.
+  For each document, compute the average word embedding.
+  \medskip
+  \begin{enumerate}
+    \item Does the embedding-based similarity ranking agree with the TF-IDF ranking?
+    \item What does \emph{disagreement} between the two rankings tell you about
+          what each representation captures?
+    \item When would you trust the embedding ranking over the TF-IDF ranking,
+          and vice versa?
+  \end{enumerate}
 \end{frame}
 
 \end{document}

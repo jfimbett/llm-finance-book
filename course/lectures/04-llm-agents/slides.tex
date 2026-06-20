@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Lecture 4: LLM Agents and Finance Applications}
 \subtitle{Large Language Models in Finance}
@@ -69,7 +55,12 @@ Problems with a plain LLM:
 \end{itemize}
 
 \medskip
-\textbf{An agent} embeds the LLM inside a loop: observe, reason, act, incorporate result.
+\begin{bigpicture}
+\textbf{An agent} embeds the LLM inside a loop: observe, reason, act, incorporate
+result. Instead of a one-shot oracle, you get a system that can fetch the right
+documents, cross-reference them, and carry context across follow-up questions ---
+the behaviour the portfolio manager actually needs.
+\end{bigpicture}
 \end{frame}
 
 % ============================================================
@@ -78,8 +69,8 @@ Problems with a plain LLM:
 \begin{frame}
 \frametitle{The Perceive--Reason--Act Loop}
 
+\begin{underhood}
 A PRA loop is a triple $(\pi, \mu, \phi)$:
-
 \begin{itemize}
   \item $\phi: \mathcal{O} \times \mathcal{M} \to \mathcal{M}$ \quad
         \textbf{memory update} — observation + memory $\to$ new memory
@@ -88,6 +79,7 @@ A PRA loop is a triple $(\pi, \mu, \phi)$:
   \item $\mu: \mathcal{A} \times \mathcal{E} \to \mathcal{O}$ \quad
         \textbf{environment response} — action $\to$ new observation
 \end{itemize}
+\end{underhood}
 
 \medskip
 \textbf{In an LLM agent:}
@@ -111,13 +103,13 @@ A company's full filing history does not fit.
 \begin{frame}
 \frametitle{ReAct: Interleaving Thought and Action}
 
+\begin{underhood}
 \textbf{ReAct} (Yao et al., 2022) interleaves reasoning traces and actions:
-
 \[
   \tau = (T_1, A_1, O_1,\; T_2, A_2, O_2,\; \ldots,\; T_n, A_n, O_n)
 \]
-
 $T_i$ = natural-language thought \quad $A_i$ = action \quad $O_i$ = observation
+\end{underhood}
 
 \medskip
 \textbf{Why explicit reasoning helps:}\\
@@ -267,6 +259,7 @@ A \textbf{tool} is a triple $\mathcal{T} = (\textit{name}, \textit{schema}, f)$:
 \end{itemize}
 
 \medskip
+\begin{underhood}
 \textbf{How it works (OpenAI/Anthropic/Google):}
 \begin{enumerate}
   \item Tools declared in system prompt as JSON array
@@ -274,6 +267,7 @@ A \textbf{tool} is a triple $\mathcal{T} = (\textit{name}, \textit{schema}, f)$:
   \item Execution environment dispatches function, returns result as new message
   \item Model continues reasoning with tool result in context
 \end{enumerate}
+\end{underhood}
 
 \medskip
 \begin{block}{Highest-leverage investment in agent reliability}
@@ -376,34 +370,6 @@ Hooks decouple cross-cutting concerns from the agent's core reasoning loop.
 \end{frame}
 
 % ============================================================
-% FRAME 14: Frameworks
-% ============================================================
-\begin{frame}
-\frametitle{Orchestration Frameworks}
-
-\begin{center}
-\begin{tabular}{lll}
-\toprule
-\textbf{Framework} & \textbf{Design philosophy} & \textbf{Best for} \\
-\midrule
-LangChain & Composable chains & Diverse data sources \\
-LlamaIndex & Data-intensive retrieval & Large document corpora \\
-AutoGen & Multi-agent conversation & Team-structured workflows \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\medskip
-\textbf{Auditability}: AutoGen serialises full conversation histories --- natural
-audit log satisfying MiFID II best-execution documentation requirements.
-
-\medskip
-LangChain and LlamaIndex require explicit configuration for persistence.
-For compliance-sensitive applications, choose the framework that fits
-\emph{both} task type and regulatory audit trail requirements.
-\end{frame}
-
-% ============================================================
 % FRAME 15: Multi-agent systems
 % ============================================================
 \begin{frame}
@@ -442,8 +408,12 @@ Humans review compliance flags and quant scenario assumptions.
 \begin{frame}
 \frametitle{RAG: Theory and Finance Motivation}
 
+\begin{bigpicture}
 \textbf{Motivation}: a large asset manager's research library has 50,000 documents.
-No context window holds this; no fine-tuning reliably memorises it.
+No context window holds this; no fine-tuning reliably memorises it. The way out is
+to \emph{retrieve} the handful of relevant passages at query time and let the model
+reason over those --- knowledge stays external, current, and auditable.
+\end{bigpicture}
 
 \medskip
 \textbf{Retrieval-Augmented Generation} (Lewis et al., 2020):
@@ -466,65 +436,6 @@ In practice: approximate by conditioning on top-$k$ retrieved documents only.
 Query for ``Apple CFO supply chain'' should be restricted to Apple documents.
 Metadata filtering reduces irrelevant retrievals by $\approx 60\%$.
 \end{alertblock}
-\end{frame}
-
-% ============================================================
-% FRAME 17: Hybrid search
-% ============================================================
-\begin{frame}
-\frametitle{Hybrid Search: Dense + Sparse}
-
-\textbf{Dense retrieval} (embedding-based): captures semantic similarity.
-Fails on exact match queries (CUSIP numbers, regulatory citations).
-
-\medskip
-\textbf{BM25} (sparse): strong on exact term matching. Defined as:
-\[
-  \text{BM25}(q,d) = \sum_{i} \text{IDF}(q_i) \cdot
-  \frac{f(q_i,d)(k_1+1)}{f(q_i,d) + k_1(1-b+b\,|d|/\text{avgdl})}
-\]
-
-\textbf{Hybrid score} (after min-max normalisation):
-\[
-  \text{score}_{\text{hybrid}} =
-  \alpha \cdot \widetilde{\text{cosine}} + (1-\alpha) \cdot \widetilde{\text{BM25}}
-\]
-
-\medskip
-Empirical guidance:
-\begin{itemize}
-  \item $\alpha \approx 0.7$ (favour dense): QA over long financial documents
-  \item $\alpha \approx 0.3$ (favour sparse): keyword-heavy regulatory lookup
-  \item Reciprocal Rank Fusion (RRF) avoids normalisation entirely
-\end{itemize}
-\end{frame}
-
-% ============================================================
-% FRAME 18: Chunking strategies
-% ============================================================
-\begin{frame}
-\frametitle{Chunking Strategies for Financial Documents}
-
-A 10-K may be 200 pages with hierarchical structure.
-Naive fixed-size chunking severs meaning at arbitrary points.
-
-\medskip
-\textbf{Three strategies:}
-\begin{enumerate}
-  \item \textbf{Fixed-size}: $L$ tokens, $\delta$ overlap. Simple; ignores structure.
-  \item \textbf{Semantic}: sentence/paragraph boundaries; EDGAR item structure for SEC filings.
-  \item \textbf{Hierarchical}: multi-level index (document $\to$ section $\to$ paragraph).
-        Query first retrieves section, then paragraph within section.
-\end{enumerate}
-
-\medskip
-\textbf{Recommended for 10-K filings:} hierarchical combining EDGAR items (top level)
-with sentence-boundary chunking within items (max 512 tokens, 64-token overlap).
-
-\begin{block}{Benchmark result}
-$+15$--$20\%$ on downstream QA vs.\ fixed-size chunking.
-Apple 2023 10-K: 94\% paragraph recall on a manually labelled evaluation set.
-\end{block}
 \end{frame}
 
 % ============================================================
@@ -736,6 +647,83 @@ Safety & HITL; audit trails; injection defences \\
 Chapter 5 applies these agent architectures to business valuation ---
 a task requiring document retrieval, numerical computation, structured synthesis,
 and human oversight: exactly the stack developed here.
+\end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX
+% ============================================================
+\appendixstart{Extra Material: Frameworks, Hybrid Search, Chunking}
+
+\begin{frame}[noframenumbering]{Orchestration Frameworks}
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Framework} & \textbf{Design philosophy} & \textbf{Best for} \\
+\midrule
+LangChain & Composable chains & Diverse data sources \\
+LlamaIndex & Data-intensive retrieval & Large document corpora \\
+AutoGen & Multi-agent conversation & Team-structured workflows \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{Auditability}: AutoGen serialises full conversation histories --- natural
+audit log satisfying MiFID II best-execution documentation requirements.
+
+\medskip
+LangChain and LlamaIndex require explicit configuration for persistence.
+For compliance-sensitive applications, choose the framework that fits
+\emph{both} task type and regulatory audit trail requirements.
+\end{frame}
+
+\begin{frame}[noframenumbering]{Hybrid Search: Dense + Sparse}
+\textbf{Dense retrieval} (embedding-based): captures semantic similarity.
+Fails on exact match queries (CUSIP numbers, regulatory citations).
+
+\medskip
+\textbf{BM25} (sparse): strong on exact term matching. Defined as:
+\[
+  \text{BM25}(q,d) = \sum_{i} \text{IDF}(q_i) \cdot
+  \frac{f(q_i,d)(k_1+1)}{f(q_i,d) + k_1(1-b+b\,|d|/\text{avgdl})}
+\]
+
+\textbf{Hybrid score} (after min-max normalisation):
+\[
+  \text{score}_{\text{hybrid}} =
+  \alpha \cdot \widetilde{\text{cosine}} + (1-\alpha) \cdot \widetilde{\text{BM25}}
+\]
+
+\medskip
+Empirical guidance:
+\begin{itemize}
+  \item $\alpha \approx 0.7$ (favour dense): QA over long financial documents
+  \item $\alpha \approx 0.3$ (favour sparse): keyword-heavy regulatory lookup
+  \item Reciprocal Rank Fusion (RRF) avoids normalisation entirely
+\end{itemize}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Chunking Strategies for Financial Documents}
+A 10-K may be 200 pages with hierarchical structure.
+Naive fixed-size chunking severs meaning at arbitrary points.
+
+\medskip
+\textbf{Three strategies:}
+\begin{enumerate}
+  \item \textbf{Fixed-size}: $L$ tokens, $\delta$ overlap. Simple; ignores structure.
+  \item \textbf{Semantic}: sentence/paragraph boundaries; EDGAR item structure for SEC filings.
+  \item \textbf{Hierarchical}: multi-level index (document $\to$ section $\to$ paragraph).
+        Query first retrieves section, then paragraph within section.
+\end{enumerate}
+
+\medskip
+\textbf{Recommended for 10-K filings:} hierarchical combining EDGAR items (top level)
+with sentence-boundary chunking within items (max 512 tokens, 64-token overlap).
+
+\begin{block}{Benchmark result}
+$+15$--$20\%$ on downstream QA vs.\ fixed-size chunking.
+Apple 2023 10-K: 94\% paragraph recall on a manually labelled evaluation set.
 \end{block}
 \end{frame}
 

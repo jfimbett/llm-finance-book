@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Practical Session 4: LLM Agents and RAG in Finance}
 \subtitle{Hands-On: ReAct Tracing, Tool Design, and RAG Evaluation}
@@ -431,6 +417,39 @@ class BondPriceInput(BaseModel):
         Pre-execution approval for irreversible actions.
         Post-hoc audit for high-volume, low-stakes tasks.
 \end{enumerate}
+\end{frame}
+
+% ============================================================
+% APPENDIX --- stretch problem
+% ============================================================
+\appendixstart{Stretch Problem: Hybrid Retrieval + Compliance Hook}
+
+\begin{frame}[noframenumbering]{Stretch Problem: Add Hybrid Search and a Hook}
+Extend the Case Study pipeline. Take the dense-retrieval RAG you built and harden it
+for a compliance-sensitive deployment.
+
+\medskip
+\textbf{Part 1 --- Hybrid retrieval.}
+\begin{itemize}
+  \item Add a BM25 sparse scorer alongside the cosine retriever.
+  \item Combine via $\text{score} = \alpha\,\widetilde{\text{cosine}}
+        + (1-\alpha)\,\widetilde{\text{BM25}}$ after min-max normalisation.
+  \item For query 3 (``export controls'', a keyword-heavy lookup), does lowering
+        $\alpha$ toward $0.3$ improve which document is retrieved? Explain why.
+\end{itemize}
+
+\medskip
+\textbf{Part 2 --- Compliance hook.}
+\begin{itemize}
+  \item Write a hook $h(\mathcal{E}, \mathcal{M})$ that runs before every
+        \textsc{Finish} and blocks publication when faithfulness $< 0.85$.
+  \item What observation does the agent receive when the hook fires, and what
+        recovery action should the policy take?
+\end{itemize}
+
+\medskip
+\textit{Deliverable: the modified \texttt{retrieve} function plus a 3--4 line
+description of the hook's event, condition, and handler.}
 \end{frame}
 
 \end{document}

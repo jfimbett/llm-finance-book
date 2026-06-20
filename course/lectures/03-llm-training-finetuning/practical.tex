@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Practical Session 3: LoRA, Scaling, and Fine-Tuning}
 \subtitle{Hands-On: Parameter Counting, Chinchilla Budgeting, and FinBERT Sentiment}
@@ -473,6 +459,42 @@ more to serve at inference time than a Chinchilla-optimal 288M model, and may
   LoRA param count is linear in $r$; merge eliminates inference overhead.
   Chinchilla: $D^*/N^* \approx 20$; most realistic settings are compute-constrained.
   Next practical: fine-tuning a generative model for financial QA with LoRA.
+\end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX
+% ============================================================
+\appendixstart{Stretch Problem: DPO on a Preference Dataset}
+
+\begin{frame}[noframenumbering]{Stretch Problem: From LoRA Fine-Tuning to DPO}
+
+\textbf{Setup.} You have a LoRA-fine-tuned FinBERT-style sentiment model from the
+case study. Now consider aligning a small \emph{generative} finance model with
+Direct Preference Optimisation (DPO) on preference pairs $(x, y_w, y_l)$.
+
+\medskip
+\textbf{Task A.} Recall the DPO objective:
+\[
+  \mathcal{L}_{\text{DPO}}(\theta) = -\mathbb{E}_{(x,y_w,y_l)}\!\left[
+    \log \sigma\!\left(
+      \beta \log \tfrac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)}
+      - \beta \log \tfrac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)}
+    \right)\right].
+\]
+Explain, in one sentence, what raising $\beta$ does to how far $\pi_\theta$ may drift
+from $\pi_{\text{ref}}$.
+
+\medskip
+\textbf{Task B.} Why does DPO need a frozen reference policy $\pi_{\text{ref}}$ at all?
+What failure occurs if you drop it?
+
+\medskip
+\textbf{Task C.} Construct three plausible $(y_w \succ y_l)$ preference pairs for a
+financial-advice prompt where ``plausible vs.\ accurate'' is the distinguishing axis.
+
+\medskip
+\begin{block}{Time: 15 minutes (optional / take-home).}
 \end{block}
 \end{frame}
 

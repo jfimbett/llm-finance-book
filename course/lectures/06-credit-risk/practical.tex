@@ -1,19 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
-\usepackage{listings}
-
-\lstset{
-  language=Python,
-  basicstyle=\ttfamily\scriptsize,
-  keywordstyle=\color{blue},
-  commentstyle=\color{gray},
-  stringstyle=\color{orange!70!black},
-  showstringspaces=false,
-  breaklines=true,
-  frame=single,
-  backgroundcolor=\color{gray!8},
-}
+\input{../_style/finance-beamer.tex}
 
 \title{Practical Session 6: LLMs for Credit Risk}
 \subtitle{Large Language Models in Finance}
@@ -375,6 +361,37 @@ KS $\approx$ \textbf{0.50}.
 
   \item \textbf{SHAP waterfall $\to$ plain language $\to$ consumer explanation}. The pipeline has three distinct stages; collapsing any two creates compliance risk.
 \end{enumerate}
+\end{frame}
+
+% ============================================================
+% APPENDIX: stretch problem
+% ============================================================
+\appendixstart{Stretch Problem: TTC Calibration}
+
+\begin{frame}[noframenumbering]{Stretch Problem: Point-in-Time vs.\ Through-the-Cycle}
+
+An LLM credit model trained on 2017--2019 originations produces point-in-time (PIT) PD
+estimates. Basel III Pillar 1 requires through-the-cycle (TTC) PDs (long-run average
+default rates over a full credit cycle).
+
+\medskip
+\textbf{Part A} --- Explain why a PIT model trained only on benign-economy data will
+\emph{understate} TTC PD, and what this implies for regulatory capital.
+
+\medskip
+\textbf{Part B} --- You recalibrate with Platt scaling, $\hat{p}_{\text{TTC}} = \sigma(a \cdot f(x) + b)$,
+on a dataset spanning a full 7--10 year cycle. The fit returns $\hat{a} = 0.85$, $\hat{b} = 0.30$.
+Interpret each parameter: which corrects overconfidence, and which shifts for cycle position?
+
+\medskip
+\textbf{Part C} --- Your monitoring dashboard reports PSI $= 0.31$ on the bureau-score
+feature between the training vintage and the current applicant pool. State the action this
+threshold triggers, and connect it to concept drift vs.\ population drift.
+
+\medskip
+\begin{center}
+\small\textit{Bonus --- attempt only if you finished the core problems early.}
+\end{center}
 \end{frame}
 
 \end{document}

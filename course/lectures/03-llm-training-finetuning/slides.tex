@@ -1,6 +1,5 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usepackage{amsmath,amssymb,booktabs,xcolor}
+\input{../_style/finance-beamer.tex}
 
 \title{Lecture 3: Training and Fine-Tuning LLMs}
 \subtitle{Large Language Models in Finance}
@@ -18,6 +17,8 @@
 \titlepage
 \end{frame}
 
+\begin{frame}{Outline}\tableofcontents\end{frame}
+
 % ============================================================
 \section{Data for LLMs}
 % ============================================================
@@ -28,11 +29,11 @@
 \begin{frame}
 \frametitle{Financial Data: A Tiny Slice of the Web}
 
-\begin{block}{The core problem}
+\begin{bigpicture}
   Financial text constitutes roughly \textbf{0.5\%} of a typical filtered web crawl.
   A model that has seen the distribution of the web will be fluent in casual prose
   and weak on financial contracts.
-\end{block}
+\end{bigpicture}
 
 \medskip
 \textbf{Four key financial text sources:}
@@ -244,76 +245,6 @@ Status             & Over-parameterised & Optimal \\
 \end{frame}
 
 % ============================================================
-% FRAME 8: Distributed training
-% ============================================================
-\begin{frame}
-\frametitle{Distributed Training: Three Parallelism Types}
-
-\begin{center}
-\begin{tabular}{p{2.6cm}p{4.0cm}p{3.0cm}}
-\toprule
-\textbf{Type} & \textbf{What is partitioned} & \textbf{Key mechanism} \\
-\midrule
-Data parallelism &
-  Batch (each device holds full model) &
-  Ring-AllReduce gradient aggregation \\[4pt]
-Tensor / model parallelism &
-  Weight matrices column-wise; $W \in \mathbb{R}^{d\times k} \to [W_1|W_2|\cdots]$ &
-  All-gather / all-reduce intra-layer \\[4pt]
-Pipeline parallelism &
-  Layer groups to successive devices &
-  Micro-batches; bubble fraction $\approx \frac{p-1}{m+p-1}$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\medskip
-\textbf{ZeRO (Zero Redundancy Optimizer) stages:}
-\begin{itemize}
-  \item \textbf{Stage 1:} partition optimiser states across devices
-  \item \textbf{Stage 2:} also partition gradients
-  \item \textbf{Stage 3:} also partition model weights $\rightarrow$ near-linear
-        memory reduction with device count
-\end{itemize}
-\end{frame}
-
-% ============================================================
-% FRAME 9: Engineering efficiency
-% ============================================================
-\begin{frame}
-\frametitle{Engineering Efficiency: bfloat16, Checkpointing, FlashAttention}
-
-\textbf{Mixed-precision training (bfloat16):}
-\begin{itemize}
-  \item Weights stored in bfloat16 (16-bit); fp32 master copy for optimiser
-  \item Halves memory and HBM bandwidth versus fp32
-  \item Loss scaling: multiply loss by $s$ before backward; divide gradients by $s$
-        to prevent underflow
-\end{itemize}
-
-\medskip
-\textbf{Gradient checkpointing:}
-\[
-  \text{Activation memory} = O(L) \xrightarrow{\text{checkpoint every } \sqrt{L}} O(\sqrt{L})
-\]
-Discards intermediate activations; recomputes them during backward pass.
-Cost: one extra forward pass.
-
-\medskip
-\textbf{FlashAttention:}
-Tiles $QK^\top$ into SRAM-resident blocks; avoids writing the full $N\times N$
-attention matrix to HBM.  Reduces HBM reads/writes from $O(N^2)$ to
-$O(N^2 / M) \cdot M$ (subquadratic in practice).
-Exact attention, no approximation.
-
-\medskip
-\begin{block}{Combined effect}
-  bfloat16 + checkpointing + FlashAttention enable training models 4--8$\times$
-  larger on the same hardware compared with naive full-precision training.
-\end{block}
-\end{frame}
-
-% ============================================================
 \section{Fine-Tuning}
 % ============================================================
 
@@ -337,11 +268,12 @@ Full fine-tuning & 100\%    & 100K+          & Max in-domain accuracy; large dat
 \end{center}
 
 \medskip
-\begin{block}{Adaptation tax}
-  Full fine-tuning on a narrow domain can degrade performance on adjacent
-  tasks --- a real risk when a deployed finance LLM must also handle general
-  client queries.
-\end{block}
+\begin{bigpicture}
+  \textbf{Adaptation tax.} Full fine-tuning on a narrow domain can degrade performance
+  on adjacent tasks --- a real risk when a deployed finance LLM must also handle general
+  client queries. The art of adaptation is buying in-domain accuracy without
+  surrendering the breadth that made the base model useful.
+\end{bigpicture}
 \end{frame}
 
 % ============================================================
@@ -350,6 +282,7 @@ Full fine-tuning & 100\%    & 100K+          & Max in-domain accuracy; large dat
 \begin{frame}
 \frametitle{LoRA: Low-Rank Adaptation}
 
+\begin{underhood}
 For a pre-trained weight matrix $W_0 \in \mathbb{R}^{d\times k}$, LoRA sets:
 \[
   W = W_0 + BA, \quad B \in \mathbb{R}^{d\times r},\; A \in \mathbb{R}^{r\times k},\;
@@ -357,6 +290,7 @@ For a pre-trained weight matrix $W_0 \in \mathbb{R}^{d\times k}$, LoRA sets:
 \]
 $W_0$ is frozen. Only $B$ and $A$ are trained.
 Trainable parameters per layer: $r(d + k)$.
+\end{underhood}
 
 \medskip
 \textbf{Worked example: 7B LLaMA, $r = 8$, all 4 projections, 32 layers}
@@ -383,46 +317,19 @@ Inference overhead & Zero (merge $BA$) & None \\
 \end{frame}
 
 % ============================================================
-% FRAME 12: Prefix tuning + Adapters
-% ============================================================
-\begin{frame}
-\frametitle{Prefix Tuning and Adapters}
-
-\textbf{Prefix tuning:}
-
-Learnable prefix vectors are prepended to $K$ and $V$ at every layer:
-\[
-  K' = \begin{bmatrix} P_K \\ K \end{bmatrix} \in \mathbb{R}^{(l+n)\times d_k},
-  \qquad
-  V' = \begin{bmatrix} P_V \\ V \end{bmatrix} \in \mathbb{R}^{(l+n)\times d_v}
-\]
-Only the prefix matrices $P_K, P_V$ (of length $l$) are trained.
-Effective for generation tasks; steers the output distribution without touching weights.
-
-\medskip
-\textbf{Adapters:}
-
-A bottleneck module inserted after each sub-layer:
-\[
-  h \leftarrow h + W_{\text{up}}\,\text{ReLU}(W_{\text{down}}\,h),
-  \quad W_{\text{down}} \in \mathbb{R}^{d\times m},\; W_{\text{up}} \in \mathbb{R}^{m\times d},\; m \ll d
-\]
-Adds inference latency unless fused.
-
-\medskip
-\begin{block}{Why LoRA wins in practice}
-  Zero inference overhead (merge $W_0 + BA$ before serving);
-  multiple adapters swappable for different tasks;
-  QLoRA extends to 4-bit quantised base models.
-\end{block}
-\end{frame}
-
-% ============================================================
 % FRAME 13: RLHF 3-stage pipeline
 % ============================================================
 \begin{frame}
 \frametitle{RLHF: Three-Stage Alignment Pipeline}
 
+\begin{bigpicture}
+  A base model predicts the next token; it does not know what humans \emph{prefer}.
+  RLHF aligns behaviour to human judgement --- in finance, the gap between a
+  ``plausible'' answer and an ``accurate, compliant'' one is exactly what alignment
+  must close.
+\end{bigpicture}
+
+\medskip
 \textbf{Stage 1 --- Supervised Fine-Tuning (SFT):}
 Train base model on high-quality human-written demonstrations.
 Produces initial policy $\pi_{\text{SFT}}$.
@@ -436,12 +343,14 @@ Bradley-Terry loss:
 \]
 
 \medskip
+\begin{underhood}
 \textbf{Stage 3 --- PPO fine-tuning with KL penalty:}
 \[
   \mathcal{L}_{\text{RL}}(\theta) = \mathbb{E}_{\pi_\theta}\!\left[r_\phi(x,y)
   - \beta\,\mathrm{KL}\!\left(\pi_\theta(\cdot|x) \,\|\, \pi_{\text{ref}}(\cdot|x)\right)\right]
 \]
 $\beta$ controls how far the policy can drift from the SFT reference.
+\end{underhood}
 
 \medskip
 \begin{alertblock}{Limitations for finance}
@@ -457,6 +366,7 @@ $\beta$ controls how far the policy can drift from the SFT reference.
 \begin{frame}
 \frametitle{Direct Preference Optimisation (DPO)}
 
+\begin{underhood}
 DPO eliminates the reward model entirely. It directly optimises the policy
 on preference pairs by re-parameterising the reward in terms of log-ratios:
 
@@ -468,6 +378,7 @@ on preference pairs by re-parameterising the reward in terms of log-ratios:
     \right)
   \right]
 \]
+\end{underhood}
 
 \medskip
 \textbf{Key properties:}
@@ -801,6 +712,113 @@ audit trails, and tiered validation. Attention weights are not explanations.
   How do we compose trained LLMs into \emph{agents} that plan, use tools, retrieve
   data, and operate autonomously? Multi-agent orchestration, tool-use APIs,
   and agent-specific failure modes.
+\end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX
+% ============================================================
+\appendixstart{Systems \& Efficiency: Distributed Training, Kernels, PEFT Variants}
+
+% ============================================================
+% APPENDIX FRAME: Distributed training (relocated from core)
+% ============================================================
+\begin{frame}[noframenumbering]{Distributed Training: Three Parallelism Types}
+
+\begin{center}
+\begin{tabular}{p{2.6cm}p{4.0cm}p{3.0cm}}
+\toprule
+\textbf{Type} & \textbf{What is partitioned} & \textbf{Key mechanism} \\
+\midrule
+Data parallelism &
+  Batch (each device holds full model) &
+  Ring-AllReduce gradient aggregation \\[4pt]
+Tensor / model parallelism &
+  Weight matrices column-wise; $W \in \mathbb{R}^{d\times k} \to [W_1|W_2|\cdots]$ &
+  All-gather / all-reduce intra-layer \\[4pt]
+Pipeline parallelism &
+  Layer groups to successive devices &
+  Micro-batches; bubble fraction $\approx \frac{p-1}{m+p-1}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\textbf{ZeRO (Zero Redundancy Optimizer) stages:}
+\begin{itemize}
+  \item \textbf{Stage 1:} partition optimiser states across devices
+  \item \textbf{Stage 2:} also partition gradients
+  \item \textbf{Stage 3:} also partition model weights $\rightarrow$ near-linear
+        memory reduction with device count
+\end{itemize}
+\end{frame}
+
+% ============================================================
+% APPENDIX FRAME: Engineering efficiency (relocated from core)
+% ============================================================
+\begin{frame}[noframenumbering]{Engineering Efficiency: bfloat16, Checkpointing, FlashAttention}
+
+\textbf{Mixed-precision training (bfloat16):}
+\begin{itemize}
+  \item Weights stored in bfloat16 (16-bit); fp32 master copy for optimiser
+  \item Halves memory and HBM bandwidth versus fp32
+  \item Loss scaling: multiply loss by $s$ before backward; divide gradients by $s$
+        to prevent underflow
+\end{itemize}
+
+\medskip
+\textbf{Gradient checkpointing:}
+\[
+  \text{Activation memory} = O(L) \xrightarrow{\text{checkpoint every } \sqrt{L}} O(\sqrt{L})
+\]
+Discards intermediate activations; recomputes them during backward pass.
+Cost: one extra forward pass.
+
+\medskip
+\textbf{FlashAttention:}
+Tiles $QK^\top$ into SRAM-resident blocks; avoids writing the full $N\times N$
+attention matrix to HBM.  Reduces HBM reads/writes from $O(N^2)$ to
+$O(N^2 / M) \cdot M$ (subquadratic in practice).
+Exact attention, no approximation.
+
+\medskip
+\begin{block}{Combined effect}
+  bfloat16 + checkpointing + FlashAttention enable training models 4--8$\times$
+  larger on the same hardware compared with naive full-precision training.
+\end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX FRAME: Prefix tuning + Adapters (relocated from core)
+% ============================================================
+\begin{frame}[noframenumbering]{Prefix Tuning and Adapters}
+
+\textbf{Prefix tuning:}
+
+Learnable prefix vectors are prepended to $K$ and $V$ at every layer:
+\[
+  K' = \begin{bmatrix} P_K \\ K \end{bmatrix} \in \mathbb{R}^{(l+n)\times d_k},
+  \qquad
+  V' = \begin{bmatrix} P_V \\ V \end{bmatrix} \in \mathbb{R}^{(l+n)\times d_v}
+\]
+Only the prefix matrices $P_K, P_V$ (of length $l$) are trained.
+Effective for generation tasks; steers the output distribution without touching weights.
+
+\medskip
+\textbf{Adapters:}
+
+A bottleneck module inserted after each sub-layer:
+\[
+  h \leftarrow h + W_{\text{up}}\,\text{ReLU}(W_{\text{down}}\,h),
+  \quad W_{\text{down}} \in \mathbb{R}^{d\times m},\; W_{\text{up}} \in \mathbb{R}^{m\times d},\; m \ll d
+\]
+Adds inference latency unless fused.
+
+\medskip
+\begin{block}{Why LoRA wins in practice}
+  Zero inference overhead (merge $W_0 + BA$ before serving);
+  multiple adapters swappable for different tasks;
+  QLoRA extends to 4-bit quantised base models.
 \end{block}
 \end{frame}
 

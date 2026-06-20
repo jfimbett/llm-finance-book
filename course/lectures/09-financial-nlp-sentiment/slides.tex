@@ -1,71 +1,653 @@
 \documentclass{beamer}
-\usetheme{metropolis}
+\input{../_style/finance-beamer.tex}
 
 \title{Financial NLP and Sentiment Analysis}
-\subtitle{Large Language Models in Finance}
-\author{Juan F. Imbet}
+\subtitle{Lecture 09 --- Treating Language as Financial Data}
+\author{Juan F.\ Imbet}
 \institute{Paris Dauphine -- PSL University}
-\date{}
+\date{\today}
 
 \begin{document}
 
-\begin{frame}
-  \titlepage
-\end{frame}
+\begin{frame}\titlepage\end{frame}
 
+\begin{frame}{Outline}\tableofcontents\end{frame}
+
+% ====================================================================
 \section{Text as Financial Data}
+% ====================================================================
 
-\begin{frame}{Text as Financial Data}
-  \begin{itemize}
-    \item Financial text spans social media, news wires, regulatory filings, earnings transcripts, and central bank communications
-    \item Each source carries distinct informational content and noise characteristics
-    \item Preprocessing (tokenization, normalization, deduplication) is critical before modeling
-    \item Volume and velocity of financial text have grown dramatically, making automated NLP indispensable
-  \end{itemize}
+\begin{frame}{Why Treat Language as Data?}
+\begin{bigpicture}
+A single trading day now generates hundreds of thousands of news articles,
+social posts, filings, and analyst reports. Extracting the signal that moves
+prices --- in real time, repeatably --- is a defining problem of quantitative
+finance this decade.
+\end{bigpicture}
+
+\medskip
+Text is a data source with its own \textbf{measurement challenges}, exactly as:
+\begin{itemize}
+  \item price data has bid--ask bounce,
+  \item volume data has reporting lags,
+  \item \textbf{text} has selection, duplication, and timestamp pitfalls.
+\end{itemize}
+
+\medskip
+\begin{block}{This lecture}
+Where financial text comes from $\to$ how to score its sentiment $\to$
+what each source predicts $\to$ how to turn scores into a tradeable signal
+$\to$ the production pipeline.
+\end{block}
 \end{frame}
 
+\begin{frame}{Five Sources of Financial Text}
+Sources differ on four axes: \textbf{frequency}, \textbf{curation},
+\textbf{audience}, \textbf{regulatory oversight}.
+
+\medskip
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Source} & \textbf{Curation / latency} & \textbf{Canonical finding} \\
+\midrule
+Social media        & none / real-time   & Bollen 2011: Twitter mood $\to$ DJIA \\
+News \& wires        & high / ms--hours   & Tetlock 2008: neg.\ words $\to$ returns \\
+Earnings calls      & scripted + Q\&A    & Larcker 2012: tone $\to$ restatements \\
+SEC filings         & legal / quarterly  & Loughran--McDonald 2011 \\
+Central banks       & extreme / scheduled& Schmeling 2019: tone $\to$ equities \\
+\bottomrule
+\end{tabular}
+
+\normalsize
+\medskip
+\begin{alertblock}{Source shapes method}
+The structural properties of each source determine both the information it
+carries \emph{and} the right preprocessing / model. There is no
+one-size-fits-all pipeline.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Source Properties That Matter}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Social media} (X, Reddit/WSB, StockTwits)
+\begin{itemize}\footnotesize
+  \item Least curated; high noise, sarcasm, bots
+  \item Captures \emph{retail attention} orthogonal to institutions
+  \item Aggregates inform even when posts don't
+\end{itemize}
+\medskip
+\textbf{News \& wires}
+\begin{itemize}\footnotesize
+  \item Reuters/Bloomberg: ms latency, structured event
+  \item Key flaw: \textbf{selection} --- only newsworthy firms
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Earnings calls}
+\begin{itemize}\footnotesize
+  \item Prepared remarks = soft-info framing
+  \item Q\&A reveals analyst concerns + candour
+\end{itemize}
+\medskip
+\textbf{SEC filings (EDGAR)}: 10-K (Item~1A, MD\&A), 10-Q, 8-K, DEF~14A
+\begin{itemize}\footnotesize
+  \item Disclosure law $\Rightarrow$ truthful but vague
+\end{itemize}
+\medskip
+\textbf{Central banks}: FOMC, ECB
+\begin{itemize}\footnotesize
+  \item Meaning in calibrated \emph{deviations} from boilerplate
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Preprocessing: From Raw Text to Tokens}
+\begin{underhood}
+Every pipeline normalises, deduplicates, and time-aligns before modelling.
+Skipping any of these biases the downstream sentiment measure.
+\end{underhood}
+
+\medskip
+\textbf{Tokenization \& normalization}
+\begin{itemize}\small
+  \item Subword tokenizers: BPE (GPT) / WordPiece (BERT).
+  \item Case folding for lexicons; \emph{preserve} case for cased transformers.
+  \item Number handling (\texttt{[NUM]}) --- but EPS \$2.40 vs \$0.24 carries signal.
+  \item Cashtag/ticker harmonisation (\$AAPL); boilerplate removal (XBRL, exhibits).
+\end{itemize}
+
+\textbf{Deduplication} --- most important, most neglected
+\begin{itemize}\small
+  \item Wires reprint verbatim; retweets propagate identical text.
+  \item Duplicates bias sentiment \emph{and} inflate sample size $\to$ spurious narrow CIs.
+  \item MinHash / LSH; mark dupes when trigram Jaccard $> 0.6$--$0.8$.
+\end{itemize}
+
+\textbf{Temporal alignment} --- avoid \alert{look-ahead bias} (post-close news $\nrightarrow$ same-day return)
+and \alert{stale timestamps}; store publication \emph{and} retrieval times separately.
+\end{frame}
+
+% ====================================================================
 \section{Sentiment Analysis Methods}
+% ====================================================================
 
-\begin{frame}{Sentiment Analysis Methods}
-  \begin{itemize}
-    \item Lexicon-based methods use curated word lists (e.g., Loughran-McDonald) to score documents without training data
-    \item Fine-tuned classifiers like FinBERT and SEC-BERT adapt pre-trained transformers to financial language
-    \item LLMs enable zero-shot and few-shot sentiment classification without domain-specific fine-tuning
-    \item Each approach involves trade-offs between interpretability, cost, accuracy, and scalability
-  \end{itemize}
+\begin{frame}{Three Coexisting Generations}
+\begin{bigpicture}
+No single method dominates. Lexicons are fast and interpretable; fine-tuned
+classifiers are strong in-domain; LLMs are flexible and need no labels.
+A competent practitioner uses all three and knows when each fits.
+\end{bigpicture}
+
+\medskip
+\begin{tabular}{llll}
+\toprule
+\textbf{Method} & \textbf{Labels?} & \textbf{Strength} & \textbf{Weakness} \\
+\midrule
+Lexicon (LM)      & none      & transparent, cheap & no negation/context \\
+Fine-tuned (FinBERT) & yes    & strong in-domain   & needs labelled data \\
+LLM zero/few-shot & none      & flexible, nuanced  & cost \& latency \\
+\bottomrule
+\end{tabular}
 \end{frame}
 
+\begin{frame}{Lexicon Method: Loughran--McDonald}
+\begin{underhood}
+Net sentiment ratio for document $d$:
+\[
+S_{\text{LM}}(d) = \frac{N_{\text{pos}}(d) - N_{\text{neg}}(d)}{N_{\text{words}}(d)}
+\]
+\end{underhood}
+
+\medskip
+\textbf{Why a finance dictionary?} Harvard General Inquirer mislabels
+\emph{tax, liability, cost, foreign, crude, cancer} as negative --- neutral in 10-Ks.
+On 10-Ks, GI negativity tracks legal boilerplate, not performance.
+
+\medskip
+\textbf{LM word lists} (built from the 10-K vocabulary):
+\begin{center}\small
+\begin{tabular}{lcccccc}
+\toprule
+Negative & Litigious & Positive & Uncertainty & Weak modal & Strong modal \\
+\midrule
+2{,}355 & 903 & 354 & 297 & 27 & 19 \\
+\bottomrule
+\end{tabular}
+\end{center}
+The \textbf{negative} list dominates --- the asymmetry of disclosure language.
+\end{frame}
+
+\begin{frame}{LM Worked Example \& Limits}
+\begin{exampleblock}{MD\&A excerpt}
+\textit{``Revenue \underline{declined} 12\%, reflecting \underline{challenging}
+conditions and competitive \underline{pressure}. The Company remains
+\underline{cautious} but is \underline{confident} in its long-term position.''}
+\end{exampleblock}
+\begin{itemize}\small
+  \item Negative hits: \emph{declined, challenging, pressure, cautious} = 4
+  \item Positive hits: \emph{confident} = 1; \quad total non-trivial words $\approx 35$
+  \item $S_{\text{LM}} = (1-4)/35 \approx \mathbf{-0.086}$ \quad (bottom-quartile MD\&A)
+  \item A GI classifier also flags \emph{competitive} $\to \approx -0.17$: a distortion.
+\end{itemize}
+
+\medskip
+\begin{alertblock}{Known limits}
+No negation (``not confident'' scores positive); context-blind; domain shift
+(misses ``headwinds'', ``softness''). Still widely used: transparent, cheap, auditable.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Fine-Tuned Classifiers: FinBERT \& SEC-BERT}
+\begin{underhood}
+Take a pre-trained encoder, attach a head, fine-tune. For the \texttt{[CLS]}
+embedding $\mathbf{h}\in\mathbb{R}^{d_h}$:
+\[
+P(y=c\mid d)=\mathrm{softmax}(\mathbf{W}_c\mathbf{h}+\mathbf{b}_c),
+\quad c\in\{\text{pos},\text{neu},\text{neg}\}
+\]
+minimising cross-entropy; predict $\hat{y}=\arg\max_c P(y=c\mid d)$.
+\end{underhood}
+
+\medskip
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{FinBERT} (Araci 2019; Huang 2023)
+\begin{itemize}\footnotesize
+  \item Further-pretrain BERT on financial news + filings
+  \item Fine-tune on PhraseBank + analyst + call data
+  \item Beats GI, LM, and generic BERT
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{SEC-BERT} (Loukas 2022)
+\begin{itemize}\footnotesize
+  \item Pre-trained \emph{only} on EDGAR (10-K/Q/8-K)
+  \item Vocabulary tuned to legal-financial text
+  \item Wins in-domain on risk-factor / event tasks
+\end{itemize}
+\end{column}
+\end{columns}
+
+\medskip
+\textbf{Edge over lexicons:} $\mathbf{h}$ sees the whole sequence $\Rightarrow$
+handles negation, hedging, entity-specific qualifications implicitly.
+\end{frame}
+
+\begin{frame}{The Financial PhraseBank}
+The standard labelled benchmark (Malo et al.\ 2014):
+\begin{itemize}
+  \item \textbf{4{,}840} news sentences, labelled pos / neu / neg.
+  \item \textbf{16} finance-trained annotators; majority label used.
+  \item At 75\% agreement: $\approx 3{,}400$ high-confidence sentences,
+        inter-annotator agreement $\approx 75$--$80\%$.
+  \item \alert{Neutral $\approx$ half the corpus} --- motivates macro-F1, not accuracy.
+\end{itemize}
+
+\medskip
+\begin{block}{Caveat}
+News-sentence style $\neq$ filings / call language. Models tuned on PhraseBank
+may transfer poorly to long, syntactically complex documents --- supplement
+with domain-matched labels.
+\end{block}
+\end{frame}
+
+\begin{frame}{LLM Zero-Shot \& Few-Shot Classification}
+\begin{bigpicture}
+GPT-4 / Claude / LLaMA-3 classify sentiment from a task description alone ---
+\emph{no fine-tuning, no labelled set}. Rapid prototyping on new domains.
+\end{bigpicture}
+
+\medskip
+\textbf{Zero-shot prompt sketch:} \emph{``You are a financial analyst. Classify the
+sentiment $\ldots$ from the perspective of a stock investor.''} $\to$ ``Neutral'' with
+a rationale (revenue growth offset by margin compression).
+
+\medskip
+\textbf{Benchmarks (real findings):}
+\begin{itemize}\small
+  \item Ko \& Lee 2024: GPT-4 zero-shot \emph{matches or exceeds} FinBERT on
+        PhraseBank, FiQA, and a proprietary call dataset --- with no labels.
+  \item L\'opez-Lira \& Tang 2023: GPT headline scores positively predict
+        next-day returns, beating lexicons.
+  \item Kirtac \& Germano 2024: OPT (GPT-3 family) yields a markedly higher
+        long--short Sharpe than the LM dictionary.
+  \item Fatemi \& Hu 2023: fine-tuned \emph{small} LLMs hit SOTA; extra few-shot
+        examples beyond a small set add no accuracy.
+\end{itemize}
+
+\medskip
+\alert{Cost is the catch:} $\sim$\$100--\$500 per million short sentences $\Rightarrow$
+distil into a small model for production.
+\end{frame}
+
+% ====================================================================
 \section{Applications by Text Source}
+% ====================================================================
 
-\begin{frame}{Applications by Text Source}
-  \begin{itemize}
-    \item Social media (Twitter/X, Reddit, StockTwits) reflects retail investor sentiment and can predict short-term price movements
-    \item Earnings call transcripts reveal management tone and forward-looking language beyond reported numbers
-    \item SEC filings (10-K/10-Q) encode risk factor language and MD\&A readability as signals of firm quality
-    \item Central bank communications (FOMC minutes, ECB statements) move asset prices and yield curves
-  \end{itemize}
+\begin{frame}{One Source, One Research Question}
+\begin{bigpicture}
+Each source has a natural question: does retail mood drive short-run prices?
+does news carry information beyond prices? does management tone reveal private
+information? does disclosure language predict performance? do policy words move
+asset prices?
+\end{bigpicture}
+
+\medskip
+\begin{tabular}{ll}
+\toprule
+\textbf{Source} & \textbf{Question} \\
+\midrule
+Social media   & Retail attention $\to$ price pressure? \\
+News           & Incremental information beyond prices? \\
+Earnings calls & Tone $\to$ private information? \\
+SEC filings    & Disclosure language $\to$ future risk/return? \\
+Central banks  & Linguistic cues $\to$ asset prices? \\
+\bottomrule
+\end{tabular}
 \end{frame}
 
+\begin{frame}{Social Media: Attention, Disagreement, Bank Runs}
+\textbf{Evidence:}
+\begin{itemize}\small
+  \item Bollen 2011: ``calm'' Twitter mood Granger-causes DJIA (10-week sample;
+        mixed replications).
+  \item Cookson \& Niessner 2020: StockTwits \emph{disagreement} predicts volume
+        and spreads.
+  \item Gil-Bazo et al.\ 2025: 1.6M fund-family posts --- tone \emph{and} volume
+        predict fund inflows.
+  \item Cookson et al.\ 2026: SVB collapse --- high Twitter-exposure banks lost
+        more value; social media can \emph{catalyse} bank runs (streaming use case).
+\end{itemize}
+
+\medskip
+\textbf{WSB / GameStop (Jan 2021):} coordinated WSB sentiment led GME/AMC by 1--2 days;
+mechanism via call demand $\to$ gamma-hedging amplification.
+
+\medskip
+\begin{alertblock}{Methodological hazards}
+Bots \& coordinated inauthentic behaviour; severe selection; reverse causality
+(returns $\to$ posting).
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{News, Earnings Calls, SEC, Central Banks}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{News} (Tetlock 2007/08)
+\begin{itemize}\footnotesize
+  \item WSJ pessimism $\to$ price pressure + reversion
+  \item Firm-level neg.\ language $\to$ earnings
+  \item Stale negativity adds no forecast power
+\end{itemize}
+\textbf{Earnings calls}
+\begin{itemize}\footnotesize
+  \item Larcker 2012: deception cues $\to$ restatements
+  \item Price 2012: tone $\to$ post-call abnormal returns
+  \item Cook \& Kazinnik 2023: local LLMs $\approx$ closed-source, lower privacy risk
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{SEC filings}
+\begin{itemize}\footnotesize
+  \item LM negativity $\downarrow$ filing-day return, $\uparrow$ volume
+  \item Cohen 2020 ``lazy prices'': unchanged 10-Ks underperform
+  \item Lehner 2024: LLMs can rewrite filings to shift measured tone
+\end{itemize}
+\textbf{Central banks}
+\begin{itemize}\footnotesize
+  \item Schmeling 2019: positive tone $\to$ equities $\uparrow$
+  \item Hansen 2018: deliberation quality $\to$ inflation outcomes
+  \item Nakamura 2018: \alert{information vs.\ policy} effect confound
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{MD\&A Readability: The Fog Index}
+\begin{underhood}
+\[
+\text{Fog} = 0.4\!\left(\frac{N_{\text{words}}}{N_{\text{sentences}}}
++ 100\cdot\frac{N_{\text{complex}}}{N_{\text{words}}}\right)
+\]
+$N_{\text{complex}}$ = words with $\geq 3$ syllables (excl.\ proper nouns,
+compound modifiers, simple verb inflections).
+\end{underhood}
+
+\medskip
+\begin{itemize}
+  \item Fog $=12$ $\Leftrightarrow$ US high-school level.
+  \item 10-K MD\&A typically \textbf{18--22} --- much harder than a newspaper.
+  \item Li 2008: higher Fog $\to$ lower current earnings, higher earnings volatility
+        (managers obscure when performance is poor).
+  \item Lehavy 2011: less readable 10-Ks $\to$ fewer, less accurate analysts.
+\end{itemize}
+\end{frame}
+
+% ====================================================================
 \section{From Sentiment to Tradeable Signal}
+% ====================================================================
 
-\begin{frame}{From Sentiment to Tradeable Signal}
-  \begin{itemize}
-    \item Raw sentiment scores must be aggregated, standardized, and tested for stationarity before use in models
-    \item Event studies isolate the causal impact of sentiment-laden disclosures on returns around earnings and FOMC meetings
-    \item Long-horizon predictability differs from short-horizon: different aggregation windows and decay rates apply
-    \item Signal construction requires careful attention to look-ahead bias and publication timing of source documents
-  \end{itemize}
+\begin{frame}{Raw Scores Are Not Yet a Signal}
+\begin{bigpicture}
+A score per document is not tradeable. It needs aggregation, denoising, and
+statistical transformation. Two empirical frameworks test economic content:
+event studies and predictive regressions.
+\end{bigpicture}
+
+\medskip
+\textbf{Document $\to$ entity aggregation} (all docs on firm $i$, day $t$):
+\begin{itemize}\small
+  \item Simple mean: $\bar S_t = \frac{1}{n_t}\sum_i S_i$
+  \item Volume-weighted (reach / circulation) \quad $\cdot$ \quad Recency-weighted (exp.\ decay)
+\end{itemize}
+Noisy sources (social) need weighting; curated sources (filings) do not.
 \end{frame}
 
-\section{Practical Pipeline}
+\begin{frame}{Standardization \& Stationarity}
+\begin{underhood}
+Cross-sectional z-score within industry-year removes sector language fixed effects:
+\[
+\tilde S_{i,t} = \frac{S_{i,t}-\mu_{j(i),t}}{\sigma_{j(i),t}}
+\]
+($j(i)$ = industry of firm $i$.) A defence firm and a software firm become comparable.
+\end{underhood}
 
-\begin{frame}{Practical Pipeline}
-  \begin{itemize}
-    \item Data collection leverages EDGAR full-text search, social media APIs, and commercial news data vendors
-    \item Batch inference suits historical backtesting; streaming inference is required for live trading applications
-    \item Evaluation relies on inter-annotator agreement metrics (Krippendorff alpha) alongside precision, recall, and F1
-    \item A robust pipeline integrates data ingestion, preprocessing, model inference, signal storage, and monitoring
-  \end{itemize}
+\medskip
+\textbf{Stationarity}
+\begin{itemize}\small
+  \item Long sentiment series drift (style change, universe change, regime shift).
+  \item Apply ADF / KPSS; first-difference or detrend non-stationary series.
+\end{itemize}
+
+\medskip
+\begin{alertblock}{Sentiment inflation}
+Re-scoring old text with a newer model changes measured sentiment. Use one
+\emph{fixed} model vintage across all periods --- or document the vintages.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Event Studies \& Predictive Regression}
+\begin{underhood}
+Abnormal return $AR_{i,\tau}=R_{i,\tau}-\hat R_{i,\tau}$ (benchmark, e.g.\ CAPM).
+Cumulative over $[a,b]$:
+\[
+\mathrm{CAR}_i[a,b]=\sum_{\tau=a}^{b}AR_{i,\tau},\qquad
+\overline{\mathrm{CAR}}[a,b]=\tfrac1N\sum_i \mathrm{CAR}_i[a,b].
+\]
+\end{underhood}
+
+\medskip
+\textbf{Does text beat the EPS number?} Condition on the earnings surprise:
+\[
+\mathrm{CAR}_i[1,60]=\alpha+\beta_1\,\mathrm{SUE}_{i,0}+\beta_2\,\tilde S_{i,0}+\varepsilon_{i,0}
+\]
+with $\mathrm{SUE}=(\mathrm{EPS}-\widehat{\mathrm{EPS}})/\hat\sigma$.
+Incremental text content $\Rightarrow \hat\beta_2>0$.
+
+\medskip
+\textbf{High-frequency FOMC:} 30-min window around announcements (Nakamura 2018)
+demands sentence-level scoring \emph{inside} the window $\to$ low-latency inference.
+\end{frame}
+
+\begin{frame}{Two Horizons, Two Mechanisms}
+\begin{tabular}{lll}
+\toprule
+ & \textbf{Short horizon} & \textbf{Long horizon} \\
+\midrule
+Channel    & attention / price pressure & fundamental information \\
+Evidence   & Da 2015: attention $\to$ reversal & Tetlock 2008; Cohen 2020 \\
+Data needs & real-time, low-latency      & daily/weekly, heavier models \\
+Audience   & HFT-adjacent industry       & most academic research \\
+Alpha      & larger (pre-cost)           & smaller, more accessible \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\begin{block}{Practical implication}
+Short-horizon strategies need real-time feeds and execution within minutes;
+long-horizon strategies tolerate batch processing and richer models. Industry
+chases the short horizon (more alpha); academia studies the long horizon
+(lower data/execution cost).
+\end{block}
+\end{frame}
+
+% ====================================================================
+\section{Practical Pipeline}
+% ====================================================================
+
+\begin{frame}{From ``What'' to ``How''}
+\begin{bigpicture}
+Earlier sections said what to extract and why. The pipeline is the
+engineering: collect text at scale, run inference in production, evaluate
+classifier quality with metrics that don't mislead.
+\end{bigpicture}
+
+\medskip
+\textbf{Three production concerns:}
+\begin{enumerate}
+  \item \textbf{Data collection} --- EDGAR, social APIs, news vendors.
+  \item \textbf{Inference at scale} --- batch (throughput) vs.\ streaming (latency).
+  \item \textbf{Evaluation} --- label quality \emph{and} classifier quality
+        \emph{and} economic validity.
+\end{enumerate}
+(Collection \& scale engineering detailed in the appendix.)
+\end{frame}
+
+\begin{frame}{Evaluation: Annotator Agreement}
+\begin{underhood}
+Krippendorff's alpha measures agreement beyond chance:
+\[
+\alpha = 1-\frac{D_o}{D_e}
+\]
+$D_o$ = observed, $D_e$ = expected disagreement. Nominal $k$-class:
+$D_e = 1-\sum_c (n_c/n)^2$. \quad $\alpha=0$: chance; $\alpha=1$: perfect.
+\end{underhood}
+
+\medskip
+Thresholds: $\alpha\geq 0.667$ reliable; $\geq 0.800$ high confidence.
+Financial benchmarks: \textbf{0.65--0.78} --- genuine ambiguity of finance sentences.
+
+\medskip
+\small
+\begin{tabular}{lcc}
+\toprule
+Dataset & Classes & Alpha \\
+\midrule
+Financial PhraseBank (100\% agr.)   & 3 & 1.00 \\
+Financial PhraseBank (66\% agr.)    & 3 & $\approx 0.72$ \\
+Earnings call sentences (practitioner) & 3 & 0.68--0.75 \\
+FOMC statement sentences            & 3 & 0.70--0.78 \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Evaluation: Classifier Metrics \& Economic Validity}
+\begin{underhood}
+Per class $c$:
+\[
+\text{P}_c=\frac{TP_c}{TP_c+FP_c},\;
+\text{R}_c=\frac{TP_c}{TP_c+FN_c},\;
+F1_c=\frac{2\,\text{P}_c\text{R}_c}{\text{P}_c+\text{R}_c}.
+\]
+Report \textbf{macro-F1} (unweighted mean over classes).
+\end{underhood}
+
+\medskip
+\begin{alertblock}{Why macro, not accuracy}
+Neutral $\approx$ half of financial sentences. An accuracy-maximiser that
+over-predicts neutral scores high while failing on the economically important
+positive / negative classes.
+\end{alertblock}
+
+\medskip
+\textbf{Economic validity $\neq$ statistical metrics.} Macro-F1 $=0.75$ can still
+have zero alpha if the test set is unrepresentative or labels are misaligned.
+Best practice: regress aggregate sentiment on forward returns / earnings surprises
+in a \emph{strictly held-out} period.
+\end{frame}
+
+\begin{frame}{Lecture 09 Summary}
+\begin{itemize}
+  \item \textbf{Sources:} social $\to$ filings, spanning curation and oversight;
+        structure dictates preprocessing and model.
+  \item \textbf{Methods:} lexicon (LM, the filings standard), fine-tuned (FinBERT/SEC-BERT),
+        LLM zero/few-shot --- LLMs match or beat fine-tuned without labels, at higher cost.
+  \item \textbf{Applications:} attention (social), information (news), soft disclosure
+        (calls), risk (filings), policy signal (central banks).
+  \item \textbf{Signal:} aggregate $\to$ z-score within industry-year $\to$ test
+        stationarity; event study + predictive regression assess economic content.
+  \item \textbf{Pipeline:} batch + streaming inference; evaluate with Krippendorff's
+        $\alpha$, macro-F1, \emph{and} a held-out economic test.
+\end{itemize}
+
+\medskip
+\begin{block}{Next}
+Practical 09 --- LM scoring, FinBERT vs.\ lexicon, and a filing-date event study
+on real EDGAR + price data.
+\end{block}
+\end{frame}
+
+% ====================================================================
+% APPENDIX
+% ====================================================================
+\appendixstart{Data Collection, Inference at Scale, and Extensions}
+
+\begin{frame}[noframenumbering]{Appendix: Data Collection}
+\textbf{EDGAR full-text search} (\texttt{efts.sec.gov})
+\begin{enumerate}\footnotesize
+  \item Query form types (10-K, 8-K) and date range.
+  \item Download index pages $\to$ document links.
+  \item Parse primary HTML/SGML (\texttt{BeautifulSoup}, \texttt{sec-edgar-downloader}).
+  \item Extract MD\&A / Risk Factors by header matching.
+  \item Store Parquet, indexed by CIK / period / filing date.
+\end{enumerate}
+
+\textbf{Twitter/X Academic API} (paid since 2022): filters \texttt{has:cashtags},
+\texttt{lang:en}, verified-author. Alternatives: StockTwits API, Reddit Pushshift
+(restricted), commercial sentiment feeds.
+
+\textbf{News vendors:} Bloomberg, Dow Jones DNA, Refinitiv, RavenPack (machine-readable
+event records); GDELT (free, noisier, 15-min updates) for research.
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix: Inference at Scale}
+\textbf{Batch} (throughput-bound):
+\begin{itemize}\footnotesize
+  \item FinBERT (110M), 512 tokens, single A100: hundreds of docs/sec;
+        multi-million archive in hours.
+  \item Optimisations: dynamic padding/batching; FP16/BF16; distillation
+        (110M $\to$ 33M, $<5\%$ accuracy loss); data/CPU parallelism.
+\end{itemize}
+
+\textbf{Streaming} (latency-bound):
+\begin{itemize}\footnotesize
+  \item Target $<100$ ms for FOMC; near-real-time for live call transcription.
+  \item Kafka/Kinesis $\to$ ONNX inference workers $\to$ downstream aggregation.
+  \item \texttt{onnxruntime} + quantised weights: $<100$ ms/sentence on modern CPUs.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix: Ordinal Krippendorff's Alpha}
+For ordered labels (pos $>$ neu $>$ neg) the nominal coincidence metric is
+replaced by a weighted disagreement:
+\[
+d^2(c,c') = \Bigl(\sum_{g=c}^{c'} n_g\Bigr)^2,
+\]
+penalising disagreements by the number of scale steps between labels
+($n_g$ = frequency of category $g$). Ordinal $\alpha$ is more conservative than
+nominal $\alpha$ for sentiment corpora --- a stricter lower bound on agreement.
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix: NVIX, Factor Models, ESG News}
+\textbf{News-Implied Volatility (Manela \& Moreira 2017):} project WSJ
+front-page text onto realized VIX variation; the measure extends to \textbf{1890},
+capturing disaster-risk eras (Depression, WWII, 2008--09) far beyond VIX's 1990 start.
+
+\medskip
+\textbf{News in factor models (Ke et al.\ 2019):} supervised extraction of
+price-relevant news features adds predictive content, esp.\ at short horizons;
+intraday alpha captured by HFT, longer-horizon signals lower-Sharpe but accessible.
+
+\medskip
+\textbf{Climate / ESG (Engle et al.\ 2020):} a climate-news index builds a hedge
+portfolio; high climate-news exposure $\to$ lower returns on high-news days.
+Generalises to pandemic / geopolitical / supply-chain risk indices.
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix: Domain-Adapted LLMs on Long Filings}
+\textbf{Beyond the context window:}
+\begin{itemize}\small
+  \item Chiu \& Hung 2024: finance-specific LLaMA-2 + LLM summarisation of long
+        10-Ks $\to$ higher buy-and-hold abnormal returns than FinBERT.
+  \item Siano 2025: LLM word-context embeddings of earnings press releases
+        explain far more return variation than dictionaries; raise $R^2$ of
+        financial-statement surprises.
+  \item Xu \& Babaian 2025: FinBERT + GPT-4o \emph{ensemble} on FOMC press
+        conferences --- cross-family combination is more stable than any single model.
+\end{itemize}
 \end{frame}
 
 \end{document}

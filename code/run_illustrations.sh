@@ -23,6 +23,7 @@ done
 echo "Running deterministic figure generators ..."
 python3 code/notebooks/02-llm-foundations/gen_positional_encoding.py
 python3 code/notebooks/05-business-valuation/gen_dcf_sensitivity.py
+python3 code/notebooks/08-domain-specific-llms/gen_corpus_composition.py
 python3 code/notebooks/09-financial-nlp-sentiment/gen_lm_lexicon.py
 python3 code/notebooks/12-xai-explainability/gen_shap_attribution.py
 python3 code/notebooks/13-llm-limitations-evaluation/gen_reliability_diagram.py

@@ -223,7 +223,7 @@ corpus of approximately 1.8~billion words drawn from Reuters TRC2 news,
 Bloomberg news, and Financial PhraseBank.  Its primary task is financial
 sentiment classification---positive, negative, or neutral---over financial news
 headlines and short articles.  On the Financial PhraseBank benchmark
-\cite{malo2014phrasebank}, FinBERT improved F1 by roughly 15 percentage points
+\cite{malo2014phrasebank}, FinBERT improved F1 substantially
 over the baseline BERT-base model, establishing that domain-specific pre-training
 adds measurable value even for a relatively straightforward classification task.
 
@@ -542,6 +542,19 @@ General web (Pile)  & $\sim$800B    & Mixed     & Open        & Broad coverage \
 \end{tabular}
 \end{table}
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.82\textwidth]{chapters/08-domain-specific-llms/figures/fig_corpus}
+  \caption{Approximate token counts of the major corpus sources for financial LLM
+           pre-training (\Cref{tab:ch08-corpus-summary}), on a log scale and colour-coded
+           by access type. General web text dwarfs even the largest financial source, which
+           is why domain-adaptive pre-training---continuing to train on the smaller
+           proprietary and open financial corpora---is the dominant strategy rather than
+           training from scratch. Generated deterministically by
+           \texttt{gen\_corpus\_composition.py} from the table's figures.}
+  \label{fig:ch08-corpus}
+\end{figure}
+
 % ---------------------------------------------------------------
 \section{Benchmark Comparisons}
 \label{sec:ch08-benchmark-comparisons}
@@ -628,9 +641,8 @@ broad world knowledge, multi-step reasoning, and instruction following.
 
 \textit{Where FinLLMs win.}  The performance gap is largest on tasks that require
 correct handling of domain-specific lexical semantics.  On Financial PhraseBank
-sentiment classification, FinBERT \cite{araci2019finbert} achieves F1 scores
-of approximately 0.88 compared to 0.72 for general BERT-base and 0.80 for
-RoBERTa-base---a gap that persists even when the general models are fine-tuned
+sentiment classification, FinBERT \cite{araci2019finbert} is reported to achieve a
+markedly higher F1 than general BERT-base and RoBERTa-base---a gap that persists even when the general models are fine-tuned
 on the same training set.  The explanation is straightforward: sentiment labels
 in financial text depend on domain vocabulary whose correct representation was
 only learned during financial domain pre-training.  Similarly, on EDGAR named
@@ -656,8 +668,8 @@ gains across most financial NLP tasks.  For models at the 70B+ scale, the gains
 are narrower and task-specific: they persist for lexically sensitive tasks
 (sentiment, tone, NER) but largely disappear for tasks whose difficulty is
 primarily about reasoning over long documents.  \citet{RahimikiaDrinkall2024} sharpen this
-picture by demonstrating that year-specific, domain-pre-trained financial LLMs
-outperform general-purpose models up to 50 times their parameter count in return
+picture by reporting that year-specific, domain-pre-trained financial LLMs can
+outperform substantially larger general-purpose models in return
 prediction tasks---a particularly striking result because it controls for the
 look-ahead bias that inflates many published performance figures---providing
 direct empirical support for the value of targeted domain-adaptive pre-training

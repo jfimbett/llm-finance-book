@@ -720,22 +720,27 @@ systems that are eloquent but dangerous in a financial decision context.
 \label{sec:ch14-rouge-bertscore-metrics}
 % ---------------------------------------------------------------------------
 
+\begin{context}
 \textbf{ROUGE} \citep{lin2004rouge} is the most widely used automatic metric for
-summarisation evaluation. ROUGE-$N$ computes the $n$-gram recall of the candidate
-summary against one or more reference summaries:
+summarisation evaluation. Intuitively, it measures how much of the reference summary's
+wording the candidate reproduces---a recall-oriented overlap score.
+\end{context}
 
-An \emph{$n$-gram} is a contiguous sequence of $n$ tokens; for a sequence $y$, the multiset $\mathcal{G}_N(y)$ contains all contiguous $N$-token subsequences.
+\begin{deepdive}
+ROUGE-$N$ computes the $n$-gram recall of the candidate summary against one or more
+reference summaries. An \emph{$n$-gram} is a contiguous sequence of $n$ tokens; for a
+sequence $y$, the multiset $\mathcal{G}_N(y)$ contains all contiguous $N$-token subsequences.
 \begin{equation}
 \label{eq:rouge-n}
 \text{ROUGE-}N = \frac{\sum_{s \in \mathcal{R}} \sum_{g \in \mathcal{G}_N(s)}
   \text{Count}_{\text{match}}(g, c)}{\sum_{s \in \mathcal{R}} \sum_{g \in \mathcal{G}_N(s)}
   \text{Count}(g)},
 \end{equation}
-
 where $\mathcal{R}$ is the set of reference summaries, $\mathcal{G}_N(s)$ is the set
 of $n$-grams in summary $s$, $c$ is the candidate summary, and $\text{Count}_{\text{match}}(g, c)$
 is the number of times $n$-gram $g$ appears in both the reference and the candidate.
 ROUGE-L measures the longest common subsequence rather than exact $n$-gram overlap.
+\end{deepdive}
 
 Despite its ubiquity, ROUGE has well-known limitations. It rewards lexical overlap rather
 than semantic equivalence. A summary that replaces ``net income declined 12\%'' with
@@ -743,23 +748,28 @@ than semantic equivalence. A summary that replaces ``net income declined 12\%'' 
 word substitution. Conversely, a summary that copies irrelevant sentences from the source
 can achieve high ROUGE scores without being informative.
 
+\begin{context}
 \textbf{BERTScore} \citep{zhang2020bertscore} addresses the lexical-overlap limitation
-by measuring semantic similarity between candidate and reference tokens using contextual
-embeddings. For candidate token $\hat{r}_j$ and reference token $r_i$, the cosine
-similarity is:
+by judging candidate and reference tokens as equivalent when their meanings match, not
+only when their surface forms do.
+\end{context}
 
+\begin{deepdive}
+BERTScore measures semantic similarity between candidate and reference tokens using
+contextual embeddings. For candidate token $\hat{r}_j$ and reference token $r_i$, the cosine
+similarity is
 \begin{equation}
 \label{eq:bertscore}
 \text{sim}(r_i, \hat{r}_j) = \frac{\mathbf{h}_{r_i}^\top \mathbf{h}_{\hat{r}_j}}
   {\|\mathbf{h}_{r_i}\| \cdot \|\mathbf{h}_{\hat{r}_j}\|},
 \end{equation}
-
 where $\mathbf{h}_{r_i}$ is the contextual embedding of token $r_i$ from a pretrained
 model (typically RoBERTa or a domain-specific encoder). BERTScore precision, recall, and
 F$_1$ are computed by greedily matching each token in the candidate to the most similar
 token in the reference, and vice versa. In financial text, BERTScore using a financial
 encoder (e.g., FinBERT) captures domain-specific semantic similarity better than a
 general-domain encoder.
+\end{deepdive}
 
 Neither ROUGE nor BERTScore measures factual correctness. A summary that states the
 correct financial facts in different words receives a deserved high BERTScore. But a

@@ -271,7 +271,7 @@ This is intentionally tiny --- the goal is to observe the mechanics, not maximis
 % FRAME 9: Case Study -- Code
 % ============================================================
 \begin{frame}[fragile]
-\frametitle{Case Study: LoRA on FinBERT --- Code (Part 1: Setup)}
+\frametitle{Case Study: LoRA on FinBERT --- Code (Part 1a: Imports + Data)}
 
 {\footnotesize
 \begin{lstlisting}
@@ -287,7 +287,18 @@ SENTENCES = [
     ("Strong demand drove record quarterly earnings.", 0),# positive
     ("Guidance was withdrawn amid macro uncertainty.", 1),# negative
 ]
+\end{lstlisting}
+}
+\end{frame}
 
+% ============================================================
+% FRAME 9 (Part 1b): Case Study -- Code (Load + LoRA config)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: LoRA on FinBERT --- Code (Part 1b: Load + LoRA Config)}
+
+{\footnotesize
+\begin{lstlisting}
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL, num_labels=3)
 
@@ -357,6 +368,14 @@ Does loss decrease faster at higher rank?  What does this suggest about the
 relationship between rank and expressiveness for this small dataset?
 
 \medskip
+\end{frame}
+
+% ============================================================
+% FRAME 10b: Case Study -- Diagnostic questions (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Diagnostic Questions (continued)}
+
 \textbf{Q3.} Modify \texttt{target\_modules} to include all four projections:
 \texttt{["query", "key", "value", "dense"]}.
 How does the trainable parameter count change?
@@ -468,8 +487,14 @@ The team has 50B tokens but $D^* \approx 5.76$B.
 $50\text{B} \gg 5.76\text{B}$: they are \emph{compute-constrained, not data-constrained}.
 They should train a $\approx 288$M-parameter model on 5.76B tokens; the remaining
 44B tokens support a larger model if compute permits.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 13b: Solution -- Problem 2 (Tasks B/C) + wrap-up
+% ============================================================
+\begin{frame}
+\frametitle{Solution: Problem 2 --- Tasks B/C + Wrap-Up}
+
 \textbf{Task B} (1B-parameter model):
 $D^* = 20 \times 1\text{B} = 20\text{B tokens}$; $C = 6 \times 1\text{B} \times 20\text{B} = 1.2 \times 10^{23}$ FLOPs.
 

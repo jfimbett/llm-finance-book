@@ -85,8 +85,8 @@ For each of the five finance tasks below, select: (a) the deployment pattern (ze
 
 \medskip
 \begin{center}
-\small
-\begin{tabular}{lp{6.5cm}}
+\scriptsize
+\begin{tabular}{lp{6.8cm}}
 \toprule
 \textbf{Task} & \textbf{Description} \\
 \midrule
@@ -109,7 +109,7 @@ For each of the five finance tasks below, select: (a) the deployment pattern (ze
 A binary loan approval model is evaluated on two demographic groups (Group A and Group B).
 
 \begin{center}
-\small
+\scriptsize
 \begin{tabular}{lcccc}
 \toprule
  & \multicolumn{2}{c}{\textbf{Group A}} & \multicolumn{2}{c}{\textbf{Group B}} \\
@@ -126,9 +126,17 @@ Predicted deny   & 85 & 100 & 70 & 100 \\
 \textbf{Part A}: Compute the approval rate for each group. Does the model satisfy demographic parity?
 
 \textbf{Part B}: Compute TPR (true positive rate for defaults correctly predicted to default and denied) and FPR for each group. Does the model satisfy equalized odds?
+\end{frame}
+
+% ============================================================
+% FRAME 5b: Problem 2 (continued) — Parts C and D
+% ============================================================
+\begin{frame}
+\frametitle{Problem 2: Fairness Metrics and Impossibility (cont.)}
 
 \textbf{Part C}: Observed default rates are: Group A = $100/500 = 20\%$; Group B = $100/600 \approx 16.7\%$. Explain, using the Chouldechova impossibility theorem, why the model cannot simultaneously satisfy demographic parity and calibration within group given these base rates.
 
+\medskip
 \textbf{Part D}: If you must choose one fairness criterion to enforce, which would you choose for a consumer credit application under ECOA? Justify.
 \end{frame}
 
@@ -157,9 +165,17 @@ $d_5$ & 5 & 3 & \\
 \textbf{Part A}: Compute $s_{\text{RRF}}(q, d_i)$ for each passage using $k = 60$. Round to 5 decimal places.
 
 \textbf{Part B}: Rank the passages by their RRF score (highest first). Which passage ranks first?
+\end{frame}
+
+% ============================================================
+% FRAME 6b: Problem 3 (continued) — Parts C and D
+% ============================================================
+\begin{frame}
+\frametitle{Problem 3: Hybrid Retrieval (cont.)}
 
 \textbf{Part C}: Query $q$ is: ``What was the capital expenditure for fiscal year 2023?'' Is this query more likely to be served well by the dense retriever or the BM25 retriever? Explain why, and note the advantage of the hybrid approach.
 
+\medskip
 \textbf{Part D}: Why is $k = 60$ used as the smoothing constant rather than $k = 0$ (pure reciprocal rank)? What happens to the RRF scores as $k \to \infty$?
 \end{frame}
 
@@ -175,8 +191,14 @@ The assistant will be accessible via the firm's internal Slack workspace. Analys
 
 \medskip
 \textbf{Step 1} (5 min): Map each of the four capabilities to an architecture (deployment pattern + family). Identify the most important integration constraint for each.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 7b: Case study setup (continued) — Steps 2 and 3
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Governance Package (cont.)}
+
 \textbf{Step 2} (5 min): Draft the SR 11-7 governance structure. For each of the three lines of defence, describe one LLM-specific control that would not appear in the governance of a traditional statistical model.
 
 \medskip
@@ -204,6 +226,16 @@ def verify_numerical_claims(response: str,
       'unsupported': list of claims NOT found in any passage
       'hallucination_rate': float in [0.0, 1.0]
     """
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+% FRAME 8b: Case study — code snippet (continued)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: Hallucination Detection (cont.)}
+
+\begin{lstlisting}
     # Step 1: extract all numerical claims from response
     # (use the LLM to list them as JSON)
     # TODO: write extraction prompt
@@ -248,11 +280,20 @@ def verify_numerical_claims(response: str,
 
 \medskip
 \textbf{Problem 2A}: Approval rates: Group A = $(15+300)/500 = 63\%$; Group B = $(30+400)/600 \approx 71.7\%$. Demographic parity \textbf{not} satisfied.
+\end{frame}
+
+% ============================================================
+% FRAME 10b: Solutions — Problem 2 (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problem 2 (cont.)}
 
 \textbf{Problem 2B}: TPR = (correctly denied defaults) / (all defaults). Group A TPR = $85/100 = 85\%$; Group B TPR = $70/100 = 70\%$. FPR = (incorrectly denied non-defaults) / (all non-defaults). Group A FPR = $100/400 = 25\%$; Group B FPR = $100/500 = 20\%$. Equalized odds \textbf{not} satisfied (both TPR and FPR differ).
 
+\medskip
 \textbf{Problem 2C}: Since base rates differ (20\% vs. 16.7\%), satisfying calibration within group requires different approval rates across groups, which violates demographic parity. The two criteria are mutually incompatible under differing base rates by Chouldechova's theorem.
 
+\medskip
 \textbf{Problem 2D}: Under ECOA, equalized odds is the most defensible choice as it equalises error rates across groups — ensuring that creditworthy borrowers from different groups face equal false-denial rates.
 \end{frame}
 
@@ -267,11 +308,20 @@ def verify_numerical_claims(response: str,
 $d_1$: $1/61 + 1/64 \approx 0.01639 + 0.01563 = 0.03202$. $d_2$: $1/62 + 1/61 \approx 0.01613 + 0.01639 = 0.03252$. $d_3$: $1/63 + 1/65 \approx 0.01587 + 0.01538 = 0.03125$. $d_4$: $1/64 + 1/62 \approx 0.01563 + 0.01613 = 0.03176$. $d_5$: $1/65 + 1/63 \approx 0.01538 + 0.01587 = 0.03125$.
 
 \textbf{Problem 3B}: Ranking: $d_2 > d_1 > d_4 > d_3 = d_5$. $d_2$ ranks first (top in sparse, 2nd in dense).
+\end{frame}
+
+% ============================================================
+% FRAME 11b: Solutions — Problem 3 (cont.) and Case Study
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problem 3 (cont.) and Case Study Key Points}
 
 \textbf{Problem 3C}: ``Capital expenditure for fiscal year 2023'' is a specific numerical query — BM25 handles exact term matching better. Dense retrieval may return semantically related passages that don't contain the exact figure. The hybrid approach captures both the exact-match strength of BM25 and the semantic generalisation of dense retrieval.
 
+\medskip
 \textbf{Problem 3D}: At $k=0$, a passage ranked 1st gets score 1 and ranked 2nd gets 0.5 — large gap. At large $k$, all passages get nearly equal scores; the ranking flattens. $k=60$ provides a moderate smoothing that reduces the outsized influence of top ranks without discarding rank information.
 
+\medskip
 \textbf{Case Study Step 3}: Detection via cross-validation against structured XBRL database. Severity: Low = unverifiable figure in summarisation; High = hallucinated figure in a recommendation that reached a client. Escalation: High severity $\to$ immediate review, potential reversal, compliance notification, root-cause analysis before system resumed.
 \end{frame}
 

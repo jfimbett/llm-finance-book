@@ -201,7 +201,7 @@ No API key needed --- embeddings run locally on CPU.
 % =====================================================================
 % FRAME: Case Study Code
 % =====================================================================
-\begin{frame}[fragile]{Case Study: The Code}
+\begin{frame}[fragile]{Case Study: The Code (1/2) --- Data \& Dictionary}
 
 \begin{lstlisting}
 from sentence_transformers import SentenceTransformer, util
@@ -217,7 +217,15 @@ NEG = {"fell", "litigation", "uncertainty", "loss", "decline"}
 def dict_sentiment(text):
     w = text.lower().replace(",", " ").replace(".", " ").split()
     return (sum(t in POS for t in w) - sum(t in NEG for t in w)) / len(w)
+\end{lstlisting}
+\end{frame}
 
+% =====================================================================
+% FRAME: Case Study Code (2/2)
+% =====================================================================
+\begin{frame}[fragile]{Case Study: The Code (2/2) --- Embedding Similarity}
+
+\begin{lstlisting}
 model = SentenceTransformer("all-MiniLM-L6-v2")
 anchor = model.encode("This is good news for shareholders.",
                       normalize_embeddings=True)
@@ -341,14 +349,12 @@ S = \begin{pmatrix} 1 & 1 & 0 \\ 1 & 2 & 1 \\ 0 & 1 & 1 \end{pmatrix},
 \begin{pmatrix} 0.71 & 0.71 & 0.00 \\ 0.71 & 1.41 & 0.71 \\ 0.00 & 0.71 & 0.71 \end{pmatrix}.
 \]
 
-\textbf{Row-wise softmax} ($\approx$):
+\textbf{Row-wise softmax} $\to A$; \quad \textbf{output} $O = AV$ with
+$V=\big[(2,0),(0,2),(1,1)\big]^\top$:
 \[
 A \approx
-\begin{pmatrix} 0.422 & 0.422 & 0.156 \\ 0.270 & 0.461 & 0.270 \\ 0.156 & 0.422 & 0.422 \end{pmatrix}.
-\]
-
-\textbf{Output} $O = AV$, with $V=\big[(2,0),(0,2),(1,1)\big]^\top$:
-\[
+\begin{pmatrix} 0.422 & 0.422 & 0.156 \\ 0.270 & 0.461 & 0.270 \\ 0.156 & 0.422 & 0.422 \end{pmatrix},
+\qquad
 O \approx
 \begin{pmatrix} 1.00 & 1.00 \\ 0.81 & 1.19 \\ 0.73 & 1.27 \end{pmatrix}.
 \]

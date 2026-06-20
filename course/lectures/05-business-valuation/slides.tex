@@ -50,8 +50,14 @@
   \item \textbf{Portfolio management}: model value vs.\ market price generates trade signals
   \item \textbf{Financial reporting}: IFRS 13 / ASC 820 Level 3 assets require documented models
 \end{itemize}}
+\end{frame}
 
-\smallskip
+% ============================================================
+% FRAME 3b: Why valuation is forward-looking
+% ============================================================
+\begin{frame}
+\frametitle{What Is Business Valuation? (cont.)}
+
 \begin{bigpicture}
   Valuation is forward-looking. A balance sheet records historical cost;
   the market prices a claim on \emph{future} earnings.
@@ -220,21 +226,9 @@ Using fiscal year end in a backtest can include information not yet available.
 \end{underhood}
 
 \smallskip
-\begin{center}
-{\footnotesize
-\begin{tabular}{lll}
-\toprule
-Metric & Discounted at & Yields \\
-\midrule
-FCFF & WACC & Enterprise value \\
-FCFE & Cost of equity & Equity value directly \\
-\bottomrule
-\end{tabular}}
-\end{center}
-
-\smallskip
 \textbf{Which to use?} When leverage is changing materially, FCFF is more robust:
 WACC can be held constant while cost of equity must be re-levered per scenario.
+(See appendix for the discount-rate/output mapping.)
 \end{frame}
 
 % ============================================================
@@ -437,7 +431,7 @@ No financial calculation --- however simple --- should be performed by in-contex
 % FRAME 15: Code interpreter and ReAct for DCF
 % ============================================================
 \begin{frame}[fragile]
-\frametitle{Code Interpreter Pattern for DCF}
+\frametitle{Code Interpreter Pattern for DCF (1/2)}
 
 \begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 # ReAct agent trace --- DCF computation
@@ -452,7 +446,19 @@ Action 1:  python_executor(code="""
            """)
 
 Observation 1: FCFF = 713.6 M
+\end{lstlisting}
 
+The LLM emits structured Thought/Action steps; arithmetic is delegated to
+\texttt{python\_executor} rather than performed in-context.
+\end{frame}
+
+% ============================================================
+% FRAME 15b: Code interpreter and ReAct for DCF (continued)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Code Interpreter Pattern for DCF (2/2)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 Thought 2: Now compute the 5-year DCF with g=8%, g_term=3%, WACC=9%.
 
 Action 2:  python_executor(code="""
@@ -797,6 +803,31 @@ both can run concurrently, reducing end-to-end latency.
 \textbf{15--30 seconds end-to-end} per company valuation.
 Cost: \$0.50--\$3.00 per company at 2024 frontier-model pricing.
 \end{block}
+\end{frame}
+
+% ============================================================
+% APPENDIX: FCFF vs FCFE discount-rate mapping
+% ============================================================
+\begin{frame}[noframenumbering]{FCFF vs.\ FCFE: Discount-Rate Mapping}
+
+For reference, the two free-cash-flow definitions are discounted at different
+rates and yield different value measures:
+
+\medskip
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Metric & Discounted at & Yields \\
+\midrule
+FCFF & WACC & Enterprise value \\
+FCFE & Cost of equity & Equity value directly \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+Discounting FCFF at WACC gives enterprise value; subtract net debt to recover
+equity value. Discounting FCFE at the cost of equity yields equity value directly.
 \end{frame}
 
 \end{document}

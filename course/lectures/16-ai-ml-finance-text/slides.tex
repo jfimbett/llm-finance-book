@@ -447,6 +447,10 @@ Map words to sentiment scores; net sentiment = (positive $-$ negative) frequency
 (negative, positive, uncertainty, litigious, strong/weak modal) --- still a benchmark.
 \end{block}
 
+\end{frame}
+
+\begin{frame}{Early NLP in Finance: Topic Models and Shared Limits}
+
 \begin{block}{Topic models (LSA / LDA)}
 Learn representations from \emph{co-occurrence} --- each document a mixture over
 latent themes (e.g.\ operational efficiency vs.\ regulatory risk).
@@ -468,8 +472,10 @@ position --- resolving long-range dependencies (a pronoun to its antecedent; a
 Risk Factor to a financial-statement figure) that recurrent nets, with vanishing
 gradients over long contexts, cannot do reliably.
 \end{bigpicture}
+\end{frame}
 
-\medskip
+\begin{frame}{The Transformer Revolution: Scaled Dot-Product Attention}
+
 \begin{underhood}
 For each position $i$, a weighted sum of value vectors:
 \[

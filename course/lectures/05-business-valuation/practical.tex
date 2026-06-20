@@ -129,6 +129,18 @@ Net New Borrowing & +40 \\
 \end{tabular}
 \end{center}
 
+\textbf{Tasks on the next slide.}
+\end{frame}
+
+% ============================================================
+% FRAME 5b: Problem 1 --- tasks
+% ============================================================
+\begin{frame}
+\frametitle{Problem 1: Tasks (cont.)}
+
+Using the FY2023 figures on the previous slide:
+
+\medskip
 \textbf{Your tasks:}
 \begin{enumerate}
   \item Compute FCFF using the effective tax rate (infer from income tax / EBT).
@@ -207,9 +219,9 @@ Terminal growth & 2.5\% & 1\% \\
 % FRAME 8: Case study --- step 1, code
 % ============================================================
 \begin{frame}[fragile]
-\frametitle{Case Study Step 1: Run the Simulation}
+\frametitle{Case Study Step 1: Run the Simulation (1/2)}
 
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 import numpy as np
 
 def monte_carlo_dcf(fcff0, g_exp_mean, g_exp_std, wacc_mean, wacc_std,
@@ -221,7 +233,19 @@ def monte_carlo_dcf(fcff0, g_exp_mean, g_exp_std, wacc_mean, wacc_std,
 
     # Clip terminal growth
     g_term = np.minimum(g_term, wacc - 0.005)
+\end{lstlisting}
 
+Draw correlated parameter vectors, then clip terminal growth below WACC to keep
+the Gordon terminal value finite. The valuation loop follows on the next slide.
+\end{frame}
+
+% ============================================================
+% FRAME 8b: Case study --- step 1, code (continued)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study Step 1: Run the Simulation (2/2)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
     ev = np.zeros(M)
     for m in range(M):
         fcfs = [fcff0]

@@ -399,12 +399,29 @@ sufficient. Financial evaluation must speak in returns, risk, and alpha.
   \qquad \text{annualise} \times\sqrt{252}\ \text{(daily)},\ \sqrt{12}\ \text{(monthly)}.
 \]
 \textbf{Information ratio} (active management):
-\[
-  \text{IR} = \frac{\alpha}{\text{TE}} \approx \text{IC}\cdot\sqrt{N}.
-\]
-$\text{IC}$ = signal quality (rank corr.\ predicted vs.\ realised); $N$ =
+\(\ \text{IR} = \alpha/\text{TE} \approx \text{IC}\cdot\sqrt{N}\):
+$\text{IC}$ = signal quality (rank corr.\ predicted vs.\ realised), $N$ =
 independent bets/year. IR $>0.5$ strong, $>1.0$ exceptional.
 \end{underhood}
+\end{frame}
+
+\begin{frame}{Why Economic Metrics Beat Accuracy}
+\begin{itemize}\itemsep3pt
+  \item \textbf{Accuracy ignores magnitude.} A 51\% model that is right on the
+        big moves and wrong on the small ones can dominate a 53\% model that
+        nails noise and misses the few moves that matter.
+  \item \textbf{Accuracy ignores costs.} Directional hit-rate says nothing
+        about the turnover, spread, and impact needed to monetise the signal.
+  \item \textbf{Accuracy ignores risk.} Two strategies with identical returns
+        but different volatility and drawdown are not equivalent capital
+        allocations.
+\end{itemize}
+
+\medskip
+\begin{block}{The reframing}
+Report performance in the language of capital: \emph{returns, risk-adjusted
+returns, and alpha}---not classification scores.
+\end{block}
 \end{frame}
 
 \begin{frame}{Factor Alpha: Is the Edge Just Known Risk?}
@@ -518,13 +535,21 @@ content.
 \begin{underhood}
 \footnotesize
 Reduce reliance on \emph{parametric memory}; anchor to verified external sources.
-\begin{itemize}\itemsep1pt
+\begin{itemize}\itemsep2pt
   \item \textbf{RAG} \citep{lewis2020rag} --- retrieve verified docs into context.
         Effectiveness hinges on retrieval quality; topically-relevant but
         factually tangential context still yields hallucination.
   \item \textbf{Retrieval verification} --- FActScore \citep{min2023factscore}
         decomposes output into atomic facts and checks each against a source
         (EDGAR, Bloomberg, a regulatory DB).
+\end{itemize}
+\end{underhood}
+\end{frame}
+
+\begin{frame}{Grounding Strategies (cont.)}
+\begin{underhood}
+\footnotesize
+\begin{itemize}\itemsep2pt
   \item \textbf{Tool use / function calling} \citep{schick2023toolformer} ---
         fetch live data; model becomes a reasoning engine, not a knowledge store.
   \item \textbf{Self-consistency} \citep{wang2022selfconsistency,

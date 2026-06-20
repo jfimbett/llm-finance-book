@@ -179,6 +179,16 @@ $n_+ = 2$ defaulters, $n_- = 3$ non-defaulters.
 
 \medskip
 \textbf{Part B} --- Compute the KS statistic. Show the cumulative defaulter and non-defaulter fractions at each unique score and identify the maximum difference.
+\end{frame}
+
+% ============================================================
+% FRAME 6b: Problem 3 (cont.)
+% ============================================================
+\begin{frame}
+\frametitle{Problem 3: AUROC, KS, and Gini (cont.)}
+
+Recall the portfolio scores $\{0.82, 0.61, 0.45, 0.30, 0.12\}$ with defaults
+$\{1, 0, 1, 0, 0\}$ ($n_+ = 2$, $n_- = 3$).
 
 \medskip
 \textbf{Part C} --- Compute the Gini coefficient from your AUROC result. Do not re-derive --- use the identity $\text{Gini} = 2 \cdot \text{AUROC} - 1$.
@@ -218,9 +228,9 @@ Describe the three tiers and the decision criteria for routing to each tier.
 % FRAME 8: Case study — code sketch
 % ============================================================
 \begin{frame}[fragile]
-\frametitle{Case Study: Constrained Decoding in Python}
+\frametitle{Case Study: Constrained Decoding in Python (1/2)}
 
-Complete the following code to extract a default probability using constrained decoding:
+Complete the following code to set up a constrained-decoding generator:
 
 \begin{lstlisting}
 import outlines
@@ -235,7 +245,18 @@ generator = outlines.generate.json(
     # TODO: fill in the schema
     ???
 )
+\end{lstlisting}
+\end{frame}
 
+% ============================================================
+% FRAME 8b: Case study — code sketch (cont.)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: Constrained Decoding in Python (2/2)}
+
+Run the generator on a borrower profile and extract the PD:
+
+\begin{lstlisting}
 profile = """Age 34. Employment: full-time, 6 years. Income: $58,000.
 Loan purpose: debt consolidation. Bureau score: 672. Delinquencies 24m: 1.
 Assess default risk:"""
@@ -303,15 +324,23 @@ The model is approved for production with a mandatory Tier 2 review for all bord
 % FRAME 11: Solutions — Problems 2 and 3
 % ============================================================
 \begin{frame}
-\frametitle{Solutions: Problems 2 and 3}
+\frametitle{Solutions: Problem 2}
 
 \textbf{Problem 2A}: The model is \emph{over-confident}: predicted probabilities are consistently higher than observed default rates in every bin (e.g., predicted 0.55 but observed 0.48). A perfectly calibrated model would show predicted = observed.
 
+\medskip
 \textbf{Problem 2B}: $\hat{a} = 0.72 < 1$ implies the model is over-confident: its raw scores are too extreme relative to the true underlying probabilities. Platt scaling shrinks them toward the mean.
 
-\textbf{Problem 2C}: Isotonic regression is more flexible (no parametric form assumed) but requires more calibration data and does not extrapolate outside the observed score range. Prefer Platt scaling for small calibration sets; isotonic regression for large ones.
-
 \medskip
+\textbf{Problem 2C}: Isotonic regression is more flexible (no parametric form assumed) but requires more calibration data and does not extrapolate outside the observed score range. Prefer Platt scaling for small calibration sets; isotonic regression for large ones.
+\end{frame}
+
+% ============================================================
+% FRAME 11b: Solutions — Problem 3
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Problem 3}
+
 \textbf{Problem 3A}: The 6 pairs (defaulter, non-defaulter) and whether defaulter $>$ non-defaulter:
 $(0.82, 0.61)$: $\checkmark$; $(0.82, 0.30)$: $\checkmark$; $(0.82, 0.12)$: $\checkmark$; $(0.45, 0.61)$: $\times$; $(0.45, 0.30)$: $\checkmark$; $(0.45, 0.12)$: $\checkmark$.
 AUROC $= 5/6 \approx 0.833$.
@@ -339,8 +368,14 @@ KS $\approx$ \textbf{0.50}.
   \item \textit{Geographic proxy risk}: add a fairness post-processor that checks for disparate impact by geographic reference class; flag or manually review applications where loan purpose text contains location references. Longer term: retrain with adversarial debiasing on the loan purpose field.
   \item \textit{Prompt sensitivity}: standardise a fixed input template with deterministic field ordering; test all deployed prompts against a sensitivity test suite as part of the CI/CD pipeline; add field-order permutation to the validation battery.
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 12b: Solutions — Case study HITL tiers
+% ============================================================
+\begin{frame}
+\frametitle{Solutions: Case Study --- HITL Tiers}
+
 \textbf{Step 3 — HITL Tiers}:
 \begin{itemize}
   \item \textbf{Tier 1}: PD $<$ decision threshold $- 10\%$; no adverse data flags. Random quality-control sampling only.

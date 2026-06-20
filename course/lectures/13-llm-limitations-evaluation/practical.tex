@@ -233,7 +233,7 @@ ECE, then apply temperature scaling and watch ECE fall while AUROC is unchanged.
 \end{frame}
 
 % ===============================================================
-\begin{frame}[fragile]{Case Study: The Code}
+\begin{frame}[fragile]{Case Study: The Code (1/2) --- ECE}
 \begin{lstlisting}
 import numpy as np
 
@@ -248,7 +248,12 @@ def ece(conf, acc, count):
 
 print("ECE  =", round(ece(conf, acc, count), 3))   # -> 0.115
 print("MCE  =", round(float(np.max(np.abs(conf - acc))), 3))
+\end{lstlisting}
+\end{frame}
 
+% ===============================================================
+\begin{frame}[fragile]{Case Study: The Code (2/2) --- Temperature Scaling}
+\begin{lstlisting}
 # Temperature scaling on raw logits z: p = softmax(z / T).
 # T > 1 spreads the distribution and reduces overconfidence;
 # because it is monotone in z, the ranking (AUROC) is preserved.

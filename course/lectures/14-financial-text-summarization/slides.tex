@@ -352,6 +352,12 @@ transcript--summary pairs, 3--6 abstractive bullets each.
 \end{columns}
 
 \medskip
+\textbf{Common thread:} no single context window fits these documents, so the
+architecture --- not just the prompt --- must handle length. Three strategies
+follow on the next slide.
+\end{frame}
+
+\begin{frame}{Long-Document Strategies}
 \begin{underhood}
 Three strategies for extreme-length documents:
 \begin{itemize}
@@ -381,13 +387,13 @@ underpins database population and consistency checking.
 tagged with a U.S.-GAAP concept (e.g.\ \texttt{us-gaap:Revenues}), a context
 (entity + period), and units --- machine-readable \emph{and} browser-readable.
 
-\medskip
+\smallskip
 \begin{block}{Prefer XBRL whenever available}
 The EDGAR XBRL API returns a figure with full provenance for a (CIK, concept,
 year) query. Accuracy is guaranteed by the filer and its auditors --- \emph{no NLP}.
 \end{block}
 
-\medskip
+\smallskip
 \begin{alertblock}{Coverage gap}
 Non-GAAP measures (adjusted EBITDA, organic growth, book-to-bill) and many
 footnotes are \emph{not} XBRL-tagged. Combine XBRL for core figures with
@@ -410,7 +416,14 @@ headers, embedded footnote refs, non-standard layouts.
 \end{underhood}
 
 \medskip
-\textbf{Four-stage LLM pipeline:}
+\textbf{Why generation beats retrieval:} financial table questions chain several
+operations (subtract prior year, divide, express as \%). A model that emits an
+explicit calculation program externalises that reasoning and routes the arithmetic
+to a deterministic interpreter --- continued next slide.
+\end{frame}
+
+\begin{frame}{LLMs for Table Understanding --- Pipeline}
+\textbf{Four-stage LLM pipeline} for parsing tables when XBRL is unavailable:
 \begin{enumerate}
   \item \textbf{Layout parsing} (LayoutLM / PDF parser) $\to$ cells with row/col coords.
   \item \textbf{Header disambiguation} $\to$ LLM labels each cell with (row-hdr, col-hdr).
@@ -471,6 +484,11 @@ ROUGE-$N$ = $n$-gram recall of candidate $c$ against references $\mathcal{R}$
 \]
 ROUGE-L uses the longest common subsequence instead of exact $n$-grams.
 \end{underhood}
+\end{frame}
+
+\begin{frame}{ROUGE --- Why Lexical Overlap Is Not Enough}
+ROUGE rewards \emph{surface} $n$-gram overlap with the reference. That makes it
+cheap and reproducible, but blind to meaning.
 
 \medskip
 \begin{alertblock}{Limitation: lexical, not semantic}
@@ -478,6 +496,10 @@ ROUGE-L uses the longest common subsequence instead of exact $n$-grams.
 scores \textbf{zero} ROUGE-1 on the substituted words. Conversely, copying
 irrelevant source sentences can score \emph{high} ROUGE without being informative.
 \end{alertblock}
+
+\medskip
+\textbf{Takeaway:} treat ROUGE as a coarse recall proxy, not a quality verdict ---
+it motivates the semantic and factual metrics that follow.
 \end{frame}
 
 \begin{frame}{BERTScore --- Semantic Matching}
@@ -498,6 +520,11 @@ reference token $r_i$:
 Precision/recall/F$_1$ via greedy token matching in both directions. With a
 \emph{financial} encoder (FinBERT), it captures domain-specific similarity better.
 \end{underhood}
+\end{frame}
+
+\begin{frame}{BERTScore --- What Semantic Matching Still Misses}
+BERTScore closes ROUGE's paraphrase gap, but similarity in embedding space is
+still not the same as being \emph{factually correct}.
 
 \medskip
 \begin{alertblock}{Neither ROUGE nor BERTScore measures factual correctness}
@@ -505,6 +532,10 @@ A summary inventing ``revenue grew 15\%'' (true: 13\%) can still score high if t
 surrounding language matches the reference. And outputs can be inconsistent
 \emph{across runs} --- reproducibility itself is a QA concern for production IE.
 \end{alertblock}
+
+\medskip
+\textbf{Takeaway:} similarity metrics rank fluency and coverage, not truth ---
+hence the factual-consistency checks on the next slide.
 \end{frame}
 
 \begin{frame}{Factual Consistency \& Human Evaluation}

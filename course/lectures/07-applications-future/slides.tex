@@ -224,8 +224,14 @@ Minutes from call end to delivered briefing, vs.\ hours of analyst time.
 \medskip
 \textbf{2. Regulatory filing monitor} (event-triggered):
 SEC EDGAR RSS feed $\to$ classify 8-K by type and materiality $\to$ route to appropriate team with summary. Materiality is semantic, not syntactic.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 8b: Workflow examples (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Three Representative Finance Workflows (cont.)}
+
 \textbf{3. Trade surveillance narrative} (orchestrator-worker):
 Rule-based system flags unusual order pattern $\to$ LLM retrieves news + social media + internal communications $\to$ drafts structured narrative $\to$ compliance analyst reviews and decides.
 
@@ -720,7 +726,15 @@ def classify_filing(client, company, description):
                        company=company, description=description)}]
     )
     return json.loads(message.content[0].text)
+\end{lstlisting}
+\end{frame}
 
+% ============================================================
+% APPENDIX FRAME: EDGAR monitor code (continued)
+% ============================================================
+\begin{frame}[fragile,noframenumbering]{Event-Triggered EDGAR Monitor: Code Sketch (cont.)}
+
+\begin{lstlisting}
 def monitor_edgar(poll_interval=300):
     seen_ids = set()
     while True:
@@ -749,8 +763,13 @@ def monitor_edgar(poll_interval=300):
   \item \textbf{Model flexibility}: cloud (Claude, GPT-4) for capability; local (Llama, Mistral) for sensitivity
   \item \textbf{Extensibility through skills}: a Python function with a descriptive docstring becomes a callable tool
 \end{enumerate}
+\end{frame}
 
-\medskip
+% ============================================================
+% APPENDIX FRAME: OpenClaw (continued)
+% ============================================================
+\begin{frame}[noframenumbering]{OpenClaw: Local Personal AI (cont.)}
+
 \textbf{Finance-specific skills:}
 \begin{center}
 \small

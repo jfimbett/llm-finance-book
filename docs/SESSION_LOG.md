@@ -188,3 +188,4 @@
 | 2026-06-20 | 20 files | chore: session log 2026-06-20;chore: session log 2026-06-20;chore: session log 2026-06-20; | — |
 | 2026-06-20 | 12 files | Fix ch01/ch02 single-source-of-truth overlap;chore: session log 2026-06-20;chore: session log 2026-06-20; | — |
 | 2026-06-20 | 8 files | refine(book): add SSOT bridges for SHAP/calibration/GDPR/FinBERT (non_repetition);docs(quality): write GOAL_STATUS.md — structural blockers cleared, repro blocker open;fix(ch09): accurate LM-lexicon example; mark backlog blockers resolved; | — |
+| 2026-06-20 | 28 files | docs(quality): update GOAL_STATUS — reproducibility prose+PII fixes done, B7/A12 done;refine(ch14,ch09): add dual-mode layering (B7) + Tetlock recall (A12);fix(repro): stop citing stub demo.ipynb as 'the complete implementation'; de-PII code; | — |

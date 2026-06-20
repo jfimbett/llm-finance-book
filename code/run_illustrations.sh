@@ -22,6 +22,7 @@ done
 # Deterministic, network-free figure generators (preferred over live-data notebooks).
 echo "Running deterministic figure generators ..."
 python3 code/notebooks/05-business-valuation/gen_dcf_sensitivity.py
+python3 code/notebooks/12-xai-explainability/gen_shap_attribution.py
 
 echo "All illustration figures regenerated."
 echo ""

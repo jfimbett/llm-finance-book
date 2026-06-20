@@ -263,8 +263,9 @@ Consider a fine-tuned BERT model that classifies short business descriptions as
 footfall since the pandemic. Revenue is down 30\% year-on-year.''
 \end{quote}
 The model assigns probability 0.14 to the creditworthy class (baseline: 0.50 from the
-training data balance). Running a KernelSHAP (a LIME-based Shapley approximation using a specific kernel choice; see Definition~\ref{def:lime-objective}) approximation with 500 samples identifies
-the following top attributions:
+training data balance). Running a KernelSHAP approximation with 500 samples---a sampling-based estimator of the
+Shapley values defined above (its connection to LIME is detailed in
+Definition~\ref{def:lime-objective})---identifies the following top attributions:
 
 \begin{center}
 \begin{tabular}{lr}
@@ -282,7 +283,8 @@ Token & SHAP value \\
 \end{tabular}
 \end{center}
 
-The negative tokens account for most of the $0.50 - 0.14 = 0.36$ prediction gap. This
+The negative tokens account for most of the $0.50 - 0.14 = 0.36$ prediction gap
+(\Cref{fig:ch12-shap}). This
 attribution can be translated into a partial ECOA adverse action statement: ``Your
 application was primarily affected by language indicating declining revenue, operational
 struggle, and market difficulties.'' An auditor can verify that the identified tokens
@@ -290,6 +292,19 @@ are conceptually consistent with creditworthiness concerns. The numerical attrib
 values provide evidence that the model is reasoning from economically relevant signals
 rather than from protected-class proxies.
 \end{example}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\textwidth]{chapters/12-xai-explainability/figures/fig_shap_attribution}
+  \caption{Token-level SHAP attributions for the credit-decision classifier of
+           \Cref{ex:shap-credit}. Each bar is a token's contribution to the predicted
+           probability of the ``creditworthy'' class; negative (red) contributions push
+           the prediction down from the $0.50$ baseline toward the model's $0.14$ output,
+           while ``operates'' makes a small positive ($+0.012$) contribution. The figure
+           is generated deterministically by \texttt{gen\_shap\_attribution.py} from the
+           fixed values in the example---it depends on no live model or data.}
+  \label{fig:ch12-shap}
+\end{figure}
 
 One important limitation deserves mention. SHAP values, even when computed exactly,
 measure correlational feature importance within the model's computation---they do not

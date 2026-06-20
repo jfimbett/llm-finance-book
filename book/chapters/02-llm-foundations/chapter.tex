@@ -21,7 +21,7 @@ After completing this chapter, the reader should be able to:
 
 This chapter builds the technical and practical foundations for applying large language
 models in finance.
-It begins where Chapter~1 left off --- individual token embeddings --- and shows how
+It begins where \Cref{ch:intro} left off --- individual token embeddings --- and shows how
 those embeddings are aggregated into document-level representations (Section~\ref{sec:doc-repr}).
 It then traces the evolution of sequence models from vanilla RNNs through LSTMs to the
 Transformer (Sections~\ref{sec:sequential}--\ref{sec:transformer}), establishes the
@@ -157,7 +157,7 @@ frequent in the document and down-weighting common uninformative words.
 \begin{definition}[TF-IDF Weighted Embedding]
 \label{def:tfidf-embedding}
 Let $\text{tfidf}(w_i, d)$ denote the TF-IDF weight of token $w_i$
-in document $d$ (see Section~\ref{sec:classical-tfidf} of Chapter~1).  The
+in document $d$ (see Section~\ref{sec:classical-tfidf} of \Cref{ch:intro}).  The
 \emph{TF-IDF weighted embedding} is
 \begin{equation}
   \boldsymbol{\varphi}_{\mathrm{tfidf}}(d)
@@ -343,7 +343,7 @@ benchmark all three on their specific downstream task.
 
 \begin{deepdive}
 
-The representations developed in Chapter~1 (Section~\ref{sec:embeddings}) and
+The representations developed in \Cref{ch:intro} (Section~\ref{sec:embeddings}) and
 Section~\ref{sec:doc-repr} of this chapter treat documents as \emph{bags} of tokens:
 order is either ignored or captured only crudely through $n$-gram features.
 Financial text, however, is inherently sequential.
@@ -1336,7 +1336,7 @@ implicitly, even without targeted domain training \citep{wei2022emergent}.
 The practical implication is that \emph{task-specific fine-tuning of a general-purpose
 model} often outperforms a domain-pre-trained model of the same size, and
 \emph{prompt engineering} applied to a large general model often outperforms
-both---a theme developed extensively in Chapter~3 (LLM Training and Fine-Tuning).
+both---a theme developed extensively in \Cref{ch:llm-training}.
 \citet{niszczota2023gpt} provide an independent calibration of this point: in a
 standardised financial literacy test, GPT-4 achieves a near-perfect score of 99\%
 against a population of college students, confirming that frontier LLMs have absorbed
@@ -1402,7 +1402,7 @@ retrieval-augmented generation systems discussed in Section~\ref{sec:rag}.
 
 The ECTSum dataset of \citet{mukherjee2022ectsum} provides 2,425 earnings call
 transcript--summary pairs, where the reference summaries were written by domain experts
-and verified for factual consistency.  It is the primary benchmark for Chapter~14
+and verified for factual consistency.  It is the primary benchmark for \Cref{ch:financial-text-summarization}
 (Financial Text Summarisation and Information Extraction) and is used to evaluate
 both extractive and abstractive summarisation methods.
 
@@ -1422,9 +1422,9 @@ single-number evaluation framework for general financial NLP capability.
 
 \begin{remark}
 All five benchmarks described above were constructed primarily from English-language,
-North American financial documents.  Chapter~13 discusses the implications of this
+North American financial documents.  \Cref{ch:llm-limitations-evaluation} discusses the implications of this
 distributional bias for evaluating models intended for European or Asian financial
-markets, and Chapter~12 highlights specific challenges that arise when FLUE-trained
+markets, and \Cref{ch:xai-explainability} highlights specific challenges that arise when FLUE-trained
 models are applied to MiFID~II or IFRS filings.
 \end{remark}
 
@@ -1816,7 +1816,7 @@ GPT-4-turbo extended this to 128,000 tokens; Gemini 1.5 Pro supports 1,000,000
 tokens; Claude 3/4 supports up to 200,000 tokens with plans to expand further.  For
 financial NLP, the context window determines whether an entire 10-K filing (which may
 exceed 100,000 tokens) can be processed in a single call---a question with significant
-implications for retrieval-augmented generation architectures (Chapter~5).
+implications for retrieval-augmented generation architectures (\Cref{ch:business-valuation}).
 
 The three principal sampling hyperparameters are temperature $\tau$, nucleus threshold
 $p$, and top-$k$ cutoff.  Their mathematical definitions and finance-specific selection
@@ -2488,8 +2488,8 @@ obligations under the General Data Protection Regulation \citep{gdpr2016} (GDPR,
 Key issues include: (a) whether training on personal data requires explicit consent;
 (b) the right to erasure and whether a model trained on a data subject's information
 can comply with an erasure request without full retraining; (c) data-transfer
-restrictions if API calls route personal data to non-EU servers.  Chapter~3
-(Fine-Tuning) and Chapter~11 (RegTech and Compliance) discuss technical mitigations
+restrictions if API calls route personal data to non-EU servers.  \Cref{ch:llm-training}
+(Fine-Tuning) and \Cref{ch:regtech-compliance-aml} discuss technical mitigations
 including federated learning, differential privacy, and on-premises deployment.
 
 General-purpose LLMs are trained predominantly on English-language data from North
@@ -2506,7 +2506,7 @@ instruments.  As a consequence:
   \item Regulatory knowledge embedded in LLM weights is heavily biased toward US/EU
     rules; extrapolation to other jurisdictions should be treated with extreme caution.
 \end{itemize}
-Chapter~13 quantifies these biases empirically using cross-lingual evaluation of
+\Cref{ch:llm-limitations-evaluation} quantifies these biases empirically using cross-lingual evaluation of
 FLUE-equivalent tasks in French, German, and Chinese.
 
 The deepest ethical question for financial LLM applications is whether a system that
@@ -2514,7 +2514,7 @@ generates investment recommendations---even as decision-support rather than auto
 execution---triggers fiduciary obligations and, if so, who bears them.  Current legal
 consensus is that the \emph{human adviser} (or firm) deploying the AI retains full
 fiduciary responsibility for its outputs, making thorough testing, documentation, and
-human oversight essential rather than optional.  Chapter~4 (LLM Agents and Finance Applications) returns to this question in the
+human oversight essential rather than optional.  \Cref{ch:llm-agents} returns to this question in the
 context of agentic systems that take actions---executing trades, sending
 communications---rather than merely producing text.
 
@@ -2543,56 +2543,20 @@ tasks (sentiment analysis, information extraction) to frontier applications (mul
 trading systems, regulatory technology), and from single-model pipelines to complex
 multi-agent workflows.
 
-\subsection{Chapter-by-Chapter Overview}
-
-\begin{table}[htbp]
-\centering
-\caption{Overview of book chapters and their relationship to Chapter~2 foundations.}
-\label{tab:roadmap}
-\small
-\begin{tabular}{cll}
-\hline
-\textbf{Ch.} & \textbf{Title} & \textbf{Key Connection to Ch.~2} \\
-\hline
-3  & Sentiment Analysis
-   & FinancialPhraseBank; temperature; FinBERT vs.\ GPT-4o \\
-4  & Information Extraction from Filings
-   & FinQA; grounding and citation to reduce hallucination \\
-5  & Earnings Calls and Transcripts
-   & ECTSum; context-window limits; cost model \\
-6  & Retrieval-Augmented Generation
-   & RAG as hallucination mitigation; context-window architecture \\
-7  & Fine-tuning LLMs on Financial Data
-   & Instruction tuning; RLHF; GDPR considerations \\
-8  & AI Agents in Finance
-   & Reasoning models; agentic loops; fiduciary questions \\
-9  & Multi-Agent Systems and Workflows
-   & Chain-of-thought; multi-agent coordination protocols \\
-10 & Risk and Compliance Applications
-   & EU AI Act; hallucination auditing; on-premises deployment \\
-11 & Portfolio Construction with LLMs
-   & Cost-latency trade-offs; structured output from LLMs \\
-12 & Trading Systems and Execution
-   & Real-time latency; reasoning vs.\ generative model choice \\
-13 & Regulatory Technology
-   & Geographic bias; MiFID~II / IFRS; GDPR in practice \\
-14 & Evaluation and Benchmarking
-   & FLUE; cross-lingual evaluation; bias quantification \\
-15 & Frontiers and Future Directions
-   & Scaling laws; multimodal models; next-generation reasoning \\
-\hline
-\end{tabular}
-\end{table}
-
-Each chapter is self-contained enough to be read independently, but the sequence is
-deliberate.  Chapter~3 deepens the technical toolkit with LLM training and fine-tuning
-strategies.  Chapter~4 extends the single-model paradigm to agentic systems capable of
-multi-step reasoning and autonomous action.  Chapters~5--9 apply these foundations to
-domain-specific tasks: business valuation, credit risk, quantitative trading,
-domain-adapted LLMs, and financial NLP\@.  Chapters~10--13 address RegTech and
-compliance, explainability, and rigorous evaluation of model limitations.
-Chapters~14--15 close with applied techniques in financial text summarisation,
-information extraction, and privacy-preserving local deployment.
+Each subsequent chapter is self-contained enough to be read independently, but the
+sequence is deliberate.  \Cref{ch:llm-training} deepens the technical toolkit with LLM
+training and fine-tuning strategies, and \Cref{ch:llm-agents} extends the single-model
+paradigm to agentic systems capable of multi-step reasoning and autonomous action. The
+remaining chapters apply these foundations to domain-specific finance tasks---among them
+financial sentiment (\Cref{ch:financial-nlp-sentiment}), text summarisation and
+information extraction (\Cref{ch:financial-text-summarization}), business valuation
+(\Cref{ch:business-valuation}), credit risk (\Cref{ch:credit-risk}), and quantitative
+trading (\Cref{ch:portfolio-quant-trading})---and then turn to governance and reliability:
+RegTech and compliance (\Cref{ch:regtech-compliance-aml}), explainability
+(\Cref{ch:xai-explainability}), the evaluation of model limitations
+(\Cref{ch:llm-limitations-evaluation}), and privacy-preserving local deployment
+(\Cref{ch:privacy-local-models}). A consolidated map of techniques to applications appears
+in \Cref{ch:applications-future}.
 
 The thread running through all chapters is the one introduced here: language models
 are powerful but imperfect tools, and the financial practitioner's task is to deploy

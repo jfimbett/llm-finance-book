@@ -1,0 +1,126 @@
+{
+  "file": "book/chapters/01-intro/chapter.tex",
+  "reading_index": 1,
+  "slug": "01-intro",
+  "title": "Introduction",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 1,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 88,
+      "pass": false,
+      "evidence": ["chapter.tex — TF-IDF worked example numbers load-bearing and correct"],
+      "blocking_issues": ["MAJOR · chapter.tex:402 — prose says 10-K word count 'roughly tripled 1993-2023' but the figure's cached data shows ~1.56x; claim under-supported by its figure (OUT OF SCOPE this iteration)"],
+      "recommended_action": "Attribute 'tripled' to the cited word-count series and clarify the figure measures alphabetic characters, or soften to match the data."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 90,
+      "pass": true,
+      "evidence": ["Disciplined context vs deepdive boxes; the demoted §6-§7 previews keep intuition in context/deepdive boxes without proofs"],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 82,
+      "pass": false,
+      "evidence": ["All 3 includegraphics resolve; king-analogy figure matches prose"],
+      "blocking_issues": ["MAJOR · chapter.tex:402 — 'tripled' prose vs ~1.56x figure data", "MINOR · caption — sample year range / size slightly off (OUT OF SCOPE this iteration)"],
+      "recommended_action": "Reconcile the 'tripled' claim with the figure; correct the caption year range / sample size."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 85,
+      "pass": false,
+      "evidence": ["Removing the ch01 proofs smoothed the local difficulty curve, but the in-chapter ordering nits remain"],
+      "blocking_issues": ["MINOR · chapter.tex:1162 — softmax used in skip-gram before it is named (description appears later at ~1580)", "chapter.tex:572 — def:textual-signal references def:corpus-vocab defined ~107 lines later", "cross-entropy used (AR/MLM losses) but never named (OUT OF SCOPE this iteration — T5/T6)"],
+      "recommended_action": "Move/duplicate def:corpus-vocab before def:textual-signal; name softmax and cross-entropy at first use."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 92,
+      "pass": true,
+      "evidence": ["chapter.tex:1476-1488 — RNN section is now context-box intuition with an explicit 'Chapter develops both from first principles' bridge, removing the prior graduate-proof difficulty spike", "Looking-Ahead still maps every thread to ch02 and now matches the preview-only treatment"],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 93,
+      "pass": true,
+      "evidence": ["chapter.tex §6 collapsed to a single unlabeled recurrence display + LSTM-in-one-idea prose; RNN Jacobian, vanishing-gradient theorem/proof and full LSTM gate equations are gone", "chapter.tex §7 shows the attention formula once as an unlabeled preview and forward-references ch02; ch02 is now the single source of truth for RNN/LSTM/attention/√d_k/multi-head"],
+      "blocking_issues": [],
+      "recommended_action": "NONE (SSOT root cause resolved)"
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 92,
+      "pass": true,
+      "evidence": ["Finance-first throughout; the §6-§7 previews retain the earnings-call RNN example and the finance attention motivation"],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 90,
+      "pass": true,
+      "evidence": ["Tetlock WSJ negativity, Loughran-McDonald 10-K lexicon, reproducible EDGAR text-growth figure all central"],
+      "blocking_issues": [],
+      "recommended_action": "Optional: companion-notebook pointer for an LM-vs-Harvard-IV negativity count."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 95,
+      "pass": true,
+      "evidence": ["All cite keys in ch01 resolve uniquely in the live bibliography.bib"],
+      "blocking_issues": [],
+      "recommended_action": "Book-wide: delete the stale .bib files (backlog, not ch01-local)."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 87,
+      "pass": false,
+      "evidence": ["chapter.tex (rem:attention-finance) — the false 'attention-based model with attention weights' attribution of ke2019predicting is REMOVED; the remaining ke2019predicting use describes it correctly", "chapter.tex — a stale '% [CITE:]' comment near didisheim2025memory still names a different title"],
+      "blocking_issues": ["MINOR · stale % [CITE:] comment for didisheim2025memory names a different paper (T3 — not applied this iteration)", "NEEDS_EXTERNAL_VERIFICATION — Hampole 2%/14% and BloombergGPT token totals not locally verifiable"],
+      "recommended_action": "Delete the stale CITE comment; flag the working-paper numerics for external verification."
+    },
+    {
+      "dimension": "completeness",
+      "score": 88,
+      "pass": false,
+      "evidence": ["The RNN/attention previews keep the load-bearing intuition (vanishing-gradient mechanism, √d_k rationale) while deferring depth to ch02"],
+      "blocking_issues": ["MINOR — softmax and cross-entropy still used without a one-clause naming at first use (T6 — not applied this iteration)"],
+      "recommended_action": "Name cross-entropy and softmax at first use (one clause each)."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 91,
+      "pass": true,
+      "evidence": ["The 9 §6-§7 labels that collided with ch02 were removed and def:mlm renamed to def:mlm-intro; two-pass pdflatex confirms none of these are multiply-defined", "ch01 now forward-references ch02's canonical labels (thm:vanish-explode, def:lstm, def:scaled-dot-product-attn, thm:sqrt-dk-scaling, def:mha, sec:transformer); Looking-Ahead cross-ref retargeted to sec:transformer"],
+      "blocking_issues": ["NOTE (pre-existing, out of scope): ch01 still shares 3 duplicate labels with ch02 in protected zones — eq:cosine-sim, tab:api-costs, def:hallucination"],
+      "recommended_action": "Follow-up pass: rename the 3 remaining ch01↔ch02 duplicate labels (protected zones — needs human decision on canonical owner)."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 55,
+      "pass": false,
+      "evidence": ["edgar_text_stats_cache.json protects the EDGAR figure; random.seed(42) set"],
+      "blocking_issues": ["gen_edgar_text_growth.py hard-codes a personal User-Agent + live SEC fetch", "gen_king_analogy.py triggers ~1GB GloVe download", "fig_illustration depends on live yfinance news", "stale executed notebook (OUT OF SCOPE — book-wide backlog)"],
+      "recommended_action": "Backlog: parameterize the User-Agent, vendor a frozen yfinance snapshot, wire gen_*.py into run_illustrations.sh, refresh the stale executed notebook."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 90,
+      "pass": true,
+      "evidence": ["Objectives explicit and mapped to sections; strong scaffolding for the mixed audience"],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    }
+  ],
+  "pass": false,
+  "notes": "Iteration 1 (controlled SSOT-only pass). The single root cause — ch01 §6-§7 re-deriving ch02's RNN/LSTM/attention/√d_k/multi-head/MLM with colliding labels — is resolved: non_repetition 68→93, notation_crossref 60→91, progressive_learning 88→92 now PASS. 9 of 14 dims now pass. Chapter still NOT PASS overall: concept_ordering (85), citation_accuracy (87), completeness (88), correctness (88), code_figure_correctness (82), reproducibility (55) were intentionally out of scope for this iteration. Verified by two-pass pdflatex (exit 0, 620 pages). Remaining duplicate-label collisions with ch02 (eq:cosine-sim, tab:api-costs, def:hallucination) are pre-existing and in protected zones."
+}

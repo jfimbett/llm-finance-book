@@ -129,6 +129,19 @@ the model's stated confidence to triage manual review would misallocate effort
 systematically toward cases where the model is least reliable.
 \end{example}
 
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.62\textwidth]{chapters/13-llm-limitations-evaluation/figures/fig_reliability}
+  \caption{Reliability diagram for the credit-risk classifier of \Cref{ex:ch13-ece-credit}.
+           Bars show empirical accuracy against mean predicted probability per bin; the
+           dashed diagonal is perfect calibration and the red segments are the per-bin gaps
+           that the Expected Calibration Error aggregates (ECE $=0.115$). The model is
+           well calibrated at low confidence but increasingly overconfident in the
+           high-confidence bins. Generated deterministically by
+           \texttt{gen\_reliability\_diagram.py} from the example's fixed bin statistics.}
+  \label{fig:ch13-reliability}
+\end{figure}
+
 \subsection{Overconfidence in LLM Financial Outputs}
 \label{sec:ch13-overconfidence-financial-outputs}
 
@@ -212,7 +225,9 @@ vector $\mathbf{z}$, the calibrated probability is $\operatorname{softmax}(\math
 spreads the softmax distribution (reducing overconfidence) and $T < 1$ sharpens it.
 The temperature $T$ is a single scalar learned on a held-out calibration set by
 minimising the negative log-likelihood. Temperature scaling preserves the ordering of
-predictions, so it does not alter discrimination (AUROC) while improving calibration.
+predictions, so it does not alter \emph{discrimination}---the model's ability to rank
+defaulters above non-defaulters, measured by the area under the ROC curve
+(AUROC)---while improving calibration.
 
 \emph{Isotonic regression} is a non-parametric post-hoc method that fits a
 non-decreasing step function mapping predicted probabilities to empirical frequencies
@@ -478,8 +493,9 @@ contribute genuine value:
 
 A substantial empirical literature has tested whether LLMs can predict the direction
 of stock price movements. The results present a consistent pattern: LLMs achieve
-directional accuracy in the range of 51--65\% on daily or weekly prediction tasks,
-with average performance across studies clustering around 59\% \cite{xu2024stock}.
+directional accuracy modestly above the 50\% chance level on daily or weekly prediction
+tasks, with average performance across studies clustering only a few points above chance
+\cite{xu2024stock}.
 
 \citet{LopezLiraTang2023} provided one of the first systematic evaluations, testing
 ChatGPT on headline sentiment and showing that a sentiment-based trading strategy
@@ -490,14 +506,14 @@ are directed. However, their evaluation period coincided with a period of unusua
 market volatility, and the returns were concentrated in specific news categories.
 
 \citet{VidalSSRN2024} provides an independent empirical benchmark, evaluating four
-leading LLMs on predicting 30-day directional price movements for 250 S\&P~500 firms
-and reporting an average accuracy of only 59.4\%---a result that, while marginally above
-chance in statistical terms, falls well below the threshold required for economically
+leading LLMs on predicting 30-day directional price movements for a sample of S\&P~500
+firms and reporting an average accuracy only marginally above chance---a result that
+falls well below the threshold required for economically
 meaningful trading after transaction costs.
 
-A meta-analysis~\cite{zhao2025frontiers} finds that the 59\%
-average accuracy figure is ubiquitous across different LLMs, different markets, and
-different time periods, but that there is enormous heterogeneity around this mean.
+A meta-analysis~\cite{zhao2025frontiers} finds that this modest-edge result is
+ubiquitous across different LLMs, different markets, and
+different time periods, but that there is enormous heterogeneity around the mean.
 Studies that achieve accuracy above 62\% almost uniformly exhibit one or more of the
 following methodological vulnerabilities:
 \begin{itemize}
@@ -770,7 +786,7 @@ regulatory citation used in a filing or advice document carries serious liabilit
 sheet figures, interest rates, credit ratings, option Greeks, return histories. LLMs
 hallucinate numbers with disturbing frequency. \citet{kang2023hallucination} construct
 a dedicated benchmark of numerical queries (revenue, EPS, EBITDA, credit spreads) from
-public filings and report that, on their benchmark, GPT-4 class models answered incorrectly 15--30\% of the time, with no reliable indicator distinguishing correct from
+public filings and report that, on their benchmark, GPT-4 class models answered a non-trivial fraction of queries incorrectly, with no reliable indicator distinguishing correct from
 incorrect answers in the model's lexical output. The model does not say ``I am not
 sure''; it produces a number with the same fluency whether that number is correct or
 fabricated.
@@ -958,8 +974,8 @@ literature; see \citet{lewellen2010empirical} for the asset-pricing dimension.
 \citet{grossman1980impossibility} provides the theoretical limit on informational
 efficiency. \citet{LopezLiraTang2023} establish the
 benchmark accuracy findings for ChatGPT-based headline trading strategies.
-\citet{VidalSSRN2024} reports a concrete 59.4\% average accuracy across four LLMs
-and 250 S\&P 500 firms, providing an independent empirical baseline. \citet{ChenGreenGulenZhou2024}
+\citet{VidalSSRN2024} reports an average directional accuracy only marginally above chance
+across several LLMs and a sample of S\&P~500 firms, providing an independent empirical baseline. \citet{ChenGreenGulenZhou2024}
 documents the extrapolation bias and over-optimism present in LLM stock forecasts.
 \citet{xu2024stock} surveys the broader accuracy literature, and the meta-analysis in
 \citet{zhao2025frontiers} surveys the broader accuracy landscape across a large set of heterogeneous LLM evaluation studies.

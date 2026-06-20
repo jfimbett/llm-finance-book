@@ -82,7 +82,7 @@ The \textbf{income approach} values a firm by the present value of the economic 
 it will generate for its owners. The canonical implementation is the
 \emph{discounted cash flow} (DCF) model. Let $\mathrm{FCF}_t$ denote the free cash
 flow generated in period $t$, $n$ the explicit forecast horizon, and $\mathrm{WACC}$
-the weighted-average cost of capital (weighted-average cost of capital: $\mathrm{WACC} = w_E r_E + w_D r_D(1-\tau)$, where $w_E, w_D$ are equity and debt weights and $r_E, r_D$ their costs). The enterprise value is
+the weighted-average cost of capital (\Cref{def:wacc}). The enterprise value is
 
 \begin{equation}
 \label{eq:dcf}
@@ -103,6 +103,30 @@ Equation~\eqref{eq:terminal-value} is sensitive to both $\mathrm{WACC}$ and $g$:
 100-basis-point change in either parameter typically alters the terminal value by
 20--40\% for a firm with moderate growth, which is why scenario analysis, discussed
 in Section~\ref{sec:bv-scenarios}, is indispensable.
+
+The discount rate $\mathrm{WACC}$ is itself a model output, not a market observable; the
+cost of equity $r_E$ is the single most consequential input. The standard estimator is
+the Capital Asset Pricing Model (CAPM).
+
+\begin{definition}[Weighted-Average Cost of Capital and CAPM]
+\label{def:wacc}
+Let a firm be financed by equity and debt with market values $E$ and $D$, and let
+$w_E = E/(E+D)$ and $w_D = D/(E+D)$ be the corresponding weights. The
+\emph{weighted-average cost of capital} is
+\begin{equation}
+\label{eq:wacc}
+\mathrm{WACC} = w_E\, r_E + w_D\, r_D (1-\tau),
+\end{equation}
+where $r_E$ is the cost of equity, $r_D$ the pre-tax cost of debt, and $\tau$ the
+marginal tax rate (the factor $1-\tau$ reflects the tax deductibility of interest).
+The cost of equity is estimated by the \emph{Capital Asset Pricing Model}:
+\begin{equation}
+\label{eq:capm}
+r_E = r_f + \beta\,\bigl(\mathbb{E}[r_m] - r_f\bigr) = r_f + \beta\,\mathrm{ERP},
+\end{equation}
+where $r_f$ is the risk-free rate, $\beta$ the equity's sensitivity to the market
+return $r_m$, and $\mathrm{ERP} = \mathbb{E}[r_m]-r_f$ the equity risk premium.
+\end{definition}
 
 The \textbf{market approach} values a firm by reference to the prices at which comparable
 businesses have been bought and sold. The most common implementation uses \emph{trading
@@ -642,7 +666,7 @@ degrades rapidly with problem complexity. Empirical studies find that GPT-4 achi
 near-perfect accuracy on single-digit multiplication and simple percentage calculations
 but makes errors with non-trivial frequency on multi-step financial calculations
 involving chained operations, unit conversions, and percentage changes over long
-formulas \cite{frieder2023large}.
+formulas \cite{frieder2023mathematical}.
 
 For business valuation this is a serious limitation. A five-year DCF model involves
 approximately fifteen to twenty distinct arithmetic operations, each conditional on
@@ -675,9 +699,9 @@ essential in any regulated or high-stakes financial context.
 \subsection{ReAct and Tool-Use Patterns in Valuation Workflows}
 \label{subsec:bv-tools-react}
 
-\citet{yao2022react} proposed the ReAct (Reason + Act) framework, which interleaves
-chain-of-thought reasoning with tool invocations in a structured loop. Each iteration
-consists of three phases:
+The ReAct (Reason + Act) framework of \citet{yao2022react}, introduced in
+\Cref{ch:llm-agents}, interleaves chain-of-thought reasoning with tool invocations in a
+structured loop. Recall that each iteration consists of three phases:
 
 \begin{enumerate}
   \item \textbf{Thought}: The agent articulates its current understanding and decides
@@ -931,11 +955,11 @@ retrieval.
 
 \textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
 
-Empirical studies using MD\&A embeddings find that cosine-similarity-based peers
-outperform SIC-code-based peers on several metrics: the comparable set has lower
-inter-quartile range of EV/EBITDA multiples (indicating more internally consistent
-peers), and valuations derived from embedding-based comparables exhibit lower
-absolute deviation from subsequent transaction prices \cite{shen2023nlp}.
+The rationale for MD\&A embeddings is that firms with similar described business models
+should trade on similar multiples. Where this is measured, cosine-similarity-based peer
+sets tend to show a tighter inter-quartile range of EV/EBITDA multiples than
+SIC-code-based sets---an indicator of more internally consistent comparables---which in
+turn narrows the valuation range implied by the comparables method.
 
 \subsection{Hybrid Methods: LLM-Filtered and Embedding-Ranked Comparables}
 \label{subsec:bv-comparables-hybrid}
@@ -1081,6 +1105,31 @@ draws with $\sigma_\mathrm{WACC} = 1.5\%$ and $\sigma_g = 1\%$) produces an EV
 distribution with a mean of \$17.2B and a 10th--90th percentile range of
 \$12.5B--\$24.1B, providing quantified uncertainty alongside the point estimate.
 \end{context}
+
+\begin{remark}[Companion exercise: a reproducible AAPL valuation]
+\label{rem:valuation-companion}
+The case study above uses a synthetic SaaS firm so that every input is inspectable.
+A complete, agent-orchestrated valuation of a \emph{real} company---Apple Inc.\ as of
+its FY2024 close (28~September 2024)---is provided as a companion exercise under
+\texttt{exercises/valuation\_example/}. There, a team of sub-agents fetches the FY2024
+10-K from SEC EDGAR, estimates the cost of equity by CAPM (\Cref{eq:capm}) from
+$r_f = 3.78\%$, $\beta = 1.24$, and an equity risk premium of $4.23\%$, giving
+$r_E \approx 9.0\%$, and combines it with an after-tax cost of debt of $2.2\%$ at the
+firm's market capital-structure weights to obtain $\mathrm{WACC} \approx 8.84\%$
+(\Cref{eq:wacc}). A two-stage DCF then yields an intrinsic value of about
+\$225/share, and an EV/EBITDA comparables cross-check about \$217/share; the
+$50/50$ triangulation of \$221.04/share lies within $2.6\%$ of the \$226.84 market
+price---inside the exercise's $\pm 10\%$ acceptance tolerance. (The exercise computes
+free cash flow from the primary EDGAR filing, \$108.8B, which differs from the \$98.8B
+returned by the \texttt{yfinance} convenience API used for the sensitivity heatmap of
+\Cref{fig:ch05-illustration}; such gaps between data vendors are routine and are one
+reason to source valuation inputs from primary filings.)
+
+\textbf{Exercise.} Re-derive $r_E$ and $\mathrm{WACC}$ from the inputs in
+\texttt{data/wacc.json}, re-run the two-stage DCF, and reproduce the error of the
+triangulated estimate against the \$226.84 reference; then test how the conclusion
+changes if the equity risk premium is moved by $\pm 50$~basis points.
+\end{remark}
 
 % --- Section: Efficiency and Accuracy in LLM-Assisted Valuation ---
 

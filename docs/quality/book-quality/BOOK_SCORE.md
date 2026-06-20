@@ -10,9 +10,9 @@
 
 - **Structural/citation/notation blockers are cleared and verified by a clean compile**
   (621 pp; 0 duplicate labels, 0 undefined refs, 0 undefined cites, 0 biber-missing).
-- **10 / 16 chapters now fully pass** (all 14 dimensions ≥90), each independently re-audited:
-  **ch02, ch03, ch04, ch05, ch09, ch12, ch13, ch14, ch15, ch16.**
-  Remaining: ch01, ch06, ch07, ch08, ch10, ch11.
+- **12 / 16 chapters now fully pass** (all 14 dimensions ≥90), each independently re-audited:
+  **ch02, ch03, ch04, ch05, ch08, ch09, ch11, ch12, ch13, ch14, ch15, ch16.**
+  Remaining: ch01, ch06, ch07, ch10.
 - **Replicable passing recipe (proven on 7 chapters):**
   1. Replace/author the chapter figure with a **committed, deterministic, network-free
      generator** (`gen_*.py`, matplotlib `Agg`) + a real runnable `demo.ipynb` →

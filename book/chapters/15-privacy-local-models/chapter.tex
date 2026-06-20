@@ -54,6 +54,10 @@ A language model $\mathcal{M}$ \emph{memorises} a string $s$ if there exists a p
 \subsection{Regulatory Landscape: GDPR, CCPA, MiFID II, and DORA}
 \label{sec:ch15-regulation}
 
+The GDPR data-subject rights (Articles~5, 17, 22) and MiFID~II record-keeping
+obligations are developed in the RegTech chapter (\Cref{ch:regtech-compliance-aml}); this
+section summarises the provisions that bear specifically on \emph{where} a model runs and
+how local deployment changes the compliance calculus.
 Four regulatory frameworks are directly relevant to LLM deployments in finance. They apply at different scopes — geographic, sectoral, and functional — and must often be satisfied simultaneously.
 
 The EU General Data Protection Regulation (GDPR, Regulation 2016/679) is the broadest in reach~\citep{gdpr2016}. It applies to the processing of personal data of individuals in the European Economic Area, regardless of where the processor is located. Personal data is defined expansively: any information that relates to an identified or identifiable natural person. Financial data about retail clients — account balances, transaction histories, credit scores — almost invariably meets this threshold. GDPR imposes obligations on organisations that \emph{control} personal data (determine the purpose and means of processing) and on organisations that \emph{process} it on their behalf. When a bank uses a cloud LLM provider, the bank is typically the controller and the provider is a processor, requiring a Data Processing Agreement that binds the provider to GDPR-compliant practices.

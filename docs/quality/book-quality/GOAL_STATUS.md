@@ -90,18 +90,29 @@ bce0cf0 ch09 LM example; mark backlog blockers resolved
 
 ## 4. Remaining failures (tractable, no human input needed)
 
-Per-chapter `non_repetition` trims still recommended (each lifts one chapter without
-touching reproducibility):
+Per-chapter `non_repetition` / `progressive_learning` items:
 
-- **A7** calibration re-derived ch13 → `\Cref{def:calibration}` (ch06 SSOT).
-- **A8** SHAP fully re-derived ch12 → `\Cref` to ch06; add forward-ref from ch06.
-- **A10** GDPR Arts 5/17/22 + MiFID II developed twice (ch11 & ch15) → ch15 `\Cref` ch11.
-- **A11** FinBERT/PhraseBank re-narrated ch09 → trim to the sentiment delta (ch08 SSOT).
-- **A12** Tetlock + Loughran–McDonald founding results re-narrated ch09/ch16 → `\Cref` ch01.
-- **B7** ch14 has no context/deepdive layering → add concept_separation boxes.
+- **A7** ch13 calibration — **DONE (bridge)**: added a forward/back bridge to
+  `\Cref{ch:credit-risk}`. The full derivation is *kept* because ch13 is the evaluation
+  chapter where calibration/ECE is a learning objective (the audit's earliest-appearance
+  SSOT conflicts with topical ownership here).
+- **A8** ch12 SHAP — **DONE (bridge)**: explicit "applied in `\Cref{ch:credit-risk}`;
+  developed in full here" bridge. Kept in ch12 (the explainability chapter is SHAP's
+  topical home).
+- **A10** ch15 GDPR/MiFID — **DONE (bridge)**: defers Arts 5/17/22 + MiFID II to
+  `\Cref{ch:regtech-compliance-aml}`, keeps only the local-deployment-specific framing.
+- **A11** ch09 FinBERT — **DONE (bridge)**: defers the model to
+  `\Cref{ch:domain-specific-llms}`, keeps the sentiment use.
+- **A12** Tetlock/LM founding results re-narrated ch09/ch16 — **OPEN (low priority)**: the
+  citations are used in topically-appropriate ways; a light `\Cref{ch:intro}` recall would
+  suffice but is marginal.
+- **B7** ch14 has no context/deepdive layering → add concept_separation boxes (OPEN).
 
-These were left for a focused follow-up to keep each edit small and individually
-verifiable; none is a blocker.
+> **Structural note for the author:** for SHAP (A8) and calibration (A7), the SSOT
+> direction is a genuine judgement call — the *earliest* full derivation is ch06
+> (credit-risk), but the *topical* home is ch12 (explainability) / ch13 (evaluation).
+> This pass kept the derivations in the topical chapters and added bridges rather than
+> gutting them; revisit if a different SSOT is preferred.
 
 ---
 

@@ -181,7 +181,9 @@ Transformer-based classifiers overcame the principal limitations of lexicons by 
 
 \subsubsection*{FinBERT}
 
-\citet{araci2019finbert} was among the first to demonstrate that further pre-training BERT on a financial corpus improves sentiment classification accuracy. The model was further developed by \citet{huang2023finbert}, who pre-trained on a corpus of financial news and SEC filings before fine-tuning on three labelled datasets (the Financial PhraseBank, analyst report excerpts, and earnings call sentences) to produce a model that substantially outperforms both GI lexicon, LM lexicon, and generic BERT across all three tasks.
+FinBERT and the family of domain-adapted financial encoders are treated as
+domain-specific models in \Cref{ch:domain-specific-llms}; here we consider only their
+use as sentiment classifiers. \citet{araci2019finbert} was among the first to demonstrate that further pre-training BERT on a financial corpus improves sentiment classification accuracy. The model was further developed by \citet{huang2023finbert}, who pre-trained on a corpus of financial news and SEC filings before fine-tuning on three labelled datasets (the Financial PhraseBank, analyst report excerpts, and earnings call sentences) to produce a model that substantially outperforms both GI lexicon, LM lexicon, and generic BERT across all three tasks.
 
 The FinBERT fine-tuning objective is standard: for a three-class problem (positive/neutral/negative), the model minimises cross-entropy loss over labelled examples. Given a document $d$ represented by its \texttt{[CLS]} embedding $\mathbf{h} \in \mathbb{R}^d$, the classifier computes:
 

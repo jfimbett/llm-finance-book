@@ -28,7 +28,7 @@
 \medskip
 \begin{enumerate}
   \item \textbf{Recap} (5 min) --- FCFF formula, DCF equation, error propagation, RAGAS metrics
-  \item \textbf{Problem 1} (15 min) --- Compute FCFF and DCF enterprise value from raw financials
+  \item \textbf{Problem 1} (15 min) --- Audit an LLM's 10-K extraction; propagate the error to the DCF
   \item \textbf{Problem 2} (10 min) --- Design a CoT forecasting prompt for a given company
   \item \textbf{Case Study} (20 min) --- Run a Monte Carlo DCF; evaluate sensitivity to WACC and $g$;
         answer three diagnostic questions
@@ -38,8 +38,9 @@
 
 \medskip
 \begin{block}{What you will practise}
-  Translating raw financial statement data into FCFF; structuring CoT forecasting prompts;
-  parameterising and interpreting a Monte Carlo DCF; reasoning about error propagation.
+  Auditing LLM-extracted financial data and propagating extraction error; structuring CoT
+  forecasting prompts; parameterising and interpreting a Monte Carlo DCF; reasoning about
+  how model error---not the formula---drives valuation uncertainty.
 \end{block}
 \end{frame}
 
@@ -108,9 +109,12 @@ Always compare against random-walk baseline and analyst consensus.
 % FRAME 5: Problem 1 --- FCFF computation
 % ============================================================
 \begin{frame}
-\frametitle{Problem 1: Compute FCFF and Enterprise Value (15 min)}
+\frametitle{Problem 1: Audit an LLM's 10-K Extraction (15 min)}
 
-A mid-cap industrial company reports the following for fiscal year 2023 (USD millions):
+You pointed an extraction LLM at a mid-cap industrial's FY2023 10-K. It returned the
+following JSON (USD millions). \textbf{One field is mis-extracted} --- a classic LLM
+failure: it copied CapEx from the cash-flow statement \emph{without} the parenthesis
+that marks it as an outflow, and also flattened a footnote.
 
 \begin{center}
 \begin{tabular}{lr}
@@ -129,7 +133,7 @@ Net New Borrowing & +40 \\
 \end{tabular}
 \end{center}
 
-\textbf{Tasks on the next slide.}
+\textbf{The point is the extraction, not the arithmetic --- tasks on the next slide.}
 \end{frame}
 
 % ============================================================
@@ -138,16 +142,23 @@ Net New Borrowing & +40 \\
 \begin{frame}
 \frametitle{Problem 1: Tasks (cont.)}
 
-Using the FY2023 figures on the previous slide:
+The extraction LLM's figures are on the previous slide.
 
 \medskip
 \textbf{Your tasks:}
 \begin{enumerate}
-  \item Compute FCFF using the effective tax rate (infer from income tax / EBT).
-  \item Compute FCFE.
-  \item Verify the FCFF-FCFE relationship.
-  \item Using WACC = 10\%, 5-year explicit FCF growth = 6\%, terminal growth = 2.5\%,
-        compute the DCF enterprise value. Assume the computed FCFF is the Year 0 base.
+  \item \textbf{Audit the extraction.} Which textual features of a 10-K make a line
+        item like CapEx, parenthesised negatives, or footnoted figures error-prone for
+        an LLM? Name the verification check (e.g.\ a sign/units cross-check against the
+        cash-flow statement) you would add to catch it automatically.
+  \item Using the (audited) figures, compute FCFF with the effective tax rate
+        (infer from income tax / EBT); this $\text{FCFF}_0$ feeds the case study.
+  \item \textbf{Propagate the error.} Recompute the DCF enterprise value
+        (WACC $=10\%$, 5-yr growth $=6\%$, terminal growth $=2.5\%$) \emph{with} the
+        mis-extracted CapEx vs.\ the corrected value. How large a valuation error does a
+        single bad extraction cause?
+  \item State a rule: at what extraction-confidence level would you block an automated
+        valuation from reaching a portfolio manager without human review?
 \end{enumerate}
 \end{frame}
 
@@ -356,30 +367,27 @@ What HITL checkpoint(s) would you add, and at what threshold?
 % FRAME 12: Solution --- Problem 1
 % ============================================================
 \begin{frame}
-\frametitle{Solutions: Problem 1 --- FCFF and DCF}
+\frametitle{Solutions: Problem 1 --- Extraction Audit and Error Propagation}
 
-\textbf{Effective tax rate:} $\tau = 85 / 368 = 23.1\%$
-
-\medskip
-\textbf{FCFF:}
-\begin{align*}
-  \Delta\text{NWC} &= 380 - 315 = 65\text{ M} \\
-  \text{FCFF} &= 428(1-0.231) + 195 - 240 - 65 \\
-              &= 329.3 + 195 - 240 - 65 = \mathbf{219.3\text{ M}}
-\end{align*}
-
-\textbf{FCFE:}
-\begin{align*}
-  \text{NI} &= (428 - 60)(1-0.231) = 368 \times 0.769 = 283.0\text{ M} \\
-  \text{FCFE} &= 283.0 + 195 - 240 - 65 + 40 = \mathbf{213.0\text{ M}}
-\end{align*}
-
-\textbf{Verify:} $\text{FCFF} - \text{InterestExp}(1-\tau) + \text{NB}
-= 219.3 - 60(0.769) + 40 = 219.3 - 46.1 + 40 = 213.2$ M $\approx$ 213.0 M \checkmark
+\textbf{1. The audit.} CapEx, parenthesised negatives, and footnoted figures are the
+classic LLM extraction traps: the model drops the sign/parenthesis or flattens a note.
+Fix: a verification sub-agent that cross-checks each extracted figure's \emph{sign and
+units} against the cash-flow statement and flags disagreements.
 
 \medskip
-\textbf{DCF:} Using python\_executor with \texttt{fcff0 = 219.3}, WACC = 10\%, $g_{\text{exp}}$ = 6\%,
-$g_{\text{term}}$ = 2.5\%, $n = 5$: \textbf{EV $\approx$ 3{,}672 M}.
+\textbf{2. FCFF (corrected, CapEx as outflow).} $\tau = 85/368 = 23.1\%$;
+$\Delta\text{NWC}=65$:
+\[ \text{FCFF} = 428(0.769) + 195 - 240 - 65 = \mathbf{219.3\text{ M}}\ (=\text{FCFF}_0). \]
+
+\medskip
+\textbf{3. Propagated error.} If the LLM treats CapEx as $+240$ (sign dropped),
+$\text{FCFF}\to 699.3$ M --- a $\mathbf{3.2\times}$ overstatement that flows straight
+into the DCF (corrected EV $\approx 3{,}672$ M vs.\ a grossly inflated figure). A single
+mis-extracted field, not the discounting, breaks the valuation.
+
+\medskip
+\textbf{4. Rule.} Block any automated valuation whose extraction confidence is below your
+threshold (or whose sign-check fails) from reaching a PM without human review.
 \end{frame}
 
 % ============================================================
@@ -447,11 +455,14 @@ agent should flag this as a tension requiring clarification.
 
 \begin{frame}[noframenumbering]{Stretch Problem: Decompose the EV Variance}
 
-For students who finish early, extend the Monte Carlo case study.
+For students who finish early, extend the Monte Carlo case study. Recall the LLM
+forecasts the \emph{explicit growth path} (Problem 2's CoT step), so its forecast error
+is the uncertainty that the model itself injects.
 
 \medskip
 \textbf{Goal:} quantify how much of the variance in enterprise value is driven by
-each uncertain input (WACC, explicit growth, terminal growth).
+each uncertain input (WACC, LLM-forecast explicit growth, terminal growth), and hence
+how much the \emph{LLM's} forecast error contributes to valuation uncertainty.
 
 \medskip
 \textbf{Tasks:}

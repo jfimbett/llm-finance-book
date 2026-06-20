@@ -19,7 +19,7 @@
 \textbf{Agenda:}
 \begin{enumerate}
   \item \textbf{Recap} (5 min): mean-variance, BL posterior, OOS Sharpe, turnover cost.
-  \item \textbf{Problem 1} (12 min): two-asset frontier --- minimum-variance \& tangency weights.
+  \item \textbf{Problem 1} (12 min): how much to trust an LLM's return estimates --- min-variance vs.\ tangency, and signal-error sensitivity.
   \item \textbf{Problem 2} (12 min): map an LLM sentiment score to a Black--Litterman view.
   \item \textbf{Problem 3} (10 min): does a daily signal survive transaction costs?
   \item \textbf{Case study} (15 min): walk-forward backtest of a sentiment factor in Python
@@ -63,24 +63,27 @@ tangency $\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$
 \end{frame}
 
 % ============================================================
-\begin{frame}{Problem 1: Two-Asset Frontier --- Setup}
-\textbf{Two assets} (monthly excess returns), annualise where noted:
+\begin{frame}{Problem 1: How Much Should You Trust the LLM's Returns?}
+An LLM sentiment model reads each firm's news flow and outputs \textbf{estimated} monthly
+excess returns $\boldsymbol{\mu}$ for two assets; the covariance $\boldsymbol{\Sigma}$ is
+from price history:
 \[
-\boldsymbol{\mu}=\begin{pmatrix}0.8\%\\0.4\%\end{pmatrix},\qquad
+\boldsymbol{\mu}_{\text{LLM}}=\begin{pmatrix}0.8\%\\0.4\%\end{pmatrix},\qquad
 \boldsymbol{\Sigma}=\begin{pmatrix}0.0036 & 0.0009\\ 0.0009 & 0.0016\end{pmatrix}.
 \]
-So $\sigma_1=6\%$, $\sigma_2=4\%$, correlation $\rho=\dfrac{0.0009}{0.06\cdot0.04}=0.375$.
+($\sigma_1=6\%$, $\sigma_2=4\%$, $\rho=0.375$.)
 
 \medskip
 \textbf{Tasks:}
 \begin{itemize}
-  \item[\textbf{A.}] Minimum-variance weights for a long-only fully-invested portfolio,
-        $\mathbf{w}=(w,1-w)$. Use
-        $w^\star=\dfrac{\sigma_2^2-\sigma_{12}}{\sigma_1^2+\sigma_2^2-2\sigma_{12}}$.
-  \item[\textbf{B.}] The (unconstrained) tangency direction
-        $\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$, then normalise to sum 1.
-  \item[\textbf{C.}] Compare to $1/N=(0.5,0.5)$. Which is closest to tangency? Comment in light
-        of DeMiguel et al.\ (2009).
+  \item[\textbf{A.}] The minimum-variance portfolio \emph{ignores} $\boldsymbol{\mu}$ ---
+        the ``trust the LLM nothing'' baseline: $w^\star=\dfrac{\sigma_2^2-\sigma_{12}}{\sigma_1^2+\sigma_2^2-2\sigma_{12}}$.
+  \item[\textbf{B.}] The tangency portfolio \emph{fully trusts} the LLM:
+        $\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_{\text{LLM}}$, normalised.
+  \item[\textbf{C.}] \textbf{Signal reliability.} Suppose the LLM over-states asset~1 by 50\%
+        ($\mu_1:0.8\%\to0.4\%$). Recompute the tangency weights. How far do they move? What does
+        this say about sizing positions on a noisy LLM signal vs.\ shrinking toward $1/N$
+        (DeMiguel et al., 2009)?
 \end{itemize}
 \end{frame}
 
@@ -226,25 +229,23 @@ auditability, and whether the LLM is acting as an extractor or (wrongly) as an o
 \end{frame}
 
 % ============================================================
-\begin{frame}{Solution: Problem 1 --- Two-Asset Frontier}
-\textbf{A. Minimum-variance} ($\sigma_1^2=0.0036$, $\sigma_2^2=0.0016$, $\sigma_{12}=0.0009$):
-\[
-w^\star=\frac{0.0016-0.0009}{0.0036+0.0016-2(0.0009)}=\frac{0.0007}{0.0034}\approx 0.206
-\;\Rightarrow\; \mathbf{w}_{\min}\approx(0.21,\,0.79).
-\]
+\begin{frame}{Solution: Problem 1 --- Trusting the LLM's Returns}
+\textbf{A. Minimum-variance} (ignores $\boldsymbol{\mu}$):
+$w^\star=\dfrac{0.0016-0.0009}{0.0034}\approx 0.21\Rightarrow \mathbf{w}_{\min}\approx(0.21,\,0.79).$
 
-\textbf{B. Tangency direction} $\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$
-($\det=4.95\times10^{-6}$):
-\[
-\begin{pmatrix}0.0016 & -0.0009\\ -0.0009 & 0.0036\end{pmatrix}
-\begin{pmatrix}0.008\\0.004\end{pmatrix}
-=\begin{pmatrix}9.2\\6.7\end{pmatrix}\!\times\!10^{-6}
-\;\Rightarrow\; \mathbf{w}^{\text{SR}}\approx(0.58,\,0.42).
-\]
+\medskip
+\textbf{B. Tangency} (fully trusts $\boldsymbol{\mu}_{\text{LLM}}$),
+$\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(9.2,\,6.7)\!\times\!10^{-6}
+\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.58,\,0.42).$
 
-\textbf{C.} $1/N=(0.5,0.5)$ sits very close to tangency $(0.58,0.42)$ --- and far cheaper
-to estimate. With noisy $\boldsymbol{\mu}$, the small optimization gain is easily swamped
-by estimation error (DeMiguel et al., 2009).
+\medskip
+\textbf{C. Signal reliability.} With $\mu_1$ corrected to $0.4\%$,
+$\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(2.8,\,10.8)\!\times\!10^{-6}
+\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.21,\,0.79)$ --- it collapses all the way to the
+min-variance baseline. A \emph{single} 50\% error in the LLM's expected return swings the
+allocation by $\sim$37 points. The takeaway: position sizing is brutally sensitive to LLM
+signal noise, which is exactly why you shrink toward $1/N$ / use Black--Litterman rather than
+plug raw LLM $\boldsymbol{\mu}$ into mean--variance (DeMiguel et al., 2009).
 \end{frame}
 
 % ============================================================
@@ -341,20 +342,22 @@ $\text{VaR}_{0.05}=-3.0\%$ and an expected shortfall (CVaR) of $-4.5\%$ in the w
 \end{itemize}
 \end{frame}
 
-\begin{frame}[noframenumbering]{Appendix: Stretch Problem B --- Minimum Track Record}
-Using the minimum track record length
+\begin{frame}[noframenumbering]{Appendix: Stretch Problem B --- Can You Trust the LLM Strategy's Track Record?}
+Your LLM news-sentiment strategy reports a daily $\text{SR}^*=0.08$. Before allocating, ask
+how long a record is needed to believe it. The minimum track record length:
 \[
 T^*=1+\Bigl(1-\gamma_1\text{SR}^*+\tfrac{\gamma_2-1}{4}(\text{SR}^*)^2\Bigr)\frac{Z_{1-\alpha}^2}{(\text{SR}^*)^2},
 \]
-with a \emph{per-observation} (daily) $\text{SR}^*=0.08$, skewness $\gamma_1=-0.5$,
-kurtosis $\gamma_2=6$, and $Z_{0.95}=1.645$:
+with skewness $\gamma_1=-0.5$, kurtosis $\gamma_2=6$, $Z_{0.95}=1.645$:
 
 \begin{itemize}
   \item[\textbf{A.}] Compute $T^*$ in trading days, then in years ($\approx252$/yr).
   \item[\textbf{B.}] Repeat for a symmetric, normal benchmark ($\gamma_1=0,\gamma_2=3$).
         How much does the fat left tail inflate the required record?
-  \item[\textbf{C.}] What does a multi-year $T^*$ imply for a strategy backed by only
-        18 months of OOS data?
+  \item[\textbf{C.}] The LLM strategy has only 18 months of genuine out-of-sample data
+        (the model was pre-trained on text overlapping earlier periods). Given your $T^*$,
+        is that enough to deploy capital? Connect to the temporal-leakage concern for
+        text-trained signals.
 \end{itemize}
 \end{frame}
 

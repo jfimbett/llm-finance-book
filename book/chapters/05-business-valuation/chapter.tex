@@ -1127,10 +1127,20 @@ returned by the \texttt{yfinance} convenience API used for the sensitivity heatm
 \Cref{fig:ch05-illustration}; such gaps between data vendors are routine and are one
 reason to source valuation inputs from primary filings.)
 
-\textbf{Exercise.} Re-derive $r_E$ and $\mathrm{WACC}$ from the inputs in
-\texttt{data/wacc.json}, re-run the two-stage DCF, and reproduce the error of the
-triangulated estimate against the \$226.84 reference; then test how the conclusion
-changes if the equity risk premium is moved by $\pm 50$~basis points.
+\textbf{Exercise.} Treat the sub-agent pipeline as the object of study, not the
+valuation arithmetic (which you already know). \emph{(a)}~Inspect the agent's
+extraction trace and identify the single free-cash-flow line item whose value an
+LLM is most likely to misread from the primary 10-K---recall the \$108.8B vs.\
+\$98.8B gap above---and explain the textual feature (sign convention, units,
+parenthesised negatives, or footnote scope) that causes the error. \emph{(b)}~Inject
+that plausible extraction error into \texttt{data/wacc.json}, re-run the agent's
+two-stage DCF, and report how far the triangulated estimate moves from the \$226.84
+reference: does a single mis-extracted field push it outside the $\pm 10\%$ acceptance
+tolerance? \emph{(c)}~Add a verification sub-agent that cross-checks each extracted
+figure against a second source and flags disagreements beyond a set threshold; state
+the threshold you would use and why. The point is to quantify how LLM \emph{extraction}
+reliability---not the discounting formula---governs the trustworthiness of an
+automated valuation.
 \end{remark}
 
 % --- Section: Efficiency and Accuracy in LLM-Assisted Valuation ---

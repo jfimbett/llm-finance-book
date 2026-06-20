@@ -28,14 +28,23 @@
 \setbeamertemplate{caption}[numbered]
 \setbeamercovered{transparent}
 
+% --- Fonts: match the book (Palatino / Pazo Math) ---------------------
+% The book uses mathpazo (Palatino text + Pazo maths). We mirror that here
+% so the slides read like the book rather than Beamer's default sans.
+\usepackage[T1]{fontenc}
+\usepackage{mathpazo}
+\usefonttheme{professionalfonts}   % keep our maths font; no Beamer substitution
+\usefonttheme{serif}               % use Palatino (roman) for all slide text
+\linespread{1.04}
+\usepackage{microtype}
+% Frame/section titles: bold Palatino (book-like headings).
+\setbeamerfont{frametitle}{family=\rmfamily, series=\bfseries}
+\setbeamerfont{title}{family=\rmfamily, series=\bfseries}
+\setbeamerfont{block title}{family=\rmfamily, series=\bfseries}
+
 % --- Density controls: keep dense, equation-heavy frames on one slide ---
-% Slightly smaller body text + tighter lists/blocks. Frame titles and the
-% Madrid chrome keep their normal size, so the deck still reads as Madrid,
-% just with more vertical room for content.
-\setbeamerfont{normal text}{size=\small}
-\setbeamertemplate{itemize/enumerate body begin}{\small}
-\setbeamertemplate{itemize/enumerate subbody begin}{\footnotesize}
-% Tighter block spacing.
+% The base size is set to 9pt per deck (\documentclass[9pt]{beamer}); here we
+% only tighten block spacing. Smaller, book-like text leaves room for content.
 \setbeamertemplate{block begin}{%
   \par\vskip2pt%
   \begin{beamercolorbox}[colsep*=.75ex,leftskip=1ex,rightskip=1ex]{block title}%

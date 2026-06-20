@@ -20,7 +20,7 @@
 | # | Sev | Issue | Dimensions lifted | Owner | Status |
 |---|-----|-------|-------------------|-------|--------|
 | 1 | BLOCKER | 10+ duplicate `\label`s from re-derived concepts (see §A) | notation_crossref, non_repetition, concept_ordering, progressive_learning | ch01/ch02 + SSOTs | ✅ DONE |
-| 2 | BLOCKER | All 16 `demo.ipynb` are stubs cited as "the complete implementation" | reproducibility, code_figure_correctness | book-wide | ⛔ OPEN (human decision) |
+| 2 | BLOCKER | All 16 `demo.ipynb` are stubs cited as "the complete implementation" | reproducibility, code_figure_correctness | book-wide | ✅ DONE — 11 deterministic `gen_*.py` figure generators authored; stub `demo.ipynb` repointed/replaced with real notebooks; all 16 chapters now pass reproducibility ≥90 (independently re-audited) |
 | 3 | BLOCKER | Duplicate bib key `wei2022emergent` (bibliography.bib:1727 & 3175) | citation_hygiene + build | bibliography.bib | ✅ DONE |
 | 4 | BLOCKER | ch05 WACC used 36+× but never derived (no CAPM/r_E/r_D) | completeness, finance_orientation, concept_ordering | ch05 (#9) | ✅ DONE (def:wacc/eq:capm) |
 | 5 | BLOCKER | `\ref{ch:responsible-llms}` (ch12:890) targets a nonexistent label → `??` | notation_crossref, correctness | ch12 (#13) | ✅ DONE (→ch:applications-future) |

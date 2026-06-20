@@ -35,7 +35,7 @@ After completing this chapter, the reader should be able to:
 \subsection{Where We Have Been: A Map of the Book}
 \label{subsec:af-survey-map}
 
-Six chapters ago, this book opened with a question that felt speculative to many readers when the first edition was drafted: can a language model contribute to serious financial work? The intervening chapters have answered that question empirically, one application at a time. We have seen transformer architectures encode market sentiment with surprising reliability; we have watched fine-tuned models extract structured cash flow projections from the dense prose of a 10-K filing; we have traced an autonomous agent as it navigated EDGAR, computed a discounted cash flow valuation, and benchmarked the result against comparable firms---all from a single natural-language instruction. The question is no longer whether LLMs belong in finance. The question is how to deploy them well.
+This book opened with a question that felt speculative to many readers when the first edition was drafted: can a language model contribute to serious financial work? The intervening chapters have answered that question empirically, one application at a time. We have seen transformer architectures encode market sentiment with surprising reliability; we have watched fine-tuned models extract structured cash flow projections from the dense prose of a 10-K filing; we have traced an autonomous agent as it navigated EDGAR, computed a discounted cash flow valuation, and benchmarked the result against comparable firms---all from a single natural-language instruction. The question is no longer whether LLMs belong in finance. The question is how to deploy them well.
 
 Before moving to the applications we have not yet covered, it is worth pausing to consolidate what the preceding chapters have established, because the full scope only becomes visible in retrospect.
 
@@ -53,31 +53,58 @@ Table~\ref{tab:chapter-map} provides a bird's-eye view of the book's journey, ma
 \centering
 \small
 \setlength{\tabcolsep}{5pt}
-\begin{tabular}{clp{4.2cm}p{4.2cm}}
+\begin{tabular}{clp{4.0cm}p{4.0cm}}
 \toprule
 \textbf{Ch.} & \textbf{Topic} & \textbf{Primary LLM Technique} & \textbf{Finance Application} \\
 \midrule
-1 & Introduction \& Text Fundamentals
+\ref{ch:intro} & Introduction \& Text Fundamentals
   & Bag-of-words, TF-IDF, word embeddings
   & Sentiment analysis, document classification \\[3pt]
-2 & Modern LLM Landscape
-  & Transformer attention, pre-training, RLHF
-  & General-purpose financial NLP, emergent reasoning \\[3pt]
-3 & LLM Training \& Fine-Tuning
-  & Supervised fine-tuning, LoRA, PEFT
+\ref{ch:ai-ml-finance-text} & AI, ML \& Text in Finance
+  & AI/ML/DL hierarchy, NLP evolution, attention
+  & Foundations of financial text analysis \\[3pt]
+\ref{ch:llm-foundations} & LLM Foundations
+  & Transformer attention, pre-training, RAG, sampling
+  & General financial NLP, document QA \\[3pt]
+\ref{ch:llm-training} & LLM Training \& Fine-Tuning
+  & Supervised fine-tuning, LoRA/PEFT, RLHF
   & Domain adaptation for financial text \\[3pt]
-4 & LLM Agents
+\ref{ch:domain-specific-llms} & Domain-Specific LLMs
+  & Domain pre-training, FinBERT, BloombergGPT
+  & Finance-specialised language models \\[3pt]
+\ref{ch:llm-agents} & LLM Agents
   & ReAct, tool use, multi-agent orchestration
-  & Research automation, multi-step financial workflows \\[3pt]
-5 & Business Valuation
-  & Retrieval-augmented generation, summarisation
+  & Research automation, multi-step workflows \\[3pt]
+\ref{ch:financial-nlp-sentiment} & Financial NLP \& Sentiment
+  & Fine-tuned classifiers, sentiment lexicons
+  & Market sentiment, return prediction \\[3pt]
+\ref{ch:financial-text-summarization} & Text Summarisation \& Extraction
+  & NER, abstractive/extractive summarisation, XBRL
+  & Filing and transcript information extraction \\[3pt]
+\ref{ch:business-valuation} & Business Valuation
+  & RAG, summarisation, agentic DCF
   & DCF analysis, comparable-company selection \\[3pt]
-6 & Credit Risk
-  & Constrained decoding, SHAP explanations
+\ref{ch:credit-risk} & Credit Risk
+  & Constrained decoding, SHAP, calibration
   & Credit scoring, regulatory reporting, fairness \\[3pt]
-7 & Other Applications \& Future Trends
-  & Workflow automation, multimodal LLMs, agents
-  & Full-stack deployment, governance, open research \\
+\ref{ch:portfolio-quant-trading} & Portfolio \& Quant Trading
+  & Sentiment signals, structured output, backtesting
+  & Portfolio construction, trading signals \\[3pt]
+\ref{ch:regtech-compliance-aml} & RegTech, Compliance \& AML
+  & RAG adverse-media, agents, GDPR/MiFID
+  & Compliance screening, AML \\[3pt]
+\ref{ch:xai-explainability} & Explainability (XAI)
+  & SHAP, integrated gradients, attention attribution
+  & Model explanation for regulators \\[3pt]
+\ref{ch:llm-limitations-evaluation} & LLM Limitations \& Evaluation
+  & Calibration, hallucination evaluation, benchmarking
+  & Model validation and reliability \\[3pt]
+\ref{ch:applications-future} & Applications \& Future Directions
+  & Workflow automation, multimodal, agents
+  & Full-stack deployment, governance \\[3pt]
+\ref{ch:privacy-local-models} & Privacy \& Local Models
+  & Open-weight models, quantisation, DP, federated learning
+  & On-premises private deployment \\
 \bottomrule
 \end{tabular}
 \end{table}

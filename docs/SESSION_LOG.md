@@ -178,3 +178,4 @@
 | 2026-06-18 | 22 files | chore: session log 2026-06-18;chore: session log 2026-06-18;fix(code): correct figure-generating notebook code across 4 chapters; | — |
 | 2026-06-18 | 34 files | feat(exercises): add AAPL equity valuation multi-agent exercise;chore: session log 2026-06-18;chore: session log 2026-06-18; | — |
 | 2026-06-20 | 33 files | fix(ch08,ch10): add citealt macro and missing bib entries;chore: add tasks tracking file;chore: session log 2026-06-18; | — |
+| 2026-06-20 | 12 files | feat(ch01): empirical embedding-arithmetic case study with real GloVe;chore: session log 2026-06-20;fix(ch08,ch10): add citealt macro and missing bib entries; | — |

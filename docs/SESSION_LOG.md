@@ -189,3 +189,4 @@
 | 2026-06-20 | 12 files | Fix ch01/ch02 single-source-of-truth overlap;chore: session log 2026-06-20;chore: session log 2026-06-20; | — |
 | 2026-06-20 | 8 files | refine(book): add SSOT bridges for SHAP/calibration/GDPR/FinBERT (non_repetition);docs(quality): write GOAL_STATUS.md — structural blockers cleared, repro blocker open;fix(ch09): accurate LM-lexicon example; mark backlog blockers resolved; | — |
 | 2026-06-20 | 28 files | docs(quality): update GOAL_STATUS — reproducibility prose+PII fixes done, B7/A12 done;refine(ch14,ch09): add dual-mode layering (B7) + Tetlock recall (A12);fix(repro): stop citing stub demo.ipynb as 'the complete implementation'; de-PII code; | — |
+| 2026-06-20 | 16 files | docs(quality): record ch05 first-pass milestone + demonstrated figure-determinism path;docs(quality): mark ch05 as first fully-passing chapter (14/14);feat(ch05): make DCF sensitivity figure deterministic (reproducibility/code_figure); | — |

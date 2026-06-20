@@ -671,7 +671,7 @@ Let $h$ be the prediction horizon and $\Delta_{\text{purge}}$ be the purge gap.
 At iteration $k$, the training set is $\mathcal{D}_{\text{train}}^{(k)} =
 \{(x_t, y_t) : t \leq kh - \Delta_{\text{purge}}\}$ and the evaluation set is
 $\mathcal{D}_{\text{eval}}^{(k)} = \{(x_t, y_t) : kh \leq t \leq (k+1)h - 1\}$.
-The model is retrained from scratch (or adapted via PEFT (parameter-efficient fine-tuning, e.g., LoRA; see Chapter~\ref{ch:llm-training-finetuning})) at each iteration $k$.
+The model is retrained from scratch (or adapted via PEFT (parameter-efficient fine-tuning, e.g., LoRA; see \Cref{ch:llm-training})) at each iteration $k$.
 \end{definition}
 
 The walk-forward protocol makes an implicit assumption about model persistence: the

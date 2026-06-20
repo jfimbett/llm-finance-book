@@ -92,7 +92,7 @@
 % --- Figures & Tables ---
 \usepackage{graphicx}
 \usepackage{tikz}
-\usetikzlibrary{positioning,calc,decorations.pathreplacing}
+\usetikzlibrary{positioning,calc,decorations.pathreplacing,arrows.meta}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepackage{booktabs}
@@ -180,6 +180,17 @@
 
 \theoremstyle{remstyle}
 \newtheorem{remark}[theorem]{Remark}
+
+% --- Clever cross-references (load after hyperref + amsthm theorems) ---
+\usepackage[capitalise,noabbrev]{cleveref}
+\crefname{definition}{Definition}{Definitions}
+\Crefname{definition}{Definition}{Definitions}
+\crefname{remark}{Remark}{Remarks}
+\Crefname{remark}{Remark}{Remarks}
+\crefname{example}{Example}{Examples}
+\Crefname{example}{Example}{Examples}
+\crefname{illustration}{Illustration}{Illustrations}
+\Crefname{illustration}{Illustration}{Illustrations}
 
 % --- PDF page inclusion (covers) ---
 \usepackage{pdfpages}

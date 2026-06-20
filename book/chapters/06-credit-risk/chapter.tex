@@ -293,12 +293,7 @@ The serialisation template should be consistent across training and inference. V
 
 \subsubsection*{Parameter-Efficient Fine-Tuning}
 
-Fine-tuning a full LLM on credit data is computationally expensive and risks overfitting on the typically small labelled training sets available to individual lenders. Low-Rank Adaptation (LoRA) addresses both problems. In LoRA, the weight update $\Delta W$ for each attention weight matrix is constrained to a low-rank factorisation:
-\begin{equation}
-  \Delta W = B A, \quad B \in \mathbb{R}^{d \times r}, \; A \in \mathbb{R}^{r \times d}, \quad r \ll d.
-  \label{eq:lora}
-\end{equation}
-Only $A$ and $B$ are updated during fine-tuning; the original weights $W_0$ are frozen. With $r = 8$ and a base model with $d = 768$, LoRA reduces the number of trainable parameters by a factor of approximately 48 relative to full fine-tuning, with minimal performance degradation on tasks with limited training data.
+Fine-tuning a full LLM on credit data is computationally expensive and risks overfitting on the typically small labelled training sets available to individual lenders. Low-Rank Adaptation (LoRA, \Cref{def:lora}) addresses both problems by freezing the pre-trained weights $W_0$ and learning only a low-rank update $\Delta W = BA$ with rank $r \ll d$. With $r = 8$ and a base model with $d = 768$, LoRA reduces the number of trainable parameters by a factor of approximately 48 relative to full fine-tuning, with minimal performance degradation on tasks with limited training data.
 
 % ---------------------------------------------------------------
 \subsection{Structured Generation and Implied Default Probabilities}

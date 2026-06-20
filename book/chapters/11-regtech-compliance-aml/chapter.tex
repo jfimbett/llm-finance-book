@@ -169,7 +169,41 @@ The design of such an agent involves several non-trivial choices. Tool selection
 
 The adverse media agent described in Section~\ref{sec:ch11-agentic-adverse-media} can be grounded in a retrieval-augmented generation (RAG) architecture~\cite{lewis2020rag} that combines an updatable document corpus with an LLM reader. This section specifies the architecture in detail.
 
-A RAG-based adverse media pipeline has five components: an ingestion pipeline, a vector store, a retriever, a reader/ranker, and an output formatter. Figure~\ref{fig:ch11-rag-pipeline} describes the dataflow conceptually.
+A RAG-based adverse media pipeline has five components: an ingestion pipeline, a vector store, a retriever, a reader/ranker, and an output formatter. \Cref{fig:ch11-rag-pipeline} describes the dataflow conceptually.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      node distance=8mm and 12mm,
+      box/.style={draw, rounded corners, align=center, minimum height=10mm,
+                  text width=20mm, font=\footnotesize},
+      src/.style={draw, dashed, rounded corners, align=center,
+                  minimum height=9mm, text width=20mm, font=\footnotesize},
+      every node/.style={inner sep=3pt},
+      arr/.style={-{Latex[length=2mm]}, thick}
+    ]
+    \node[src] (feeds) {News, court filings, press releases};
+    \node[box, right=of feeds] (ingest) {Ingestion \\ (chunk + embed)};
+    \node[box, right=of ingest] (store) {Vector store \\ (dense + BM25)};
+    \node[box, below=of store] (retr) {Retriever \\ (hybrid + RRF)};
+    \node[box, left=of retr] (reader) {Reader / ranker \\ (LLM)};
+    \node[box, left=of reader] (out) {Output \\ formatter};
+    \node[src, above=of retr] (query) {Subject query \\ (+ alias variants)};
+
+    \draw[arr] (feeds) -- (ingest);
+    \draw[arr] (ingest) -- (store);
+    \draw[arr] (store) -- (retr);
+    \draw[arr] (query) -- (retr);
+    \draw[arr] (retr) -- node[above, font=\scriptsize] {top-$k$} (reader);
+    \draw[arr] (reader) -- (out);
+  \end{tikzpicture}
+  \caption{Dataflow of a RAG-based adverse media screening pipeline. Documents are
+           ingested continuously, chunked, embedded, and stored alongside metadata; a
+           subject query (expanded with alias variants) drives hybrid retrieval, whose
+           top-$k$ passages are ranked and summarised by an LLM reader before the output
+           formatter emits a structured, citation-grounded result.}
+  \label{fig:ch11-rag-pipeline}
+\end{figure}
 
 \textbf{Ingestion pipeline.} News articles, court filings, regulatory press releases, and other source documents are collected continuously from subscribed feeds. Each document is chunked into passages of 200--400 tokens with overlap, embedded using a sentence encoder, and stored in a vector database alongside structured metadata (source URL, publication date, source credibility tier, named entities). The metadata fields are critical: they enable post-retrieval filtering that reduces the ranking burden on the LLM.
 

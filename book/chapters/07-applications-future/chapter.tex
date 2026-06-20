@@ -292,12 +292,7 @@ The first implementation decision is \emph{chunking strategy}. A 10-K annual rep
 
 The second decision is \emph{embedding model selection}. General-purpose embedding models (e.g., OpenAI's \texttt{text-embedding-3-large} or open-source alternatives such as \texttt{e5-mistral-7b}) perform well on financial document retrieval without task-specific fine-tuning. Finance-specific embedding models fine-tuned on SEC filings and earnings calls show modest improvements on in-domain queries but sometimes underperform on queries that require reasoning across financial and non-financial context. The practical recommendation is to use a strong general-purpose model as baseline and evaluate whether domain fine-tuning yields sufficient improvement to justify the cost.
 
-The third decision is \emph{hybrid retrieval}. Given a query $q$, the retrieval engine computes two scores for each candidate passage $d_i$: a dense similarity $s_{\text{dense}}(q, d_i) = \cos(\mathbf{e}_q, \mathbf{e}_{d_i})$ where $\mathbf{e}$ denotes a dense embedding, and a sparse relevance $s_{\text{sparse}}(q, d_i)$ from BM25. Reciprocal rank fusion combines them:
-\begin{equation}
-\label{eq:rrf}
-s_{\text{RRF}}(q, d_i) = \frac{1}{k + r_{\text{dense}}(d_i)} + \frac{1}{k + r_{\text{sparse}}(d_i)},
-\end{equation}
-where $r_{\text{dense}}$ and $r_{\text{sparse}}$ are the ranks of $d_i$ under each retriever and $k = 60$ is a smoothing constant. This formulation is parameter-free and robust to the different score scales of dense and sparse systems.
+The third decision is \emph{hybrid retrieval}. Given a query $q$, the retrieval engine computes two scores for each candidate passage $d_i$: a dense similarity $s_{\text{dense}}(q, d_i) = \cos(\mathbf{e}_q, \mathbf{e}_{d_i})$ where $\mathbf{e}$ denotes a dense embedding, and a sparse relevance $s_{\text{sparse}}(q, d_i)$ from BM25. These are combined by reciprocal rank fusion (\Cref{eq:rrf}, with smoothing constant $k = 60$), a parameter-free rule that is robust to the different score scales of dense and sparse systems.
 
 Finally, \emph{source attribution} is a non-negotiable requirement. Every claim in an LLM-generated response must be attributable to a retrieved passage. The system should include passage identifiers in the response, allow users to navigate to the source, and flag when a claim is not supported by retrieved context. Attribution is not merely a quality feature; in regulated contexts it is the mechanism by which the system's outputs can be audited.
 
@@ -376,7 +371,7 @@ that LLMs, trained on human-generated text, reproduce reliably.
 
 Quantifying bias requires choosing a fairness criterion, and the choice of criterion is not neutral---it encodes assumptions about what counts as equitable treatment \cite{mehrabi2021survey}. Three criteria are most relevant to finance applications.
 
-Throughout Definitions~\ref{def:demographic-parity}--\ref{def:calibration}, let $\hat{Y} \in \{0,1\}$ be a binary decision (e.g., loan approval), $A$ a sensitive attribute (e.g., race, gender), $Y$ the true outcome, and $\hat{P} \in [0,1]$ the predicted probability.
+Throughout Definitions~\ref{def:demographic-parity}--\ref{def:fairness-calibration}, let $\hat{Y} \in \{0,1\}$ be a binary decision (e.g., loan approval), $A$ a sensitive attribute (e.g., race, gender), $Y$ the true outcome, and $\hat{P} \in [0,1]$ the predicted probability.
 
 \begin{definition}[Demographic Parity]
 \label{def:demographic-parity}
@@ -397,7 +392,7 @@ for $y \in \{0, 1\}$ and all values $a, b$ of $A$. Both true positive rates and 
 \end{definition}
 
 \begin{definition}[Calibration Within Group]
-\label{def:calibration}
+\label{def:fairness-calibration}
 A model is \emph{calibrated within group} with respect to attribute $A$ if
 \[
 \Pr(Y = 1 \mid \hat{P} = p, A = a) = p

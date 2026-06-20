@@ -759,8 +759,12 @@ outperforms pure parametric models on knowledge-intensive question answering tas
 and subsequent work has extended it to long-form generation, multi-hop reasoning, and
 domain-specific applications including finance \cite{gao2024retrieval}.
 
-\begin{definition}[Retrieval-Augmented Generation]
-\label{def:rag}
+The operational RAG pipeline (retrieval, augmentation, generation) was defined in
+\Cref{def:rag}. Here we give the complementary \emph{probabilistic} view that
+underpins end-to-end training, treating the retrieved document as a latent variable.
+
+\begin{definition}[Retrieval-Augmented Generation (probabilistic view)]
+\label{def:rag-marginal}
 Let $\mathcal{Q}$ be a space of natural-language queries.
 Let $\mathcal{D} = \{d_1, \ldots, d_N\}$ be a corpus of documents, $q$ a query, and
 $R: \mathcal{Q} \times \mathcal{D} \to 2^{\mathcal{D}}$ a retrieval function that

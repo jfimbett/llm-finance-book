@@ -248,7 +248,7 @@ LoRA \citep{hu2022lora} decomposes each weight update $\Delta W \in
 \mathbb{R}^{d \times k}$ as the product of two low-rank matrices:
 \begin{equation}
   \Delta W = B A, \quad B \in \mathbb{R}^{d \times r},\; A \in \mathbb{R}^{r \times k},\; r \ll \min(d, k).
-  \label{eq:lora}
+  \label{eq:lora-hf}
 \end{equation}
 During training only $A$ and $B$ are updated; the pre-trained weight $W_0$
 is frozen.  At inference, the adapter can be merged: $W = W_0 + \Delta W$,

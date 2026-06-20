@@ -25,12 +25,12 @@ It begins where Chapter~1 left off --- individual token embeddings --- and shows
 those embeddings are aggregated into document-level representations (Section~\ref{sec:doc-repr}).
 It then traces the evolution of sequence models from vanilla RNNs through LSTMs to the
 Transformer (Sections~\ref{sec:sequential}--\ref{sec:transformer}), establishes the
-pre-training and tokenisation machinery that underlies every modern LLM
-(Sections~\ref{sec:pretraining}--\ref{sec:tokenisation}), and turns to the production
+pre-training and fine-tuning machinery that underlies every modern LLM
+(Section~\ref{sec:transformer-pretrain}), and turns to the production
 concerns that dominate practical deployment: the LLM landscape, sampling strategies,
 structured generation, API usage, retrieval-augmented generation, model compression,
-hallucination mitigation, and regulatory constraints
-(Sections~\ref{sec:llm-landscape}--\ref{sec:regulatory}).
+hallucination mitigation, and responsible use
+(Sections~\ref{sec:landscape}--\ref{sec:limitations}).
 Readers who are already comfortable with document-level representations may proceed
 directly to Section~\ref{sec:sequential}.
 
@@ -1886,7 +1886,7 @@ API providers charge separately for input tokens (the prompt) and output tokens
 \end{equation}
 where $N_{\text{in}}$, $N_{\text{out}}$ are token counts and $c_{\text{in}}$,
 $c_{\text{out}}$ are the provider's per-token prices.
-Table~\ref{tab:api-costs} gives approximate 2024 prices in USD per million tokens.
+Table~\ref{tab:api-pricing} gives approximate 2024 prices in USD per million tokens.
 
 \begin{center}
 \small
@@ -1904,7 +1904,7 @@ Llama 3 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
 \end{tabular}
 \captionof{table}{Approximate 2024 API pricing.  Prices in USD per million tokens (MTok).
 Verify current prices on provider websites before budgeting.}
-\label{tab:api-costs}
+\label{tab:api-pricing}
 \end{center}
 
 To make this concrete, suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
@@ -2001,11 +2001,12 @@ query and passage into the same embedding space; the relevance score between que
 $q$ and passage $d_i$ is
 \begin{equation}
   s_{\text{dense}}(q, d_i) = \frac{\phi(q) \cdot \phi(d_i)}{\|\phi(q)\| \|\phi(d_i)\|},
-  \label{eq:cosine-sim}
+  \label{eq:dense-retrieval}
 \end{equation}
-where $\phi : \text{text} \to \mathbb{R}^m$ is the encoder.
+the cosine similarity (\Cref{eq:cosine-sim}) between the two embeddings, where
+$\phi : \text{text} \to \mathbb{R}^m$ is the encoder.
 
-Computing \eqref{eq:cosine-sim} exhaustively over a corpus of millions of passages
+Computing \eqref{eq:dense-retrieval} exhaustively over a corpus of millions of passages
 is infeasible at query time.  In practice, approximate nearest-neighbour (ANN)
 search is used.  The FAISS library \citep{johnson2019billion} provides efficient
 ANN search via the inverted file index (IVF) and hierarchical navigable small-world
@@ -2069,7 +2070,7 @@ scores via a MaxSim operator, and achieves cross-encoder-level accuracy at
 bi-encoder-level latency.
 
 \subsection{RAG for Financial Documents}
-\label{sec:rag-finance}
+\label{sec:rag-finance-foundations}
 
 The following listing implements a minimal but production-relevant RAG pipeline for
 answering questions about a 10-K filing.  It uses FAISS for dense retrieval and
@@ -2080,7 +2081,7 @@ enables answer verification.
 
 Three features of this design merit emphasis.  First, normalising the embeddings
 before adding them to the FAISS \texttt{IndexFlatIP} (inner product) index converts
-the inner product to cosine similarity, so the retrieval score is \eqref{eq:cosine-sim}
+the inner product to cosine similarity, so the retrieval score is \eqref{eq:dense-retrieval}
 exactly.  Second, the system prompt constrains the model to answer only from the
 provided passages; pairing this with low temperature ($\tau = 0$) makes hallucination
 outside the retrieved context extremely unlikely.  Third, requiring the model to cite
@@ -2180,19 +2181,12 @@ which is infeasible on most academic or practitioner hardware.
 instead of updating the full weight matrix, it injects a pair of low-rank matrices
 whose product approximates the update.
 
-\begin{definition}[Low-Rank Adaptation (LoRA)]
-\label{def:lora}
-For a pre-trained weight matrix $W_0 \in \mathbb{R}^{d \times k}$, LoRA
-parameterises the weight update as
-\begin{equation}
-  W = W_0 + \Delta W = W_0 + BA,
-  \label{eq:lora}
-\end{equation}
-where $B \in \mathbb{R}^{d \times r}$, $A \in \mathbb{R}^{r \times k}$,
-and $r \ll \min(d, k)$ is the \emph{rank}.  During training, $W_0$ is frozen
-and only $A$ and $B$ are updated.  The number of trainable parameters
-reduces from $dk$ to $r(d + k)$.
-\end{definition}
+The idea is to freeze the pre-trained weight matrix $W_0 \in \mathbb{R}^{d \times k}$
+and learn only a low-rank update $\Delta W = BA$, with $B \in \mathbb{R}^{d \times r}$,
+$A \in \mathbb{R}^{r \times k}$, and rank $r \ll \min(d, k)$, reducing the trainable
+parameters of the layer from $dk$ to $r(d + k)$. We give the formal definition,
+including the $\alpha/r$ scaling factor and initialisation, where parameter-efficient
+fine-tuning is treated in full (\Cref{def:lora}).
 
 For a typical attention layer with $d = k = 4096$ and $r = 16$, LoRA reduces the
 trainable parameters from $16.8\text{M}$ to $131\text{K}$---a reduction by a factor
@@ -2275,19 +2269,15 @@ deployed before any LLM touches a production financial system.
 \subsection{A Taxonomy of Hallucinations}
 \label{sec:hallucinations-taxonomy}
 
-\begin{definition}[Hallucination]
-\label{def:hallucination}
-A language model \emph{hallucination} is an output that is (a) presented with apparent
-confidence, yet (b) is not supported by---or actively contradicts---the model's input
-or the external world.  Following \citet{maynez2020faithfulness},
-hallucinations are classified as:
-\begin{enumerate}
-  \item \emph{Intrinsic hallucinations:} the output contradicts information
-    explicitly present in the input document.
-  \item \emph{Extrinsic hallucinations:} the output introduces information not
-    present in the input that cannot be verified from any accessible source.
-\end{enumerate}
-\end{definition}
+Recall the definition of an LLM hallucination (\Cref{def:hallucination}): a fluent,
+confident output that is unsupported by, or contradicts, the input or the external world.
+A second, orthogonal axis classifies hallucinations by their relationship to the input.
+Following \citet{maynez2020faithfulness}, \emph{intrinsic} hallucinations contradict
+information explicitly present in the input document, whereas \emph{extrinsic}
+hallucinations introduce information not present in the input that cannot be verified
+from any accessible source. This intrinsic/extrinsic distinction matters for detection:
+intrinsic errors can be caught by comparing the output against the source, while
+extrinsic errors require an external knowledge base or retrieval check.
 
 Within financial NLP, three sub-types deserve particular attention.
 Numerical hallucination occurs when the model outputs a figure---a ratio, a revenue

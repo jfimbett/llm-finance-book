@@ -918,18 +918,10 @@ similarity between financial text representations.
 
 An \emph{embedding} is a function $\phi: \mathcal{D} \to \mathbb{R}^d$ that maps a document to a dense vector produced by a neural encoder.
 
-\begin{definition}[Cosine Similarity]
-\label{def:cosine-similarity}
-For two embedding vectors $\mathbf{a}, \mathbf{b} \in \mathbb{R}^d$, the
-\emph{cosine similarity} is
-\begin{equation}
-\label{eq:cosine-sim}
-\mathrm{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \in [-1, 1].
-\end{equation}
-A value near $+1$ indicates that the two vectors point in the same direction---that is,
-the two documents occupy the same region of the embedding space---while a value near
-$0$ or $-1$ indicates orthogonality or opposition.
-\end{definition}
+Peer similarity is measured by the cosine similarity between embeddings
+(\Cref{eq:cosine-sim}), $\mathrm{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \in [-1, 1]$:
+a value near $+1$ indicates that the two embedded documents occupy the same region of
+the embedding space, while a value near $0$ or $-1$ indicates orthogonality or opposition.
 
 The MD\&A section of the 10-K is the most semantically rich source for business-model
 characterisation: it describes in management's own words the company's products,

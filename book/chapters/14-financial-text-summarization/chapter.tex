@@ -219,7 +219,7 @@ Several annotated corpora have been released to support financial NER research. 
 makes different tradeoffs between annotation granularity, document type coverage, and
 scale.
 
-\textbf{FINER-139} \citep{shah2023finer} is one of the most comprehensive financial NER
+\textbf{FINER-139} \citep{loukas2022finer} is one of the most comprehensive financial NER
 benchmarks. It annotates 139 fine-grained entity types across documents drawn from SEC
 filings and financial news. The taxonomy is organised hierarchically: top-level types
 (e.g., Organisation, Financial Instrument, Economic Indicator) decompose into subtypes
@@ -837,7 +837,7 @@ for domain-adaptive pretraining of encoder models. Models pretrained on EDGAR-Co
 consistently outperform general-domain models on financial NLP benchmarks, even when
 the downstream task is not directly related to SEC filings.
 
-\textbf{FINER-139} \citep{shah2023finer} is the most comprehensive financial NER
+\textbf{FINER-139} \citep{loukas2022finer} is the most comprehensive financial NER
 benchmark, annotating 139 fine-grained entity types. It is the standard benchmark for
 evaluating domain-specific NER models on SEC filing text. Practitioners building
 production financial NER systems should use FINER-139 as their primary evaluation set.
@@ -915,8 +915,9 @@ summarisation in financial documents. The key takeaways are:
 
 The foundational work on general-domain NER, from conditional random fields through
 transformer-based token classification, is covered in \citet{lample2016neural} and the
-survey in \citet{devlin2019}. For financial NER specifically, \citet{shah2023finer}
-provides both the benchmark and a comprehensive survey of prior datasets.
+survey in \citet{devlin2019}. For financial NER specifically, the FINER-139 XBRL
+benchmark \citep{loukas2022finer} and the English/Greek FINER dataset of
+\citet{shah2023finer} provide the standard evaluation resources.
 
 The ECTSum dataset paper \citep{mukherjee2022ectsum} is essential reading for anyone
 building earnings transcript summarisation systems; it provides a careful analysis of

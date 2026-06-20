@@ -6,9 +6,12 @@
 > unnecessary repeated derivations, or orphaned finance examples.
 >
 > **Date:** 2026-06-20 · **Mode:** targeted, auditable edits (chapter order from
-> `book/main.tex`) · **Goal passed:** **NO** — all *structural* blockers cleared and the
-> book compiles cleanly, but the **reproducibility cluster (16 stub notebooks +
-> missing ch08–16 figures) remains OPEN and requires a human decision** (see §5).
+> `book/main.tex`) · **Goal passed:** **NO** — every structural/citation/correctness
+> blocker is cleared, the authorised reproducibility prose fix is done, and the book
+> compiles cleanly (620 pp). The residual gap to all-chapter ≥90 is **figure generation
+> for ch08–16 + notebook content-filling + data-snapshot infrastructure + external
+> numeric verification** — large-engineering and human-gated work, not targeted prose
+> edits (see §5). **All targeted-edit tractable work is complete.**
 
 ---
 
@@ -20,7 +23,7 @@ with a full LaTeX + biber build. The book now compiles **clean**:
 
 | Mechanical gate | Result |
 |-----------------|--------|
-| Book compiles (`pdflatex`×3 + `biber`) | ✅ 619 pages, `main.pdf` 2.57 MB |
+| Book compiles (`pdflatex`×3 + `biber`) | ✅ 620 pages, `main.pdf` 2.56 MB |
 | Duplicate `\label`s (chapters + appendices) | ✅ none |
 | "multiply defined" warnings | ✅ 0 |
 | Undefined references (`??`) | ✅ 0 |
@@ -67,6 +70,17 @@ Also fixed: enabled `cleveref` (`\Cref`) — the SSOT-reminder pattern depends o
   release" notes from real papers (ECTSum, FLUE, Li 2013, Boudoukh 2013, Frattaroli,
   Ko, Xu→"Working paper"); flagged `chen2025aml` (future-dated arXiv id `2602.23373`)
   as `NEEDS_EXTERNAL_VERIFICATION` and stripped the fabricated id.
+
+## 2c. Reproducibility — authorised tractable fixes (E1/E3)
+
+- **Repointed all 24 notebook pointers** from the stub `demo.ipynb` to the genuine
+  worked `exercises.ipynb` and dropped the false "the complete implementation" claim
+  (ch01/02/04/05/07). This is `CODE_FIGURE_AUDIT` item 1's "point prose at
+  `exercises.ipynb`" path — the highest-impact single action that does not require
+  filling the stubs.
+- **De-PII'd the code**: removed `instructor@dauphine.eu` / `jfimbett@gmail.com` from every
+  SEC EDGAR User-Agent across `code/notebooks/**`; `gen_edgar_text_growth.py` now reads
+  `EDGAR_USER_AGENT` from the environment with a placeholder default.
 
 ---
 
@@ -116,29 +130,42 @@ Per-chapter `non_repetition` / `progressive_learning` items:
 
 ---
 
-## 5. Real blocker requiring a human decision — reproducibility
+## 5. What now remains (and why it is not a targeted-edit task)
 
-**This is why the goal does not yet pass.** `reproducibility` (52) and
-`code_figure_correctness` (70) are below 90 across the book because:
+`reproducibility` and `code_figure_correctness` are still below 90 for several chapters.
+The **authorised, tractable part is now DONE** (see §2c); what remains is genuinely
+large-engineering or human-gated:
 
-1. **All 16 `demo.ipynb` are stubs** (583–1610 bytes) yet prose cites them as "the
-   complete implementation" (e.g. ch05 ×10, ch02 ×6). The **real** code lives in
-   `exercises.ipynb` (9–84 KB) and, for ch01–07, `exercises_executed.ipynb` (50–79 KB).
-   **Decision needed:** *fill* the 16 `demo.ipynb`, or *repoint* the prose to the real
-   `exercises*.ipynb`. Repointing is cheap and low-risk but changes the reader-facing
-   claim about where code lives and may point at student problem sets — it should be the
-   author's call. (Not done unilaterally.)
-2. **Figures exist only for ch01–07**; ch08–16 + appendices have empty `figures/`.
-   Generating them is content work (and ch08 also lacks an `\illustration`).
-3. **Live/non-deterministic deps** (SEC/EDGAR, ~1 GB GloVe, yfinance) + hard-coded
-   personal User-Agents need parameterising + snapshotting; seeds for determinism.
-4. **Empty `code/src/__init__.py` and `code/tests/`** (E6) — build the "shared package"
-   or drop the claim.
+**Done this pass (authorised by `CODE_FIGURE_AUDIT` item 1 — "point prose at
+`exercises.ipynb`"):**
+- All 24 false "the complete Python implementation … `demo.ipynb`" pointers repointed to
+  the real `exercises.ipynb` (the stubs are no longer cited as authoritative).
+- Personal emails removed from every SEC EDGAR User-Agent in `code/`; the generator
+  script now reads `EDGAR_USER_AGENT` from the environment.
 
-Other items needing the author: **delete stale `bibliography_*.bib`** (D7, confirmed not
-loaded); **external verification** of working-paper numerics flagged
-`NEEDS_EXTERNAL_VERIFICATION` (BloombergGPT totals, KirtacGermano Sharpe 3.05,
-`chen2025aml`/Adverse Media Index, FinanceBench %, Hampole, `kang2023hallucination`).
+**Remaining — large engineering / human-gated (not prose edits):**
+1. **Generate figures for ch08–16 + appendices** (empty `figures/`). Data-driven figures
+   need either live SEC/yfinance fetches (themselves flagged as non-deterministic) or
+   vendored snapshots; schematic figures need author design intent. ch08 also lacks an
+   `\illustration` block. *This is the single largest remaining lever and is content
+   creation, not editing.*
+2. **Fill the 16 `demo.ipynb`** (or accept the repointing in §2c as the final answer).
+   Filling is a content/engineering task; the audit lists it as a book-wide effort.
+3. **Data-snapshot infrastructure**: vendor frozen SEC/yfinance/GloVe snapshots, add
+   seeds, pin accessions, and extend `run_illustrations.sh` past ch01–07.
+4. **Empty `code/src/__init__.py` / `code/tests/`** (E6) — build the "shared package" or
+   drop the claim (human decision).
+5. **External verification** of working-paper numerics flagged
+   `NEEDS_EXTERNAL_VERIFICATION` (BloombergGPT totals, KirtacGermano Sharpe 3.05,
+   `chen2025aml`/Adverse Media Index, FinanceBench %, Hampole, `kang2023hallucination`),
+   and **delete stale `bibliography_*.bib`** (D7, confirmed not loaded) — both human-gated.
+
+## 5b. Per-chapter polish completed this pass
+
+- **B7** ch14 concept_separation: added context/deepdive layering to the ROUGE & BERTScore
+  derivations (0 → 4 dual-mode boxes).
+- **A7/A8/A10/A11** SSOT bridges (SHAP, calibration, GDPR, FinBERT).
+- **A12** ch09 Tetlock founding-result recall → `\Cref{ch:intro}`.
 
 ---
 

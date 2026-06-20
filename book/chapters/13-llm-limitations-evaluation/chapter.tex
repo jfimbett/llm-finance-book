@@ -315,7 +315,7 @@ validity rather than a theoretical nuisance. From a practitioner's perspective,
 \citet{NoguerAlonso2024} provides a comprehensive taxonomy of look-ahead bias sources in
 LLM-based financial applications, covering training cutoffs, entity embeddings, and
 backtesting methodology, and proposes mitigation strategies that inform the contamination-resistant
-design presented in Section~\ref{sec:ch13-contamination-resistant-splits}.
+design presented in \Cref{sec:ch13-contamination-resistant-splits}.
 
 \subsection{Point-in-Time Data Requirements and Anonymization}
 \label{sec:ch13-point-in-time-data}
@@ -679,7 +679,7 @@ financial machine learning literature \cite{lopezdeprado2018advances}.
 
 Both protocols require a \emph{purge period}: a gap between the end of the training
 window and the beginning of the evaluation window, equivalent to the gap $\Delta$ in
-Definition~\ref{def:ch13-temporal-split}. The purge period must be at least as long
+\Cref{def:ch13-temporal-split}. The purge period must be at least as long
 as the prediction horizon to prevent any individual observation from appearing in both
 training and evaluation windows through overlapping label windows.
 
@@ -751,7 +751,7 @@ A complete trading-grade evaluation for an LLM signal should report:
   \item Information ratio against a relevant benchmark.
   \item Maximum drawdown and Calmar ratio.
   \item Turnover rate and estimated capacity.
-  \item Performance decomposition by factor loadings (equation~\eqref{eq:ch13-factor-alpha}).
+  \item Performance decomposition by factor loadings (\Cref{eq:ch13-factor-alpha}).
   \item Statistical significance of alpha using heteroskedasticity-robust standard errors
         and multiple-testing corrections.
 \end{itemize}
@@ -913,7 +913,7 @@ of LLMs to finance, each requiring a specific methodological response.
         or close to their training cutoff produces inflated performance estimates.
         Robust evaluation requires hard temporal splits, purge periods, contextual
         anonymisation, and n-gram deduplication against known training corpora. The
-        contamination audit in Example~\ref{ex:ch13-contamination-audit} illustrates
+        contamination audit in \Cref{ex:ch13-contamination-audit} illustrates
         that published accuracy figures can be reduced by 8 percentage points or more
         after contamination controls.
 
@@ -929,7 +929,7 @@ of LLMs to finance, each requiring a specific methodological response.
         classification accuracy to economic metrics: Sharpe ratio, information ratio,
         factor alpha, and trading-grade metrics including transaction costs, capacity,
         and maximum drawdown. A complete evaluation protocol is defined in
-        Section~\ref{sec:ch13-trading-grade-evaluation}.
+        \Cref{sec:ch13-trading-grade-evaluation}.
 
   \item \emph{Hallucination}: LLMs fabricate citations, numerical facts, and entities
         in financial contexts, with no reliable lexical signal distinguishing correct from

@@ -97,7 +97,7 @@ Enacted in the United States in 1970 and substantially amended in 2003 (FACTA) a
   \item \textbf{Accuracy and dispute.} Consumers have the right to dispute inaccurate information, and furnishers (lenders who report account data to bureaus) and bureaus have statutory obligations to investigate and correct errors.
 \end{itemize}
 
-The adverse action notice requirement is the most consequential constraint for LLM-based credit models. A transformer that produces a single scalar output from a high-dimensional embedding is not inherently reason-code compatible. Producing defensible explanations requires either post-hoc attribution methods (discussed in Section~\ref{subsec:shap-credit}) or architectural choices that make attribution tractable.
+The adverse action notice requirement is the most consequential constraint for LLM-based credit models. A transformer that produces a single scalar output from a high-dimensional embedding is not inherently reason-code compatible. Producing defensible explanations requires either post-hoc attribution methods (discussed in \Cref{subsec:shap-credit}) or architectural choices that make attribution tractable.
 
 \subsubsection*{The Equal Credit Opportunity Act (ECOA) and Regulation B}
 
@@ -111,7 +111,7 @@ The CFPB has issued guidance clarifying that lenders may proactively use alterna
 
 In the European Union, GDPR Article~22 grants individuals the right not to be subject to a decision based solely on automated processing that produces legal or similarly significant effects. Credit denials fall squarely within this definition. Article~22 permits automated decisions only if they are necessary for a contract, authorised by law, or based on explicit consent --- and even then the data subject retains the right to obtain human review, express their point of view, and contest the decision.
 
-GDPR's Recital 71 specifies that the controller should implement ``suitable measures to safeguard the data subject's rights and freedoms and legitimate interests, at least the right to obtain human intervention on the part of the controller, to express his or her point of view and to contest the decision.'' This is the legal foundation for human-in-the-loop review workflows (Section~\ref{subsec:hitl-credit}).
+GDPR's Recital 71 specifies that the controller should implement ``suitable measures to safeguard the data subject's rights and freedoms and legitimate interests, at least the right to obtain human intervention on the part of the controller, to express his or her point of view and to contest the decision.'' This is the legal foundation for human-in-the-loop review workflows (\Cref{subsec:hitl-credit}).
 
 GDPR also imposes data minimisation and purpose limitation obligations that constrain which features an LLM credit model may consume. Collecting rich behavioural data for one stated purpose and using it for credit scoring without separate consent constitutes a purpose limitation violation. This regulatory requirement motivates careful feature governance --- tracking, for each input feature, its source, the consent basis on which it was collected, and the specific purposes for which it may be used.
 
@@ -201,6 +201,7 @@ Firms with $Z < 1.81$ are classified as distressed, those with $Z > 2.99$ as hea
 
 \subsubsection*{Structural Models: Merton (1974)}
 
+\begin{deepdive}
 \citet{merton1974pricing} shows that equity can be viewed as a European call option on the firm's assets. Let $V_t$ denote the asset value, $D$ the face value of a single zero-coupon debt obligation maturing at $T$, and $r$ the risk-free rate. Equity value is:
 \begin{equation}
   E_t = V_t \Phi(d_1) - D e^{-r(T-t)} \Phi(d_2),
@@ -217,6 +218,7 @@ Default occurs if $V_T < D$, and the risk-neutral default probability over the h
   \label{eq:merton-pd}
 \end{equation}
 The model's main limitation is that it requires an estimate of the unobserved asset volatility $\sigma_V$ and asset value $V_t$, typically extracted from observed equity prices via an implicit equation system.
+\end{deepdive}
 
 \subsubsection*{Reduced-Form Models}
 
@@ -254,12 +256,12 @@ The most natural formulations are:
 \begin{description}
   \item[Sequence classification.] Serialise the borrower profile as a text string and fine-tune a BERT-family model (encoder only) to predict a binary label: ``DEFAULT'' or ``NO DEFAULT.'' The pooled \texttt{[CLS]} representation is passed through a linear head with sigmoid activation. This is the architecture used in most published LLM credit scoring papers \cite{yang2020finbert}.
 
-  \item[Causal language modelling with label generation.] Prompt a decoder-only model (GPT-family) with a structured description of the borrower and ask it to generate a classification token. This leverages the model's in-context learning ability and scales naturally to few-shot settings, but requires careful probability extraction (Section~\ref{subsec:structured-gen}).
+  \item[Causal language modelling with label generation.] Prompt a decoder-only model (GPT-family) with a structured description of the borrower and ask it to generate a classification token. This leverages the model's in-context learning ability and scales naturally to few-shot settings, but requires careful probability extraction (\Cref{subsec:structured-gen}).
 
   \item[Regression on probability.] Fine-tune the model to output a scalar probability directly, treating the task as a regression problem. This requires observed default indicators as labels, which are binary; smooth target probabilities must be obtained from an ensemble or from Platt-scaled outputs of a teacher model.
 \end{description}
 
-For most regulatory environments, sequence classification or structured generation (Section~\ref{subsec:structured-gen}) are preferred because they produce well-defined probability estimates that can be calibrated and explained.
+For most regulatory environments, sequence classification or structured generation (\Cref{subsec:structured-gen}) are preferred because they produce well-defined probability estimates that can be calibrated and explained.
 
 \subsubsection*{Input Serialisation}
 
@@ -356,7 +358,7 @@ Token & Logit $\ell_v$ & Constrained Probability \\
 
 Softmax renormalisation over the ten valid tokens assigns highest probability to \texttt{2}, so the model generates \texttt{2} as the first post-decimal digit. The procedure continues for subsequent digits. If the model eventually generates \texttt{0.23}, the implied default probability is $\hat{p} = 0.23$, a 23\% probability of default.
 
-The key insight is that $\hat{p}$ is not the model's \emph{confidence} about a binary label. It is the specific floating-point number the model was guided to express, selected token by token from a constrained vocabulary. This number reflects the model's internal representation of risk but is not guaranteed to be calibrated against the empirical default rate. Calibration is the task of Section~\ref{subsec:calibration}.
+The key insight is that $\hat{p}$ is not the model's \emph{confidence} about a binary label. It is the specific floating-point number the model was guided to express, selected token by token from a constrained vocabulary. This number reflects the model's internal representation of risk but is not guaranteed to be calibrated against the empirical default rate. Calibration is the task of \Cref{subsec:calibration}.
 
 \subsubsection*{Connection to Verbatim Probability Extraction}
 
@@ -371,7 +373,7 @@ This approach is simpler but coarser: it collapses the continuous default probab
 \subsection{Probability Calibration: Isotonic Regression and Platt Scaling}
 \label{subsec:calibration}
 
-A model is said to be \emph{well-calibrated} if, among all applications scored with predicted probability $\hat{p}$, the fraction that actually defaults is approximately $\hat{p}$. Calibration is distinct from discrimination: a model can rank borrowers correctly (high AUROC (defined in Section~\ref{subsec:credit-metrics} below)) while systematically over- or under-predicting default probabilities (poor calibration). For credit applications, calibration matters because expected loss calculations and regulatory capital requirements depend on the absolute value of the probability of default, not merely the ranking.
+A model is said to be \emph{well-calibrated} if, among all applications scored with predicted probability $\hat{p}$, the fraction that actually defaults is approximately $\hat{p}$. Calibration is distinct from discrimination: a model can rank borrowers correctly (high AUROC (defined in \Cref{subsec:credit-metrics} below)) while systematically over- or under-predicting default probabilities (poor calibration). For credit applications, calibration matters because expected loss calculations and regulatory capital requirements depend on the absolute value of the probability of default, not merely the ranking.
 
 \begin{definition}[Calibration]
 \label{def:calibration}
@@ -495,7 +497,7 @@ LLMs contribute to the decision-support framework by eliciting utility function 
       \label{eq:utility-fit}
     \end{equation}
     where $(c_j, \lambda_j, g_j)$ is the $j$-th elicited indifference point: a certain payoff $c_j$ is indifferent to a lottery paying $g_j$ with probability $\lambda_j$ and $\varepsilon > 0$ (a small positive wealth floor) otherwise. The floor $\varepsilon$ avoids the singularity of CRRA utility at zero for $\gamma > 1$.
-  \item Use $\hat{\gamma}$ in equation~\eqref{eq:expected-utility} to evaluate the household's preferred alternative.
+  \item Use $\hat{\gamma}$ in \Cref{eq:expected-utility} to evaluate the household's preferred alternative.
 \end{enumerate}
 
 The quality of the preference elicitation depends critically on the LLM's ability to conduct a coherent multi-turn dialogue, present the lotteries in natural language without mathematical intimidation, and resist anchoring the household's responses through the order or framing of options.
@@ -609,7 +611,7 @@ The simulation cannot replace empirical testing but can substantially narrow the
 
 \subsubsection*{Mortgage Choice Simulation}
 
-As illustrated in Example~\ref{ex:personas}, mortgage choice is sensitive to income volatility, risk aversion, and financial literacy. Regulators and consumer advocates can use persona simulation to evaluate whether a particular mortgage product is suitable for its target market. A product with a teaser rate that resets steeply after two years may be welfare-enhancing for Thomas-type borrowers with stable income and financial sophistication, while creating serious distress risk for Maria-type borrowers.
+As illustrated in \Cref{ex:personas}, mortgage choice is sensitive to income volatility, risk aversion, and financial literacy. Regulators and consumer advocates can use persona simulation to evaluate whether a particular mortgage product is suitable for its target market. A product with a teaser rate that resets steeply after two years may be welfare-enhancing for Thomas-type borrowers with stable income and financial sophistication, while creating serious distress risk for Maria-type borrowers.
 
 \subsubsection*{Retirement Planning}
 
@@ -678,11 +680,12 @@ The Kolmogorov--Smirnov (KS) statistic measures the maximum separation between t
 \label{def:ks}
 Let $F_+(s) = P(S \leq s \mid Y = 1)$ and $F_-(s) = P(S \leq s \mid Y = 0)$ denote the CDFs of the score conditional on default and non-default, respectively. The \emph{KS statistic} is:
 \begin{equation}
-  \text{KS} = \sup_{s \in [0,1]} |F_+(s) - F_-(s)| = \sup_{s \in [0,1]} |\text{TPR}^{-1}(s) - \text{FPR}^{-1}(s)|.
+  \text{KS} = \sup_{s \in [0,1]} |F_+(s) - F_-(s)|.
   \label{eq:ks}
 \end{equation}
 \end{definition}
 
+\begin{deepdive}
 To derive the KS statistic from the empirical CDF, let $\{s_i^+\}_{i=1}^{n_+}$ and $\{s_j^-\}_{j=1}^{n_-}$ be the observed scores for defaulters and non-defaulters, respectively. The empirical CDFs are:
 \begin{align}
   \hat{F}_+(s) &= \frac{1}{n_+} \sum_{i=1}^{n_+} \mathbf{1}[s_i^+ \leq s], \label{eq:ecdf-pos} \\
@@ -695,6 +698,7 @@ The KS statistic is estimated as:
   \label{eq:ks-empirical}
 \end{equation}
 where the maximum is taken over the set of all observed scores (the unique support points of the two empirical CDFs). The maximum is always achieved at one of these support points because the difference $|\hat{F}_+(s) - \hat{F}_-(s)|$ is a step function with jumps only at observed scores.
+\end{deepdive}
 
 In credit scoring practice, the KS statistic is typically computed by sorting all observations by score, computing the cumulative fraction of defaulters and non-defaulters at each score level, and reading off the maximum vertical distance between the two cumulative fractions. A KS statistic above 0.40 is conventionally considered good for a retail credit model; above 0.60 is excellent.
 
@@ -747,9 +751,14 @@ SR 11-7 requires independent validation: the validation team must be separate fr
 
 \begin{enumerate}
   \item \textbf{Conceptual soundness review}: does the model's architecture and fine-tuning approach make theoretical sense for the intended task?
-  \item \textbf{Outcome analysis}: does the model perform at least as well as the benchmark (logistic regression or gradient boosting) on the performance metrics defined in Section~\ref{subsec:credit-metrics}?
+  \item \textbf{Outcome analysis}: does the model perform at least as well as the benchmark (logistic regression or gradient boosting) on the performance metrics defined in \Cref{subsec:credit-metrics}?
   \item \textbf{Sensitivity analysis}: how sensitive are model outputs to small perturbations in input --- changes in word order, synonym substitution, missing fields? High sensitivity is a red flag for instability.
-  \item \textbf{Disparate impact testing}: does the model produce materially different adverse action rates for protected-class groups after controlling for legitimate credit factors?
+  \item \textbf{Disparate impact testing}: does the model produce materially different adverse action rates for protected-class groups after controlling for legitimate credit factors? The standard screen is the \emph{disparate impact ratio} (adverse-impact ratio),
+        \begin{equation}
+          \label{eq:disparate-impact}
+          \mathrm{DIR} = \frac{\Pr(\text{approve} \mid A = \text{protected})}{\Pr(\text{approve} \mid A = \text{reference})},
+        \end{equation}
+        where $A$ is the protected attribute. Under the regulatory ``four-fifths rule,'' a $\mathrm{DIR}$ below $0.8$ is treated as presumptive evidence of adverse impact requiring business-necessity justification. A complementary measure is the \emph{demographic parity difference} $\Pr(\text{approve}\mid A=a)-\Pr(\text{approve}\mid A=b)$; both must be evaluated after conditioning on legitimate credit factors, since unconditional gaps may reflect genuine differences in creditworthiness.
   \item \textbf{Adversarial probing}: can the model be manipulated by a sophisticated borrower who crafts their application text to trigger favourable model responses?
 \end{enumerate}
 
@@ -782,7 +791,7 @@ The standard backtesting framework for retail credit is vintage analysis. Loans 
 
 Basel II / III Pillar 1 credit risk capital requirements use \emph{through-the-cycle} (TTC) probability of default estimates: PDs should reflect long-run average default rates rather than current cycle conditions. This stands in contrast to \emph{point-in-time} (PIT) PDs, which are calibrated to current conditions. LLMs trained on recent data tend to produce PIT estimates. Converting PIT to TTC requires a long-horizon calibration dataset spanning at least one full credit cycle (typically 7--10 years).
 
-The Platt scaling calibration described in Section~\ref{subsec:calibration} can be applied to convert PIT LLM outputs to TTC by fitting the calibration model on a through-the-cycle calibration set. The scaling parameters $a$ and $b$ in equation~\eqref{eq:platt} then absorb both overconfidence correction and cycle-position adjustment.
+The Platt scaling calibration described in \Cref{subsec:calibration} can be applied to convert PIT LLM outputs to TTC by fitting the calibration model on a through-the-cycle calibration set. The scaling parameters $a$ and $b$ in \Cref{eq:platt} then absorb both overconfidence correction and cycle-position adjustment.
 
 % ---------------------------------------------------------------
 \subsection{Interpretability: SHAP for LLM-Based Credit Decisions}
@@ -805,7 +814,7 @@ SHAP values satisfy three axioms that make them particularly suitable for regula
 
 \subsubsection*{SHAP for an LLM-Based Credit Decision}
 
-For an LLM credit model with serialised tabular inputs, SHAP can be computed by treating each field as a ``feature'' and computing the expected output change when each field is masked or replaced with a baseline (mean or most common) value. Table~\ref{tab:shap-waterfall} illustrates a SHAP waterfall for a loan application.
+For an LLM credit model with serialised tabular inputs, SHAP can be computed by treating each field as a ``feature'' and computing the expected output change when each field is masked or replaced with a baseline (mean or most common) value. \Cref{tab:shap-waterfall} illustrates a SHAP waterfall for a loan application.
 
 \begin{example}[SHAP Waterfall for a Loan Application]
 \label{ex:shap-waterfall}
@@ -1037,7 +1046,7 @@ The MVR is produced by the independent validation team and documents: (1) the sc
 
 \subsubsection*{GDPR Article 22 Transparency Documentation}
 
-For EU credit applications, the institution must be able to provide, upon request, a written explanation of the logic involved in the automated decision, the significance of the decision for the individual, and the envisaged consequences. The SHAP-based adverse action reasons in the API response (Example~\ref{ex:api}) form the basis of this explanation, but they must be translated into plain language understandable by a consumer without financial or technical background.
+For EU credit applications, the institution must be able to provide, upon request, a written explanation of the logic involved in the automated decision, the significance of the decision for the individual, and the envisaged consequences. The SHAP-based adverse action reasons in the API response (\Cref{ex:api}) form the basis of this explanation, but they must be translated into plain language understandable by a consumer without financial or technical background.
 
 \begin{example}[Plain-Language GDPR Explanation]
 \label{ex:gdpr-explanation}

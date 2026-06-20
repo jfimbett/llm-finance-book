@@ -26,6 +26,7 @@ python3 code/notebooks/05-business-valuation/gen_dcf_sensitivity.py
 python3 code/notebooks/07-applications-future/gen_benchmark_comparison.py
 python3 code/notebooks/08-domain-specific-llms/gen_corpus_composition.py
 python3 code/notebooks/09-financial-nlp-sentiment/gen_lm_lexicon.py
+python3 code/notebooks/10-portfolio-quant-trading/gen_efficient_frontier.py
 python3 code/notebooks/11-regtech-compliance-aml/gen_rrf_fusion.py
 python3 code/notebooks/12-xai-explainability/gen_shap_attribution.py
 python3 code/notebooks/13-llm-limitations-evaluation/gen_reliability_diagram.py

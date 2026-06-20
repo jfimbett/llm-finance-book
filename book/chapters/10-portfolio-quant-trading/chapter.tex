@@ -76,6 +76,21 @@ maximises the ratio of expected excess return to volatility,
 Without the non-negativity constraint the unconstrained maximum Sharpe ratio portfolio has
 the closed form $\mathbf{w}^{\text{SR}} \propto \boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$,
 revealing that the solution scales inversely with risk and linearly with the return signal.
+\Cref{fig:ch10-frontier} traces the frontier for a small fixed example and marks both the
+tangency portfolio and the $1/N$ equal-weight portfolio.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.66\textwidth]{chapters/10-portfolio-quant-trading/figures/fig_frontier}
+  \caption{Mean-variance efficient frontier for a fixed four-asset example
+           (\Cref{def:mv-efficient}), with the maximum-Sharpe (tangency) portfolio and the
+           $1/N$ equal-weight portfolio marked. The two sit almost on top of one another---a
+           concrete illustration of the \citet{demiguel2009optimal} finding that, once
+           $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$ must be estimated, the naive $1/N$
+           rule is hard to beat. Generated deterministically by
+           \texttt{gen\_efficient\_frontier.py} (no data or network dependence).}
+  \label{fig:ch10-frontier}
+\end{figure}
 
 The practical problem is that both $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$ must be
 estimated from data. Sample estimates of $\boldsymbol{\mu}$ are notoriously noisy: even
@@ -153,7 +168,7 @@ The key virtue of Black-Litterman is that it decouples \emph{where} views are he
 only specify those three rows of $\mathbf{P}$; the optimizer handles the rest
 consistently. This modularity maps naturally onto LLM-generated signals: an LLM that
 processes earnings calls can produce a view $q_k$ for each company it covers, together
-with a confidence score that informs $\Omega_{kk}$. Sections~\ref{sec:ch10-analyst-views-extraction}
+with a confidence score that informs $\Omega_{kk}$. \Cref{sec:ch10-analyst-views-extraction}
 and~\ref{sec:ch10-llm-factors-fama-french} detail how to operationalise this pipeline.
 \citet{MantshimuliMwamba2025} provide direct empirical validation of this architecture:
 they aggregate sentiment views from multiple fine-tuned LLMs via an LSTM and feed the
@@ -174,7 +189,7 @@ selecting Apple, where $\mathbf{e}_i$ denotes the $i$-th standard basis vector i
 (0.5\%)^2$ (reflecting moderate confidence).
 
 Before this view, the equilibrium implied return for Apple might be $\Pi_{\text{AAPL}} =
-0.3\%$ per month. After applying equation~\eqref{eq:ch10-bl-posterior}, the posterior
+0.3\%$ per month. After applying \Cref{eq:ch10-bl-posterior}, the posterior
 return shifts upward, with the magnitude of the shift proportional to the distance
 $q - \mathbf{P}\boldsymbol{\Pi}$ relative to the total uncertainty
 $\tau \mathbf{P}\boldsymbol{\Sigma}\mathbf{P}^\top + \boldsymbol{\Omega}$. If the view
@@ -302,7 +317,7 @@ after the market has already reacted to management guidance on an earnings call.
 Timestamp management is therefore critical. The signal should use only text available
 before the close of the trading day on which the portfolio is rebalanced. Systems that
 accidentally include after-hours summaries in next-day decisions introduce look-ahead
-bias---a topic we return to in Section~\ref{sec:ch10-backtesting-pitfalls}.
+bias---a topic we return to in \Cref{sec:ch10-backtesting-pitfalls}.
 
 \begin{example}[Extracting BL Views from Earnings Call Transcripts]
 \label{ex:ch10-earnings-call-bl}
@@ -391,7 +406,7 @@ of proposed factors tested against the same dataset, conventional significance t
 ($t > 2$) produce many false discoveries. A language factor that survives a Bonferroni
 correction or a Sharpe ratio test accounting for multiple comparisons provides much stronger
 evidence than a raw $p$-value below 0.05. This concern interacts directly with the backtest
-pitfalls discussed in Section~\ref{sec:ch10-backtesting-pitfalls}.
+pitfalls discussed in \Cref{sec:ch10-backtesting-pitfalls}.
 
 % ============================================================
 \section{LLM-Guided Algorithmic Trading}
@@ -429,17 +444,19 @@ where $\hat{\mu}_s$ and $\hat{\sigma}_s$ are computed over a rolling backward wi
   w_{i,t} = \frac{z_{i,t}}{\sum_j |z_{j,t}|} \cdot W_{\max},
   \label{eq:ch10-position-sizing}
 \end{equation}
-with $W_{\max}$ a maximum gross exposure parameter. Equation~\eqref{eq:ch10-position-sizing}
+with $W_{\max}$ a maximum gross exposure parameter. \Cref{eq:ch10-position-sizing}
 produces a dollar-neutral portfolio when positive and negative signals are balanced across
 the universe---desirable for a long-short strategy that seeks to be insulated from
 broad market moves.
 
 The scale of predictive power available from LLM sentiment is illustrated by
-\citet{KirtacGermano2024}, who score 965,375 news articles with a GPT-3-class model
-and find that the resulting sentiment scores predict next-day stock returns with 74.4\%
-directional accuracy; a long-short strategy exploiting these scores earns a Sharpe ratio
-of 3.05 after transaction costs on their evaluation sample, providing a large-scale
-empirical baseline for the magnitude of LLM sentiment alpha before crowding erodes it.
+\citet{KirtacGermano2024}, who score a large corpus of news articles with a GPT-3-class model
+and report that the resulting sentiment scores predict next-day stock returns with
+above-chance directional accuracy; a long-short strategy exploiting these scores earns a
+high Sharpe ratio after transaction costs on their evaluation sample (working-paper
+magnitudes are sample- and cost-assumption dependent, and such single-sample Sharpes are
+rarely replicated out of sample), providing a qualitative baseline for the magnitude of
+LLM sentiment alpha before crowding erodes it.
 
 The dynamics of news sentiment decay must be modelled explicitly. A sentiment signal
 derived from a news article at time $t_0$ carries diminishing predictive content as the
@@ -465,16 +482,18 @@ approaches, such as the Almgren-Chriss model \citep{almgren2001optimal}, derive 
 execution schedules by minimising the expected cost of trading plus a penalty for
 execution risk. In the linear-impact version the objective is:
 \begin{equation}
-  C(\mathbf{x}) = \gamma \sum_{k=1}^{N} x_k v_k
+  C(\mathbf{x}) = \tfrac{1}{2}\gamma X^2
                 + \eta  \sum_{k=1}^{N} \tau_k v_k^2
                 + \lambda \sigma^2 \sum_{k=1}^{N} \tau_k x_k^2,
   \label{eq:ch10-ac-cost}
 \end{equation}
-where $v_k = \dot{x}_k$ is the trading rate in period $k$, $x_k$ is the remaining
-inventory, $\tau_k$ is the length of trading interval $k$, $\gamma$ is the permanent
-impact coefficient (capturing the lasting price displacement from each trade),
+where $X$ is the total quantity to execute, $x_k$ is the inventory remaining after
+period $k$ (so $x_0 = X$, $x_N = 0$), $v_k = (x_{k-1}-x_k)/\tau_k$ is the trading rate in
+period $k$, $\tau_k$ is the length of trading interval $k$, $\gamma$ is the permanent
+impact coefficient (capturing the lasting price displacement, whose total cost
+$\tfrac{1}{2}\gamma X^2$ is independent of the schedule for linear permanent impact),
 $\eta$ is the temporary impact coefficient (capturing per-trade slippage), $\lambda$
-is the trader's risk aversion, and $\sigma$ is return volatility.  The first sum is
+is the trader's risk aversion, and $\sigma$ is return volatility.  The first term is
 the permanent-impact cost, the second is the temporary-impact (slippage) cost, and the
 third penalises the variance of the execution shortfall.
 The Almgren-Chriss solution is a closed-form time-varying schedule that front-loads
@@ -500,8 +519,8 @@ neutral, or positive news event in the previous five minutes. In simulations usi
 classifier and the latency of the LLM inference pipeline. A more ambitious integration
 is proposed by \citet{CoriatBenhamou2025}, who develop HARLF, a three-tier hierarchical
 RL architecture in which lightweight LLMs inject news sentiment into base RL agents at
-each level of the hierarchy; tested on 2018--2024 data, the system achieves a 26\%
-annualised return with a Sharpe ratio of 1.2, illustrating the gains available when LLM
+each level of the hierarchy; tested on 2018--2024 data, the authors report strong
+risk-adjusted returns, illustrating the gains available when LLM
 sentiment signals are woven into the reward structure rather than merely appended to
 the state vector.
 
@@ -594,8 +613,8 @@ test windows.
 \end{definition}
 
 For LLM-based signals, the ``parameters'' being estimated include the calibration
-constant $\alpha$ in equation~\eqref{eq:ch10-signal-to-view}, the decay parameter
-$\lambda$ in equation~\eqref{eq:ch10-ewma-sentiment}, and the position-sizing
+constant $\alpha$ in \Cref{eq:ch10-signal-to-view}, the decay parameter
+$\lambda$ in \Cref{eq:ch10-ewma-sentiment}, and the position-sizing
 scale $W_{\max}$. These should never be optimised using knowledge of the test period.
 
 The \emph{out-of-sample Sharpe ratio} is the primary performance metric:
@@ -688,11 +707,12 @@ genuine predictive power. \citet{lopezdeprado2018advances} recommends reporting 
 track record length} needed to confirm a given Sharpe ratio at a specified confidence
 level:
 \begin{equation}
-  T^* = 1 + \hat{\sigma}^2\left(1 - \gamma_1 \text{SR}^* + \frac{\gamma_2 - 1}{4}
+  T^* = 1 + \left(1 - \gamma_1 \text{SR}^* + \frac{\gamma_2 - 1}{4}
     (\text{SR}^*)^2 \right) \cdot \frac{Z_{1-\alpha}^2}{(\text{SR}^*)^2},
   \label{eq:ch10-min-track}
 \end{equation}
-where $\gamma_1$ and $\gamma_2$ are the skewness and kurtosis of the return distribution
+where $\text{SR}^*$ is the (non-annualised, per-observation) Sharpe ratio to be confirmed,
+$\gamma_1$ and $\gamma_2$ are the skewness and kurtosis of the return distribution,
 and $Z_{1-\alpha}$ is the standard normal quantile. For non-normal strategy returns
 (typical of LLM sentiment strategies, which exhibit fat tails), $T^*$ can be several
 years, underlining why short backtests are insufficient.

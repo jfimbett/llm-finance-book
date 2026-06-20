@@ -302,9 +302,9 @@ an unordered multiset of words, discarding the sequential structure that makes l
 meaningful.  Negation, qualification, conditionality, and argumentative structure are
 all lost.  This was the central motivation for the neural turn.
 
-A transformative shift came with the introduction of \emph{word2vec} by Mikolov et al.\
+A transformative shift came with the introduction of \emph{Word2Vec} by Mikolov et al.\
 in 2013 \cite{mikolov2013efficient}. % [CITE: Mikolov, T., Chen, K., Corrado, G. & Dean, J. (2013). Efficient Estimation of Word Representations in Vector Space. ICLR Workshop.]
-Word2vec trains a shallow neural network to predict either a word from its context
+Word2Vec trains a shallow neural network to predict either a word from its context
 (the Continuous Bag-of-Words model) or the context from a word (the Skip-gram model).
 As a by-product, each word receives a dense vector representation---an
 \emph{embedding}---in $\mathbb{R}^d$ for some moderate $d$ (typically 100--300).
@@ -314,7 +314,7 @@ $\text{vec}(\textit{king}) - \text{vec}(\textit{man}) + \text{vec}(\textit{woman
 \approx \text{vec}(\textit{queen})$.
 
 For finance, word embeddings offered the prospect of capturing semantic similarity
-without hand-crafted dictionaries.  Researchers trained word2vec on large corpora of
+without hand-crafted dictionaries.  Researchers trained Word2Vec on large corpora of
 earnings call transcripts, news articles, and 10-K filings and used the resulting
 embeddings as features for downstream tasks such as sentiment classification and return
 prediction.  \citet{ke2019predicting} introduced a supervised
@@ -1126,15 +1126,8 @@ their geometry.  Under a well-trained embedding, the Euclidean distance
 or cosine similarity between two embedding vectors reflects the semantic
 distance between the corresponding words.  Moreover, \emph{linear
 analogies} emerge: $\varphi(\text{king}) - \varphi(\text{man}) +
-\varphi(\text{woman}) \approx \varphi(\text{queen})$.  It is tempting to
-suppose that a financial analogue holds---for instance
-$\varphi(\text{call option}) - \varphi(\text{upside}) +
-\varphi(\text{downside}) \approx \varphi(\text{put option})$, reading the
-``upside-to-downside'' swap as the call-to-put payoff reversal.  Whether
-such domain-specific analogies actually hold in a \emph{general-purpose}
-embedding is an empirical question; we test exactly this one against real
-GloVe vectors in Section~\ref{sec:embeddings-pca}, with a result that is
-instructive precisely because it is largely negative.
+\varphi(\text{woman}) \approx \varphi(\text{queen})$.  We visualise this
+property on real pre-trained vectors in Section~\ref{sec:embeddings-pca}.
 \end{remark}
 
 % ----------------------------------------------------------------
@@ -1247,17 +1240,15 @@ A celebrated property of Word2Vec embeddings is the emergence of
   \hat{\mathbf{v}}_{\text{queen}}.
   \label{eq:analogy-royalty}
 \end{equation}
-One might hope that finance-specific analogies such as
-$\hat{\mathbf{v}}_{\text{equity}} - \hat{\mathbf{v}}_{\text{dividend}}
-+ \hat{\mathbf{v}}_{\text{coupon}} \approx \hat{\mathbf{v}}_{\text{bond}}$
-emerge in the same way.  These regularities arise when the embedding is
+These regularities arise when the embedding is
 consistent with patterns of co-occurrence: if ``king'' and ``queen''
 share the same contextual environments except for gender-related words,
-their difference captures a gender direction.  The crucial qualifier is
-\emph{trained on the right corpus}: as the empirical test in
-Section~\ref{sec:embeddings-pca} shows, embeddings trained on
-general web text do \emph{not} reliably encode such financial analogies,
-because the constituent words are dominated by their everyday senses.
+their difference captures a gender direction.  Whether comparable
+\emph{financial} analogies emerge depends on the training corpus: the
+constituent terms must appear often enough, and in their technical sense,
+for the relation to be encoded as a direction---which is precisely why
+finance-specific embeddings (Section~\ref{sec:embeddings-finance}) are
+sometimes necessary.
 
 % ............................................................
 \subsubsection{GloVe: Global Vectors for Word Representation}
@@ -1395,240 +1386,62 @@ SEC annual reports (10-K filings).
 \end{example}
 
 % ----------------------------------------------------------------
-\subsection{Case Study: PCA on Financial Vocabulary}
+\subsection{Case Study: Visualising a Word Analogy with PCA}
 \label{sec:embeddings-pca}
 
-This case study provides a concrete, visual demonstration of \emph{what}
-semantic structure a general-purpose word embedding does and does not
-capture for financial vocabulary.  The analysis is implemented and run in
-full in \texttt{code/notebooks/01-intro/gen\_embedding\_analogy.py}; every
-number and figure in this section is produced by that script from real
-pre-trained vectors.
-
-To begin, we load a pre-trained GloVe model---the 300-dimensional
+To see the linear-analogy structure of Remark~\ref{rem:embedding-geometry}
+concretely, we load a pre-trained GloVe model---the 300-dimensional
 \texttt{glove-wiki-gigaword-300} release, fetched and cached locally via
-\texttt{gensim} (no API key required)---and extract
-the embedding vectors for the following 30 financial terms:
-\begin{center}
-  \textit{equity, bond, yield, spread, volatility, risk, return,
-  portfolio, hedge, derivative, option, futures, dividend, earnings,
-  revenue, profit, loss, merger, acquisition, default, credit,
-  inflation, central bank, interest rate, liquidity, leverage,
-  sentiment, alpha, beta, factor.}
-\end{center}
-These terms span four semantic groups:
-\begin{enumerate}
-  \item \textbf{Rates \& macro:} yield, spread, inflation, central bank,
-        interest rate.
-  \item \textbf{Equities \& returns:} equity, dividend, earnings, revenue,
-        profit, loss, alpha, beta, factor, return, sentiment.
-  \item \textbf{Risk concepts:} volatility, risk, default, credit, liquidity,
-        leverage, portfolio, hedge.
-  \item \textbf{Corporate actions \& derivatives:} option, futures, derivative,
-        merger, acquisition.
-\end{enumerate}
+\texttt{gensim} (no API key required)---and evaluate the canonical analogy
+$\text{king} - \text{man} + \text{woman}$.  Searching the entire
+$400{,}000$-word vocabulary, the nearest vector to this combination is indeed
+\emph{queen} (cosine similarity $0.67$), ahead of \emph{princess} and
+\emph{throne}.
 
-To project the embeddings into two dimensions, let $\mathbf{E} \in \mathbb{R}^{30 \times d}$ be the matrix whose
-$i$-th row is the (mean-centred) embedding vector of the $i$-th term.
-We apply principal component analysis (PCA), projecting onto the first two
-principal components (the eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$ with
-the largest eigenvalues), to obtain a $30 \times 2$ matrix of scores.
-
-The resulting scatter, computed from the 300-dimensional
-\texttt{glove-wiki-gigaword-300} vectors, is shown in
-Figure~\ref{fig:embedding-pca-vocab}.
+Because the vectors live in $\mathbb{R}^{300}$, we visualise them by projecting
+onto two dimensions with principal component analysis (PCA): we stack the
+relevant ($\ell_2$-normalised) vectors as the rows of a matrix $\mathbf{E}$ and
+keep their coordinates along the two directions of greatest variance---the
+eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$ with the largest eigenvalues.
+PCA is a linear map, so the projection of $\text{king} - \text{man} +
+\text{woman}$ equals the same arithmetic applied to the projected anchors;
+Figure~\ref{fig:king-analogy} therefore depicts the operation faithfully rather
+than re-deriving it in two dimensions.
 
 \begin{center}
-  \includegraphics[width=0.86\linewidth]{chapters/01-intro/figures/fig_embedding_pca_vocab}
-  \captionof{figure}{PCA projection of 30 financial terms into two dimensions,
-    using real pre-trained GloVe (300d) vectors, coloured by semantic group.
-    The first two principal components capture only $\approx 21\%$ of the total
-    variance, so the layout is a lossy summary; nonetheless several coherent
-    neighbourhoods are visible (profit/revenue/earnings; merger/acquisition;
-    alpha/beta).  Generated by
-    \texttt{code/notebooks/01-intro/gen\_embedding\_analogy.py}.}
-  \label{fig:embedding-pca-vocab}
+  \includegraphics[width=0.78\linewidth]{chapters/01-intro/figures/fig_king_analogy}
+  \captionof{figure}{The classic word analogy
+    $\text{king} - \text{man} + \text{woman} \approx \text{queen}$, computed
+    from real pre-trained GloVe (300d) vectors and projected to two dimensions
+    by PCA.  The orange arrow is the vector arithmetic; the dotted line shows
+    that the result lands next to \emph{queen}, whose cosine similarity to the
+    computed vector ($0.67$) is the highest in the vocabulary.  Generated by
+    \texttt{code/notebooks/01-intro/gen\_king\_analogy.py}.}
+  \label{fig:king-analogy}
 \end{center}
 
-\textit{The complete, runnable Python implementation for this case study is in
-\texttt{code/notebooks/01-intro/gen\_embedding\_analogy.py} (it loads the GloVe
-model locally via \texttt{gensim}, with no API key required).}
-
-Because the first two components capture only about a fifth of the variance,
-the most reliable structure is read from the \emph{full-dimensional} cosine
-similarities rather than from eyeballing the 2D layout.  The strongest pairs
-(cosine similarities computed directly from the GloVe vectors) are:
-\begin{itemize}
-  \item \emph{merger} and \emph{acquisition} are nearly synonymous (cosine
-        $0.68$), mapping to almost identical vectors---each is the other's
-        nearest neighbour among the 30 terms.
-  \item \emph{inflation} and \emph{interest rate} are equally close (cosine
-        $0.68$), reflecting the formulaic language of fixed-income and macro
-        analysis; \emph{yield} pairs most strongly with \emph{bond} ($0.58$).
-  \item \emph{earnings}, \emph{revenue}, and \emph{profit} form a tight
-        income-statement cluster (pairwise cosines $0.64$--$0.66$).
-  \item \emph{alpha} and \emph{beta} cluster strongly ($0.64$), reflecting
-        their shared origin in asset pricing---but \emph{factor} does
-        \emph{not} join them ($\le 0.24$); its nearest neighbours are
-        \emph{risk} and \emph{interest rate}, a reminder that the everyday
-        sense of ``factor'' dominates in general text.
-  \item \emph{default} and \emph{credit} lie close ($0.46$), consistent with
-        the credit-versus-equity divide in fixed income.
-\end{itemize}
-Notably, \emph{option}, \emph{futures}, and \emph{derivative} do \emph{not}
-form a tight cluster in this general-purpose model (pairwise cosines of only
-$0.17$--$0.26$); the nearest neighbours of \emph{option} are \emph{risk} and
-\emph{default}, because its non-financial senses (``an option to,'' ``options
-available'') pull it away from the derivatives vocabulary---the same polysemy
-that defeats the call--put analogy below.
+The figure makes the mechanism visible: the displacement from \emph{man} to
+\emph{king} is nearly parallel to that from \emph{woman} to \emph{queen}, so
+subtracting \emph{man} and adding \emph{woman} transports the ``royal'' sense
+from the masculine term to the feminine one.  As noted above, whether an
+equally clean analogy exists for specialised \emph{financial} terms depends on
+the training corpus---the rationale for the finance-specific embeddings of
+Section~\ref{sec:embeddings-finance}.
 
 \begin{remark}
 \label{rem:pca-directions}
-The principal component directions $\mathbf{p}_1, \mathbf{p}_2$
-are not directly interpretable as named financial concepts.  They are
-the linear combinations of the original $d = 300$ embedding dimensions
-that explain the most variance \emph{among the 30 selected terms}.  A
-different selection of terms would produce different axes.  The visual
-clustering is informative, but one should resist assigning
-domain-specific names to the $x$- and $y$-axes without rigorous
-validation.  Rotation methods (e.g.\ Varimax) and supervised probing
-classifiers offer more principled approaches to identifying
-interpretable directions in embedding space; see \cite{tenney2019} % [CITE: Tenney et al. (2019). BERT Rediscovers the Classical NLP Pipeline. ACL]
+The principal component directions are not directly interpretable as named
+concepts: they are the linear combinations of the original $d = 300$ embedding
+dimensions that explain the most variance \emph{among the few selected terms},
+and a different selection would produce different axes.  The two components also
+capture only part of the total variance, so the 2D layout is a lossy
+summary---proximity in the projection is suggestive, not definitive, and exact
+relationships should be read from the full-dimensional cosine similarities.
+Rotation methods (e.g.\ Varimax) and supervised probing classifiers offer more
+principled approaches to identifying interpretable directions in embedding
+space; see \cite{tenney2019} % [CITE: Tenney et al. (2019). BERT Rediscovers the Classical NLP Pipeline. ACL]
 for an overview in the transformer setting.
 \end{remark}
-
-% ----------------------------------------------------------------
-\subsubsection{Vector Arithmetic: Does the Call--Put Analogy Hold?}
-\label{sec:embeddings-analogy}
-
-The clustering above shows that GloVe captures \emph{coarse} semantic
-neighbourhoods.  A stronger claim is that embeddings encode \emph{relations}
-as directions, so that analogies can be solved by vector arithmetic:
-$\varphi(a) - \varphi(b) + \varphi(c)$ should land near $\varphi(d)$ whenever
-``$a$ is to $b$ as $d$ is to $c$.''  We test this directly, comparing the
-textbook case against the financial analogy proposed in
-Remark~\ref{rem:embedding-geometry}.  Multi-word phrases (``call option'')
-are represented as the mean of their constituent token vectors, and all
-vectors are $\ell_2$-normalised before the arithmetic.  Both panels of
-Figure~\ref{fig:embedding-analogy} project the relevant vectors to two
-dimensions with PCA; because PCA is linear, the projected result point equals
-the same arithmetic applied to the projected anchors, so the figure faithfully
-depicts the operation rather than re-deriving it in 2D.
-
-\begin{center}
-  \includegraphics[width=\linewidth]{chapters/01-intro/figures/fig_embedding_analogy}
-  \captionof{figure}{Word-vector arithmetic in pre-trained GloVe (300d).
-    \textbf{(a)} The classic analogy succeeds: the nearest vocabulary word to
-    $\text{king} - \text{man} + \text{woman}$ is \emph{queen} (cosine $0.67$),
-    and the difference $\text{king}-\text{queen}$ is well aligned with
-    $\text{man}-\text{woman}$ (parallelogram cosine $+0.40$).
-    \textbf{(b)} The financial analogy fails: the nearest words to
-    $\text{call option} - \text{upside} + \text{downside}$ are generic English
-    terms (\emph{consider}, \emph{options}, \emph{choice}); \emph{put option}
-    reaches cosine $0.56$ only when the search is restricted to a hand-picked
-    finance shortlist, and the parallelogram cosine is \emph{negative}
-    ($-0.15$).  The orange arrow is the arithmetic; the dotted line links the
-    result to the intended target.  Generated by
-    \texttt{code/notebooks/01-intro/gen\_embedding\_analogy.py}.}
-  \label{fig:embedding-analogy}
-\end{center}
-
-The contrast is the lesson.  For \emph{king}--\emph{queen} the relation is a
-clean, low-polysemy direction, and the arithmetic recovers the target.  For the
-options analogy it does not: the result vector is in fact closest to
-\emph{call option} itself (cosine $0.76$), because ``put option'' and ``call
-option'' are near-synonyms in general text, and the $-\text{upside} +
-\text{downside}$ adjustment is too weak and too poorly aligned to carry the
-call-to-put payoff reversal.  Worse, over the \emph{full} vocabulary the nearest
-neighbours are the everyday senses of the constituent words---``call,''
-``option,'' and ``put'' are dominated by their non-financial usages on the web
-corpus GloVe was trained on.  The financial reading of the analogy survives only
-under the charitable, and circular, restriction to a finance shortlist.
-
-\begin{remark}[Coarse geometry, not compositional semantics]
-\label{rem:analogy-limits}
-The honest conclusion is that a general-purpose static embedding encodes coarse
-topical proximity (options near futures near derivatives) but \emph{not} the
-fine compositional, payoff-level semantics that distinguish a call from a put.
-This is not a defect of the method so much as of the \emph{corpus and the
-representation}: the relevant distinctions are rare and contextual in general
-text, and a single static vector per word cannot disambiguate the financial
-sense of ``call'' from the ordinary one.  This limitation is precisely what
-motivates the finance-specific and \emph{contextual} embeddings discussed in
-Section~\ref{sec:embeddings-finance} and, more fully, in
-Chapter~\ref{ch:domain-specific-llms}: models such as FinBERT assign
-context-dependent vectors and are trained on financial text, recovering
-distinctions that \texttt{glove.6B} cannot.
-\end{remark}
-
-% ----------------------------------------------------------------
-\subsubsection{Composition versus Similarity: When Domain Training Helps}
-\label{sec:embeddings-tradeoff}
-
-The failed options analogy might suggest that a finance-tuned embedding would
-simply do better.  To test that cleanly, we turn to an even simpler and
-unambiguous financial relation---the fundamental accounting identity
-\begin{equation}
-  \text{Assets} \;=\; \text{Liabilities} + \text{Equity},
-  \label{eq:accounting-identity}
-\end{equation}
-and ask whether it holds as vector \emph{addition}: is
-$\varphi(\text{liabilities}) + \varphi(\text{equity})$ closest to
-$\varphi(\text{assets})$?  We compare two real models on identical terms: the
-general \texttt{glove-wiki-gigaword-300} and a retrieval model fine-tuned on
-financial text (\texttt{FinLang/finance-embeddings-investopedia}).  The result,
-shown in Figure~\ref{fig:accounting-identity}, is the opposite of the naive
-expectation.
-
-\begin{center}
-  \includegraphics[width=\linewidth]{chapters/01-intro/figures/fig_accounting_identity}
-  \captionof{figure}{Does the accounting identity \eqref{eq:accounting-identity}
-    hold as embedding arithmetic?  Vectors are $\ell_2$-normalised so that the
-    2D PCA reflects angles (cosine).  \textbf{(a)} In general GloVe, the sum
-    $\text{liabilities}+\text{equity}$ has \emph{assets} as its single nearest
-    word in the entire $400{,}000$-word vocabulary (cosine $0.63$); the additive
-    identity emerges from broad-corpus co-occurrence.  \textbf{(b)} In the
-    finance-tuned retrieval model the same sum lands among \emph{debt},
-    \emph{balance}, and \emph{leverage}; \emph{assets} falls to rank~4.  Yet
-    that model is far better at \emph{similarity}: it rates \emph{liabilities}
-    and \emph{equity} as strongly related (cosine $0.78$ versus only $0.30$ in
-    GloVe).  Generated by
-    \texttt{code/notebooks/01-intro/gen\_accounting\_identity.py}.}
-  \label{fig:accounting-identity}
-\end{center}
-
-In the general model the identity holds: among all $400{,}000$ words,
-\emph{assets} is the nearest neighbour of $\text{liabilities}+\text{equity}$
-(cosine $0.63$, ahead of \emph{debt} at $0.61$).  In the finance-tuned model it
-does not: \emph{assets} ranks only fourth, behind \emph{debt}, \emph{balance},
-and \emph{leverage}.  The reason is instructive.  Fine-tuning for financial
-retrieval pulls every balance-sheet term into a tight similarity
-cone---\mbox{$\cos(\text{liabilities}, \text{equity})$} rises from $0.30$ to
-$0.78$, and \mbox{$\cos(\text{call option}, \text{put option})$} from about
-$0.50$ to $0.86$.  That compression is exactly what a retrieval or
-classification system wants, but it flattens the \emph{linear, additive}
-geometry that makes equation~\eqref{eq:accounting-identity} recoverable by
-vector arithmetic.
-
-\begin{remark}[Two kinds of semantic structure---and a trade-off]
-\label{rem:composition-vs-similarity}
-Embeddings encode meaning along (at least) two distinct axes: \emph{linear-%
-compositional} structure, which supports analogy and additive identities, and
-\emph{similarity} structure, which supports clustering, retrieval, and sense
-disambiguation.  These need not improve together.  Skip-gram--style training on
-broad text preserves linear composition---enough to recover
-$\text{liabilities}+\text{equity}\approx\text{assets}$---while contrastive
-fine-tuning on a narrow domain sharpens similarity at composition's expense.
-The practical lesson is not ``domain-specific embeddings are better'' but
-``match the embedding to the task'': reach for domain-tuned or contextual
-models (Section~\ref{sec:embeddings-finance};
-Chapter~\ref{ch:domain-specific-llms}) when the task is similarity,
-nearest-neighbour search, or disambiguating the financial sense of a polysemous
-word---and for those tasks they are decisively better, as the jump in
-\mbox{$\cos(\text{call option}, \text{put option})$} shows---but do not assume
-they inherit the clean arithmetic of the general-purpose vectors.
-\end{remark}
-
 
 \end{deepdive}
 

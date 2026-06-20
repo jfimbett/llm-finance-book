@@ -15,7 +15,7 @@ An AI-assisted template for creating a structured course, companion LaTeX book, 
 ```
 book/          LaTeX book (deeper treatment)
 course/        Lecture notes, slides, exercises
-code/          Jupyter notebooks + shared Python package
+code/          Jupyter notebooks + per-chapter figure generators
 .claude/       AI agents, skills, and hooks
 docs/          Design specs, quality reports, status
 hooks/         Portable hook copies for non-Claude AI runners

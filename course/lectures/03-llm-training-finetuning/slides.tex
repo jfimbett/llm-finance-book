@@ -43,9 +43,19 @@
         public from 1996 to present
   \item \textbf{Earnings-call transcripts} --- spoken-register financial language,
         Q\&A with management; available via commercial vendors or scraping
-  \item \textbf{Bloomberg news} --- licensed; high-density, entity-linked financial
+\end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 2b: Financial data sources (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Financial Data Sources (continued)}
+
+\begin{enumerate}
+  \item[3.] \textbf{Bloomberg news} --- licensed; high-density, entity-linked financial
         news with multi-decade coverage
-  \item \textbf{Alternative data} --- satellite-imagery metadata, credit-card
+  \item[4.] \textbf{Alternative data} --- satellite-imagery metadata, credit-card
         transaction summaries, job-posting feeds, shipping manifests
 \end{enumerate}
 
@@ -114,8 +124,14 @@ Raw web crawl data is $\approx 90\%$ noise. A standard pipeline applies four sta
   \item \textbf{MinHash deduplication + PII scrubbing} --- near-duplicate removal
         by Jaccard similarity; removal of emails, phone numbers, SSNs
 \end{enumerate}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 4b: MinHash deduplication (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Data Quality: MinHash Deduplication}
+
 \textbf{MinHash: Jaccard similarity definition}
 \[
   J(A, B) = \frac{|S(A) \cap S(B)|}{|S(A) \cup S(B)|}
@@ -141,6 +157,7 @@ Documents with $J > 0.8$ are near-duplicates; all but one copy is removed.
 \frametitle{Pre-training Objectives: CLM, MLM, Span Corruption}
 
 \begin{center}
+{\small
 \begin{tabular}{p{2.4cm}p{3.8cm}p{3.4cm}}
 \toprule
 \textbf{Objective} & \textbf{Loss} & \textbf{Best suited for} \\
@@ -156,6 +173,7 @@ Span corruption (T5) &
   Seq2seq, QA, summarisation \\
 \bottomrule
 \end{tabular}
+}
 \end{center}
 
 \medskip
@@ -266,8 +284,14 @@ Full fine-tuning & 100\%    & 100K+          & Max in-domain accuracy; large dat
 \bottomrule
 \end{tabular}
 \end{center}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 10b: Adaptation tax (continued)
+% ============================================================
+\begin{frame}
+\frametitle{The Adaptation Spectrum: The Adaptation Tax}
+
 \begin{bigpicture}
   \textbf{Adaptation tax.} Full fine-tuning on a narrow domain can degrade performance
   on adjacent tasks --- a real risk when a deployed finance LLM must also handle general
@@ -301,8 +325,14 @@ Trainable parameters per layer: $r(d + k)$.
 \[
   \frac{8.4\text{M}}{7{,}000\text{M}} \approx 0.12\%
 \]
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 11b: LoRA vs full fine-tuning (continued)
+% ============================================================
+\begin{frame}
+\frametitle{LoRA vs.\ Full Fine-Tuning}
+
 \begin{center}
 \begin{tabular}{lcc}
 \toprule
@@ -341,8 +371,14 @@ Bradley-Terry loss:
 \[
   \mathcal{L}_{\text{RM}} = -\mathbb{E}\!\left[\log \sigma\!\left(r_\theta(x,y_w) - r_\theta(x,y_l)\right)\right]
 \]
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 13b: RLHF Stage 3 (continued)
+% ============================================================
+\begin{frame}
+\frametitle{RLHF: Stage 3 --- PPO Fine-Tuning}
+
 \begin{underhood}
 \textbf{Stage 3 --- PPO fine-tuning with KL penalty:}
 \[
@@ -379,8 +415,14 @@ on preference pairs by re-parameterising the reward in terms of log-ratios:
   \right]
 \]
 \end{underhood}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 14b: DPO properties (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Direct Preference Optimisation (DPO): Properties}
+
 \textbf{Key properties:}
 \begin{itemize}
   \item No separate reward model to train or maintain
@@ -497,8 +539,14 @@ token-level probabilities.
 \]
 Treats all classes equally regardless of frequency. Appropriate for imbalanced
 financial datasets (rare event classes matter as much as common ones).
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 17b: Evaluation -- ROUGE + FinBen (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Evaluation: ROUGE and the FinBen Benchmark}
+
 \textbf{ROUGE-N} (summarisation):
 \[
   \text{ROUGE-N} = \frac{\displaystyle\sum_{\text{ref}}\sum_{g \in \text{ngrams(ref},N)} \text{count}_\text{match}(g)}
@@ -562,8 +610,14 @@ financial datasets (rare event classes matter as much as common ones).
   market regimes (post-pandemic, rising rates, de-globalisation). Performance
   observed on historical test sets may not persist.
 \end{block}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 19b: Bias types (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Four Bias Types in Financial LLMs (continued)}
+
 \begin{block}{Geographic bias}
   English-language, US-centric text dominates open web corpora. Non-US financial
   conventions, currencies, and legal structures are underrepresented.
@@ -589,8 +643,14 @@ financial datasets (rare event classes matter as much as common ones).
   \item \textbf{Regulatory hallucination} --- describes rules that are outdated,
         misquoted, or jurisdiction-mismatched
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 20b: Hallucination mitigations (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Hallucination Mitigations}
+
 \textbf{Four principal mitigations:}
 
 \begin{enumerate}
@@ -663,8 +723,14 @@ High & Credit decisioning, trade recommendation, regulatory filing & Full SR 11-
 \bottomrule
 \end{tabular}
 \end{center}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 22b: Governance framework (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Governance: Four-Component Framework}
+
 \textbf{Four-component governance framework:}
 \begin{enumerate}
   \item \textbf{Risk classification} --- assign Low/Medium/High to each use case
@@ -694,8 +760,14 @@ BloombergGPT was under-trained. Size alone is not the answer.
 \medskip
 \textbf{Fine-tuning:} LoRA achieves 0.12\% of 7B parameters for 90 min of training
 vs.\ 40 hr full fine-tuning, with zero inference overhead.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 23b: Wrap-up (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Lecture 3 Wrap-Up: Key Takeaways (continued)}
+
 \textbf{Alignment:} RLHF (SFT $\to$ reward model $\to$ PPO) aligns behaviour.
 DPO simplifies it to a single supervised objective on preference pairs.
 
@@ -773,8 +845,13 @@ Pipeline parallelism &
 \]
 Discards intermediate activations; recomputes them during backward pass.
 Cost: one extra forward pass.
+\end{frame}
 
-\medskip
+% ============================================================
+% APPENDIX FRAME: FlashAttention (continued)
+% ============================================================
+\begin{frame}[noframenumbering]{Engineering Efficiency: FlashAttention}
+
 \textbf{FlashAttention:}
 Tiles $QK^\top$ into SRAM-resident blocks; avoids writing the full $N\times N$
 attention matrix to HBM.  Reduces HBM reads/writes from $O(N^2)$ to

@@ -53,6 +53,17 @@ Problems with a plain LLM:
   \item Cross-referencing two sources is unreliable
   \item A follow-up (``now compare to Microsoft'') restarts from scratch
 \end{itemize}
+\end{frame}
+
+% ============================================================
+% FRAME 3b: The agent answer
+% ============================================================
+\begin{frame}
+\frametitle{From Static Oracle to Agent}
+
+\textbf{Recall the portfolio manager's question:} compare revenue risks across
+Apple's earnings call and 10-K, then follow up with Microsoft. A plain LLM cannot
+fit the documents, cross-reference them reliably, or carry context forward.
 
 \medskip
 \begin{bigpicture}
@@ -81,7 +92,7 @@ A PRA loop is a triple $(\pi, \mu, \phi)$:
 \end{itemize}
 \end{underhood}
 
-\medskip
+\smallskip
 \textbf{In an LLM agent:}
 \begin{itemize}
   \item $\pi$ is the language model
@@ -90,7 +101,7 @@ A PRA loop is a triple $(\pi, \mu, \phi)$:
   \item Observation = tool output, retrieved document, user message
 \end{itemize}
 
-\medskip
+\smallskip
 \begin{alertblock}{Key bottleneck}
 Memory is bounded by the context window ($\approx$100 pages for GPT-4-class).
 A company's full filing history does not fit.
@@ -259,6 +270,18 @@ A \textbf{tool} is a triple $\mathcal{T} = (\textit{name}, \textit{schema}, f)$:
 \end{itemize}
 
 \medskip
+\begin{block}{Highest-leverage investment in agent reliability}
+Clear, precise field descriptions --- specifying units, valid ranges, edge-case behaviour.
+These descriptions propagate into the JSON Schema the model receives.
+\end{block}
+\end{frame}
+
+% ============================================================
+% FRAME 10b: Tool-call mechanics
+% ============================================================
+\begin{frame}
+\frametitle{The Tool Use Paradigm: Mechanics}
+
 \begin{underhood}
 \textbf{How it works (OpenAI/Anthropic/Google):}
 \begin{enumerate}
@@ -270,10 +293,10 @@ A \textbf{tool} is a triple $\mathcal{T} = (\textit{name}, \textit{schema}, f)$:
 \end{underhood}
 
 \medskip
-\begin{block}{Highest-leverage investment in agent reliability}
-Clear, precise field descriptions --- specifying units, valid ranges, edge-case behaviour.
-These descriptions propagate into the JSON Schema the model receives.
-\end{block}
+The model never executes code itself: it emits a structured request, and a
+trusted execution environment runs $f$ and returns the result as a new
+observation. This separation is what makes tool use auditable and safe to
+restrict --- the agent's action space is exactly the set of declared tools.
 \end{frame}
 
 % ============================================================
@@ -422,8 +445,15 @@ reason over those --- knowledge stays external, current, and auditable.
 \]
 
 In practice: approximate by conditioning on top-$k$ retrieved documents only.
+Knowledge stays external, current, and auditable.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 16b: RAG deployment
+% ============================================================
+\begin{frame}
+\frametitle{RAG: Deployment and Metadata Filtering}
+
 \textbf{Dominant deployment (naive RAG):}
 \begin{itemize}
   \item Frozen bi-encoder retriever (sentence transformer)

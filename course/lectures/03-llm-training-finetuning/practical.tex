@@ -202,8 +202,14 @@ Using $C \approx 6ND$, $D^* \approx 20 N^*$, and therefore $N^* = \sqrt{C/120}$:
         (Hint: compare your $D^*$ to 50B tokens.)
   \item What should they do given this diagnosis?
 \end{enumerate}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 7b: Problem 2 -- Tasks B and C (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Problem 2: Chinchilla Compute Budgeting (continued)}
+
 \textbf{Task B.} The team instead decides to train a 1B-parameter model.
 Using the Chinchilla rule, how many tokens should they train on for a compute-optimal run?
 What is the implied FLOP cost?
@@ -234,8 +240,14 @@ on a small set of labelled financial sentences using HuggingFace PEFT.
   \item \texttt{peft} --- apply \texttt{LoraConfig}, wrap model with \texttt{get\_peft\_model}
   \item \texttt{torch} --- training loop (no Trainer class for transparency)
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 8b: Case Study -- Introduction (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: FinBERT with LoRA --- What You Will Do}
+
 \textbf{Dataset:} 5 labelled financial sentences (positive/negative/neutral).
 This is intentionally tiny --- the goal is to observe the mechanics, not maximise accuracy.
 
@@ -259,8 +271,9 @@ This is intentionally tiny --- the goal is to observe the mechanics, not maximis
 % FRAME 9: Case Study -- Code
 % ============================================================
 \begin{frame}[fragile]
-\frametitle{Case Study: LoRA on FinBERT --- Code}
+\frametitle{Case Study: LoRA on FinBERT --- Code (Part 1: Setup)}
 
+{\footnotesize
 \begin{lstlisting}
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -288,7 +301,18 @@ lora_cfg = LoraConfig(
 )
 model = get_peft_model(model, lora_cfg)
 model.print_trainable_parameters()  # observe trainable % here
+\end{lstlisting}
+}
+\end{frame}
 
+% ============================================================
+% FRAME 9b: Case Study -- Code (Part 2: Train + Eval)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: LoRA on FinBERT --- Code (Part 2: Train + Eval)}
+
+{\footnotesize
+\begin{lstlisting}
 texts, labels = zip(*SENTENCES)
 enc = tokenizer(list(texts), padding=True, truncation=True, return_tensors="pt")
 label_tensor = torch.tensor(labels)
@@ -308,6 +332,7 @@ with torch.no_grad():
     for sent, pred in zip(texts, preds):
         print(f"[{id2label[pred.item()]}] {sent}")
 \end{lstlisting}
+}
 \end{frame}
 
 % ============================================================

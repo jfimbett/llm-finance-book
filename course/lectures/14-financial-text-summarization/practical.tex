@@ -139,8 +139,8 @@ everything runs locally in seconds.
 \end{frame}
 
 % ============================================================
-\begin{frame}[fragile]{Case Study: The Code (Part 1 --- Extractive Summary)}
-\begin{lstlisting}
+\begin{frame}[fragile]{Case Study: The Code (Part 1a --- Setup \& Helpers)}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 import re, networkx as nx
 from collections import Counter
 
@@ -165,7 +165,12 @@ def sim(a, b):                    # cosine over word counts
     den = (sum(v*v for v in a.values())**0.5) * \
           (sum(v*v for v in b.values())**0.5)
     return num / den if den else 0.0
+\end{lstlisting}
+\end{frame}
 
+% ============================================================
+\begin{frame}[fragile]{Case Study: The Code (Part 1b --- TextRank)}
+\begin{lstlisting}
 def textrank(text, k=2):
     sents = sentences(text); vecs = [bow(s) for s in sents]
     G = nx.Graph()
@@ -179,6 +184,11 @@ def textrank(text, k=2):
 
 print(textrank(MDNA, k=2))
 \end{lstlisting}
+
+\medskip
+\textbf{Idea:} sentences vote for each other via cosine similarity; PageRank
+surfaces the most central (salient) ones --- selected \emph{verbatim}, so the
+extractive summary is faithful by construction.
 \end{frame}
 
 % ============================================================
@@ -204,9 +214,12 @@ for row in consistency(TABLE, PROSE):
 # -> ('revenue', 56500.0, 56500.0, '0.00%', 'OK')
 # -> ('azure_growth_pct', 29.0, 28.0, '3.45%', 'MISMATCH')
 \end{lstlisting}
+\end{frame}
 
+% ============================================================
+\begin{frame}{Case Study: Diagnostic Questions}
+After running both code parts, work through the following:
 \medskip
-\textbf{Diagnostic questions:}
 \begin{enumerate}
   \item Which sentences did TextRank select? Do they cover revenue \emph{and} guidance?
   \item The consistency check flags \texttt{azure\_growth\_pct}. Is this an
@@ -256,6 +269,13 @@ Reference $R$ (7 tokens): \texttt{revenue rose 13 percent to 56.5 billion}.
   \item ROUGE-2 = $4/6 \approx \mathbf{0.667}$ (``13 percent'', ``percent to'', ``to 56.5'', ``56.5 billion'').
   \item ROUGE-L = LCS $= 5/7 \approx \mathbf{0.714}$.
 \end{itemize}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Solution: Problem 1 --- The Lesson}
+Recall the scores: Candidate A (\texttt{revenue rose 13 percent}) scored
+$\approx 0.571$; Candidate B (\texttt{profit fell 13 percent to 56.5 billion})
+scored $\approx 0.714$ on every ROUGE variant.
 
 \medskip
 \begin{alertblock}{The lesson}

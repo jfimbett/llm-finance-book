@@ -26,11 +26,11 @@ ChatGPT is retained for training. \textbf{Once data crosses the API boundary,
 there is no technical mechanism for recall.}
 \end{bigpicture}
 
-\medskip
+\smallskip
 LLMs are useful \emph{because} they absorbed vast text --- but absorption plus cloud
 inference creates a privacy surface finance is poorly equipped to govern.
 
-\medskip
+\smallskip
 \textbf{Four complementary engineering strategies} (the spine of this lecture):
 \begin{enumerate}
   \item Local / self-hosted deployment --- remove the external boundary
@@ -167,13 +167,20 @@ Neural LMs compress training data into parameters --- but compression is lossy o
 \end{enumerate}
 Recovered: verbatim emails, phone numbers, names, full PII-bearing examples.
 \end{underhood}
+\end{frame}
 
-\medskip
+\begin{frame}{Memorisation: Why It Is Amplified in Finance}
 \begin{alertblock}{Amplified in finance}
 Fine-tuning on internal research / deal docs / client comms is attractive --- and
 embeds those docs in parameters. A competitor querying the model can recover
 fragments \emph{even behind an access-controlled API}.
 \end{alertblock}
+
+\medskip
+The extraction risk scales with how \emph{rare} and how \emph{repeated} a sequence
+is in the fine-tuning corpus. Proprietary deal documents are both: they appear
+verbatim across drafts, and their exact phrasing exists nowhere in the public
+pre-training data --- maximising the likelihood ratio that exposes them.
 \end{frame}
 
 \begin{frame}{Inference Attacks: Membership and Property}
@@ -627,23 +634,16 @@ Three standard quantitative tests, run after every fine-tune.
 \textbf{Obligation} & \textbf{Source} & \textbf{Mitigation} & \textbf{Evidence} \\
 \midrule
 Restrict automated decisions & GDPR Art.\ 22 & Human-in-the-loop review & Workflow docs \\
-\addlinespace
 Right to erasure & GDPR Art.\ 17 & Exclude subject from fine-tune; use retrieval & Architecture docs \\
-\addlinespace
 Data minimisation & GDPR Art.\ 5 & Anonymise before embed; log hashes & Pipeline design \\
-\addlinespace
 DPIA (high risk) & GDPR Art.\ 35 & Conduct before deployment & Signed DPIA \\
-\addlinespace
 ICT third-party contract & DORA Art.\ 30 & DORA-compliant DPA & Signed contract \\
-\addlinespace
 Record-keeping & MiFID II & Immutable audit trail & Log samples \\
-\addlinespace
 Model risk mgmt & SR 11-7 / ECB & Model card, benchmarks, oversight & Model docs \\
 \bottomrule
 \end{tabular}
 
-\medskip
-\normalsize
+\smallskip
 A \textbf{DPIA} (GDPR Art.\ 35) must precede any LLM deployment processing personal
 financial data --- and must address memorisation risk, the third-party data-sharing
 model, and the erasure mechanism.

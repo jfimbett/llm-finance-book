@@ -41,16 +41,17 @@
   that a rational, fully informed market participant would assign to the claim.
 \end{block}
 
-\medskip
+\smallskip
 \textbf{Professional contexts:}
-\begin{itemize}
+{\small
+\begin{itemize}\itemsep0pt
   \item \textbf{M\&A}: spread between buyer and seller estimates defines zone of possible agreement
   \item \textbf{IPOs}: investment banks produce valuation ranges to price new shares
   \item \textbf{Portfolio management}: model value vs.\ market price generates trade signals
   \item \textbf{Financial reporting}: IFRS 13 / ASC 820 Level 3 assets require documented models
-\end{itemize}
+\end{itemize}}
 
-\medskip
+\smallskip
 \begin{bigpicture}
   Valuation is forward-looking. A balance sheet records historical cost;
   the market prices a claim on \emph{future} earnings.
@@ -71,18 +72,18 @@
 \]
 A 100-bps change in WACC or $g$ alters terminal value by \textbf{20--40\%}. Scenario analysis is indispensable.
 
-\medskip
+\smallskip
 \textbf{Market approach} — trading multiples (EV/EBITDA, P/E, P/Book) from comparable firms.
 Challenge: finding genuinely comparable peers. \textit{LLMs and embeddings help here.}
 
-\medskip
+\smallskip
 \textbf{Asset approach} — net asset value:
 \[
   V_{\text{NAV}} = \sum_i FV(\text{Asset}_i) - \sum_j FV(\text{Liability}_j)
 \]
 Best for asset-intensive firms or as a floor valuation cross-check.
 
-\medskip
+\smallskip
 \begin{block}{In practice}
 Triangulate across all three; present a valuation \emph{range}, not a point estimate.
 \end{block}
@@ -169,8 +170,14 @@ inside cells, non-standard layouts. Classical parsers break on the long tail.
   \item Validate output against schema; retry on parse failure
 \end{enumerate}
 \end{underhood}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 7b: LLM table extraction (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Parsing Financial Tables with LLMs (cont.)}
+
 \textbf{Design principles:}
 \begin{itemize}
   \item Request JSON directly --- reduces post-processing; enables automatic validation
@@ -212,8 +219,9 @@ Using fiscal year end in a backtest can include information not yet available.
 \]
 \end{underhood}
 
-\medskip
+\smallskip
 \begin{center}
+{\footnotesize
 \begin{tabular}{lll}
 \toprule
 Metric & Discounted at & Yields \\
@@ -221,12 +229,12 @@ Metric & Discounted at & Yields \\
 FCFF & WACC & Enterprise value \\
 FCFE & Cost of equity & Equity value directly \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{center}
 
-\medskip
-\textbf{Which to use?} When leverage is changing materially, FCFF is more robust ---
-WACC can be held constant while cost of equity must be adjusted for each leverage scenario.
+\smallskip
+\textbf{Which to use?} When leverage is changing materially, FCFF is more robust:
+WACC can be held constant while cost of equity must be re-levered per scenario.
 \end{frame}
 
 % ============================================================
@@ -277,7 +285,7 @@ Three categories that distort FCFF if treated naively:
         often excluded in ``cash EBIT'' calculations.
 \end{enumerate}
 
-\medskip
+\smallskip
 \textbf{LLM-assisted normalisation:} prompt the model on the MD\&A to identify non-recurring items;
 return JSON with description, amount, and confidence (High / Medium / Low).
 
@@ -285,7 +293,7 @@ return JSON with description, amount, and confidence (High / Medium / Low).
   \text{EBIT}^* = \text{EBIT} + \sum_{k \in \mathcal{K}} a_k
 \]
 
-\medskip
+\smallskip
 \begin{block}{Human-in-the-loop design}
 High confidence $\to$ auto-strip. Medium $\to$ flag for analyst review. Low $\to$ pass through.
 The LLM accelerates identification; the analyst makes the final adjustment.
@@ -374,8 +382,9 @@ an automated consistency-checker catches it before the number enters the DCF mod
   \mathbf{1}\!\left[\mathrm{sign}(y_t - y_{t-1}) = \mathrm{sign}(\hat{y}_t - y_{t-1})\right]
 \]
 
-\medskip
+\smallskip
 \begin{center}
+{\footnotesize
 \begin{tabular}{lll}
 \toprule
 Metric & Problem & When to use \\
@@ -384,7 +393,7 @@ MAPE & Undefined when $y_t \approx 0$ & Stable, positive cash flows \\
 RMSE & Scale-dependent & Within-company comparison \\
 DA & Scale-invariant & Investment decision relevance \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{center}
 Always compare against random-walk baseline and analyst consensus.
 \end{frame}
@@ -430,7 +439,7 @@ No financial calculation --- however simple --- should be performed by in-contex
 \begin{frame}[fragile]
 \frametitle{Code Interpreter Pattern for DCF}
 
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 # ReAct agent trace --- DCF computation
 
 Thought 1: I need to compute FCFF. EBIT=840, DA=310, CapEx=180,
@@ -577,8 +586,14 @@ A 100-bps error in terminal growth $\to$ \textbf{15--18\% error in enterprise va
 \textbf{Prompt-based}: describe the target in natural language; request 8--12 comparable firms as JSON.
 \textit{Problem}: hallucinated tickers occur frequently.
 \textit{Mandatory}: validate every ticker against a securities master.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 19b: Comparable selection (continued)
+% ============================================================
+\begin{frame}
+\frametitle{Comparable Selection: Embedding-Based Approach}
+
 \begin{underhood}
 \textbf{Embedding-based}: embed the MD\&A of all companies in the universe; retrieve top-$k$ by cosine similarity.
 \[
@@ -586,6 +601,11 @@ A 100-bps error in terminal growth $\to$ \textbf{15--18\% error in enterprise va
 \]
 Empirical result: embedding-based peers have lower IQR of EV/EBITDA and lower deviation from transaction prices vs.\ SIC-based peers.
 \end{underhood}
+
+\medskip
+\textbf{Trade-off:} embeddings are grounded (every retrieved peer is a real firm) but may
+surface textual lookalikes whose business model differs from the target. The next slide
+combines both approaches to capture their complementary strengths.
 \end{frame}
 
 % ============================================================

@@ -33,12 +33,19 @@ computation'' (the \alert{AI effect}). The field chases a moving target.
   \item \textbf{Machine learning} --- the dominant contemporary methodology.
   \item \textbf{Deep learning / LLMs} --- particular implementations of that methodology.
 \end{itemize}
+\end{frame}
 
-\medskip
-\begin{block}{Learning objectives for this lecture}
-Place AI/ML/DL/LLM in a nested hierarchy; contrast symbolic vs.\ statistical AI;
-identify where AI creates value in finance; categorise sources of financial text;
-trace NLP from bag-of-words to transformers; state scaled dot-product attention.
+\begin{frame}{Learning Objectives for This Lecture}
+
+\begin{block}{By the end of this lecture you should be able to}
+\begin{itemize}
+  \item Place AI/ML/DL/LLM in a nested hierarchy.
+  \item Contrast symbolic vs.\ statistical AI.
+  \item Identify where AI creates value in finance.
+  \item Categorise sources of financial text.
+  \item Trace NLP from bag-of-words to transformers.
+  \item State scaled dot-product attention.
+\end{itemize}
 \end{block}
 \end{frame}
 
@@ -123,12 +130,23 @@ learn $f_\theta:\mathcal{X}\to\mathcal{Y}$ by minimizing
 with per-sample loss $\ell$ (cross-entropy, squared error). Covers
 \emph{classification} and \emph{regression} --- the two workhorses of quant finance.
 \end{underhood}
+\end{frame}
+
+\begin{frame}{Three Learning Paradigms}
+
+\begin{bigpicture}
+The same generalization goal recurs under three supervisory regimes, each mapping
+to a different class of financial problem.
+\end{bigpicture}
 
 \medskip
 \begin{itemize}
-  \item \textbf{Supervised:} credit scoring, default prediction, factor estimation.
-  \item \textbf{Unsupervised:} clustering trades into market regimes.
-  \item \textbf{Reinforcement:} maximise cumulative reward (trading, rebalancing).
+  \item \textbf{Supervised:} credit scoring, default prediction, factor estimation
+        --- learn from labeled $(\mathbf{x}_i, y_i)$ pairs.
+  \item \textbf{Unsupervised:} clustering trades into market regimes --- structure
+        without labels.
+  \item \textbf{Reinforcement:} maximise cumulative reward (trading, rebalancing)
+        --- learn from interaction.
 \end{itemize}
 \end{frame}
 
@@ -168,13 +186,23 @@ functions represent arbitrarily complex mappings given enough width/depth.
 This makes \textbf{transfer learning} efficient: pre-train broadly, fine-tune on
 a narrow task with far fewer labeled examples.
 \end{underhood}
+\end{frame}
 
-\medskip
+\begin{frame}{Deep Learning: The Market Analogy}
+
 \begin{bigpicture}
 \textbf{Deep nets $\leftrightarrow$ markets.} Both aggregate information
 hierarchically across interacting units / layers, and both are hard to interpret
 from the outside --- motivating the explainability methods later in the book.
 \end{bigpicture}
+
+\medskip
+\begin{block}{Why depth matters in finance}
+The same hierarchy that makes deep nets powerful --- transferable low-level
+features composed into task-specific representations --- is what makes a single
+pre-trained backbone reusable across many financial text tasks, the theme of the
+pre-training and transfer-learning slides that follow.
+\end{block}
 \end{frame}
 
 \begin{frame}{Large Language Models as a Special Case}
@@ -188,8 +216,10 @@ to assign probabilities to token sequences. Canonical objective --- next-token p
   \mathcal{L}_{\mathrm{LM}} = -\sum_{t=1}^{T}\log P_\theta\big(x_t \mid x_1,\dots,x_{t-1}\big).
 \]
 \end{underhood}
+\end{frame}
 
-\medskip
+\begin{frame}{What Makes LLMs Special}
+
 \textbf{What makes LLMs \emph{special}:} scale $+$ architecture $+$ \alert{emergent abilities}
 --- capabilities appearing abruptly with scale (Wei et al., 2022):
 \begin{itemize}

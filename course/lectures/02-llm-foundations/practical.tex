@@ -246,8 +246,9 @@ Install: \texttt{pip install sentence-transformers faiss-cpu anthropic}
 % FRAME 8: Case Study — Code
 % ============================================================
 \begin{frame}[fragile]
-\frametitle{Case Study: The Code}
+\frametitle{Case Study: The Code --- Corpus and Index}
 
+{\footnotesize
 \begin{lstlisting}
 from sentence_transformers import SentenceTransformer
 import faiss, numpy as np, anthropic
@@ -264,7 +265,18 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 embs = model.encode(PASSAGES, normalize_embeddings=True).astype("float32")
 index = faiss.IndexFlatIP(embs.shape[1])
 index.add(embs)
+\end{lstlisting}
+}
+\end{frame}
 
+% ============================================================
+% FRAME 8 (cont.): Case Study — Code (query function)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Case Study: The Code --- Retrieval and Generation}
+
+{\footnotesize
+\begin{lstlisting}
 def rag_query(query: str, k: int = 2) -> str:
     q_emb = model.encode([query], normalize_embeddings=True).astype("float32")
     _, ids = index.search(q_emb, k)
@@ -282,6 +294,7 @@ def rag_query(query: str, k: int = 2) -> str:
 
 print(rag_query("What was the net income?"))
 \end{lstlisting}
+}
 \end{frame}
 
 % ============================================================
@@ -300,8 +313,14 @@ Does the answer from Claude correctly cite those passage numbers? Why or why not
 \textbf{Q2.} Change $k = 2$ to $k = 1$. Does the answer change? Change it to $k = 5$
 (all passages). How does including more context affect the quality and length of the
 answer?
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 9 (cont.): Case Study — Questions
+% ============================================================
+\begin{frame}
+\frametitle{Case Study: Diagnostic Questions (cont.)}
+
 \textbf{Q3.} Change \texttt{temperature=0.0} to \texttt{temperature=0.7}. Run the
 same query three times. Do you observe variation in the output? Is that variation
 desirable for this task? What does this tell you about the appropriate temperature
@@ -366,6 +385,13 @@ S = \begin{pmatrix}1&0\\2&1\\0&1\end{pmatrix}
 \[
 \tilde{S} \approx \begin{pmatrix}0.71&0.00&0.71\\2.12&1.41&1.41\\0.71&1.41&0.00\end{pmatrix}
 \]
+\end{frame}
+
+% ============================================================
+% FRAME 11 (cont.): Solution — Problem 1
+% ============================================================
+\begin{frame}
+\frametitle{Solution: Problem 1 --- Attention by Hand (cont.)}
 
 \textbf{Task C:} Softmax row-wise (row 1 example: $e^{0.71}+e^{0}+e^{0.71} = 2.034+1+2.034$)
 
@@ -410,6 +436,13 @@ O \approx \begin{pmatrix}0.800&0.800\\0.781&0.439\\0.740&0.740\end{pmatrix}
 + \frac{600}{10^6} \times 1.25\right)
 = 5{,}000 \times (0.02625 + 0.00075) = \$135
 \]
+\end{frame}
+
+% ============================================================
+% FRAME 12 (cont.): Solution — Problem 2
+% ============================================================
+\begin{frame}
+\frametitle{Solution: Problem 2 --- API Cost Estimation (cont.)}
 
 \textbf{Task C — Self-hosted Llama 3 (A100 at \$3/hr, 200 filings/hr):}
 \[
@@ -446,8 +479,14 @@ O \approx \begin{pmatrix}0.800&0.800\\0.781&0.439\\0.740&0.740\end{pmatrix}
   \item Self-hosting is competitive when the workload is large and latency is flexible
   \item Prompt caching for fixed system prompts provides significant savings
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 13 (cont.): Wrap-Up
+% ============================================================
+\begin{frame}
+\frametitle{Wrap-Up: Key Takeaways (cont.)}
+
 \textbf{From the Case Study:}
 \begin{itemize}
   \item RAG reliably retrieves semantically relevant passages, even from small corpora

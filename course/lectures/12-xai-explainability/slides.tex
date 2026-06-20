@@ -160,15 +160,26 @@ For a game $(N,v)$ with $v(\emptyset)=0$, the Shapley value of player $i$ is
 $v(S)=$ expected prediction with only $S$ ``known''. Then $\phi_i$ is how much
 feature $i$ moves the prediction from the baseline $\mathbb{E}[f(X)]$.
 \end{underhood}
+\end{frame}
 
-\medskip
-\textbf{Three properties prized in finance:}
-\begin{itemize}\small
+% --- Frame: SHAP properties (continued) ---
+\begin{frame}{SHAP: Three Properties Prized in Finance}
+The Shapley division is not just convenient --- it is the \emph{unique}
+attribution satisfying a set of axioms. Three of them matter directly for
+regulated credit work:
+\begin{itemize}
   \item \textbf{Efficiency:} $\sum_i \phi_i = f(x) - \mathbb{E}[f(X)]$ (accounts
         for the whole prediction).
   \item \textbf{Symmetry:} identical contributions $\Rightarrow$ equal values.
   \item \textbf{Dummy:} irrelevant features get zero.
 \end{itemize}
+
+\medskip
+\begin{block}{Why this matters for ECOA}
+Efficiency guarantees the attributions \emph{add up} to the decision: no part of
+the rejection is left unexplained. Symmetry and dummy give the fairness footing ---
+features are treated consistently and irrelevant ones cannot be blamed.
+\end{block}
 \end{frame}
 
 % --- Frame: SHAP for LLMs + credit example ---
@@ -299,6 +310,12 @@ before output $\hat{y}$, each $r_t$ following from prior steps and input $x$,
 together entailing $\hat{y}$. \emph{Counterfactually faithful} if negating any
 $r_t$ flips $\hat{y}$.
 \end{underhood}
+\end{frame}
+
+% --- Frame: chain of thought (faithfulness risk) ---
+\begin{frame}{Chain-of-Thought: The Faithfulness Risk}
+A reasoning trace \emph{looks} like an explanation. The danger is treating it as
+one without evidence that it reflects how the model actually decided.
 
 \medskip
 \begin{alertblock}{Faithfulness risk}
@@ -307,6 +324,13 @@ reasoning. A fluent trace may not reflect it. \textbf{Self-consistency} (Wang et
 al., 2022): sample $K$ traces, take the majority answer $\Rightarrow$ more
 accurate, more consistent.
 \end{alertblock}
+
+\medskip
+\begin{block}{Practical stance for finance}
+Use CoT for its \emph{decision-quality} gains and as a \emph{human-readable}
+draft, but do not present the trace to a regulator as the causal account of the
+decision unless it has passed a counterfactual-faithfulness check.
+\end{block}
 \end{frame}
 
 % --- Frame: counterfactuals ---
@@ -326,6 +350,12 @@ x' = \arg\min_{z \in \mathcal{X}} d(x,z)\quad\text{s.t.}\quad f(z)=c,\quad c \ne
 with $d$ a cost-reflecting distance: weighted $\ell_1/\ell_2$ for structured
 inputs, edit / token-substitution distance for text.
 \end{underhood}
+\end{frame}
+
+% --- Frame: counterfactuals (feasibility) ---
+\begin{frame}{Counterfactuals: Feasibility and Legality Constraints}
+Solving the optimisation is only half the job. The \emph{closest} counterfactual
+is often not one a person can act on --- or one a lender may legally cite.
 
 \medskip
 \begin{block}{Text makes this hard --- and constraints matter}
@@ -335,6 +365,13 @@ The closest counterfactual may be \textbf{infeasible} (``if your age were
 different'') or \textbf{illegal} --- age is protected under ECOA. Add feasibility
 \& non-discrimination constraints.
 \end{block}
+
+\medskip
+\begin{alertblock}{The actionability payoff}
+Done right, a counterfactual turns a denial into guidance: ``lower your DTI below
+45\%'' is something an applicant can pursue, unlike a raw SHAP score. That is why
+it is the explanation form regulators and clients both tend to prefer.
+\end{alertblock}
 \end{frame}
 
 % --- Frame: NL justifications ---

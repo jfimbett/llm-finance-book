@@ -166,7 +166,7 @@ $\Rightarrow$ leakage: add DP-SGD, reduce epochs, or exclude the most sensitive 
 \end{frame}
 
 % =====================================================================
-\begin{frame}[fragile]{Case Study: The Audit Code}
+\begin{frame}[fragile]{Case Study: The Audit Code (1/2 --- the attack)}
 \begin{lstlisting}
 import numpy as np
 from sklearn.metrics import roc_auc_score
@@ -180,7 +180,12 @@ def membership_scores(target_loss, ref_loss):
 def audit_auc(target_loss, ref_loss, is_member):
     scores = membership_scores(target_loss, ref_loss)
     return roc_auc_score(is_member, scores)
+\end{lstlisting}
+\end{frame}
 
+% =====================================================================
+\begin{frame}[fragile]{Case Study: The Audit Code (2/2 --- the toy run)}
+\begin{lstlisting}
 # Toy illustration: members fit noticeably better under the target model.
 rng = np.random.default_rng(0)
 ref     = rng.normal(2.0, 0.4, size=400)

@@ -238,14 +238,25 @@ FinMA (PIXIU) & 7B LLaMA & Instruction-tuned on 136k financial instruction--resp
 InvestLM & 65B LLaMA & Instruction-tuned on a \emph{small, curated} set (CFA Qs, research reports). Large base beats 7B models with fewer examples. \\
 \bottomrule
 \end{tabular}
+\end{frame}
 
-\medskip
+\begin{frame}{Decoder Family --- the Autoregressive Objective}
 \begin{underhood}
 Decoder LLMs are autoregressive: $\mathcal{L}_{\text{CLM}} = -\sum_t \log
 p_\theta(w_t \mid w_{<t})$. The roughly 50/50 corpus split in BloombergGPT is
 deliberate --- a finance-only model loses the world knowledge that makes an LLM
 useful on finance tasks requiring general reasoning.
 \end{underhood}
+
+\medskip
+\begin{block}{Reading the four models as a design spectrum}
+\begin{itemize}
+  \item \textbf{BloombergGPT} buys peak accuracy with from-scratch compute few can match.
+  \item \textbf{FinGPT} trades peak accuracy for reproducibility on a single A100.
+  \item \textbf{FinMA} is strong in-distribution but brittle on unseen formats.
+  \item \textbf{InvestLM} shows a large base + small curated set can beat 7B models.
+\end{itemize}
+\end{block}
 \end{frame}
 
 \begin{frame}{Encoder vs.\ Decoder --- a Practical Heuristic}
@@ -416,6 +427,14 @@ FinBen & 36 datasets, 24 tasks, 5 capability categories incl.\ generation + risk
 \end{tabular}
 
 \medskip
+\begin{block}{How to read the headline numbers}
+Each benchmark stresses a different capability. FinQA isolates table + arithmetic
+reasoning; FLUE isolates lexical NLU; FinBen pushes open-ended generation. A model
+strong on one is \emph{not} automatically strong on the others.
+\end{block}
+\end{frame}
+
+\begin{frame}{FinQA Scoring: Execution Accuracy}
 \begin{underhood}
 \textbf{Execution accuracy} (FinQA):
 \[
@@ -424,6 +443,13 @@ FinBen & 36 datasets, 24 tasks, 5 capability categories incl.\ generation + risk
 \]
 $\epsilon = 0$ for exact match, or a small relative threshold ($\sim$1\%) for rounding.
 \end{underhood}
+
+\medskip
+\begin{block}{Why a tolerance at all?}
+A model can execute the right reasoning program yet differ from the gold answer by a
+rounding step (e.g.\ reporting a ratio to two decimals). A small relative $\epsilon$
+credits correct \emph{reasoning} without rewarding spurious over-precision.
+\end{block}
 \end{frame}
 
 \begin{frame}{When Do FinLLMs Win? When Do They Lose?}
@@ -447,15 +473,24 @@ Tasks needing broad knowledge or deep reasoning:
 \end{itemize}
 \end{alertblock}
 \end{columns}
+\end{frame}
+
+\begin{frame}{The Scaling Crossover}
+\begin{block}{Domain advantage vs.\ model scale}
+The domain advantage is roughly \emph{inversely proportional to model scale} at fixed
+difficulty.
+\begin{itemize}
+  \item $\le$7B: DAPT gives large, consistent gains.
+  \item $\ge$70B: gains persist only for lexically sensitive tasks (sentiment, tone,
+        NER); they fade for long-document reasoning.
+\end{itemize}
+\end{block}
 
 \medskip
-\begin{block}{The scaling crossover}
-The domain advantage is roughly \emph{inversely proportional to model scale} at fixed
-difficulty. $\le$7B: DAPT gives large, consistent gains. $\ge$70B: gains persist only
-for lexically sensitive tasks (sentiment, tone, NER); they fade for long-document
-reasoning. (Rahimikia \& Drinkall: year-specific FinLLMs can still beat far larger
-general models on return prediction --- controlling for look-ahead bias.)
-\end{block}
+\begin{exampleblock}{A countervailing result}
+Rahimikia \& Drinkall: year-specific FinLLMs can still beat far larger general models
+on return prediction --- once one controls for look-ahead bias.
+\end{exampleblock}
 \end{frame}
 
 \begin{frame}{Two Caveats Every Benchmark Number Carries}
@@ -541,11 +576,24 @@ A small, fast FinLLM handles the easy majority; low-confidence queries route to 
 larger model or a human. Effective when difficulty is \textbf{skewed} --- a large
 ``easy'' head + a small ``hard'' tail.
 \end{block}
+\end{frame}
+
+\begin{frame}{Cost vs.\ Performance: RAG as a Complement}
+\begin{block}{Grounding instead of growing}
+A compact 7--13B decoder grounded in a well-indexed EDGAR store can match a larger
+ungrounded model on document tasks --- at lower cost and with \textbf{full
+traceability} (an SR 11-7 / regulatory requirement).
+\end{block}
 
 \medskip
-\textbf{RAG as complement.} A compact 7--13B decoder grounded in a well-indexed EDGAR
-store can match a larger ungrounded model on document tasks --- at lower cost and with
-\textbf{full traceability} (an SR 11-7 / regulatory requirement).
+\begin{itemize}
+  \item The retrieved passage pins generated figures to source text, cutting
+        numerical hallucination.
+  \item Traceability is not a nicety: model-risk regimes \emph{require} an auditable
+        link from output back to evidence.
+  \item This makes a small grounded model a regulatory-grade alternative to a large
+        ungrounded one.
+\end{itemize}
 \end{frame}
 
 \begin{frame}{Example: Cost-Optimal Regulatory-Filing Classifier}

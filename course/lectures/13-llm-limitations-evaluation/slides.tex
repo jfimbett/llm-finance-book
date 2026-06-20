@@ -37,13 +37,13 @@ finance, a confidently wrong forecast cascades through portfolios, loan books,
 and regulatory submissions.
 \end{bigpicture}
 
-\medskip
+\smallskip
 \textbf{The calibration problem:} does ``80\% confident'' actually mean ``right
 80\% of the time''?
 
-\medskip
+\smallskip
 \begin{block}{Five fragilities of LLMs in finance (this lecture)}
-\begin{enumerate}
+\begin{enumerate}\itemsep1pt
   \item \textbf{Calibration} --- systematic overconfidence
   \item \textbf{Temporal leakage} --- memorising the future
   \item \textbf{Stock prediction} --- statistical vs.\ economic value
@@ -154,8 +154,9 @@ Three post-hoc recalibration methods:
   \item \textbf{Platt scaling:} logistic fit on raw scores; robust on small sets.
 \end{itemize}
 \end{underhood}
+\end{frame}
 
-\medskip
+\begin{frame}{Calibration: Conformal Sets and Monitoring}
 \textbf{Conformal prediction} (coverage-guaranteed sets): output
 $\{\text{default}, \text{non-default}\}$ when uncertain, with
 $\Pr(Y \in \mathcal{C}(\mathbf{x})) \geq 1-\alpha$.
@@ -181,14 +182,14 @@ generalisation}. This is the most underappreciated failure mode in LLM finance
 research.
 \end{bigpicture}
 
-\medskip
+\smallskip
 \textbf{Canonical trap:} ``Given this Q2-2021 earnings call, did the stock rise
 next month?'' A model with a Jan-2022 cutoff has \emph{already read} the news,
 the analyst reactions, and the social commentary on the outcome.
 
-\medskip
+\smallskip
 \begin{block}{Three leakage channels \citep{ziemke2024temporal}}
-\begin{enumerate}
+\begin{enumerate}\itemsep1pt
   \item \textbf{Direct memorisation} --- exact/near-verbatim document seen.
   \item \textbf{Outcome narratives} --- ``how the trade played out'' retrospectives.
   \item \textbf{Imbalanced corpora} --- textual survivorship bias toward extreme
@@ -309,18 +310,8 @@ on how much edge \emph{publicly available text} can contain.
 \medskip
 \textbf{Grossman--Stiglitz:} markets cannot be \emph{perfectly} efficient---some
 mispricing must remain to pay informed traders. The question: can LLMs reach
-that residual edge before it is arbitraged away?
-
-\medskip
-\begin{block}{Where genuine value might remain}
-\begin{itemize}
-  \item \textbf{Synthesis at scale} --- diffuse signals across thousands of
-        low-attention documents.
-  \item \textbf{Novel reasoning chains} --- cross-domain links a factor model misses.
-  \item \textbf{Private/proprietary text} --- not in training, not in prices
-        (raises regulatory questions).
-\end{itemize}
-\end{block}
+that residual edge before it is arbitraged away? (Where genuine value might
+remain: see appendix.)
 \end{frame}
 
 \begin{frame}{Empirical Evidence: 51--65\% Accuracy}
@@ -374,9 +365,9 @@ possible value in small-cap, EM, or private-information synthesis.
 \end{column}
 \end{columns}
 
-\medskip
+\smallskip
 \begin{block}{Three conditions favouring simpler models}
-\begin{enumerate}
+\begin{enumerate}\itemsep1pt
   \item \textbf{Text irrelevance} --- target driven by price/volume dynamics.
   \item \textbf{Short history} --- too little labelled data to justify fine-tuning.
   \item \textbf{Regime changes} --- ARIMA re-estimates cheaply; re-fine-tuning an
@@ -384,7 +375,7 @@ possible value in small-cap, EM, or private-information synthesis.
 \end{enumerate}
 \end{block}
 
-\medskip
+\smallskip
 \textbf{Methodological lesson:} a random-walk baseline is not enough---benchmark
 against the \emph{best} classical alternative on the same information set.
 \end{frame}
@@ -414,6 +405,11 @@ sufficient. Financial evaluation must speak in returns, risk, and alpha.
 $\text{IC}$ = signal quality (rank corr.\ predicted vs.\ realised); $N$ =
 independent bets/year. IR $>0.5$ strong, $>1.0$ exceptional.
 \end{underhood}
+\end{frame}
+
+\begin{frame}{Factor Alpha: Is the Edge Just Known Risk?}
+The economic question is not ``does the strategy make money?'' but ``does it
+make money \emph{beyond} known risk premia?''
 
 \medskip
 \textbf{Factor alpha:} regress excess returns on Fama--French factors,
@@ -421,7 +417,14 @@ independent bets/year. IR $>0.5$ strong, $>1.0$ exceptional.
   r_{p,t} = \alpha + \beta_{\text{MKT}}r_{\text{MKT},t}
   + \beta_{\text{SMB}}r_{\text{SMB},t} + \beta_{\text{HML}}r_{\text{HML},t} + \varepsilon_t.
 \]
-Many LLM strategies produce $\alpha$ \textbf{indistinguishable from zero}.
+The intercept $\alpha$ is the return unexplained by market, size, and value
+exposure---the genuine skill component.
+
+\medskip
+\begin{alertblock}{The sobering finding}
+Many LLM strategies produce $\alpha$ \textbf{indistinguishable from zero}: their
+apparent returns are repackaged factor exposure, not new information.
+\end{alertblock}
 \end{frame}
 
 \begin{frame}{Walk-Forward and Expanding-Window Validation}
@@ -456,7 +459,7 @@ window.
 \begin{frame}{Trading-Grade Evaluation: Costs, Capacity, Drawdown}
 A strategy can win on paper and fail in practice.
 
-\medskip
+\smallskip
 \begin{underhood}
 \textbf{Transaction costs} (turnover $\tau$):
 \[
@@ -475,7 +478,7 @@ $\text{MDD} = \max_{t_1<t_2}\!\bigl(\frac{P_{t_1}-P_{t_2}}{P_{t_1}}\bigr)$;
 Calmar $=$ annual return / MDD.
 \end{underhood}
 
-\medskip
+\smallskip
 \begin{block}{A complete report should state}
 Gross \& net Sharpe \,$\cdot$\, IR vs.\ benchmark \,$\cdot$\, MDD \& Calmar
 \,$\cdot$\, turnover \& capacity \,$\cdot$\, factor decomposition \,$\cdot$\,
@@ -513,8 +516,9 @@ content.
 
 \begin{frame}{Grounding Strategies}
 \begin{underhood}
+\footnotesize
 Reduce reliance on \emph{parametric memory}; anchor to verified external sources.
-\begin{itemize}
+\begin{itemize}\itemsep1pt
   \item \textbf{RAG} \citep{lewis2020rag} --- retrieve verified docs into context.
         Effectiveness hinges on retrieval quality; topically-relevant but
         factually tangential context still yields hallucination.
@@ -529,7 +533,7 @@ Reduce reliance on \emph{parametric memory}; anchor to verified external sources
 \end{itemize}
 \end{underhood}
 
-\medskip
+\smallskip
 \begin{alertblock}{Grounding reduces but does not eliminate}
 RAG fails on erroneous docs; tools return stale data; self-consistency can be
 consistently wrong if the error is strong in parametric memory. High-stakes
@@ -629,6 +633,23 @@ Manifestations in practice: EPS to two decimals with no interval; definitive
 credit calls near the boundary; cherry-picked market rationales; ``in/not in
 compliance'' that hides jurisdictional ambiguity.
 \end{block}
+\end{frame}
+
+\begin{frame}[noframenumbering]{Appendix: Where Genuine LLM Value Might Remain}
+Market efficiency limits the edge in \emph{public} text, but residual value can
+survive in three places:
+\begin{itemize}
+  \item \textbf{Synthesis at scale} --- diffuse signals across thousands of
+        low-attention documents.
+  \item \textbf{Novel reasoning chains} --- cross-domain links a factor model misses.
+  \item \textbf{Private/proprietary text} --- not in training, not in prices
+        (raises regulatory questions).
+\end{itemize}
+
+\medskip
+These are precisely the cases the lecture flags as the most defensible uses of
+LLMs for prediction---small-cap, emerging-market, or private-information
+synthesis, where public-text efficiency bites least.
 \end{frame}
 
 \begin{frame}[noframenumbering]{Appendix: The Fundamental Law of Active Management}

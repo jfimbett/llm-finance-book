@@ -114,12 +114,28 @@ Fine-tuning & Structured output, consistency & Labelled & Low & High (train) \\
   \item Fine-tune when output format is highly structured and consistency across thousands of calls matters more than generality.
   \item Zero-shot with a frontier model is a valid baseline before investing in more expensive approaches. FinanceBench: frontier models answer $\approx$80\% of financial QA correctly on the first attempt.
 \end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 5b: Deployment pattern tiebreaker
+% ============================================================
+\begin{frame}
+\frametitle{Choosing the Right Deployment Pattern (cont.)}
+
+\textbf{When the selection axes conflict.} Real tasks rarely sit cleanly in one
+column: a task may want both the freshness of RAG and the consistency of
+fine-tuning, or both low latency and rich generation.
 
 \medskip
 \begin{alertblock}{Tiebreaker}
   When the two selection axes conflict, latency and interpretability dominate:
   real-time, high-stakes applications default to the simplest, most auditable approach.
 \end{alertblock}
+
+\medskip
+\textbf{Practical consequence.} In regulated finance the auditability of a
+zero-shot or RAG pipeline often outweighs the marginal accuracy gain of a
+fine-tuned model whose decision logic is harder to document and defend.
 \end{frame}
 
 % ============================================================
@@ -221,6 +237,26 @@ Rule-based system flags unusual order pattern $\to$ LLM retrieves news + social 
 \end{frame}
 
 % ============================================================
+% FRAME 9: Workflow takeaways
+% ============================================================
+\begin{frame}
+\frametitle{Workflow Patterns: What the Three Examples Share}
+
+\textbf{Common structure across all three:}
+\begin{itemize}
+  \item A \emph{trigger} (a finished call, an EDGAR feed item, a rule-based flag)
+  \item One or more \emph{LLM stages} doing extraction, classification, or drafting
+  \item A \emph{human checkpoint} before any consequential decision is taken
+\end{itemize}
+
+\medskip
+\textbf{Why the asynchronous boundary matters.} Because LLM stages run at
+seconds-to-minutes latency, they never sit on the critical path of trade
+execution. They produce \emph{analysis and narrative}, which humans or
+downstream systems act on --- preserving both speed and auditability.
+\end{frame}
+
+% ============================================================
 \section{Building a Financial Research Assistant}
 % ============================================================
 
@@ -242,14 +278,28 @@ $\mathcal{A} = (\mathcal{R}, \mathcal{M}, \mathcal{K}, \mathcal{T}, \mathcal{I})
 \end{block}
 
 \medskip
-\textbf{Hybrid retrieval is non-negotiable.}
+The five components separate concerns: retrieval, synthesis, memory, tools, and
+interface can each be developed, validated, and audited independently.
+\end{frame}
 
-Semantic search alone fails on:
+% ============================================================
+% FRAME 10b: Hybrid retrieval
+% ============================================================
+\begin{frame}
+\frametitle{Why Hybrid Retrieval Is Non-Negotiable}
+
+\textbf{Semantic search alone fails on:}
 \begin{itemize}
   \item Numerical queries (``what was Apple's FCF in fiscal 2023?'')
   \item Exact-term queries (``Article 22 GDPR'', ``IFRS 9 ECL'')
 \end{itemize}
 
+\medskip
+Dense embeddings capture meaning but blur exact tokens and figures; sparse
+(BM25) retrieval nails exact terms but misses paraphrase. Production financial
+assistants run both and fuse the rankings.
+
+\medskip
 \begin{underhood}
 \textbf{Reciprocal Rank Fusion:}
 \[
@@ -278,8 +328,14 @@ Parameter-free; robust to different score scales of dense and sparse systems.
   \item Tables extracted as structured objects; indexed by a separate retriever
   \item Substantial reduction in retrieval noise on financial document QA benchmarks
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 11b: Source attribution and context length
+% ============================================================
+\begin{frame}
+\frametitle{RAG for Financial Documents: Attribution \& Context}
+
 \textbf{Source attribution is a non-negotiable requirement:}
 \begin{itemize}
   \item Every claim must cite a retrieved passage
@@ -292,6 +348,11 @@ Parameter-free; robust to different score scales of dense and sparse systems.
   LLM predictive accuracy follows an inverted-U in context length.
   Excessive context degrades performance. Mirrors cognitive overload in human analysts.
 \end{block}
+
+\medskip
+\textbf{Implication.} More retrieved context is not automatically better:
+tightly targeted, well-attributed passages beat dumping an entire filing into
+the prompt.
 \end{frame}
 
 % ============================================================
@@ -324,13 +385,15 @@ Parameter-free; robust to different score scales of dense and sparse systems.
 \textbf{Demographic parity:}
 $\Pr(\hat{Y} = 1 \mid A = a) = \Pr(\hat{Y} = 1 \mid A = b)$ for all $a, b$.
 
+\smallskip
 \textbf{Equalized odds:}
 $\Pr(\hat{Y} = 1 \mid Y = y, A = a) = \Pr(\hat{Y} = 1 \mid Y = y, A = b)$ for $y \in \{0, 1\}$.
 
+\smallskip
 \textbf{Calibration within group:}
 $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
 
-\medskip
+\smallskip
 \begin{underhood}
   \textbf{Chouldechova (2017) Impossibility Theorem.}
   When base rates differ across groups --- $\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)$ ---
@@ -345,7 +408,7 @@ $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
 \begin{block}{Implication}
   Fairness is a \emph{family of criteria}, not a single concept.
   Choosing which criterion to satisfy is a \textbf{policy choice}, not a technical one.
-  In regulated finance, this choice must be made explicitly and justified to regulators.
+  In regulated finance, this choice must be justified to regulators.
 \end{block}
 \end{frame}
 
@@ -368,8 +431,14 @@ $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
   \item Adversarial debiasing: classifier trained to predict outcome while adversary cannot recover sensitive attribute from intermediate representations
   \item Requires sensitive attribute annotations in training data
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 15b: Bias mitigation (post-processing + human)
+% ============================================================
+\begin{frame}
+\frametitle{Bias Mitigation: Post-Processing and Oversight}
+
 \textbf{Post-processing}:
 \begin{itemize}
   \item Threshold adjustment: select decision thresholds satisfying the desired fairness criterion on a held-out calibration set
@@ -422,11 +491,27 @@ $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
 
   \item \textbf{Third line (Internal Audit)}: periodically verify that documentation is current, validation is genuinely independent, findings are tracked to resolution, and model usage has not drifted beyond the validated scope.
 \end{enumerate}
+\end{frame}
+
+% ============================================================
+% FRAME 17b: SR 11-7 — what changes for LLMs
+% ============================================================
+\begin{frame}
+\frametitle{SR 11-7 for LLMs: What Changes}
+
+The three-lines structure is unchanged from classical model risk management.
+What changes is the \emph{nature of the risk} the three lines must catch.
 
 \medskip
 \begin{alertblock}{What changes for LLMs vs.\ classical models}
   The failure mode space is not fully characterised. Emergent capabilities can cause unexpected behaviour on out-of-distribution inputs. Best practice: red-team aggressively and document observed failures honestly.
 \end{alertblock}
+
+\medskip
+\textbf{Consequence for validation.} Because failure modes cannot be fully
+enumerated in advance, validation shifts from one-off sign-off toward continuous,
+adversarial monitoring that treats every newly observed failure as documentation
+to be added, not an embarrassment to hide.
 \end{frame}
 
 % ============================================================
@@ -449,13 +534,25 @@ $\Pr(Y = 1 \mid \hat{P} = p, A = a) = p$ for all $p$.
   \item Operational: latency, cost, error rates, refusal rates
   \item Fairness: periodic re-runs of bias evaluation framework
 \end{enumerate}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 18b: Incident response
+% ============================================================
+\begin{frame}
+\frametitle{Incident Severity and Response}
+
 \textbf{Incident severity classification (pre-define before incidents occur):}
 \begin{description}
   \item[Low] Hallucination in low-stakes summarisation $\to$ standard review cycle
   \item[High] Hallucinated figure in a credit decision $\to$ immediate escalation, potential reversal, regulatory notification, root-cause investigation
 \end{description}
+
+\medskip
+\textbf{Why severity must be pre-defined.} Classifying severity \emph{during} a
+live incident invites motivated reasoning toward the least disruptive response.
+Fixing the criteria in advance --- and tying each tier to a concrete escalation
+pathway --- is what makes the monitoring signals actionable rather than decorative.
 \end{frame}
 
 % ============================================================
@@ -478,8 +575,14 @@ The limitation of text-only models in finance:
 \end{bigpicture}
 
 \textbf{Multimodal models} jointly encode text, images, audio, and structured data. Early benchmark evidence: multimodal models outperform text-only on financial QA tasks requiring chart and table interpretation.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 19b: Long-context models
+% ============================================================
+\begin{frame}
+\frametitle{Long-Context Models and the Optimal Architecture}
+
 \textbf{Long-context models} (hundreds of thousands of tokens): an entire 10-K can be processed in a single forward pass, linking risk factors to MD\&A to legal proceedings without losing context between chunks.
 
 \medskip
@@ -510,6 +613,17 @@ The limitation of text-only models in finance:
   \item Cascade risk: simultaneous repositioning in response to a common signal
   \item Regulators examining circuit-breaker requirements for AI-driven strategies
 \end{itemize}
+\end{frame}
+
+% ============================================================
+% FRAME 20b: Governance principle for autonomous agents
+% ============================================================
+\begin{frame}
+\frametitle{Autonomous Agents: Governance Principle}
+
+The opportunities and the systemic risks share a root cause: \emph{autonomy}.
+The governance question is therefore how much autonomy to grant, and over what
+action space.
 
 \medskip
 \begin{block}{Governance principle: three output categories}
@@ -554,8 +668,14 @@ The limitation of text-only models in finance:
   A valuation agent that hallucinates financial figures undermines the professional
   standards that give financial analysis its social function.
 \end{bigpicture}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 22b: Three disciplines
+% ============================================================
+\begin{frame}
+\frametitle{The Path Forward: Three Disciplines}
+
 \textbf{Three disciplines that separate successful deployments from failures:}
 
 \begin{enumerate}

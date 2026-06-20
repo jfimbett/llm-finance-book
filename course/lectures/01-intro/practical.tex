@@ -177,7 +177,7 @@
 \end{frame}
 
 \begin{frame}[fragile]{Case Study: Python Code Skeleton}
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -272,7 +272,7 @@ print(f"Top terms for doc {i}: {top_terms}")
   Most similar pair: $d_2$ and $d_4$ (shared: \texttt{uncertainty, pressure, growth}).
 \end{frame}
 
-\begin{frame}{Solution: Problem 2 (Analogies) and Session Wrap-Up}
+\begin{frame}{Solution: Problem 2 (Analogies)}
   \textbf{Analogy solutions:}
   \begin{itemize}
     \item \texttt{bond} $-$ \texttt{coupon} $+$ \texttt{dividend} $\approx$ \texttt{equity}\\
@@ -286,7 +286,9 @@ print(f"Top terms for doc {i}: {top_terms}")
   \textbf{Why these work:} co-occurrence patterns encode systematic financial relationships.
   Words that appear in the same contexts as ``bond'' but not in the contexts of ``coupon''
   tend to be equity-related terms.
-  \medskip
+\end{frame}
+
+\begin{frame}{Session Wrap-Up}
   \begin{block}{Session Summary}
     TF-IDF: fast, interpretable, order-invariant.\\
     Word2Vec/GloVe: semantic geometry, linear analogies, domain-specific adaptation needed.\\

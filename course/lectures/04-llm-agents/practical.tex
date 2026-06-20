@@ -199,7 +199,7 @@ You will build a minimal RAG pipeline and evaluate it using RAGAS-style metrics.
 \begin{frame}[fragile]
 \frametitle{Case Study Step 1: Chunking and Embedding}
 
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
@@ -234,7 +234,7 @@ What is the mean chunk length in tokens?
 \begin{frame}[fragile]
 \frametitle{Case Study Step 2: Retrieve and Generate}
 
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 from sklearn.metrics.pairwise import cosine_similarity
 
 def retrieve(query, k=3):
@@ -332,7 +332,7 @@ use to write a client note. What HITL pattern would you impose, and why?
 \begin{frame}
 \frametitle{Solutions: Problem 1 --- ReAct Trajectory}
 
-\footnotesize
+\scriptsize
 \begin{tabular}{p{0.1\textwidth}p{0.82\textwidth}}
 \textbf{T1} & I need Microsoft's most recent 10-K and the 2022 10-K. I will search EDGAR for both. \\[3pt]
 \textbf{A1} & \texttt{edgar\_search("MSFT", "10-K", 2)} \\[3pt]
@@ -360,14 +360,15 @@ use to write a client note. What HITL pattern would you impose, and why?
 \begin{frame}[fragile]
 \frametitle{Solutions: Problem 2 --- Bond Price Tool Schema}
 
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
 from pydantic import BaseModel, Field
 from typing import Literal
 
 class BondPriceInput(BaseModel):
     """
     Bond price = sum_{t=1}^{n} C/(1+y)^t + F/(1+y)^n
-    where C = coupon payment, y = period yield, n = total periods, F = face value.
+    where C = coupon payment, y = period yield,
+          n = total periods, F = face value.
     """
     face_value: float = Field(
         description="Face value in USD (e.g. 1000.0)", gt=0.0
@@ -376,6 +377,17 @@ class BondPriceInput(BaseModel):
         description="Annual coupon rate as a decimal (e.g. 0.05 for 5%)",
         ge=0.0, le=1.0
     )
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+% FRAME 13b: Solutions --- Problem 2 (continued)
+% ============================================================
+\begin{frame}[fragile]
+\frametitle{Solutions: Problem 2 --- Bond Price Schema (cont.)}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+    # ... continued from BondPriceInput ...
     years_to_maturity: int = Field(
         description="Years to maturity (e.g. 10)", gt=0
     )

@@ -83,16 +83,24 @@ Human oversight & analyst review-queue UI \\
 Accuracy / robustness / security & benchmarking + red-teaming \\
 \bottomrule
 \end{tabular}
+\end{frame}
 
-\medskip
+\begin{frame}{High-Risk Obligations: Who Bears Them?}
 \begin{block}{Provider vs.\ deployer}
 Banks using third-party compliance AI are \emph{deployers}, not providers --- but
 still bear obligations (use per instructions, monitor, ensure oversight).
 \textbf{Third-party reliance does not eliminate regulatory liability.}
 \end{block}
+
+\medskip
+The seven high-risk obligations on the previous slide attach to the
+\emph{provider} of the AI system, but a deployer that integrates the system into
+a credit or onboarding decision inherits a parallel duty of care: verify the
+system is used within its stated scope, keep humans genuinely in the loop, and
+log its outputs for ex-post review.
 \end{frame}
 
-\begin{frame}{MiFID II, Basel III, and SR 11-7}
+\begin{frame}{MiFID~II, Basel~III, and SR~11-7}
 \begin{tabular}{ll}
 \toprule
 \textbf{Framework} & \textbf{What it requires of models} \\
@@ -179,14 +187,16 @@ Let $\mathcal{P}$ = true matches, $\mathcal{N}$ = true negatives, $\hat P$ = fla
 In production, AML screening runs at \textbf{FPR 95--99\%} --- fewer than 1 in 20
 alerts is a genuine match.
 \end{underhood}
+\end{frame}
 
-\medskip
+\begin{frame}{The False-Positive Crisis: Why It Compounds}
 \begin{alertblock}{The cascade}
 Alert noise trains staff to treat \emph{all} alerts as noise $\to$ genuine matches
 cleared without scrutiny. Banks are fined both for \emph{missing} laundering and
 (paradoxically) for generating \emph{excessive low-quality SARs}.
 \end{alertblock}
 
+\medskip
 \textbf{Key insight:} a name match in isolation is not evidence. What matters is
 whether the \emph{contextual} evidence is consistent with a launderer's profile
 --- exactly what LLMs assess and keyword matching cannot.
@@ -303,8 +313,9 @@ multilingual, sparse records refer to the \emph{same} real-world entity?
 \textbf{Why it is hard:} transliteration variance (``Muammar Gaddafi'' has dozens
 of renderings), name changes (maiden/married/patronymic), watchlist errors, and
 common-name collisions in large populations.
+\end{frame}
 
-\medskip
+\begin{frame}{Entity Resolution: Pipeline and Threshold}
 \begin{underhood}
 Entity resolution as \emph{pair classification}: given records $x_1,x_2$, produce
 a calibrated $P(\hat y = 1 \mid x_1,x_2)$.
@@ -504,8 +515,9 @@ retrieval-generation fits, scope/limits (languages, sources, entities), and
   \item Adversarial: prompt injection, name-variation \& paraphrase evasion
   \item Calibration, bias auditing (across nationalities / name types), robustness
 \end{itemize}
+\end{frame}
 
-\smallskip
+\begin{frame}{Model Risk Management: Governance \& Monitoring}
 \textbf{Governance:} model-inventory entry, change management (re-validate after
 LLM / corpus updates), monitoring dashboard with alert thresholds, incident
 response.

@@ -66,6 +66,7 @@ Mean embedding ignores word order.
 \]
 
 \begin{underhood}
+{\small
 \textbf{Proposition (Vanishing \& Exploding Gradients).}
 Let $\rho = \|W_h\|_2$, $M_\sigma = \sup_z |\sigma'(z)|$. Then
 \[
@@ -74,6 +75,7 @@ Let $\rho = \|W_h\|_2$, $M_\sigma = \sup_z |\sigma'(z)|$. Then
 \]
 For logistic sigmoid: $M_\sigma = \tfrac{1}{4}$.
 If $M_\sigma\rho < 1$: \textcolor{blue}{gradients vanish exponentially.}
+}
 \end{underhood}
 
 \textbf{Finance implication:} An earnings call of 10\,k tokens makes long-range
@@ -85,6 +87,7 @@ dependencies (page 3 $\leftrightarrow$ page 20) practically unlearnable.
 \frametitle{LSTM: Six Equations, One Key Idea}
 
 \textbf{The six equations:}
+{\small
 \begin{align*}
 \mathbf{f}_t &= \sigma(W_f[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_f)
   &&\text{forget gate}\\
@@ -99,6 +102,7 @@ dependencies (page 3 $\leftrightarrow$ page 20) practically unlearnable.
 \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{c}_t)
   &&\text{hidden state}
 \end{align*}
+}
 
 \begin{underhood}
 \textbf{Why the cell state avoids vanishing gradients.}
@@ -128,6 +132,11 @@ GRU = 4 equations, $\approx$25\% fewer parameters. Preferred under compute const
 \[
 e_{t,i} = \mathbf{v}^\top \tanh\!\left(W_s\,\mathbf{s}_t + W_h\,\mathbf{h}_i\right)
 \]
+\end{frame}
+
+% --- Frame 4 (cont.): Bahdanau Attention ---
+\begin{frame}
+\frametitle{Bahdanau Attention (cont.)}
 
 \textbf{Attention weights and context vector:}
 \[
@@ -420,6 +429,11 @@ client.messages.create(
   ...
 )
 \end{verbatim}
+\end{frame}
+
+% --- Frame 16 (cont.): Structured Generation Failure Modes ---
+\begin{frame}[fragile]
+\frametitle{Structured Generation: Failure Modes}
 
 \textbf{Three failure modes even with constrained decoding:}
 \begin{enumerate}
@@ -438,11 +452,13 @@ client.messages.create(
 \frametitle{API Mechanics: BPE Tokenisation and Cost Model}
 
 \textbf{BPE tokenisation:} iteratively merge the most frequent adjacent symbol pair.
+{\small
 \begin{itemize}
   \item Vocabulary: 32k--100k sub-words
   \item Rule of thumb: 1 English word $\approx$ 1.3 tokens
   \item ``EBITDA'' $\to$ \texttt{["EB", "IT", "DA"]}; rare tickers get more fragments
 \end{itemize}
+}
 
 \medskip
 \textbf{Cost model:}
@@ -478,6 +494,7 @@ Same workload on Claude Haiku: $\approx$\$20 (20$\times$ cheaper).
 \frametitle{RAG Pipeline: Three-Stage Definition}
 
 \textbf{Retrieval-Augmented Generation (RAG):}
+{\small
 \begin{enumerate}
   \item \textbf{Retrieval:} score passages against query $q$; return top-$k$
         passages $\mathcal{R}(q)$
@@ -485,15 +502,17 @@ Same workload on Claude Haiku: $\approx$\$20 (20$\times$ cheaper).
         $\tilde{q} = [d_{(1)},\ldots,d_{(k)},\,q]$
   \item \textbf{Generation:} $a \sim P_\theta(\,\cdot \mid \tilde{q})$
 \end{enumerate}
+}
 
-\medskip
 \begin{bigpicture}
 \textbf{Why RAG for finance?}
+{\small
 \begin{itemize}
   \item Knowledge base updated by adding new filings — no retraining
   \item Every factual claim traceable to a retrieved passage (auditability)
   \item Dominant architecture for document Q\&A in production financial systems
 \end{itemize}
+}
 \end{bigpicture}
 
 \medskip
@@ -520,12 +539,14 @@ or the external world.
 
 \medskip
 \textbf{Detection methods:}
+{\small
 \begin{itemize}
   \item \textbf{SelfCheckGPT:} draw $N$ samples; hallucinated claims are inconsistent across samples
   \item \textbf{FActScore:} decompose into atomic claims; verify each against retrieval
   \item \textbf{Inner confidence} (Chen et al., 2024): high-confidence LLM signals
         achieve Sharpe +20\% vs.\ unconditional benchmark
 \end{itemize}
+}
 
 \begin{block}{Root cause}
 Models are trained to produce plausible text. $\tau = 0$ removes stochasticity
@@ -604,6 +625,11 @@ sentiment in Japanese, Chinese, or Indian financial contexts.
 
 \textbf{Pre-training and LLMs:}
 BERT (MLM, bidirectional) vs.\ GPT (CLM, causal) $\cdot$ reasoning models $\cdot$ FinBERT $\cdot$ BloombergGPT $\cdot$ five benchmarks
+\end{frame}
+
+% --- Frame 23 (cont.): Summary ---
+\begin{frame}
+\frametitle{Lecture 2 Summary (cont.)}
 
 \textbf{Engineering practice:}
 Temperature / nucleus / beam $\cdot$ finance guidance table $\cdot$ validity mask $\cdot$ Pydantic / tool use $\cdot$ BPE $\cdot$ cost model $\cdot$ prompt caching $\cdot$ RAG (dense + BM25 + RRF + re-rank) $\cdot$ FinanceBench

@@ -118,7 +118,9 @@ Skipping any of these biases the downstream sentiment measure.
   \item Number handling (\texttt{[NUM]}) --- but EPS \$2.40 vs \$0.24 carries signal.
   \item Cashtag/ticker harmonisation (\$AAPL); boilerplate removal (XBRL, exhibits).
 \end{itemize}
+\end{frame}
 
+\begin{frame}{Preprocessing: Deduplication \& Temporal Alignment}
 \textbf{Deduplication} --- most important, most neglected
 \begin{itemize}\small
   \item Wires reprint verbatim; retweets propagate identical text.
@@ -264,8 +266,9 @@ GPT-4 / Claude / LLaMA-3 classify sentiment from a task description alone ---
 \textbf{Zero-shot prompt sketch:} \emph{``You are a financial analyst. Classify the
 sentiment $\ldots$ from the perspective of a stock investor.''} $\to$ ``Neutral'' with
 a rationale (revenue growth offset by margin compression).
+\end{frame}
 
-\medskip
+\begin{frame}{LLM Classification: Benchmarks \& Cost}
 \textbf{Benchmarks (real findings):}
 \begin{itemize}\small
   \item Ko \& Lee 2024: GPT-4 zero-shot \emph{matches or exceeds} FinBERT on

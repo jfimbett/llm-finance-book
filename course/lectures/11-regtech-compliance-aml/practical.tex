@@ -137,9 +137,9 @@ contributes least. Why? Which factor dominates its low contribution?
 \end{frame}
 
 % ====================================================================
-\begin{frame}[fragile]{Case Study: AMI + RRF in Python (Notebook 11)}
+\begin{frame}[fragile]{Case Study: RRF Fusion in Python (Notebook 11)}
 From \texttt{code/notebooks/11-regtech-compliance-aml/demo.ipynb} --- deterministic,
-no network:
+no network. \textbf{Part 1 --- hybrid retrieval fusion:}
 
 \begin{lstlisting}
 import math
@@ -154,7 +154,15 @@ def rrf(ranks):
 fused = {d: rrf([dr, sr]) for d, dr, sr in zip(docs, dense_rank, sparse_rank)}
 for d, s in sorted(fused.items(), key=lambda kv: -kv[1]):
     print(f'{d:16s} RRF={s:.5f}')
+\end{lstlisting}
+\end{frame}
 
+% ====================================================================
+\begin{frame}[fragile]{Case Study: AMI Scoring in Python (Notebook 11)}
+\textbf{Part 2 --- calibrated Adverse Media Index} (same notebook):
+
+\begin{lstlisting}
+import math
 def sigmoid(x): return 1.0 / (1.0 + math.exp(-x))
 alpha = -2.0
 # (relevance, credibility, recency, content_score) per retrieved article

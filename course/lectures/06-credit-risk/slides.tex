@@ -55,8 +55,14 @@
   \item Extending it recklessly $\to$ capital losses and systemic risk
   \item Both $\to$ regulatory action, litigation, reputational damage
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 3b: Core tension
+% ============================================================
+\begin{frame}
+\frametitle{Why Credit AI Is Different (cont.)}
+
 \begin{bigpicture}
   \textbf{The core tension.} Credit is the one domain where predictive accuracy and
   regulatory defensibility must be achieved \emph{simultaneously}. Text-native signals
@@ -80,8 +86,14 @@ files on $\approx$220 million adults. A standard credit file contains:
   \item \textbf{Public records}: bankruptcies (7--10 years), civil judgments
   \item \textbf{Collections}: charged-off accounts
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 4b: FICO weights and structural limitation
+% ============================================================
+\begin{frame}
+\frametitle{Credit Bureau Data (cont.)}
+
 \textbf{FICO score factor weights:}
 \begin{center}
 \begin{tabular}{lr}
@@ -117,8 +129,14 @@ Credit mix & 10\% \\
   \item \textbf{Unstructured text}: loan purpose statements; ``medical emergency'' $\neq$ ``consolidating payday loans''
   \item \textbf{Social media/behavioural data}: largely prohibited by regulators (protected-class proxy risk)
 \end{itemize}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 5b: Regulatory frameworks
+% ============================================================
+\begin{frame}
+\frametitle{Alternative Data and Regulatory Constraints (cont.)}
+
 \textbf{Three key regulatory frameworks:}
 \begin{center}
 \begin{tabular}{lp{6.5cm}}
@@ -157,8 +175,14 @@ positives and 970K negatives. A na\"{\i}ve ``always predict non-default'' model 
   w_+ = \frac{n}{2\, n_+}, \qquad w_- = \frac{n}{2\, n_-}
 \]
 Each class gets equal aggregate influence on the gradient regardless of the class ratio.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 6b: Missing data
+% ============================================================
+\begin{frame}
+\frametitle{Preprocessing: Missing Data}
+
 \textbf{3. Missing Data}
 
 Three mechanisms: MCAR (mean imputation unbiased), MAR (multiple imputation consistent),
@@ -228,8 +252,14 @@ Still used as a benchmark today.
 \texttt{Age 34. Employment: full-time, 6 years. Income: \$58K.}\\
 \texttt{Bureau score: 672. Delinquencies 24m: 1. Loan purpose: debt consolidation. Assess default risk:}
 \end{center}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 8b: LoRA
+% ============================================================
+\begin{frame}
+\frametitle{Fine-Tuning for Default Prediction (cont.)}
+
 \begin{underhood}
   \textbf{Parameter-efficient fine-tuning (LoRA).} Constrain the weight update to a
   low-rank factorisation:
@@ -251,8 +281,14 @@ Still used as a benchmark today.
   A decoder-only LLM produces a distribution over its entire vocabulary at each position ---
   not a single scalar probability of default. How do we extract a well-defined PD?
 \end{block}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 9b: Constrained decoding
+% ============================================================
+\begin{frame}
+\frametitle{Structured Generation: Constrained Decoding}
+
 \begin{underhood}
 \textbf{Constrained decoding} (\texttt{outlines} library, Willard et al.\ 2023):
 \begin{enumerate}
@@ -265,8 +301,14 @@ Still used as a benchmark today.
 \]
 The model generates \texttt{\{"pd": } then produces the float \emph{digit by digit}. If it generates \texttt{0.23}, the implied default probability is $\hat{p} = 0.23$.
 \end{underhood}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 9c: Key point on calibration
+% ============================================================
+\begin{frame}
+\frametitle{Structured Generation: Interpretation}
+
 \begin{alertblock}{Key point}
   $\hat{p}$ is not the model's ``confidence'' --- it is the specific number the model was guided
   to express. It reflects the model's internal representation of risk but \textbf{is not guaranteed
@@ -297,8 +339,14 @@ predicted probability vs.\ observed default rate in each bin. Perfect calibratio
   \hat{p}_{\text{Platt}}(x) = \sigma(a \cdot f(x) + b)
 \]
 $a < 1$: overconfident scores; $a > 1$: underconfident.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 10b: Isotonic regression
+% ============================================================
+\begin{frame}
+\frametitle{Probability Calibration: Isotonic Regression}
+
 \textbf{Isotonic regression:} non-parametric; finds non-decreasing step function minimising:
 \[
   \hat{q} = \underset{q_1 \leq \cdots \leq q_n}{\arg\min} \sum_{i=1}^{n} (q_i - y_i)^2
@@ -331,8 +379,14 @@ but needs more data.
   \item \textbf{Dual-process cognition}: high-stakes financial decisions are often made in ``System 1'' mode (fast, affective, heuristic-driven).
   \item \textbf{Preference inconsistency}: hyperbolic discounting, loss aversion, and framing effects.
 \end{enumerate}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 11b: Satisficing
+% ============================================================
+\begin{frame}
+\frametitle{Bounded Rationality and Household Finance (cont.)}
+
 \begin{bigpicture}
   \textbf{Simon's bounded rationality.} Households do not solve the optimisation; they
   \emph{satisfice} --- searching through alternatives until one meets a threshold of
@@ -354,8 +408,14 @@ but needs more data.
   \item \textbf{Consequence tracing}: compute multi-period financial implications of each choice given the household's stated circumstances
   \item \textbf{Trade-off articulation}: present options in a format that makes relevant trade-offs legible \emph{without nudging} toward a particular choice
 \end{enumerate}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 12b: Architecture
+% ============================================================
+\begin{frame}
+\frametitle{LLMs as Decision-Support Agents (cont.)}
+
 \textbf{Practical architecture:}
 \begin{center}
 \begin{tabular}{ll}
@@ -468,7 +528,16 @@ fixed obligations. I'd choose Option B and set aside the monthly difference into
 \]
 In practice: sort all scores, compute cumulative defaulter and non-defaulter fractions,
 read off maximum vertical gap. \textbf{KS $>$ 0.40} is good; \textbf{KS $>$ 0.60} is excellent.
+\end{underhood}
+\end{frame}
 
+% ============================================================
+% FRAME 17b: Gini and thresholds
+% ============================================================
+\begin{frame}
+\frametitle{Credit-Specific Performance Metrics (cont.)}
+
+\begin{underhood}
 \textbf{Gini Coefficient} (accuracy ratio):
 \[
   \text{Gini} = 2 \cdot \text{AUROC} - 1
@@ -542,8 +611,14 @@ validated, and documented. LLMs are unambiguously models under this definition.
 \]
 
 Three axioms: \textbf{efficiency} ($\sum_j \phi_j = f(x) - \mathbb{E}[f(x)]$), \textbf{symmetry}, \textbf{dummy}.
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 19b: SHAP waterfall
+% ============================================================
+\begin{frame}
+\frametitle{SHAP Waterfall and Adverse Action Notices}
+
 \textbf{Illustrative SHAP waterfall} (34-year-old, income \$58K, bureau 672, 1 delinquency):
 
 \begin{center}
@@ -593,8 +668,14 @@ Component & Role \\
 \bottomrule
 \end{tabular}
 \end{center}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 20b: PSI
+% ============================================================
+\begin{frame}
+\frametitle{Production Credit Risk System: Drift Monitoring}
+
 \textbf{Data drift monitoring via PSI:}
 \[
   \text{PSI} = \sum_{b=1}^{B} (p_b - q_b) \ln\!\left(\frac{p_b}{q_b}\right)
@@ -621,8 +702,14 @@ PSI $<$ 0.1: stable; 0.1--0.25: investigate; $>$ 0.25: model review required.
   Mitigations: show recommendation \emph{after} independent assessment; present SHAP prominently;
   require documented reasoning before seeing the model's output.
 \end{alertblock}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 21b: Documentation package
+% ============================================================
+\begin{frame}
+\frametitle{Human-in-the-Loop and Regulatory Compliance (cont.)}
+
 \textbf{Regulatory documentation package:}
 \begin{itemize}
   \item \textbf{MDR}: business need, conceptual framework, data, performance metrics, limitations
@@ -643,8 +730,14 @@ PSI $<$ 0.1: stable; 0.1--0.25: investigate; $>$ 0.25: model review required.
   intervention, to express his or her point of view, and to contest the decision.''
   Explanation must be comprehensible to a consumer without financial or technical background.
 \end{block}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 22b: Plain-language explanation
+% ============================================================
+\begin{frame}
+\frametitle{Generating GDPR-Compliant Explanations (cont.)}
+
 \textbf{Plain-language explanation} (generated from SHAP waterfall via constrained LLM):
 
 \begin{quote}
@@ -710,8 +803,14 @@ Documentation & MDR + MVR + GDPR Art.~22 plain-language \\
 \bottomrule
 \end{tabular}
 \end{center}
+\end{frame}
 
-\medskip
+% ============================================================
+% FRAME 25b: Through-line
+% ============================================================
+\begin{frame}
+\frametitle{Summary: The Through-Line}
+
 \begin{block}{The through-line}
   Credit AI is not merely a prediction problem --- it is a regulated sociotechnical system.
   Every design choice, from the loss function to the API schema, has implications for
@@ -740,8 +839,13 @@ Documentation & MDR + MVR + GDPR Art.~22 plain-language \\
 \]
 
 $\gamma = 1$: log utility; $\gamma = 2$: moderate risk aversion; $\gamma > 5$: high risk aversion.
+\end{frame}
 
-\medskip
+% ------------------------------------------------------------
+% APPENDIX A (cont.)
+% ------------------------------------------------------------
+\begin{frame}[noframenumbering]{Appendix A --- Utility-Theoretic Framing (cont.)}
+
 \textbf{LLM-based preference elicitation:}
 \begin{enumerate}
   \item Present a sequence of binary lottery choices to identify indifference points
@@ -777,8 +881,13 @@ Identifies which subgroups are sensitive to which product features.
   \item \textbf{Mortgage suitability}: identify which products create distress risk for which persona types
   \item \textbf{Retirement planning}: test auto-enrolment schemes for low-literacy households
 \end{itemize}
+\end{frame}
 
-\medskip
+% ------------------------------------------------------------
+% APPENDIX B (cont.)
+% ------------------------------------------------------------
+\begin{frame}[noframenumbering]{Appendix B --- Calibration Against Survey Data}
+
 \textbf{Calibration against survey data} (ECB HFCS, US SCF):
 \begin{enumerate}
   \item \textbf{Population alignment}: post-stratification weights so joint attribute distribution matches target survey

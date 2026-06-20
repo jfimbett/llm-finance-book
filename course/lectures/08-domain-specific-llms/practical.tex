@@ -47,6 +47,11 @@ reduced LR ($\sim 10\times$) to limit catastrophic forgetting.
 \end{underhood}
 
 \medskip
+\footnotesize \textbf{Rule of thumb:} encoders need 1--5B domain tokens; the first
+$\sim$1B yields most of the gain (diminishing returns).
+\end{frame}
+
+\begin{frame}{Recap: the Effective-Cost Formula}
 \begin{underhood}
 \textbf{Effective cost per correct output.}
 \[
@@ -57,8 +62,11 @@ $\rho$ = fraction routed to review. Constraint: $p_m + \rho(1-p_m) \ge p^\star$.
 \end{underhood}
 
 \medskip
-\footnotesize \textbf{Rule of thumb:} encoders need 1--5B domain tokens; the first
-$\sim$1B yields most of the gain (diminishing returns).
+\begin{block}{How to read it}
+The numerator is the cost you pay per query (model always, human only on the routed
+fraction $\rho$); the denominator is the accuracy you achieve. Routing more to humans
+raises both --- the optimisation finds the smallest $\rho$ that still meets $p^\star$.
+\end{block}
 \end{frame}
 
 % ============================================================
@@ -137,7 +145,7 @@ finance needs its own models --- on a few labelled financial sentences.
 \end{alertblock}
 \end{frame}
 
-\begin{frame}[fragile]{Case Study: The Code}
+\begin{frame}[fragile]{Case Study: The Code (1/2) --- Setup}
 \begin{lstlisting}
 from transformers import pipeline
 
@@ -151,7 +159,15 @@ SENTENCES = [
     "Leverage increased to 3.2x following the debt issuance.",
     "Unprecedented demand drove revenue above guidance.",
 ]
+\end{lstlisting}
 
+\medskip
+\footnotesize Two pipelines, four finance sentences chosen so general-English polarity
+is misleading. The comparison loop is on the next slide.
+\end{frame}
+
+\begin{frame}[fragile]{Case Study: The Code (2/2) --- Comparison Loop}
+\begin{lstlisting}
 for s in SENTENCES:
     f = finbert(s)[0]
     g = general(s)[0]

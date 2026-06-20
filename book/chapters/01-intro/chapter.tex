@@ -1483,7 +1483,7 @@ a hidden state that accumulates contextual information.  They powered a
 generation of strong financial NLP models in the early 2010s before being
 superseded by the Transformer.  This section previews their central idea
 and their central failure mode---the vanishing gradient---to motivate why
-a new architecture was needed; Chapter~\ref{ch:llm-foundations} develops
+a new architecture was needed; \Cref{ch:llm-foundations} develops
 both from first principles.
 \end{context}
 
@@ -1522,7 +1522,7 @@ per-step contraction of $0.95$ across a $500$-token filing leaves a
 gradient of order $0.95^{500}\approx 5\times10^{-12}$: information from the
 opening paragraph is numerically gone before training can use it, so the
 network never learns dependencies such as a hedging clause that only pays
-off hundreds of tokens later.  Chapter~\ref{ch:llm-foundations} makes this
+off hundreds of tokens later.  \Cref{ch:llm-foundations} makes this
 precise and states it as a spectral-norm bound
 (Theorem~\ref{thm:vanish-explode}).
 
@@ -1539,7 +1539,7 @@ behaves like a near-lossless highway that carries the gradient across long
 lags, sidestepping the exponential decay above.  LSTMs powered the
 strongest financial NLP models of the early-to-mid 2010s before attention
 displaced them.  Section~\ref{sec:sequential-lstm} of
-Chapter~\ref{ch:llm-foundations} derives the gating equations
+\Cref{ch:llm-foundations} derives the gating equations
 (Definition~\ref{def:lstm}) and shows formally why the additive update
 preserves the gradient.
 
@@ -1560,7 +1560,7 @@ it can attend to any position with equal representational power regardless
 of distance, and its gradient flows directly between any pair of positions
 rather than decaying exponentially with lag.  Every large language model in
 use today is a Transformer or a close descendant.  This section previews
-the mechanism; Chapter~\ref{ch:llm-foundations} derives it in full.
+the mechanism; \Cref{ch:llm-foundations} derives it in full.
 \end{context}
 
 \begin{deepdive}
@@ -1587,7 +1587,7 @@ The $\sqrt{d_k}$ divisor is the one detail worth flagging now: the dot
 product of two $d_k$-dimensional vectors has variance that grows with
 $d_k$, so without rescaling the softmax is driven into its saturated,
 near-zero-gradient regime.  Dividing by $\sqrt{d_k}$ restores unit-scale
-scores.  Chapter~\ref{ch:llm-foundations} derives attention from first
+scores.  \Cref{ch:llm-foundations} derives attention from first
 principles (Definition~\ref{def:scaled-dot-product-attn}) and proves the
 scaling result (Theorem~\ref{thm:sqrt-dk-scaling}).
 
@@ -1601,7 +1601,7 @@ different heads specialise.  In financial text one head may follow temporal
 links (\emph{prior quarter} vs.\ \emph{current quarter}), another entity
 coreference (\emph{the company}, \emph{it}, \emph{JPMorgan}), and another
 negation scope (\emph{did not}, \emph{failed to}).
-Section~\ref{sec:transformer-mha} of Chapter~\ref{ch:llm-foundations} gives
+Section~\ref{sec:transformer-mha} of \Cref{ch:llm-foundations} gives
 the construction (Definition~\ref{def:mha}).
 
 \begin{remark}[Why attention matters for financial text]
@@ -2006,7 +2006,7 @@ operation of every modern LLM; and the survey of model families, API interfaces,
 and limitations (Sections~\ref{sec:llm-families}–\ref{sec:llm-limitations}) equips
 the reader with practical orientation before the technical treatment deepens.
 
-Chapter~\ref{ch:llm-foundations} develops each of these threads to full depth.
+\Cref{ch:llm-foundations} develops each of these threads to full depth.
 The Transformer architecture is derived from first principles in
 Section~\ref{sec:transformer} of that chapter, including positional encoding,
 layer normalisation, and the full pre-training objective; the attention

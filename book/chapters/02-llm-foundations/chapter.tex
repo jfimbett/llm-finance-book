@@ -1088,9 +1088,8 @@ The name ``FinBERT'' designates two related but independently trained models.
 released the first variant: a BERT-base model further pre-trained on Reuters/Bloomberg
 news, 10-K filings, and earnings call transcripts.
 On the Financial PhraseBank dataset \cite{malo2014phrasebank} % [CITE: Malo et al. 2014, Good Debt or Bad Debt: Detecting Semantic Orientations in Economic Texts]
-(all-agree split), this model achieves over $97\%$ accuracy on financial phrase
-sentiment classification, outperforming general BERT-base by approximately 8
-percentage points.  A second, independently trained model by \citet{huang2023finbert}
+(all-agree split), this model achieves high accuracy on financial phrase
+sentiment classification, outperforming general BERT-base by a clear margin.  A second, independently trained model by \citet{huang2023finbert}
 fine-tunes BERT on analyst report sentences labelled by domain experts, achieving
 state-of-the-art performance on three financial sentiment benchmarks and demonstrating
 that contextual embeddings substantially outperform the Loughran--McDonald dictionary
@@ -1135,17 +1134,28 @@ for practitioners.
 
 \begin{illustration}[Sinusoidal Positional Encoding]
 \label{ex:ch02-illustration}
-The companion notebook reproduces Figure~\ref{fig:ch02-illustration} for
-$d_{\mathrm{model}} = 64$ and sequence length 50, then explores the geometry of the
-encoding in two ways.  First, it extracts the encoding vectors for positions 5 and 10
-and computes their cosine similarity, repeating the calculation for positions 5 and 45;
-the comparison shows that nearby positions have more similar encodings than distant
-ones, so the cosine similarity decays as positional separation grows.  Second, it
-regenerates the heatmap for $d_{\mathrm{model}} \in \{32, 128\}$, demonstrating how the
-frequency pattern changes with model dimension---higher dimensions add slower-varying
-frequency bands that let the encoding distinguish positions over longer ranges.
+The deterministic script \texttt{gen\_positional\_encoding.py} reproduces
+Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$ and sequence length 50
+(no data or network dependence), and the encoding's geometry can be probed in two ways.
+First, extracting the encoding vectors for positions 5 and 10 and computing their cosine
+similarity gives $\cos(\mathrm{PE}_5,\mathrm{PE}_{10}) \approx 0.73$, versus
+$\cos(\mathrm{PE}_5,\mathrm{PE}_{45}) \approx 0.48$ for the more distant pair: nearby
+positions have more similar encodings, so cosine similarity decays as positional
+separation grows.  Second, regenerating the heatmap for
+$d_{\mathrm{model}} \in \{32, 128\}$ shows how the frequency pattern changes with model
+dimension---higher dimensions add slower-varying frequency bands that let the encoding
+distinguish positions over longer ranges.
 See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb},
 Illustration section.
+
+\smallskip
+\noindent\textbf{Self-check.}
+(B)~Why does the scaled dot-product attention score divide by $\sqrt{d_k}$ rather than by
+$d_k$? \;
+(I)~Using \eqref{eq:rnn-jacobian}, compute the gradient-decay factor across
+$T-t = 50$ steps when the recurrent Jacobian has spectral radius $\rho = 0.9$. \;
+(I)~Predict, without running the code, whether $\cos(\mathrm{PE}_{5},\mathrm{PE}_{10})$ or
+$\cos(\mathrm{PE}_{10},\mathrm{PE}_{45})$ is larger, and explain why.
 \end{illustration}
 
 \section{The Modern LLM Landscape}

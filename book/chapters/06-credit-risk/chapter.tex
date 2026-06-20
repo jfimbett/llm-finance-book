@@ -857,19 +857,19 @@ The SHAP waterfall directly maps to the adverse action reason codes required by 
   \label{fig:ch06-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: ROC Curve and KS Statistic]
+\begin{illustration}[ROC Curve and KS Statistic]
 \label{ex:ch06-illustration}
-Download the UCI German Credit dataset and train a logistic regression on the
-six numeric features to reproduce Figure~\ref{fig:ch06-illustration}.
-(\textit{a})~Report AUROC, KS statistic, and Gini coefficient and verify the
-identity $\mathrm{Gini} = 2 \times \mathrm{AUROC} - 1$.
-(\textit{b})~One-hot encode all 20 features (including categoricals), retrain,
-and compare the new AUROC and KS to the baseline.
-(\textit{c})~Identify the feature with the largest absolute logistic regression
-coefficient and discuss its credit-risk interpretation.
-See \texttt{code/notebooks/06-credit-risk/exercises.ipynb},
-Illustration Exercise.
-\end{exercise}
+The companion notebook downloads the UCI German Credit dataset and trains a
+logistic regression on the six numeric features to reproduce
+Figure~\ref{fig:ch06-illustration}. It reports AUROC, the KS statistic, and the
+Gini coefficient, and verifies the identity
+$\mathrm{Gini} = 2 \times \mathrm{AUROC} - 1$. It then one-hot encodes all 20
+features (including categoricals), retrains, and compares the resulting AUROC and
+KS against the numeric-only baseline. Finally, it identifies the feature with the
+largest absolute logistic regression coefficient and interprets its credit-risk
+meaning. See \texttt{code/notebooks/06-credit-risk/exercises.ipynb},
+Illustration section.
+\end{illustration}
 
 % ---------------------------------------------------------------
 \section{Deployment of a Credit Risk Application}
@@ -1065,50 +1065,3 @@ The model documentation package must be maintained and updated at least annually
 
 \end{context}
 
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch06-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/06-credit-risk/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Balance Sheet Ratios from XBRL]\label{ex:ch06-edgar-b}
-\textbf{[B]} Fetch the most recent annual values of \texttt{Assets},
-\texttt{Liabilities}, \texttt{StockholdersEquity}, and \texttt{LongTermDebt}
-for JPMorgan Chase (\texttt{JPM}), Bank of America (\texttt{BAC}), and
-Citigroup (\texttt{C}).
-(\textit{a})~Compute equity ratio $= \text{Equity}/\text{Assets}$,
-leverage $= \text{Debt}/\text{Assets}$, and
-cash-to-assets $= \text{Cash}/\text{Assets}$.
-(\textit{b})~Display the results as a structured comparison table.
-See \texttt{code/notebooks/06-credit-risk/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Altman Z-Score from EDGAR XBRL]\label{ex:ch06-edgar-i}
-\textbf{[I]} Compute Altman Z-score components for three non-financial
-companies: Apple (\texttt{AAPL}), General Electric (\texttt{GE}), and Ford
-(\texttt{F}).
-The five components are:
-$X_1 = (\text{CurrentAssets}-\text{CurrentLiabilities})/\text{Assets}$,
-$X_2 = \text{RetainedEarnings}/\text{Assets}$,
-$X_3 = \text{EBIT}/\text{Assets}$,
-$X_4 = \text{MarketCap}/\text{TotalLiabilities}$ (market cap from \texttt{yfinance}),
-$X_5 = \text{Revenues}/\text{Assets}$.
-The Z-score is $1.2 X_1 + 1.4 X_2 + 3.3 X_3 + 0.6 X_4 + 1.0 X_5$.
-Report the score and classify each company (distress $< 1.8$; grey zone $1.8$--$2.99$; safe $\ge 3.0$).
-See \texttt{code/notebooks/06-credit-risk/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Logistic Regression Credit Risk Classifier]\label{ex:ch06-edgar-a}
-\textbf{[A]} Build a logistic regression (implemented from scratch in NumPy)
-to predict credit quality.
-(\textit{a})~For ten S\&P~500 companies --- five with investment-grade ratings
-and five below investment grade --- fetch three years of XBRL financial ratios:
-leverage, ROE ($=$ Net Income$/$ Equity), and revenue growth.
-Hardcode the binary labels (1 = investment grade) based on publicly known ratings.
-(\textit{b})~Train the model with gradient descent (500 iterations,
-learning rate 0.3) and report the leave-one-out cross-validated accuracy.
-(\textit{c})~Discuss survivorship bias, label noise, and other data
-limitations of this approach.
-See \texttt{code/notebooks/06-credit-risk/exercises.ipynb}, Data Lab section.
-\end{exercise}

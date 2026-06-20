@@ -1133,17 +1133,20 @@ for practitioners.
   \label{fig:ch02-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: Sinusoidal Positional Encoding]
+\begin{illustration}[Sinusoidal Positional Encoding]
 \label{ex:ch02-illustration}
-\textbf{[I]} Reproduce Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$
-and sequence length 50.
-(\textit{a})~Extract the encoding vectors for positions 5 and 10 and compute
-their cosine similarity; repeat for positions 5 and 45. Interpret the difference.
-(\textit{b})~Regenerate the heatmap for $d_{\mathrm{model}} \in \{32, 128\}$
-and describe how the frequency pattern changes with model dimension.
+The companion notebook reproduces Figure~\ref{fig:ch02-illustration} for
+$d_{\mathrm{model}} = 64$ and sequence length 50, then explores the geometry of the
+encoding in two ways.  First, it extracts the encoding vectors for positions 5 and 10
+and computes their cosine similarity, repeating the calculation for positions 5 and 45;
+the comparison shows that nearby positions have more similar encodings than distant
+ones, so the cosine similarity decays as positional separation grows.  Second, it
+regenerates the heatmap for $d_{\mathrm{model}} \in \{32, 128\}$, demonstrating how the
+frequency pattern changes with model dimension---higher dimensions add slower-varying
+frequency bands that let the encoding distinguish positions over longer ranges.
 See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb},
-Illustration Exercise.
-\end{exercise}
+Illustration section.
+\end{illustration}
 
 \section{The Modern LLM Landscape}
 \label{sec:landscape}
@@ -2528,84 +2531,6 @@ communications---rather than merely producing text.
 \end{context}
 
 % ---------------------------------------------------------------
-\section{Exercises}
-\label{sec:ch2-exercises}
-
-\begin{exercise}[Scaled dot-product attention: numerical example]
-\label{ex:ch02-attn-b}
-\textbf{[B]} Let $d_k = 4$.  A single-head attention block receives one query
-$\mathbf{q} = [1, 0, 1, 0]^{\top}$ and two key--value pairs:
-$\mathbf{k}_1 = [1, 1, 0, 0]^{\top}$, $\mathbf{v}_1 = [1, 0]^{\top}$;
-$\mathbf{k}_2 = [0, 0, 1, 1]^{\top}$, $\mathbf{v}_2 = [0, 1]^{\top}$.
-(\textit{a})~Compute the scaled scores $s_i = \mathbf{q}^{\top}\mathbf{k}_i / \sqrt{d_k}$.
-(\textit{b})~Apply softmax to obtain attention weights $(\alpha_1, \alpha_2)$.
-(\textit{c})~Compute the context vector $\mathbf{c} = \alpha_1\mathbf{v}_1 + \alpha_2\mathbf{v}_2$.
-(\textit{d})~Explain intuitively why the $\sqrt{d_k}$ scaling improves gradient flow.
-\end{exercise}
-
-\begin{exercise}[Temperature and sampling strategy selection]
-\label{ex:ch02-sampling-b}
-\textbf{[B]} A compliance team at a hedge fund is building two LLM-assisted tools:
-(i) an extractor that pulls covenant triggers from loan agreements into a structured
-JSON record, and (ii) a scenario generator that produces plausible macroeconomic
-stress narratives for risk committee reports.
-(\textit{a})~Recommend a temperature $\tau$ and sampling strategy (greedy, top-$k$,
-or top-$p$) for each tool, with a one-sentence justification for each choice.
-(\textit{b})~For the extractor, explain why a constrained decoding approach
-(Section~\ref{sec:structured-gen}) provides additional safety beyond low temperature alone.
-\end{exercise}
-
-\begin{exercise}[LoRA parameter budget]
-\label{ex:ch02-lora-i}
-\textbf{[I]} A practitioner fine-tunes a decoder-only LLM with $d_{\text{model}} = 4{,}096$
-using LoRA with rank $r = 16$ applied to the query and value projection matrices of each
-of the $L = 32$ transformer layers.  Each projection has shape $d_{\text{model}} \times d_{\text{model}}$.
-(\textit{a})~Compute the number of trainable parameters introduced by LoRA.
-(\textit{b})~Compare this to the number of parameters in the full query and value projection
-matrices and express the reduction as a percentage.
-(\textit{c})~If the original model has 7 billion parameters total, what fraction of parameters
-are being trained under LoRA?
-(\textit{d})~Explain why even this small fraction is sufficient to achieve domain adaptation
-on financial text.
-\end{exercise}
-
-\begin{exercise}[SBERT embedding pipeline for earnings similarity]
-\label{ex:ch02-sbert-i}
-\textbf{[I]} You wish to retrieve the three most similar historical earnings call
-transcripts for a given query transcript using SBERT mean-pooling embeddings.
-(\textit{a})~Write pseudo-code (or Python using \texttt{sentence-transformers}) for
-a pipeline that: (i) encodes a corpus of 5,000 transcripts; (ii) builds a FAISS
-\texttt{IndexFlatIP} over the $\ell_2$-normalised embeddings; (iii) retrieves the
-top-3 nearest neighbours for a new query.
-(\textit{b})~Why is $\ell_2$ normalisation required when using inner-product search
-to approximate cosine similarity?
-(\textit{c})~Estimate the memory required to store 5,000 embeddings of dimension 768
-at 32-bit precision.  Would 16-bit precision be safe here, and why?
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.
-\end{exercise}
-
-\begin{exercise}[Hallucination audit of a RAG pipeline]
-\label{ex:ch02-rag-hallucination-a}
-\textbf{[A]} You are auditing a RAG pipeline used to answer questions about public
-company financials.  The pipeline retrieves the top-3 passages from a corpus of
-10-K filings (BM25 retrieval) and generates answers with a 7B-parameter open-weight
-model at temperature 0.
-(\textit{a})~Describe two distinct hallucination failure modes that can occur even
-when the retriever returns the correct passage.
-(\textit{b})~Design an automated hallucination-detection protocol using SelfCheckGPT
-or FActScore (Section~\ref{sec:hallucinations-detection}) that produces a per-answer
-confidence score without ground-truth labels.
-(\textit{c})~The pipeline occasionally returns a retrieved passage that contains a
-look-ahead data point (e.g.\ a 10-K filed on 2024-01-15 that references full-year
-2023 figures, while the query date is 2023-10-01).  Propose a metadata filtering
-strategy to prevent this form of temporal data leakage.
-(\textit{d})~Under the EU AI Act framework (Section~\ref{sec:limitations-ethics}),
-what transparency obligations apply when this pipeline is used to generate a report
-that informs a client investment decision?
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.
-\end{exercise}
-
-% ---------------------------------------------------------------
 \section{Chapter Summary}
 \label{sec:ch2-summary}
 
@@ -2685,46 +2610,4 @@ them in ways that harness their strengths---scale, speed, and breadth of
 knowledge---while managing their risks through careful system design, rigorous
 evaluation, and meaningful human oversight.
 
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch02-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Token Budget Audit]\label{ex:ch02-edgar-b}
-\textbf{[B]} Fetch Microsoft's (\texttt{MSFT}) most recent 10-K from EDGAR and
-strip all HTML tags.
-(\textit{a})~Count whitespace-separated tokens, total characters, and sentences
-(split on \texttt{[.!?]}).
-(\textit{b})~Estimate the number of GPT-4 tokens (approximately 4 characters per
-token) and determine whether the full filing would fit in a 128\,000-token context
-window.
-(\textit{c})~Produce a summary table: \{document, tokens, chars, sentences,
-estimated LLM tokens, fits in 128K\}.
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Chunking Strategy Comparison]\label{ex:ch02-edgar-i}
-\textbf{[I]} Using the MSFT MD\&A text from Exercise~\ref{ex:ch02-edgar-b},
-implement and compare three chunking strategies:
-(\textit{a})~Fixed windows of 512 tokens with no overlap.
-(\textit{b})~Fixed windows of 256 tokens with 128-token overlap.
-(\textit{c})~Sentence-level chunks.
-For each strategy, plot a histogram of chunk sizes (in tokens) and report
-mean, standard deviation, and the number of chunks produced.
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Type-Token Ratio Across Companies]\label{ex:ch02-edgar-a}
-\textbf{[A]} Download the MD\&A section from the most recent 10-K for ten
-companies spanning technology, finance, and energy sectors.
-(\textit{a})~Compute the type-token ratio
-$\mathrm{TTR} = |\text{unique tokens}| / |\text{total tokens}|$ for each.
-(\textit{b})~Plot TTR as a horizontal bar chart sorted by sector, and add a
-vertical reference line at $\mathrm{TTR} = 0.12$ (a typical value for news text).
-(\textit{c})~Discuss: does financial MD\&A text exhibit higher or lower lexical
-diversity than general news, and what does this imply for LLM tokeniser design?
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-\end{exercise}
 

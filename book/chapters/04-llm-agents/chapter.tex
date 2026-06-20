@@ -995,49 +995,19 @@ omitting material disclosures.
   \label{fig:ch04-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: RAG Retrieval Ranking]
+\begin{illustration}[RAG Retrieval Ranking]
 \label{ex:ch04-illustration}
-\textbf{[I]} Reproduce Figure~\ref{fig:ch04-illustration} using TF-IDF cosine similarity
-between the query \emph{``What are the main risk factors and competitive threats
-facing the company?''} and a corpus of recent financial news headlines.
-(\textit{a})~Identify the top-3 retrieved chunks and explain why TF-IDF ranked
-them highest.
-(\textit{b})~Replace TF-IDF with dense embeddings from
-\texttt{sentence-transformers} (\texttt{all-MiniLM-L6-v2}) and compare the
-ranking. Does dense retrieval surface qualitatively different chunks?
+The companion notebook reproduces Figure~\ref{fig:ch04-illustration} using TF-IDF
+cosine similarity between the query \emph{``What are the main risk factors and
+competitive threats facing the company?''} and a corpus of recent financial news
+headlines. It identifies the top-3 retrieved chunks and shows why TF-IDF ranks
+them highest, then replaces TF-IDF with dense embeddings from
+\texttt{sentence-transformers} (\texttt{all-MiniLM-L6-v2}) to compare the
+two rankings, illustrating how dense retrieval can surface qualitatively
+different chunks than a sparse lexical baseline.
 See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Illustration
-Exercise.
-\end{exercise}
-
-\begin{exercise}[ReAct Loop for Live Price Lookup]
-\label{ex:ch04-react-price}
-\textbf{[B]} Consider a single-turn agent equipped with one tool:
-\texttt{get\_price(ticker: str) -> float}, which returns the current stock price.
-(\textit{a})~Write the ReAct trajectory (Thought, Action, Observation, Thought,
-Finish) for the query \emph{``Is AAPL trading above \$180?''}.
-(\textit{b})~Explain why a chain-of-thought only approach (no tool call) would be
-unreliable for this task, and identify the specific failure mode.
-(\textit{c})~Extend your trajectory to handle the case where the tool returns an
-error because the market is closed.
-\end{exercise}
-
-\begin{exercise}[Multi-Agent Earnings Pipeline Design]
-\label{ex:ch04-multi-agent-design}
-\textbf{[A]} Design and implement a three-agent pipeline for automated earnings
-analysis. Agent~1 (Extractor) retrieves the most recent 10-K risk factors for
-a given ticker from SEC EDGAR. Agent~2 (Comparator) retrieves the same section
-from the prior-year 10-K and identifies newly added or removed risk factors.
-Agent~3 (Synthesiser) produces a structured summary of material risk changes,
-classifying each change as an escalation, de-escalation, or new risk.
-(\textit{a})~Implement the pipeline using the Anthropic API (or LangChain),
-applying the two-agent extractor--classifier pipeline described earlier in this chapter as a
-starting point.
-(\textit{b})~Propose a faithfulness evaluation method for Agent~3's output:
-how would you verify that every cited risk change is traceable to a specific
-passage in one of the two retrieved filing sections?
-(\textit{c})~Identify at least two prompt-injection vectors an adversary could
-exploit in this pipeline and describe a defence for each.
-\end{exercise}
+section.
+\end{illustration}
 
 % ---------------------------------------------------------------
 
@@ -1532,45 +1502,3 @@ as an ongoing operational concern rather than a one-time design decision.
 \end{context}
 
 % ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch04-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Filing Lookup Tool]\label{ex:ch04-edgar-b}
-\textbf{[B]} Implement an \texttt{edgar\_tool(ticker, form\_type, n)} function
-that, given a ticker symbol, returns a list of the $n$ most recent filings of
-the specified form type, each as a dictionary
-\texttt{\{form, date, accession\_url\}}.
-(\textit{a})~Call the tool for \texttt{AAPL}, \texttt{MSFT}, and \texttt{GOOGL}
-with \texttt{form\_type="10-K"} and \texttt{n=3}.
-(\textit{b})~Wrap the output in a natural-language agent response:
-``Based on EDGAR, the three most recent annual filings for \{ticker\} are\ldots''
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Fact-Retrieval Agent Step]\label{ex:ch04-edgar-i}
-\textbf{[I]} Implement a two-step fact-retrieval chain.
-\emph{Step 1}: look up the CIK for a given ticker.
-\emph{Step 2}: call \texttt{get\_annual\_series} to retrieve the annual
-\texttt{Revenues} series.
-(\textit{a})~Answer the query ``What was Apple's revenue in FY2023?'' by
-identifying the closest fiscal-year entry and returning a formatted string.
-(\textit{b})~Generalise to a function
-\texttt{answer\_query(ticker, concept, fy\_year)}
-that handles any XBRL concept and fiscal year.
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Multi-Company Comparison Agent]\label{ex:ch04-edgar-a}
-\textbf{[A]} Build a \texttt{compare\_companies(tickers, concepts, years)}
-function that fetches XBRL data for multiple companies and returns a tidy
-\texttt{DataFrame} indexed by (ticker, year).
-(\textit{a})~Use it to compare \texttt{Revenues}, \texttt{NetIncomeLoss},
-and \texttt{Assets} for AAPL, MSFT, and GOOGL over 2019--2023.
-(\textit{b})~Plot a grouped bar chart for revenues.
-(\textit{c})~Produce an agent-style natural-language summary:
-``The company with the highest revenue growth over the period was\ldots''
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-\end{exercise}

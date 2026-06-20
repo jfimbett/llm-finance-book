@@ -1458,17 +1458,16 @@ for an overview in the transformer setting.
   \label{fig:ch01-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: TF-IDF on Financial News]
+\begin{illustration}[TF-IDF on Financial News]
 \label{ex:ch01-illustration}
-Using recent news headlines retrieved via the \texttt{yfinance} API for
-\textsc{aapl}, \textsc{msft}, and \textsc{jpm}, reproduce
-Figure~\ref{fig:ch01-illustration}.
-(\textit{a})~Identify the three terms with the highest TF-IDF weight for each
-ticker and explain intuitively why they are company-specific.
-(\textit{b})~Add a fourth ticker of your choice, regenerate the heatmap, and
-describe how the new column alters the discriminating vocabulary.
+The companion notebook reproduces Figure~\ref{fig:ch01-illustration} using
+recent news headlines retrieved via the \texttt{yfinance} API for
+\textsc{aapl}, \textsc{msft}, and \textsc{jpm}. It identifies the three terms
+with the highest TF-IDF weight for each ticker, which turn out to be
+company-specific, and shows how adding a fourth ticker regenerates the heatmap
+and alters the discriminating vocabulary.
 See \texttt{code/notebooks/01-intro/exercises.ipynb}, Illustration Exercise.
-\end{exercise}
+\end{illustration}
 
 % ---------------------------------------------------------------
 \section{Recurrent Neural Networks and the Vanishing Gradient}
@@ -1610,39 +1609,6 @@ $\mathbf{f}_t \approx \mathbf{1}$ for a retained signal, this product
 remains close to one across long lags, circumventing
 Theorem~\ref{thm:vanishing-gradient}.
 
-\begin{exercise}[Vanishing gradient magnitude]
-\label{ex:lstm-vanishing-b}
-\textbf{[B]} Suppose a vanilla RNN has $m = 128$ hidden units,
-$\|\mathbf{W}_h\|_2 = 0.9$, and the $\tanh$ derivative is bounded by
-$\alpha = 0.8$.  Compute the upper bound from
-\eqref{eq:vanishing-bound} for lags $T - k \in \{10, 50, 200\}$.
-What do these numbers imply for a financial document of 500 tokens?
-\end{exercise}
-
-\begin{exercise}[LSTM forget-gate semantics]
-\label{ex:lstm-intermediate-i}
-\textbf{[I]} Consider an LSTM reading a quarterly earnings transcript
-token by token.  The transcript has three segments: (1) a forward-looking
-``management commentary'' section (200 tokens), (2) a Q\&A section (300
-tokens), (3) a boilerplate legal disclaimer (100 tokens).
-Explain, in terms of Definition~\ref{def:lstm}, which gate the network
-must learn to set close to zero when transitioning from segment (2) to
-segment (3).  What input feature would the network likely use to detect
-this transition?
-\end{exercise}
-
-\begin{exercise}[Bidirectional LSTM for event detection]
-\label{ex:lstm-advanced-a}
-\textbf{[A]} A bidirectional LSTM processes a sequence both left-to-right
-and right-to-left, concatenating the two hidden states at each position.
-Formally define the bidirectional hidden state $\overleftrightarrow{\mathbf{h}}_t$
-in terms of the forward and backward LSTM outputs.  Then prove that if
-the forward and backward $\|\mathbf{W}_h\|_2$ both satisfy the vanishing
-condition in Theorem~\ref{thm:vanishing-gradient}, the bidirectional model
-still cannot propagate gradients over arbitrarily long ranges in the
-forward direction.  What architectural modification resolves this?
-\end{exercise}
-
 \end{deepdive}
 
 % ---------------------------------------------------------------
@@ -1766,38 +1732,6 @@ sentences containing forward-looking language (guidance, outlook) when
 predicting near-term earnings surprises, offering a degree of explainability
 that pure bag-of-words models cannot provide.
 \end{remark}
-
-\begin{exercise}[Attention score computation]
-\label{ex:attention-b}
-\textbf{[B]} Suppose $d_k = 4$ and a single-head attention block receives
-one query $\mathbf{q} = [1,0,1,0]^{\top}$ and two keys
-$\mathbf{k}_1 = [1,1,0,0]^{\top}$, $\mathbf{k}_2 = [0,1,1,0]^{\top}$.
-Compute the attention scores before and after the $\sqrt{d_k}$ scaling.
-Then apply softmax to the scaled scores and interpret the resulting weights.
-\end{exercise}
-
-\begin{exercise}[Variance proof extension]
-\label{ex:attention-i}
-\textbf{[I]} Proposition~\ref{prop:sqrt-dk} assumed entries with zero mean
-and unit variance.  Repeat the derivation for entries with zero mean and
-variance $\sigma^2 \neq 1$, and show that the correct scaling factor
-becomes $\sqrt{d_k}\,\sigma^2$.  Why does the standard Transformer use
-$\sigma = 1$ (achieved via layer normalisation before the projection)?
-\end{exercise}
-
-\begin{exercise}[Attention complexity and long documents]
-\label{ex:attention-a}
-\textbf{[A]} The attention matrix $\mathbf{Q}\mathbf{K}^{\top} \in
-\mathbb{R}^{n \times n}$ has $\mathcal{O}(n^2)$ entries.  For a 10-K
-filing with $n = 8{,}192$ tokens and $d_k = 64$:
-(\textit{a})~compute the memory requirement in gigabytes if each entry
-is stored in 16-bit float;
-(\textit{b})~explain how \emph{sparse attention} patterns (e.g.\ sliding
-windows, global tokens) reduce this cost while preserving most of the
-representational power;
-(\textit{c})~identify at least one sparse attention variant designed for
-long financial documents.
-\end{exercise}
 
 \end{deepdive}
 
@@ -1939,35 +1873,6 @@ run in real time on a single A100 GPU, while 70B+ models require
 multi-GPU inference pipelines.
 \end{remark}
 
-\begin{exercise}[Autoregressive vs.\ masked training]
-\label{ex:llm-families-b}
-\textbf{[B]} Explain in one or two sentences why a BERT-style encoder model
-cannot be used \emph{directly} to generate new text, and why a GPT-style
-decoder model would underperform BERT on a named-entity recognition task
-over financial news.
-\end{exercise}
-
-\begin{exercise}[T5 for financial multi-task learning]
-\label{ex:llm-families-i}
-\textbf{[I]} You have three financial NLP tasks: (a) classifying 10-K
-risk-factor paragraphs as high/medium/low risk, (b) extracting numeric
-EPS figures from earnings transcripts, (c) summarising MD\&A sections
-in at most 150 words.  For each task, write the T5 input prompt prefix
-that maps the task into the text-to-text format, and describe the target
-string format.
-\end{exercise}
-
-\begin{exercise}[Compliance trade-offs in model selection]
-\label{ex:llm-families-a}
-\textbf{[A]} A large investment bank wants to use an LLM for automated
-analysis of non-public client communications as part of its AML (anti-money
-laundering) compliance workflow.  Evaluate each of the following four
-options — GPT-4 API, LLaMA-3 deployed on-premise, BloombergGPT via
-enterprise agreement, and a fine-tuned T5-small — against the following
-criteria: data residency, performance, latency, and cost.  Justify your
-recommended architecture.
-\end{exercise}
-
 \end{deepdive}
 
 % ---------------------------------------------------------------
@@ -2061,41 +1966,6 @@ can improve accuracy on multi-step financial reasoning tasks but may triple
 output-token counts, making it cost-effective only when accuracy improvements
 justify the expense.
 \end{remark}
-
-\begin{exercise}[API call anatomy]
-\label{ex:api-b}
-\textbf{[B]} Using the notebook at \texttt{code/notebooks/01-intro/demo.ipynb} as a
-template, write a function \texttt{extract\_eps(text: str) -> float} that
-queries \texttt{gpt-4o-mini} to extract the earnings-per-share figure from
-a single sentence of an earnings release.  The function should return a
-Python \texttt{float}, raising a \texttt{ValueError} if the model cannot
-identify a numeric EPS figure.
-\end{exercise}
-
-\begin{exercise}[Cost-accuracy trade-off experiment]
-\label{ex:api-i}
-\textbf{[I]} Download the Financial PhraseBank dataset
-(Malo et al., 2014, available via HuggingFace datasets) and evaluate three
-models on the task of classifying sentences as positive/negative/neutral:
-\texttt{gpt-4o-mini} (via API), \texttt{claude-haiku} (via API), and
-FinBERT (local, via \texttt{code/notebooks/01-intro/demo.ipynb}).
-Compute accuracy, cost per 1{,}000 sentences (estimating from token counts),
-and mean latency per sentence.  Present your results in a single table and
-recommend a model for a use case where 95\%\ accuracy is required at minimum
-cost.
-\end{exercise}
-
-\begin{exercise}[Structured output for financial extraction]
-\label{ex:api-a}
-\textbf{[A]} The OpenAI API supports \emph{structured output} via
-\texttt{response\_format=\{"type": "json\_schema", ...\}}, which enforces
-the model to return JSON matching a user-defined schema.  Design a schema
-for extracting from an earnings press release: (a) the EPS beat/miss in
-cents, (b) the revenue figure in millions of USD, (c) a list of forward-looking
-guidance items, each with a metric name and direction (up/down/unchanged).
-Implement the extraction function using the OpenAI client and validate it on
-three real earnings press releases.
-\end{exercise}
 
 \end{deepdive}
 
@@ -2237,39 +2107,6 @@ that LLM outputs that influence investment decisions are subject to the
 same fiduciary duty standards as human advisor recommendations.
 \end{remark}
 
-\begin{exercise}[Hallucination rate measurement]
-\label{ex:limitations-b}
-\textbf{[B]} You ask GPT-4 to extract the reported net income from a
-500-word earnings press release ten times (temperature $= 0.7$).  The
-model returns the correct figure seven times, a figure off by 5\%\ twice,
-and an entirely fabricated figure once.  Define a hallucination rate
-estimator and compute it.  Why does temperature $> 0$ matter for this
-measurement?
-\end{exercise}
-
-\begin{exercise}[Regulatory classification under the EU AI Act]
-\label{ex:limitations-i}
-\textbf{[I]} For each of the following financial AI deployments, determine
-the applicable EU AI Act risk tier and list the primary compliance obligations:
-(\textit{a})~an LLM chatbot that answers retail client questions about bond
-yields with no binding output;
-(\textit{b})~an LLM-driven credit scoring tool used to approve or reject
-SME loan applications;
-(\textit{c})~an LLM summarisation service that generates internal analyst
-briefings not shared with clients.
-\end{exercise}
-
-\begin{exercise}[RAG pipeline for hallucination mitigation]
-\label{ex:limitations-a}
-\textbf{[A]} Design a retrieval-augmented generation pipeline for answering
-questions about a firm's 10-K filing.  Your design should specify: the
-chunking strategy (chunk size and overlap), the embedding model, the
-retrieval mechanism (dense, sparse, or hybrid), the prompt template, and a
-hallucination detection step.  Implement a prototype using LangChain or
-LlamaIndex and evaluate it on five factual questions drawn from an actual
-10-K, measuring both accuracy and citation precision.
-\end{exercise}
-
 \end{deepdive}
 
 % ---------------------------------------------------------------
@@ -2321,49 +2158,4 @@ protocols developed throughout this book.
 
 \end{context}
 
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch01-data-lab}
-
-The following exercises use live data retrieved from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code and working solutions are in
-\texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-The \texttt{edgar\_get} helper enforces a 110\,ms inter-request delay to comply
-with the SEC's rate limit of ten requests per second.
-
-\begin{exercise}[EDGAR Filing Browser]\label{ex:ch01-edgar-b}
-\textbf{[B]} Using the EDGAR submissions API, retrieve the filing history for
-Apple Inc.\ (\texttt{AAPL}).
-(\textit{a})~Print a table of the 20 most recent filings showing form type,
-filing date, and accession number.
-(\textit{b})~Count filings by form type (10-K, 10-Q, 8-K, DEF~14A, etc.)
-and display the result as a bar chart.
-(\textit{c})~Identify the date of the most recent 10-K filing.
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[MD\&A Keyword Landscape]\label{ex:ch01-edgar-i}
-\textbf{[I]} Download Apple's most recent 10-K filing in HTML format from
-EDGAR, strip all HTML tags, and extract the
-Management's Discussion and Analysis (MD\&A) section (Item~7).
-(\textit{a})~Compute TF-IDF scores for all tokens in the MD\&A section
-(IDF computed over sentences).
-(\textit{b})~Display the top-20 keywords as a horizontal bar chart.
-(\textit{c})~Remove common English stop words (define a set of at least
-30 stop words) and compare the top-20 with and without stop-word filtering.
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Cross-Sector Vocabulary Overlap]\label{ex:ch01-edgar-a}
-\textbf{[A]} Repeat the MD\&A extraction from Exercise~\ref{ex:ch01-edgar-i}
-for five companies spanning three sectors: AAPL and MSFT (technology),
-JPM and BAC (banking), XOM (energy).
-(\textit{a})~Build the vocabulary set for each company's MD\&A.
-(\textit{b})~Compute the pairwise Jaccard similarity
-$J(A,B) = |A \cap B| / |A \cup B|$ and display the $5 \times 5$ matrix
-as a heatmap with company tickers on both axes.
-(\textit{c})~Interpret the pattern: do within-sector pairs show higher
-overlap than cross-sector pairs? What does this imply for domain-adapted
-language model pre-training?
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-\end{exercise}
 

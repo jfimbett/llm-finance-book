@@ -585,48 +585,6 @@ This chapter developed the methodology for treating financial language as a data
 \end{itemize}
 
 % ---------------------------------------------------------------
-\section*{Exercises}
-
-\begin{exercise}[Loughran-McDonald Sentiment Scoring]
-\label{ex:ch09-lm-scoring}
-\textbf{[B]} Download the Loughran-McDonald Master Dictionary from
-\url{https://sraf.nd.edu/loughranmcdonald-master-dictionary/}.
-(\textit{a})~Apply the dictionary to a recent earnings call transcript of your choice
-and report the positive, negative, and uncertainty word counts as a fraction of total
-tokens. (\textit{b})~Explain why the L\&M dictionary assigns the word ``liability'' to
-the negative category whereas the Harvard GI dictionary does not, and discuss what
-this implies for applying a general-purpose sentiment lexicon to financial text.
-\end{exercise}
-
-\begin{exercise}[FinBERT vs.\ Zero-Shot GPT-4 on FinancialPhraseBank]
-\label{ex:ch09-finbert-gpt}
-\textbf{[I]} Using the FinancialPhraseBank dataset (2,264 annotated sentences,
-available via HuggingFace Datasets), evaluate two sentiment classifiers:
-(\textit{a})~FinBERT (\texttt{ProsusAI/finbert}) using the HuggingFace
-\texttt{pipeline} API; (\textit{b})~zero-shot GPT-4o with the system prompt
-``Classify the financial sentiment of this sentence as positive, negative, or neutral.
-Return only one word.'' Compare macro-F1 scores on the ``agree'' subset (those
-sentences where all annotators agreed). Discuss which model makes more errors on
-negated phrases such as ``revenue did not decline.''
-\end{exercise}
-
-\begin{exercise}[Event-Study Signal Construction and Economic Validity]
-\label{ex:ch09-event-study}
-\textbf{[A]} Construct a text-based trading signal from a publicly available news
-sentiment dataset (e.g., Reuters news via WRDS or a sample from
-\citet{tetlock2007giving}).
-(\textit{a})~Compute a daily cross-sectional sentiment score $\tilde{S}_{i,t}$ by
-standardising raw L\&M negative-word fractions within each calendar week.
-(\textit{b})~Run the predictive regression $r_{i,t+1} = \alpha + \beta\,\tilde{S}_{i,t}
-+ \gamma' \mathbf{z}_{i,t} + \varepsilon_{i,t}$ where $\mathbf{z}_{i,t}$ includes
-market beta, size, and book-to-market controls. Report Newey-West standard errors with
-five lags. (\textit{c})~Compute the cumulative abnormal return over the five-day
-post-publication window and assess whether the signal is stronger for small-cap stocks.
-Discuss one alternative explanation for any predictability you find other than
-information content.
-\end{exercise}
-
-% ---------------------------------------------------------------
 \section{Further Reading}
 \label{sec:ch09-further-reading}
 
@@ -639,45 +597,3 @@ On the NLP side, \citet{araci2019finbert} and \citet{huang2023finbert} document 
 For event-driven asset pricing applications, \citet{manela2017news} is the methodological benchmark for long-horizon news sentiment indices. \citet{schmeling2019does} is the reference for central bank text analysis. \citet{larcker2012detecting} remains the key paper on deception detection in earnings calls.
 
 Chapter~\ref{ch:domain-specific-llms} of this book covers the pre-training and adaptation of domain-specific models including FinBERT's successors. Chapter~\ref{ch:financial-text-summarization} extends the NLP toolkit to abstractive summarisation of financial documents, including earnings call and research report summarisation. Chapter~\ref{ch:llm-limitations-evaluation} addresses the evaluation of LLM outputs more broadly, including calibration, hallucination, and benchmark construction.
-
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch09-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Loughran--McDonald Sentiment Scoring]\label{ex:ch09-edgar-b}
-\textbf{[B]} Download the MD\&A section of the most recent 10-K for four
-companies: AAPL, MSFT, JPM, and XOM.
-Using the Loughran--McDonald positive and negative word lists (20 words each,
-hardcoded), compute for each company:
-(\textit{a})~positive word frequency $p$ and negative word frequency $n$
-(counts per total tokens);
-(\textit{b})~net sentiment $= (p - n)/(p + n + 1)$;
-(\textit{c})~a horizontal bar chart of net sentiment scores.
-See \texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Sentiment vs.\ Filing-Day Return]\label{ex:ch09-edgar-i}
-\textbf{[I]} For ten companies, fetch the 10-K filing date from EDGAR
-and the stock return on the filing date using \texttt{yfinance}.
-(\textit{a})~Compute the net sentiment score for each filing's MD\&A.
-(\textit{b})~Plot a scatter diagram of net sentiment vs.\ filing-day return.
-(\textit{c})~Compute the Pearson correlation and discuss whether this
-simple signal has predictive content.
-See \texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Filing-Date Event Study]\label{ex:ch09-edgar-a}
-\textbf{[A]} For ten companies, compute the cumulative abnormal return (CAR)
-in the $[-5, +10]$ trading-day window around the 10-K filing date.
-Abnormal return $= r_{\text{stock}} - r_{\text{S\&P 500}}$ on each day,
-using closing prices from \texttt{yfinance}.
-(\textit{a})~Sort filings into positive-sentiment and negative-sentiment
-halves based on net MD\&A sentiment.
-(\textit{b})~Plot mean CAR by sentiment group.
-(\textit{c})~Discuss the limitations of this event study (information leakage,
-sample size, confounders).
-See \texttt{code/notebooks/09-financial-nlp-sentiment/exercises.ipynb}, Data Lab section.
-\end{exercise}

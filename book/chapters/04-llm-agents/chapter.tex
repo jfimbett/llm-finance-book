@@ -871,9 +871,12 @@ An alternative that avoids normalisation altogether is \emph{reciprocal rank fus
 $k = 60$ a standard constant that dampens the influence of top-ranked documents.
 As a starting point, practitioners typically weight dense retrieval more heavily (higher $\alpha$) for semantic question-answering tasks, and sparse retrieval more heavily (lower $\alpha$) for exact-match regulatory keyword lookups; the optimal value is task-specific and should be tuned on a held-out validation set.
 
-Recent work on \emph{learned sparse retrieval}---methods such as SPLADE that produce
+The hybrid scheme above blends dense and sparse retrieval as two \emph{fixed} components;
+a natural next step is to \emph{learn} the sparse representation itself, so that the
+sparse signal also captures meaning rather than only exact terms. Recent work on
+\emph{learned sparse retrieval}---methods such as SPLADE that produce
 sparse high-dimensional vectors by applying a ReLU-log activation to MLM logits---
-offers a middle ground between dense and sparse retrieval. SPLADE-style methods learn
+offers exactly this middle ground between dense and sparse retrieval. SPLADE-style methods learn
 to \emph{expand} queries and documents with semantically related terms, capturing
 semantic similarity while maintaining a sparse representation that can be indexed with
 inverted file structures. For financial applications, learned sparse retrieval may
@@ -1051,10 +1054,10 @@ and \citet{LopezLiraTang2023} have shown that LLMs can produce nuanced sentiment
 assessments that predict stock price movements around earnings announcements.
 \citet{kim2024financial} take a complementary approach, showing that GPT-4
 fed anonymised financial statements---without any narrative or industry identifiers---
-predicts the direction of future earnings with 60\% accuracy, outperforming human analysts
-(53\%) and matching a narrowly trained state-of-the-art ML model; trading strategies
-based on the LLM's predictions yield higher Sharpe ratios than analyst-based strategies,
-underscoring the practical value of agentic financial analysis.
+predicts the direction of future earnings at an accuracy the authors report exceeds that
+of human analysts and approaches a narrowly trained state-of-the-art ML model; trading
+strategies based on the LLM's predictions yield higher Sharpe ratios than analyst-based
+strategies, underscoring the practical value of agentic financial analysis.
 
 A complete earnings call analysis pipeline involves five stages. First, \emph{ingestion}:
 the transcript is retrieved from a vendor API (e.g., Refinitiv Eikon, S\&P Global
@@ -1203,14 +1206,14 @@ a 7B-parameter model) since its task is purely verification rather than generati
 This architecture is used in the RAGAS evaluation framework \cite{es2023ragas} and
 can be adapted for production citation enforcement. The practical difficulty of filing
 Q\&A at enterprise scale is documented by \citet{zhang2024financebench}, who introduce
-the FinanceBench benchmark of 10{,}231 questions over publicly traded company filings
-and find that even GPT-4-Turbo with retrieval incorrectly answers or refuses 81\% of
-questions, highlighting the gap between research prototypes and production-grade
-financial RAG systems. \citet{wang2025finsage} address this gap with FinSage, a
-multi-aspect RAG framework for financial filings that combines multi-modal preprocessing,
-multi-path sparse-dense retrieval augmented with query expansion, and a compliance-focused
-re-ranking module, achieving 92.51\% recall on expert-curated compliance questions and
-surpassing baseline RAG accuracy on FinanceBench by 24\%.
+the FinanceBench benchmark of questions over publicly traded company filings
+and find that even GPT-4-Turbo with retrieval incorrectly answers or refuses a large
+majority of the questions, highlighting the gap between research prototypes and
+production-grade financial RAG systems. \citet{wang2025finsage} address this gap with
+FinSage, a multi-aspect RAG framework for financial filings that combines multi-modal
+preprocessing, multi-path sparse-dense retrieval augmented with query expansion, and a
+compliance-focused re-ranking module, reporting substantially higher recall on
+expert-curated compliance questions and improved accuracy over baseline RAG on FinanceBench.
 
 In practice, a verifier model checks each claim $s_j$ in the generated answer against the
 chunk $C_j$ cited for it. Claims confirmed as supported are retained; unsupported claims

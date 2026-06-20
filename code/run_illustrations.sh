@@ -19,6 +19,10 @@ for nb in "${NOTEBOOKS[@]}"; do
     --ExecutePreprocessor.timeout=180
 done
 
+# Deterministic, network-free figure generators (preferred over live-data notebooks).
+echo "Running deterministic figure generators ..."
+python3 code/notebooks/05-business-valuation/gen_dcf_sensitivity.py
+
 echo "All illustration figures regenerated."
 echo ""
 echo "PDFs:"

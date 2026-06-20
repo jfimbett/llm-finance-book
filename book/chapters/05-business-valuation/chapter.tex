@@ -857,15 +857,17 @@ investment write-up that would otherwise take an analyst several hours.
            The heatmap reveals the non-linear sensitivity of terminal value to
            the WACC--$g$ spread: small changes near the lower-right corner
            (low WACC, high growth) produce large swings in enterprise value.
-           (Based on AAPL approximate FY2024 free cash flow; values are illustrative and depend on the filing date used. See companion notebook for live computation via \texttt{yfinance}.)}
+           (Based on AAPL's FY2024 free cash flow of \$108.8B from its 10-K. The heatmap is
+           generated deterministically by \texttt{gen\_dcf\_sensitivity.py}; it depends only
+           on this fixed base FCF and the Gordon-Growth formula, not on any live data.)}
 
   \label{fig:ch05-illustration}
 \end{figure}
 
 \begin{illustration}[DCF Sensitivity Analysis]
 \label{ex:ch05-illustration}
-The companion notebook reproduces Figure~\ref{fig:ch05-illustration} using
-Apple's most recent free cash flow retrieved via \texttt{yfinance}, with WACC
+The script \texttt{gen\_dcf\_sensitivity.py} reproduces Figure~\ref{fig:ch05-illustration}
+deterministically from Apple's fixed FY2024 free cash flow (\$108.8B), with WACC
 ranging over $[6\%, 14\%]$ and terminal growth rate $g$ over $[1\%, 4\%]$.
 It identifies the cell with the highest sensitivity to a 1\,pp change in WACC
 (the largest row-to-row value difference) and shows why sensitivity is highest

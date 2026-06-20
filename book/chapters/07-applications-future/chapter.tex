@@ -267,9 +267,9 @@ SEC EDGAR publishes an RSS feed of new filings within minutes of acceptance. An 
 \subsubsection*{Trade Surveillance Narrative}
 When a rule-based surveillance system flags an unusual order pattern---potential front-running, spoofing, or wash trading---a compliance analyst must produce a written narrative justifying either escalation or clearance. An LLM-assisted surveillance tool retrieves news articles, regulatory announcements, and social media from the hour preceding the flagged trades; searches internal communications for relevant context; and drafts a structured narrative that situates the trading pattern in its market context. The draft is reviewed by the analyst, who approves, edits, or rejects it. This human-in-the-loop design is deliberate: the LLM handles the time-consuming information aggregation while the analyst provides the regulatory judgment.
 
-A representative Python implementation of an event-triggered pipeline that monitors EDGAR and classifies incoming 8-K filings is provided in the companion notebook.
+A representative Python implementation of an event-triggered pipeline that monitors EDGAR and classifies incoming 8-K filings is developed as an exercise in the companion notebook.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
+\textit{This example is developed as an exercise in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
 
 \subsection{Integrating LLMs with Existing Financial Infrastructure}
 \label{subsec:af-workflows-integration}
@@ -355,7 +355,7 @@ The \emph{macro digest skill} assembles a morning briefing from multiple sources
 
 The skill definition mechanism is deliberately simple: a Python function with a descriptive docstring is sufficient for the framework to expose it as a callable tool, as the companion notebook illustrates.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
+\textit{This example is developed as an exercise in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
 
 When this file is placed in the OpenClaw skills directory, the framework parses the function signature and docstring, and the skill becomes callable via any connected messaging channel. The self-modification capability means that the assistant can itself be prompted to write new skills: ``write me a skill that monitors my watchlist for short interest changes above 5\%'' will produce a new Python file that, after user review, extends the assistant's capabilities permanently.
 
@@ -582,7 +582,7 @@ The agent architectures introduced in \Cref{ch:llm-agents} are rapidly becoming 
 
 In finance, the trajectory toward greater autonomy is visible in several directions. Quantitative research workflows are increasingly LLM-assisted: model selection, feature engineering, and strategy documentation are tasks where LLM assistance reduces the time from hypothesis to tested strategy by an order of magnitude. Trading strategy self-improvement---systems that propose modifications to their own signal construction or position sizing rules, back-test them, and adopt improvements that pass a quality threshold---is an active area of research and early-stage commercial development.
 
-The systemic risk implications of autonomous financial agents deserve serious attention \cite{bommasani2021opportunities,LopezLira2025trade}. When many market participants deploy similar or identical LLM-based strategies at scale, correlation between their actions can increase. An autonomous agent that interprets a market signal as requiring immediate large-scale repositioning may trigger a cascade if similar agents are responding to the same signal simultaneously. The speed of LLM-driven decisions, potentially operating at millisecond timescales through tool calls to order management systems, can amplify flash-crash dynamics. Regulators have begun examining circuit-breaker requirements for AI-driven strategies, analogous to the position limits and halt triggers that govern algorithmic trading.
+The systemic risk implications of autonomous financial agents deserve serious attention \cite{bommasani2021opportunities,LopezLira2025trade}. As established in \Cref{subsec:af-ethics-sources}, correlated deployment of similar strategies amplifies feedback loops; for autonomous agents this risk is sharpened by execution speed. An autonomous agent that interprets a market signal as requiring immediate large-scale repositioning may trigger a cascade if similar agents are responding to the same signal simultaneously. The speed of LLM-driven decisions, potentially operating at millisecond timescales through tool calls to order management systems, can amplify flash-crash dynamics. Regulators have begun examining circuit-breaker requirements for AI-driven strategies, analogous to the position limits and halt triggers that govern algorithmic trading.
 
 The governance of autonomous agents in finance requires a principle that does not yet have consensus: at what point in an autonomous decision sequence must human authorisation be sought? A useful framing distinguishes \emph{informational} outputs (the agent produces analysis or recommendations), \emph{advisory} outputs (the agent proposes actions for human approval), and \emph{executive} outputs (the agent acts on the financial system directly). Mature deployment practice confines executive autonomy to well-defined, pre-approved action spaces with hard limits, and treats any action outside that space as requiring explicit human authorisation.
 

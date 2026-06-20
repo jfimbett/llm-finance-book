@@ -21,6 +21,7 @@ done
 
 # Deterministic, network-free figure generators (preferred over live-data notebooks).
 echo "Running deterministic figure generators ..."
+python3 code/notebooks/01-intro/gen_tfidf_headlines.py
 python3 code/notebooks/02-llm-foundations/gen_positional_encoding.py
 python3 code/notebooks/05-business-valuation/gen_dcf_sensitivity.py
 python3 code/notebooks/07-applications-future/gen_benchmark_comparison.py

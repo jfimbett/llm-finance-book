@@ -182,3 +182,4 @@
 | 2026-06-20 | 16 files | feat(ch01): accounting-identity comparison across two embedding models;chore: session log 2026-06-20;feat(ch01): empirical embedding-arithmetic case study with real GloVe; | — |
 | 2026-06-20 | 6 files | refine(ch01): simplify embeddings to a single clean king-queen analogy figure;chore: session log 2026-06-20;feat(ch01): accounting-identity comparison across two embedding models; | — |
 | 2026-06-20 | 29 files | refine(book): remove student exercises; keep worked illustrations;chore: session log 2026-06-20;refine(ch01): simplify embeddings to a single clean king-queen analogy figure; | — |
+| 2026-06-20 | 34 files | chore: session log 2026-06-20;refine(book): remove student exercises; keep worked illustrations;chore: session log 2026-06-20; | — |

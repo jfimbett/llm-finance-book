@@ -66,20 +66,23 @@ Tetlock); numerous concept-ordering and progressive-learning lifts.
 `code/run_illustrations.sh`, and the `docs/quality/book-quality/` scorecards. Delivered
 across ~55 commits, each verified against a clean compile.
 
-## 4. Human decisions deferred (non-blocking; flagged, not silently changed)
+## 4. Author decisions — ALL RESOLVED & APPLIED
 
-These do **not** block the gate but are surfaced for the author:
-- **`chen2025aml`** (future-dated arXiv id `2602.23373`): could not be verified; the
-  Adverse Media Index is now presented as the book's own construct and the entry is
-  uncited + marked `NEEDS_EXTERNAL_VERIFICATION`. Verify or delete the entry.
-- **Working-paper numerics** were hedged rather than asserted; if the author can verify
-  specific figures (BloombergGPT totals, KirtacGermano/Siano/VidalSSRN/Hampole numbers,
-  etc.) they may be restored with precise values and `citation_accuracy` would only rise.
-- **Stale `.bib` files** (`bibliography_bibertool.bib`, `bibliography_test.bib`) are not
-  loaded by `preamble.tex` and can be deleted.
-- The **`gen_king_analogy.py`** figure regenerates from the pinned `glove-wiki-gigaword-300`
-  release (a one-time download, then cached); a committed pruned-vector snapshot would make
-  it offline-deterministic like the others.
+Collected in `AUTHOR_DECISIONS.md`, answered by the author, and applied this turn:
+- **`chen2025aml`** → replaced with the **real** paper the author located,
+  `lin2025risktagger` (RiskTagger, Lin et al. 2025, arXiv:2510.17848), and cited honestly
+  in ch11 Further Reading as an LLM-agent-for-AML example (a Web3/crypto annotation paper —
+  *not* the Adverse Media Index, which remains the book's own construct).
+- **Working-paper numerics** — author chose to **keep them hedged** (qualitative).
+- **`claude-opus-4-5`** placeholder model id — **kept** (consistent, flagged illustrative).
+- **Stale `.bib` files** — **deleted** (`bibliography_bibertool.bib`, `bibliography_test.bib`).
+- **"Shared package" claim** — **dropped** (README + `code/src/__init__.py`); chapter code
+  lives in the notebooks/generators.
+- **`gen_king_analogy.py`** — **kept** as documented-pinned (`glove-wiki-gigaword-300`).
+- **ch16 placement** — **kept** at Chapter 2 (its conventional background slot).
+- **Title page** — fixed the doubled title; **added a frontmatter "About This Book"** section.
+
+The book re-passed the full regression after these edits (628 pp, all gates green).
 
 ## 5. Verification
 

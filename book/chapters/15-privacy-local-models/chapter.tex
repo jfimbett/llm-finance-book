@@ -87,7 +87,12 @@ A useful frame for thinking about LLM privacy risks is the classical information
 
 Neural language models do not store training data explicitly; they compress it into parameters. But compression is lossy only in aggregate. Individual training examples — particularly those that are unusual, repeated, or long — are retained with high fidelity in the form of conditional distributions that assign high probability to the exact original sequence.
 
-The mechanism behind memorisation is the model's training objective. At each step, the model is rewarded for increasing the probability of the next token in the training sequence. For common patterns, this pushes the model toward generalisable features. For rare patterns, the model's only path to a low loss is to memorise the specific sequence. The distinction between learning and memorising is therefore, in part, a function of frequency: a client's name that appears once in a fine-tuning corpus is memorised; the word ``the'' is learned.
+The mechanism behind memorisation (\Cref{def:memorisation}) is the model's training
+objective: for common patterns the next-token objective rewards generalisable features,
+but for rare patterns the only path to a low loss is to memorise the specific sequence.
+The distinction between learning and memorising is therefore, in part, a function of
+frequency: a client's name that appears once in a fine-tuning corpus is memorised; the
+word ``the'' is learned.
 
 Extraction attacks exploit this asymmetry by designing prompts that trigger memorised sequences. \citet{carlini2021extracting} used a simple generation-then-filtering approach: generate a large number of long continuations from various prompts, then rank the completions by the ratio of likelihood under the target model to likelihood under a smaller reference model. Sequences with a high likelihood ratio relative to the reference are disproportionately likely to be training data rather than generic text, because the reference model has not seen the specific sequence. The attack recovered verbatim email addresses, telephone numbers, names, and in one case a full training example containing personal identifying information.
 
@@ -139,9 +144,9 @@ An open-weight model is one whose parameters are publicly released, enabling dep
 
 The Meta Llama family established the baseline for capable open-weight models~\citep{touvron2023llama}. Llama 2, released in mid-2023~\citep{touvron2023llama2}, offered models from 7 billion to 70 billion parameters with instruction-tuned variants. The 7B model, when quantised to 4-bit precision, runs on a single consumer GPU with 8\,GB of VRAM, making it accessible for workstations. The 70B model, in 4-bit, requires approximately 40\,GB and therefore a multi-GPU setup or a modern data-centre GPU. For financial institutions with existing GPU infrastructure, Llama 2 and its successors (Llama 3 and Llama 3.1) provide a viable starting point.
 
-Mistral AI released Mistral 7B in late 2023~\citep{jiang2023mistral}, which demonstrated that careful architectural choices — specifically grouped-query attention and a sliding window attention mechanism — could achieve performance competitive with much larger models at a fraction of the inference cost. Mistral 7B outperforms Llama 2 13B on most standard benchmarks while requiring less than half the memory. For latency-sensitive financial applications such as real-time document classification or interactive compliance assistance, the efficiency advantage is material.
+Mistral AI released Mistral 7B in late 2023~\citep{jiang2023mistral}, which demonstrated that careful architectural choices — specifically grouped-query attention and a sliding window attention mechanism — could achieve performance competitive with much larger models at a fraction of the inference cost. Mistral 7B matches or exceeds Llama 2 13B on many standard benchmarks while using substantially less memory (roughly that of a 7B versus a 13B model at the same precision). For latency-sensitive financial applications such as real-time document classification or interactive compliance assistance, the efficiency advantage is material.
 
-Microsoft's Phi family (Phi-2, Phi-3) takes a different approach: training small models on curated, high-quality data rather than raw web text. Phi-3-mini, with 3.8 billion parameters, achieves performance comparable to models several times its size on reasoning benchmarks while fitting comfortably on a laptop GPU. For institutions that need to deploy inference at branch level or on edge devices without GPU infrastructure, the Phi family is an attractive option.
+Microsoft's Phi family (Phi-2, Phi-3) takes a different approach: training small models on curated, high-quality data rather than raw web text. Phi-3-mini, with 3.8 billion parameters, achieves strong reasoning-benchmark performance for its size while fitting comfortably on a laptop GPU. For institutions that need to deploy inference at branch level or on edge devices without GPU infrastructure, the Phi family is an attractive option.
 
 \begin{remark}
 Open-weight models carry their own compliance obligations. Llama models are released under the Llama 2 Community License, which restricts use by organisations with more than 700 million monthly active users and requires including the word ``Meta Llama'' in derivative model names. Mistral models are released under the Apache 2.0 licence, which imposes no such restrictions. Institutions should review the applicable licence terms before deployment in production systems.
@@ -318,7 +323,20 @@ DP-SGD, introduced by \citet{abadi2016deep}, applies the Gaussian mechanism to s
 
 The privacy guarantee is computed using the moments accountant (the moments accountant tracks the log-moment generating function of the privacy loss random variable to give tight composition bounds) or the R\'enyi DP composition theorem, which track the cumulative privacy loss across all gradient steps more tightly than the basic composition theorem~\citep{abadi2016deep}.
 
-The primary cost of DP-SGD is utility degradation. Adding noise to gradients slows convergence and may prevent the model from reaching the same loss as non-private training. The trade-off is characterised by the privacy--utility curve: for a given $\delta$, the test accuracy of the DP model is plotted as a function of $\varepsilon$. Typical values in the literature range from $\varepsilon = 1$ (strong privacy, significant utility cost) to $\varepsilon = 10$ (weak privacy, small utility cost) for large language model fine-tuning. The parameter-efficient fine-tuning methods of \Cref{ch:llm-training} (LoRA, adapters) are particularly compatible with DP-SGD because they reduce the number of trainable parameters, which reduces the effective sensitivity and therefore the required noise scale.
+The primary cost of DP-SGD is utility degradation. Adding noise to gradients slows convergence and may prevent the model from reaching the same loss as non-private training. The trade-off is characterised by the privacy--utility curve (\Cref{fig:ch15-privacy-utility}): for a given $\delta$, the test accuracy of the DP model is plotted as a function of $\varepsilon$. Typical values in the literature range from $\varepsilon = 1$ (strong privacy, significant utility cost) to $\varepsilon = 10$ (weak privacy, small utility cost) for large language model fine-tuning. The parameter-efficient fine-tuning methods of \Cref{ch:llm-training} (LoRA, adapters) are particularly compatible with DP-SGD because they reduce the number of trainable parameters, which reduces the effective sensitivity and therefore the required noise scale.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{chapters/15-privacy-local-models/figures/fig_privacy_utility}
+  \caption{Illustrative privacy--utility tradeoff for differentially private fine-tuning.
+           Test accuracy rises with the privacy budget $\varepsilon$ (weaker privacy) and
+           saturates toward the non-private baseline; strong privacy ($\varepsilon = 1$)
+           carries a larger utility cost than weak privacy ($\varepsilon = 10$). The curve
+           is a schematic of the qualitative tradeoff (a saturating exponential, not
+           measured data), generated deterministically by
+           \texttt{gen\_dp\_privacy\_utility.py}.}
+  \label{fig:ch15-privacy-utility}
+\end{figure}
 
 \begin{proposition}[Composition of DP Mechanisms]
 \label{prop:composition}
@@ -408,7 +426,7 @@ Privacy guarantees should be verified empirically, not taken on faith from the t
 
 \emph{Membership inference success rate}: hold out a random subset of fine-tuning documents as the negative class. Apply the likelihood-ratio attack of \citet{carlini2021extracting} to both the fine-tuning documents and the held-out documents. Compute the area under the ROC curve (AUC) for distinguishing members from non-members. An AUC of 0.5 indicates perfect privacy (the attack performs no better than chance); an AUC of 1.0 indicates complete failure. For practical systems, an AUC below 0.6 is a common threshold for acceptable privacy.
 
-\emph{Verbatim extraction rate}: define a set of ``canary'' sequences — specific sensitive strings from the fine-tuning corpus — and measure the fraction that can be recovered by the extraction attack. A model fine-tuned with appropriate DP guarantees should have a near-zero extraction rate for canaries; a model fine-tuned without privacy protections may have extraction rates above 1\% for highly repeated sequences.
+\emph{Verbatim extraction rate}: define a set of ``canary'' sequences — specific sensitive strings from the fine-tuning corpus — and measure the fraction that can be recovered by the extraction attack. A model fine-tuned with appropriate DP guarantees should have a near-zero extraction rate for canaries; a model fine-tuned without privacy protections may have non-negligible extraction rates for highly repeated sequences.
 
 \emph{Property inference accuracy}: select an aggregate property of the fine-tuning dataset (e.g., the fraction of documents in the default category, the mean loan size) and train a meta-classifier on shadow models to infer this property from the target model's outputs. Compare the meta-classifier's accuracy to a random baseline. Accuracy significantly above baseline indicates property leakage.
 
@@ -461,3 +479,13 @@ The four engineering strategies developed in this chapter address complementary 
 \end{itemize}
 A production deployment should apply all five strategies in combination. No single strategy is sufficient; the threat landscape is multi-dimensional and each strategy has residual risks that the others address.
 \end{remark}
+
+Even the combined stack leaves residual risk that the practitioner must track explicitly.
+The most consequential open gap is the right to erasure (GDPR Article~17): excluding a
+subject's data from future fine-tuning is straightforward, but \emph{removing} already-memorised
+information from a deployed model's parameters---machine unlearning---remains an open research
+problem rather than a solved control. Residual exposure should therefore be re-measured on a
+fixed cadence (membership-inference AUC and canary extraction rate) after every fine-tune, not
+assessed once at launch. The companion notebooks
+(\texttt{code/notebooks/15-privacy-local-models/}) implement the DP fine-tuning and
+membership-inference evaluation used above so these metrics can be reproduced.

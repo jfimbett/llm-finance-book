@@ -9,7 +9,7 @@
 - **16 / 16 chapters fully pass** (all 14 dimensions ≥90), each **independently re-audited**
   post-fix: ch01, ch02, ch03, ch04, ch05, ch06, ch07, ch08, ch09, ch10, ch11, ch12, ch13,
   ch14, ch15, ch16.
-- **Book compiles clean** (626 pp): 0 duplicate labels, 0 multiply-defined, 0 undefined
+- **Book compiles clean** (628 pp): 0 duplicate labels, 0 multiply-defined, 0 undefined
   refs, 0 undefined citations, 0 biber-missing entries, 0 fatal errors.
 
 ## Chapter pass table (reading order)
@@ -53,7 +53,7 @@
 | Gate | Status |
 |------|--------|
 | All chapters pass (≥90 on all dims) | ✅ 16/16 |
-| Book compiles | ✅ (626 pp, `-shell-escape` for minted) |
+| Book compiles | ✅ (628 pp, `-shell-escape` for minted) |
 | No duplicate labels | ✅ |
 | No broken refs | ✅ |
 | No unresolved cites | ✅ |

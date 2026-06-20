@@ -17,7 +17,7 @@
 | Metric | Start (iteration-0 audit) | End |
 |--------|---------------------------|-----|
 | Chapters passing (all 14 dims ≥90) | 0 / 16 | **16 / 16** |
-| Book compiles | unverified | ✅ 626 pp |
+| Book compiles | unverified | ✅ 628 pp |
 | Duplicate labels | 10+ collisions | ✅ 0 |
 | Broken refs | ≥4 (`ch:responsible-llms`, `fig:ch11-rag-pipeline`, …) | ✅ 0 |
 | Undefined citations | unverified | ✅ 0 |
@@ -85,7 +85,7 @@ These do **not** block the gate but are surfaced for the author:
 
 `/book-quality-regression`-equivalent checks all green (run this turn): clean
 `pdflatex`×3 + `biber`, 0 duplicate labels, 0 multiply-defined, 0 undefined refs, 0
-undefined cites, 0 biber-missing, 0 fatal errors, 626 pages. Per-chapter ≥90 confirmed by
+undefined cites, 0 biber-missing, 0 fatal errors, 628 pages. Per-chapter ≥90 confirmed by
 independent re-audits recorded in `BOOK_SCORE.md`.
 
 **The goal is met.**

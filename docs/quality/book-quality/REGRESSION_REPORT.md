@@ -6,7 +6,7 @@
 
 ```
 === Book Quality Regression ===
-Compiles:            YES  (pdflatex x3 + biber; 626 pages; -shell-escape for minted)
+Compiles:            YES  (pdflatex x3 + biber; 628 pages; -shell-escape for minted)
 Duplicate bib keys:  0
 Biber missing keys:  0
 Print-leaking notes: 0    (no "Needs verification" / [CHECK] / [CITE: verify] in .bib)
@@ -25,7 +25,7 @@ Book-level pass:     YES
 
 | Gate | Result | Evidence |
 |------|--------|----------|
-| Build | ✅ YES | clean `pdflatex`×3 + `biber`; `main.pdf` 626 pp, ~2.64 MB |
+| Build | ✅ YES | clean `pdflatex`×3 + `biber`; `main.pdf` 628 pp, ~2.64 MB |
 | Bibliography hygiene | ✅ | 0 duplicate keys; 0 biber-missing; stub `shah2022flue` completed; `wei2022emergent` dedup; `chen2025aml` flagged `NEEDS_EXTERNAL_VERIFICATION` + uncited; all inline `% [CHECK]`/`% [CITE]` comments stripped |
 | Cross-references | ✅ | 0 undefined `\ref`/`\eqref`/`\cite`; 0 duplicate labels; created `fig:ch11-rag-pipeline`; fixed `ch:responsible-llms`, `ch:llm-training-finetuning`, `app:huggingface` |
 | Hard-coded chapter refs | ✅ | 0 `Chapter~N`/`Chapter~\ref` prose remain (all `\Cref`); both stale book-map tables rebuilt |

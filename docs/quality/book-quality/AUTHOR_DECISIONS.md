@@ -1,5 +1,24 @@
 # AUTHOR_DECISIONS.md — Decisions you need to make
 
+> **ALL RESOLVED & APPLIED (2026-06-20).** Status of each:
+> - **A1** chen2025aml → replaced with the real `lin2025risktagger` (RiskTagger,
+>   arXiv:2510.17848) you found; cited honestly in ch11 Further Reading as an
+>   LLM-agent-for-AML example (it is a Web3/crypto annotation paper, *not* the Adverse
+>   Media Index, so AMI stays the book's own construct). ✅
+> - **A2** keep all numerics hedged. ✅ (no change)
+> - **A3** keep `claude-opus-4-5` placeholder id. ✅ (no change)
+> - **B1** deleted `bibliography_bibertool.bib` + `bibliography_test.bib`. ✅
+> - **B2** dropped the "shared package" claim (README + `code/src/__init__.py`). ✅
+> - **C1** leave king-analogy figure pinned-documented. ✅ (no change)
+> - **D1** keep ch16 as Chapter 2 (already its conventional background slot). ✅ (no change)
+> - **D2** fixed the doubled title on the title page; added a frontmatter "About This Book"
+>   section. ✅
+>
+> Book still passes the full regression after these edits (628 pp, clean). The original
+> decision text is kept below for reference.
+
+---
+
 > The book passed the release-quality gate (16/16 chapters ≥90, clean compile). None of the
 > items below block that pass. They are decisions only **you** can make — citation
 > verification, repo hygiene, and a few style/structure calls. Write your answer on the
@@ -25,6 +44,23 @@ I delete the entry entirely and the AMI stays as the book's construct (recommend
 unverifiable).
 **My recommendation:** (b) unless you can produce a real source.
 **Your decision:**
+
+I found this on arxiv, if its real then keep it as a working paper
+
+RiskTagger: An LLM-based Agent for Automatic Annotation of Web3 Crypto Money Laundering Behaviors
+Dan Lin, Yanli Ding, Weipeng Zou, Jiachi Chen, Xiapu Luo, Jiajing Wu, Zibin Zheng
+
+    While the rapid growth of Web3 has driven the development of decentralized finance, user anonymity and cross-chain asset flows make on-chain laundering behaviors more covert and complex. In this context, constructing high-quality anti-money laundering(AML) datasets has become essential for risk-control systems and on-chain forensic analysis, yet current practices still rely heavily on manual efforts with limited efficiency and coverage. In this paper, we introduce RiskTagger, a large-language-model-based agent for the automatic annotation of crypto laundering behaviors in Web3. RiskTagger is designed to replace or complement human annotators by addressing three key challenges: extracting clues from complex unstructured reports, reasoning over multichain transaction paths, and producing auditor-friendly explanations. RiskTagger implements an end-to-end multi-module agent, integrating a key-clue extractor, a multichain fetcher with a laundering-behavior reasoner, and a data explainer, forming a data annotation pipeline. Experiments on the real case Bybit Hack (with the highest stolen asset value) demonstrate that RiskTagger achieves 100% accuracy in clue extraction, 84.1% consistency with expert judgment, and 90% coverage in explanation generation. Overall, RiskTagger automates laundering behavior annotation while improving transparency and scalability in AML research. 
+
+Comments: 	8 pages(not including appendix), 11 figures
+Subjects: 	Cryptography and Security (cs.CR); Software Engineering (cs.SE)
+Cite as: 	arXiv:2510.17848 [cs.CR]
+  	(or arXiv:2510.17848v1 [cs.CR] for this version)
+  	
+https://doi.org/10.48550/arXiv.2510.17848
+Submission history
+From: Weipeng Zou [view email]
+[v1] Sun, 12 Oct 2025 08:54:28 UTC (776 KB)
 
 ---
 
@@ -54,6 +90,8 @@ numbers for any subset and I restore them precisely.
 **My recommendation:** (a) for anything you can't quickly verify; (b) for the few you can.
 **Your decision (which, if any, to restore):**
 
+keep all as (a)
+
 ---
 
 ### A3. `claude-opus-4-5` example model id
@@ -63,7 +101,7 @@ remark noting model ids change). The current Anthropic Opus id is `claude-opus-4
 already says to update for the current model). (b) Update all examples to `claude-opus-4-8`.
 **My recommendation:** (a) — consistent and explicitly flagged as illustrative.
 **Your decision:**
-
+ok, a
 ---
 
 ## B. Repository hygiene
@@ -74,6 +112,7 @@ already says to update for the current model). (b) Update all examples to `claud
 confusion (e.g. an old id lingers in the bibertool one).
 **My recommendation:** delete both.
 **Your decision (delete / keep):**
+delete
 
 ---
 
@@ -84,6 +123,7 @@ confusion (e.g. an old id lingers in the bibertool one).
 me to scaffold a real shared package + minimal tests (larger effort).
 **My recommendation:** (a) for now (the chapter code lives in the notebooks/generators).
 **Your decision:**
+a
 
 ---
 
@@ -100,7 +140,7 @@ just the ~12 plotted word vectors (a few KB) so it runs fully offline like the o
 download 1 GB in this environment).
 **My recommendation:** (b) if convenient on your machine; otherwise (a) is fine.
 **Your decision:**
-
+a
 ---
 
 ## D. Structure / style (optional)
@@ -114,14 +154,14 @@ where) — this is a `\include` reorder in `main.tex`, which I'd do carefully an
 cross-refs.
 **My recommendation:** (a) — it works and reorders are risky for little gain.
 **Your decision:**
-
+b, move it where it makes sense based on the structure of the book
 ---
 
 ### D2. Anything else you want changed
 Use this space for any other call (a figure you'd design differently, a claim you'd phrase
 another way, a section to expand, etc.):
 **Your notes:**
-
+the first page says twice the title of the book, add also like a about this book section before eveything, explaining the format, what to expect, course material etc
 ---
 
 ## How to use this file

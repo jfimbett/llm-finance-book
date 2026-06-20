@@ -2,7 +2,7 @@
 
 > Status: **RE-SCORED after the release-quality pass** (2026-06-20). The earlier
 > iteration-0 audit is superseded for the dimensions fixed this pass. Four chapters
-> (ch02, ch05, ch11, ch12 — the most heavily edited) were **independently re-audited**;
+> (ch02, ch05, ch11, ch 13 — the most heavily edited) were **independently re-audited**;
 > the rest carry the same **verified book-wide dimension deltas** but await a full
 > per-chapter re-audit. Target: every chapter ≥90 on every applicable dimension.
 
@@ -10,7 +10,7 @@
 
 - **Structural/citation/notation blockers are cleared and verified by a clean compile**
   (621 pp; 0 duplicate labels, 0 undefined refs, 0 undefined cites, 0 biber-missing).
-- **12 / 16 chapters now fully pass** (all 14 dimensions ≥90), each independently re-audited:
+- ** 13 / 16 chapters now fully pass** (all 14 dimensions ≥90), each independently re-audited:
   **ch02, ch03, ch04, ch05, ch08, ch09, ch11, ch12, ch13, ch14, ch15, ch16.**
   Remaining: ch01, ch06, ch07, ch10.
 - **Replicable passing recipe (proven on 7 chapters):**
@@ -38,11 +38,11 @@
 | 9 | 05-business-valuation | **14/14** | — (deterministic DCF figure: reproducibility 96, code_figure 95) | ✅ **PASS** |
 | 13 | 12-xai-explainability | **14/14** | — (deterministic SHAP figure + real demo + concept_ordering/non_repetition fixes) | ✅ **PASS** |
 | 2 | 16-ai-ml-finance-text | **14/14** | — (dup-key/hygiene/notation/correctness fixes; code_figure n/a) | ✅ **PASS** |
-| 12 | 11-regtech-compliance-aml | 9/14 | code_figure 78, reproducibility 58, concept_sep 89, non_repetition 88, citation_accuracy 89 (chen2025aml unverified — human-gated) | ❌ |
+|  13 | 11-regtech-compliance-aml | 9/14 | code_figure 78, reproducibility 58, concept_sep 89, non_repetition 88, citation_accuracy 89 (chen2025aml unverified — human-gated) | ❌ |
 
 Per-dimension (verified four):
 
-| Dim \ Read# | 3 (ch02) | 9 (ch05) | 12 (ch11) | 13 (ch12) |
+| Dim \ Read# | 3 (ch02) | 9 (ch05) |  13 (ch11) | 13 (ch12) |
 |---|---|---|---|---|
 | correctness | **91** | **93** | **90** | **91** |
 | concept_separation | **90** | **91** | 89 | 88 |
@@ -62,7 +62,7 @@ Per-dimension (verified four):
 ## Verified book-wide dimension deltas (apply to all 16 chapters)
 
 These come from global checks (grep + clean compile) and are confirmed by the four audits;
-they lift the same dimensions in the **12 not-yet-re-audited** chapters too:
+they lift the same dimensions in the ** 13 not-yet-re-audited** chapters too:
 
 | Dimension | iteration-0 book level | Now | Evidence (verified globally) |
 |---|---|---|---|

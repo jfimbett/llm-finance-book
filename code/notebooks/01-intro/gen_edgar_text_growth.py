@@ -7,6 +7,7 @@ using the SEC EDGAR full-text index.  Results cached to avoid re-downloading.
 """
 
 import json
+import os
 import random
 import re
 import sys
@@ -39,7 +40,9 @@ OUT_PNG     = FIGURES_DIR / "fig_edgar_text_growth.png"
 print(f"Figures dir: {FIGURES_DIR}", flush=True)
 print(f"Cache file:  {CACHE_FILE}", flush=True)
 
-HEADERS      = {"User-Agent": "Finance Research jfimbett@gmail.com"}
+# SEC EDGAR requires a User-Agent with contact info. Set EDGAR_USER_AGENT in your
+# environment; the default is a placeholder you must replace before fetching.
+HEADERS      = {"User-Agent": os.environ.get("EDGAR_USER_AGENT", "Finance Research your-email@example.com")}
 BASE         = "https://www.sec.gov/Archives/"
 TARGET_FORMS = {"10-K", "10-K405"}
 

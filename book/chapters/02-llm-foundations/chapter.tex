@@ -1687,7 +1687,7 @@ the model produced the right fields, the developer declares a Pydantic model, co
 it to a JSON Schema, passes that schema as a tool definition, and receives a typed
 Python object in return.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
 
 Note the \texttt{tool\_choice} parameter: setting it to a specific tool name forces the
 model to invoke that tool rather than choosing between text response and tool call.
@@ -1713,7 +1713,7 @@ The listing below demonstrates EBNF-constrained generation with \texttt{outlines
 for a minimal financial reporting record containing a company ticker, a numeric
 earnings figure, and a currency code.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
 
 \subsection{Why Structured Generation Is Critical in Finance}
 \label{sec:structured-gen-finance}
@@ -1838,7 +1838,7 @@ The OpenAI Python SDK follows a \emph{chat completion} model: the user submits a
 of messages (with roles \texttt{system}, \texttt{user}, and \texttt{assistant}), and
 the API returns a completion.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
 
 The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
 list, passing it as a top-level argument rather than as the first message.  This
@@ -1846,13 +1846,13 @@ is a first-class API design choice: the system turn is processed as a distinct
 input type, enabling finer-grained prefix caching and system-level instruction
 enforcement at the inference layer, independent of conversation history.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
 
 FinBERT \cite{araci2019finbert} % [CITE: araci2019finbert Araci (2019)]
 is a BERT-based encoder fine-tuned on financial news for three-class sentiment
 classification.  It runs locally without any API key or per-token cost.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
 
 Table~\ref{tab:api-comparison} summarises the key structural differences across the three ecosystems.
 
@@ -2077,7 +2077,7 @@ answering questions about a 10-K filing.  It uses FAISS for dense retrieval and
 the Anthropic API for generation.  Citation of passage numbers in the system prompt
 enables answer verification.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
 
 Three features of this design merit emphasis.  First, normalising the embeddings
 before adding them to the FAISS \texttt{IndexFlatIP} (inner product) index converts

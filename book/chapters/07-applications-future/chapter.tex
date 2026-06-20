@@ -267,7 +267,7 @@ When a rule-based surveillance system flags an unusual order pattern---potential
 
 Below is a representative Python implementation of an event-triggered pipeline that monitors EDGAR and classifies incoming 8-K filings.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/07-applications-future/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
 
 \subsection{Integrating LLMs with Existing Financial Infrastructure}
 \label{subsec:af-workflows-integration}
@@ -353,7 +353,7 @@ The \emph{macro digest skill} assembles a morning briefing from multiple sources
 
 The skill definition mechanism is deliberately simple: a Python function with a descriptive docstring is sufficient for the framework to expose it as a callable tool. The following listing shows a minimal skill definition.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/07-applications-future/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
 
 When this file is placed in the OpenClaw skills directory, the framework parses the function signature and docstring, and the skill becomes callable via any connected messaging channel. The self-modification capability means that the assistant can itself be prompted to write new skills: ``write me a skill that monitors my watchlist for short interest changes above 5\%'' will produce a new Python file that, after user review, extends the assistant's capabilities permanently.
 

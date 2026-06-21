@@ -198,3 +198,4 @@
 | 2026-06-20 | 67 files | style(course): match book typography in slides — Palatino, smaller, top-aligned;chore: session log 2026-06-20;fix(course): eliminate all content-clipping slide overflows; | — |
 | 2026-06-20 | 68 files | content: make all exercises depend on LLMs/agents, not pure finance;chore: session log 2026-06-20;style(course): match book typography in slides — Palatino, smaller, top-aligned; | — |
 | 2026-06-21 | 68 files | chore: session log 2026-06-20;content: make all exercises depend on LLMs/agents, not pure finance;chore: session log 2026-06-20; | — |
+| 2026-06-21 | 68 files | chore: session log 2026-06-21;chore: session log 2026-06-20;content: make all exercises depend on LLMs/agents, not pure finance; | — |

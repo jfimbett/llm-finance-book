@@ -4,29 +4,20 @@
 
 | # | Chapter / Lecture | Draft | Scored | Clarity | Rigor | Completeness | Pedagogy | Style | Released |
 |---|-------------------|-------|--------|---------|-------|--------------|----------|-------|----------|
-| 01 | Intro | Yes | Yes | ? | ? | ? | ? | ? | No |
-| 02 | Llm Foundations | Yes | Yes | ? | ? | ? | ? | ? | No |
-| 03 | Llm Training Finetuning | Yes | No | - | - | - | - | - | No |
-| 04 | Llm Agents | Yes | No | - | - | - | - | - | No |
-| 05 | Business Valuation | Yes | Yes | ? | ? | ? | ? | ? | No |
-| 06 | Credit Risk | Yes | No | - | - | - | - | - | No |
-| 07 | Applications Future | Yes | Yes | ? | ? | ? | ? | ? | No |
-| 08 | Domain-Specific Financial LLMs | No | No | - | - | - | - | - | No |
-| 09 | Financial NLP and Sentiment Analysis | No | No | - | - | - | - | - | No |
-| 10 | Portfolio Optimization and Quantitative Trading | No | No | - | - | - | - | - | No |
-| 11 | RegTech, Compliance, and Anti-Money Laundering | No | No | - | - | - | - | - | No |
-| 12 | Explainability and XAI in Finance | No | No | - | - | - | - | - | No |
-| 13 | LLM Limitations and Evaluation Rigor in Finance | No | No | - | - | - | - | - | No |
-| 14 | Financial Text Summarization and Information Extraction | No | No | - | - | - | - | - | No |
-| 15 | LLM Privacy, Local Models, and Text De-identification | Yes | Yes | 9 | 8 | 9 | 9 | 8 | No |
-| 16 | AI, Machine Learning, and Text in Finance | Yes | Yes | 9 | 8 | 8 | 8 | 8 | No |
-| 17 | Loops, Goals, and Iterations: Agents, Skills, and Hooks | No | No | - | - | - | - | - | No |
-
-## Appendices
-
-| # | Appendix | Draft | Scored | Clarity | Rigor | Completeness | Pedagogy | Style | Released |
-|---|----------|-------|--------|---------|-------|--------------|----------|-------|----------|
-| A | Claude Code | Yes | Yes | 8 | 8 | 9 | 8 | 8 | No |
-| B | Codex CLI | Yes | Yes | 8 | 8 | 9 | 8 | 8 | No |
-| C | Hugging Face & Local Models | Yes | Yes | 9 | 8 | 9 | 8 | 8 | No |
-| D | Anthropic SDK & Claude Code SDK for Commercial Applications | Yes | Yes | 9 | 8 | 9 | 8 | 8 | No |
+| 01 | intro | Yes | Yes | 9 | 8 | 9 | 9 | 8 | Yes |
+| 02 | llm foundations | Yes | Yes | 9 | 9 | 8 | 8 | 9 | Yes |
+| 03 | llm training finetuning | Yes | Yes | 9 | 9 | 9 | 9 | 9 | Yes |
+| 04 | llm agents | Yes | Yes | 8 | 8 | 8 | 9 | 8 | Yes |
+| 05 | uusiness valuation | Yes | Yes | 9 | 9 | 8 | 9 | 8 | Yes |
+| 06 | credit risk | Yes | Yes | 9 | 8 | 8 | 8 | 8 | Yes |
+| 07 | applications future | Yes | Yes | 9 | 8 | 8 | 8 | 9 | Yes |
+| 08 | domain specific llms | Yes | Yes | 9 | 9 | 9 | 9 | 9 | Yes |
+| 09 | financial nlp sentiment | Yes | Yes | 9 | 9 | 9 | 9 | 9 | Yes |
+| 10 | portfolio quant trading | Yes | Yes | 9 | 8 | 8 | 8 | 8 | Yes |
+| 11 | regtech compliance aml | Yes | Yes | 9 | 8 | 8 | 8 | 9 | Yes |
+| 12 | xai explainauility | Yes | Yes | 9 | 8 | 8 | 9 | 8 | Yes |
+| 13 | llm limitations evaluation | Yes | Yes | 9 | 8 | 8 | 9 | 8 | Yes |
+| 14 | financial text summarization | Yes | Yes | 9 | 8 | 8 | 9 | 8 | Yes |
+| 15 | privacy local models | Yes | Yes | 9 | 8 | 9 | 9 | 8 | Yes |
+| 16 | ai ml finance text | Yes | Yes | 9 | 8 | 8 | 8 | 8 | Yes |
+| 17 | loops goals iterations | Yes | Yes | 9 | 9 | 9 | 9 | 8 | Yes |

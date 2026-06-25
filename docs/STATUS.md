@@ -20,6 +20,7 @@
 | 14 | Financial Text Summarization and Information Extraction | No | No | - | - | - | - | - | No |
 | 15 | LLM Privacy, Local Models, and Text De-identification | Yes | Yes | 9 | 8 | 9 | 9 | 8 | No |
 | 16 | AI, Machine Learning, and Text in Finance | Yes | Yes | 9 | 8 | 8 | 8 | 8 | No |
+| 17 | Loops, Goals, and Iterations: Agents, Skills, and Hooks | No | No | - | - | - | - | - | No |
 
 ## Appendices
 

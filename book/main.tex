@@ -2,6 +2,11 @@
 
 \input{preamble}
 
+% The appendices now live in a separate volume (appendix.tex -> appendix.pdf).
+% Declaring it here lets \ref/\cref/\pageref to appendix labels resolve to the
+% correct numbers. Reads appendix.aux; harmless if that file is not yet built.
+\externaldocument{appendix}
+
 \begin{document}
 
 % ---- Front cover ----
@@ -36,7 +41,6 @@ permission in writing from the author.\\[12pt]
 
 \frontmatter
 \tableofcontents
-\listoffigures
 
 \include{frontmatter/about-this-book}
 
@@ -57,16 +61,11 @@ permission in writing from the author.\\[12pt]
 \include{chapters/13-llm-limitations-evaluation/chapter}
 \include{chapters/07-applications-future/chapter}
 \include{chapters/15-privacy-local-models/chapter}
+\include{chapters/17-loops-goals-iterations/chapter}
 % Add new chapters here
 
-\appendix
-\include{appendices/A-claude-code/chapter}
-\include{appendices/B-codex-cli/chapter}
-\include{appendices/C-huggingface-local/chapter}
-\include{appendices/D-sdk-commercial/chapter}
-\include{appendices/E-git-github/chapter}
-\include{appendices/F-cline/chapter}
-% Add new appendices here
+% NOTE: The appendices are compiled as a separate companion volume.
+% See appendix.tex (-> appendix.pdf). Do not \include them here.
 
 \backmatter
 \printbibliography[heading=bibintoc, title={References}]

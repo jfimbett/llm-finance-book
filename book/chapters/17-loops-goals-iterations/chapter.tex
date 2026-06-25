@@ -1,0 +1,477 @@
+\chapter{Loops, Goals, and Iterations: Agents, Skills, and Hooks}
+\label{ch:loops-goals-iterations}
+
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Explain why one-shot prompting is fragile for complex work and describe
+        the goal-directed loop (observe, propose, act, evaluate, revise) that
+        replaces it.
+  \item Write goals as concrete, checkable, decomposable control objects, and
+        encode them in project files (TASK.md, TOPIC.md, STATUS.md, rubrics,
+        validation scripts).
+  \item Distinguish the roles of agents, skills, and hooks in an iterative
+        system, and assemble them into a working iteration loop with explicit
+        stopping criteria.
+  \item Trace a deliberately simple feedback loop (derivative-free root finding)
+        and a complex multi-agent loop (credit-risk stress testing) and explain
+        why each requires real, feedback-driven iteration.
+  \item Diagnose common failure modes of agentic iteration (infinite loops,
+        fake convergence, goal drift, Goodhart overfitting, premature success)
+        and apply hooks and stopping rules as remedies.
+  \item Select an appropriate design pattern (planner--executor--critic,
+        generate--test--revise, scaffold--draft--audit--repair, and others) for
+        a given finance workflow.
+\end{enumerate}
+(This is a methodology capstone. The concrete tooling for Claude Code, Codex,
+Hugging Face, the SDKs, Git, and Cline lives in Appendices~A--F; this chapter
+treats the \emph{design of iterative agentic systems} rather than any single
+tool.)
+\end{remark}
+
+% =====================================================================
+\section{From Linear Prompts to Iterative Systems}
+\label{sec:from-linear-to-iterative}
+% =====================================================================
+
+[Placeholder] Motivate the shift from single-shot prompting to goal-directed
+iteration. Set up Claude Code (agents, skills, hooks, tests, validation scripts,
+commits) as the concrete substrate, and ground the loop in the published
+agentic-AI literature.
+
+\subsection{Why One-Shot Prompting Is Fragile}
+\label{subsec:one-shot-fragile}
+[Placeholder] Explain how a single prompt has no error-correction channel:
+errors compound, the model cannot see the consequences of its output, and
+complex specifications exceed what one pass can satisfy. Contrast with how human
+experts work iteratively.
+
+\subsection{The Goal-Directed Loop: Observe, Propose, Act, Evaluate, Revise}
+\label{subsec:goal-directed-loop}
+[Placeholder] Define the five-phase loop. Each phase consumes the output of the
+previous one; the loop only terminates when an explicit goal condition is met.
+
+\subsection{Loops Versus Ordinary Repetition}
+\label{subsec:loops-vs-repetition}
+[Placeholder] Stress the distinction: repeating an action is not a loop unless
+each iteration \emph{uses feedback} to change the next action. Give an example of
+spurious repetition (re-prompting without reading the result) versus genuine
+iteration.
+
+\subsection{Claude Code as the Concrete Substrate}
+\label{subsec:claude-code-substrate}
+[Placeholder] Map the abstract loop onto concrete Claude Code mechanisms: agents,
+skills, hooks, tests, validation scripts, and commits. Point readers to
+Appendices~A--F for the tooling details; keep this section at the level of design.
+
+\subsection{Situating the Loop in the Agentic-AI Literature}
+\label{subsec:agentic-literature}
+[Placeholder] Connect observe--propose--act--evaluate--revise to published
+patterns: ReAct (reason + act), Reflexion (self-feedback), Self-Refine, and the
+planner--executor--critic decomposition. Establish that the method is grounded,
+not bespoke to one CLI.
+
+\subsection{When Not to Use an Agentic Loop}
+\label{subsec:when-not-to-loop}
+[Placeholder] Pre-empt over-engineering: a plain script, a pure function, or a
+cron job often beats an agent. Give a decision heuristic for when iteration earns
+its cost. Pairs with the ``excessive agent delegation'' failure mode in
+Section~\ref{sec:failure-modes}.
+
+% =====================================================================
+\section{Goals as Control Objects}
+\label{sec:goals-as-control}
+% =====================================================================
+
+[Placeholder] Treat the goal as the object that \emph{controls} the loop: it
+determines what counts as progress and when to stop.
+
+\subsection{Concrete, Checkable, Decomposable Goals}
+\label{subsec:concrete-checkable-goals}
+[Placeholder] A usable goal must be (i) concrete (states the artifact), (ii)
+checkable (a machine or rubric can verify it), and (iii) decomposable (breaks
+into local subgoals). Show how each property maps to a loop mechanism.
+
+\subsection{Success Criteria, Stopping Rules, and Failure Modes}
+\label{subsec:success-stopping-failure}
+[Placeholder] Distinguish the success criterion (what ``done'' means) from the
+stopping rule (when to halt regardless of success) and the anticipated failure
+modes (what to watch for). Every goal needs all three.
+
+\subsection{Representing Goals in Files}
+\label{subsec:goals-in-files}
+[Placeholder] Show how goals live in TASK.md, TOPIC.md, STATUS.md, rubric files,
+and validation scripts. A goal in a file is durable across context windows and
+auditable; a goal only in the prompt is lost. Reference this book's own
+\texttt{TOPIC.md} and \texttt{docs/quality/RUBRIC.md}.
+
+\subsection{Bad Goals Versus Good Goals}
+\label{subsec:bad-vs-good-goals}
+[Placeholder] Worked contrasts. Bad: ``improve the chapter.'' Good: ``raise every
+rubric dimension to $\geq 90$ as measured by \texttt{/score-content}.'' Show a
+table of three or four bad/good pairs with the reason each fails or works.
+
+% =====================================================================
+\section{Agents as Specialized Iterators}
+\label{sec:agents-as-iterators}
+% =====================================================================
+
+[Placeholder] Frame agents as specialized workers inside the loop, not as
+general chatbots. Keep at the level of design; how to author an agent file is
+appendix material.
+
+\subsection{Roles: Worker, Critic, Validator, Planner, Refactorer}
+\label{subsec:agent-roles}
+[Placeholder] Catalogue the standard roles an agent can play and what each
+contributes to an iteration.
+
+\subsection{Single-Agent Versus Multi-Agent Loops}
+\label{subsec:single-vs-multi-agent}
+[Placeholder] When one agent suffices and when separation of concerns (e.g., a
+generator and an independent critic) materially improves outcomes.
+
+\subsection{Handoffs and Shared State Between Agents}
+\label{subsec:agent-handoffs}
+[Placeholder] How agents pass work to one another: shared files, structured
+outputs, and commits as the medium of handoff. The danger of lossy handoffs.
+
+\subsection{Agents Should Improve Project State, Not Merely Emit Output}
+\label{subsec:agents-improve-state}
+[Placeholder] The key discipline: an agent's value is the change it makes to the
+durable project state (files, tests, scores), not the text it prints.
+
+% =====================================================================
+\section{Skills as Reusable Procedures}
+\label{sec:skills-as-procedures}
+% =====================================================================
+
+[Placeholder] Frame skills as the reusable, composable procedures of the system.
+
+\subsection{Skills as Reusable Operational Knowledge}
+\label{subsec:skills-operational-knowledge}
+[Placeholder] A skill captures ``how we do X here'' once, so it need not be
+re-derived each session.
+
+\subsection{Skills Compared to Functions}
+\label{subsec:skills-as-functions}
+[Placeholder] The load-bearing analogy: skills are like functions --- scoped,
+documented, repeatable, and composable. Map each function property to a skill
+property and show a skill calling another skill.
+
+\subsection{Skills Encode Project-Specific Conventions}
+\label{subsec:skills-encode-conventions}
+[Placeholder] How a skill freezes a project's conventions (numbering, commit
+format, quality gates) so every run is consistent. Use this book's
+\texttt{/new-topic} and \texttt{/draft-chapter} as examples.
+
+\subsection{Skills Reduce Entropy in Long-Running Projects}
+\label{subsec:skills-reduce-entropy}
+[Placeholder] Over a long project, ad hoc actions accumulate inconsistency;
+skills are the counterforce that keeps the project ordered.
+
+% =====================================================================
+\section{Hooks as Guardrails and Feedback Channels}
+\label{sec:hooks-as-guardrails}
+% =====================================================================
+
+[Placeholder] Frame hooks as automatic interventions that convert subjective
+``is this good?'' into measurable, enforced feedback.
+
+\subsection{Hooks as Automatic Interventions}
+\label{subsec:hooks-automatic}
+[Placeholder] Define pre-action and post-action hooks and how they fire without
+the agent's cooperation.
+
+\subsection{The Hook Catalogue}
+\label{subsec:hook-catalogue}
+[Placeholder] Pre-run checks; post-write validation; linting, tests,
+compilation; safety checks; and commit checks. One concrete finance example per
+type.
+
+\subsection{Turning Subjective Improvement into Measurable Feedback}
+\label{subsec:hooks-measurable}
+[Placeholder] How a hook gives the loop a crisp pass/fail signal, replacing the
+model's self-assessment with an external one.
+
+\subsection{Designing Trustworthy Validators}
+\label{subsec:trustworthy-validators}
+[Placeholder] A passing check is not the same as a met goal. Discuss how to
+build validators that are hard to game, setting up the Goodhart failure mode in
+Section~\ref{sec:failure-modes}.
+
+\subsection{Failure Hooks}
+\label{subsec:failure-hooks}
+[Placeholder] What should happen when a test fails, a build breaks, or a rubric
+score drops: block the commit, revert, escalate, or re-enter the loop.
+
+% =====================================================================
+\section{Designing an Iteration Loop}
+\label{sec:designing-loop}
+% =====================================================================
+
+[Placeholder] Synthesize Sections~\ref{sec:goals-as-control}--\ref{sec:hooks-as-guardrails}
+into a concrete, runnable loop design.
+
+\subsection{The General Loop Template}
+\label{subsec:loop-template}
+[Placeholder] The seven steps: read current state; state the next local goal;
+propose a change; apply the change; run validation; interpret feedback; decide to
+stop, continue, or escalate. Present as a numbered procedure.
+
+\subsection{Pseudocode and Its Mapping onto a Claude Code Workflow}
+\label{subsec:loop-pseudocode}
+[Placeholder] Give clean pseudocode for the loop, then annotate how each line
+maps onto agents, skills, hooks, and commits in practice.
+
+\subsection{State, Memory, and Context Management Across Iterations}
+\label{subsec:state-memory-context}
+[Placeholder] What persists between turns (files, commits, status tables) versus
+what is lost to the context window. Practical strategies for carrying state
+forward without relying on conversation memory.
+
+\subsection{Stopping Criteria}
+\label{subsec:stopping-criteria}
+[Placeholder] Convergence (no further improvement), budget exhaustion,
+validation pass, and human-review-required. Every loop needs at least one
+guaranteed-terminating criterion.
+
+\subsection{The Economics of Iteration}
+\label{subsec:economics-of-iteration}
+[Placeholder] Cost per iteration, latency, and token/compute budgets as
+first-class stopping criteria. The ROI question: is this loop worth running at
+all? Particularly relevant for production finance workflows.
+
+% =====================================================================
+\section{Example 1: A Naive Derivative-Free Root-Finding Loop}
+\label{sec:example-root-finding}
+% =====================================================================
+
+[Placeholder] A deliberately simple worked example. The pedagogical point is not
+numerical methods but that an agentic loop can improve a state variable using
+feedback alone.
+
+\subsection{Problem Setup: A Zero of $f(x)=x^3-x-2$ Without Derivatives}
+\label{subsec:rootfind-setup}
+[Placeholder] State the problem: find $x$ with $f(x)=x^3-x-2 \approx 0$. The
+agent may evaluate $f$ but is forbidden from using derivatives, so this is
+Newton-\emph{inspired} only in the loose sense of iterative approximation. Note
+the finance analogue: the same mechanics solve for an implied yield or internal
+rate of return by sign-guided search.
+
+\subsection{The Supporting Artifacts: Goal File, Skill, and Hook}
+\label{subsec:rootfind-artifacts}
+[Placeholder] A goal file defining the tolerance $|f(x)| < 0.001$; a skill
+describing how to run the evaluator script; and a hook that prevents the agent
+from declaring success unless the tolerance is satisfied.
+
+\subsection{A Realistic Iteration Trace from a Poor Start}
+\label{subsec:rootfind-trace}
+[Placeholder] Start from $x=0$ so several real iterations are needed. Show the
+trace where the agent reads the sign and magnitude of the error and proposes a
+better guess, e.g.:
+$x=0,\ f=-2$; $x=2,\ f=4$; $x=1.5,\ f=-0.125$; $x=1.6,\ f=0.496$;
+$x=1.52,\ f=-0.008$; $x=1.522,\ f\approx 0.004$; $x=1.5214,\ f\approx 0$.
+
+\subsection{The Final Report}
+\label{subsec:rootfind-report}
+[Placeholder] The loop emits a short report summarizing the iterations, the final
+$x$, the final $|f(x)|$, and confirmation that the tolerance hook passed.
+
+% =====================================================================
+\section{Example 2: A Credit-Risk Stress-Testing Agent Loop}
+\label{sec:example-credit-risk}
+% =====================================================================
+
+[Placeholder] The capstone case study. A mid-sized private company applies for a
+large revolving credit facility; it looks healthy in the base case but may
+deteriorate under a combined macro-financial shock. The object being optimized is
+not a single number but a defensible credit judgment that must be internally
+consistent, empirically grounded, stress-tested, and survive skeptical review ---
+which is exactly why it requires many feedback-driven iterations.
+
+\subsection{The Goal: A Defensible Credit-Committee Memo}
+\label{subsec:credit-goal}
+[Placeholder] Central goal: produce a memo assigning a probability of default
+(PD), loss-given-default (LGD) assumptions, expected loss, key risk drivers, and
+a final lend / do-not-lend recommendation that a credit committee would accept.
+
+\subsection{The Combined Macro-Financial Shock}
+\label{subsec:credit-shock}
+[Placeholder] Define the combined stress: revenue decline, margin compression,
+higher interest rates, delayed customer payments, inventory buildup, covenant
+tightening, and refinancing risk. Each must enter the model with explicit
+assumptions.
+
+\subsection{The Agent Ensemble}
+\label{subsec:credit-agents}
+[Placeholder] Specialized agents and their handoffs: data-ingestion,
+accounting-quality, feature-engineering, PD-model, stress-scenario, cash-flow,
+LGD, skeptic, and memo-writing. Describe what each contributes and what it hands
+to the next.
+
+\subsection{The Skills}
+\label{subsec:credit-skills}
+[Placeholder] Reusable procedures invoked by the agents: financial-statement
+normalization; credit-feature engineering; probability-of-default modeling; macro
+stress-scenario design; covenant and liquidity analysis; LGD and collateral
+valuation; and credit-committee memo writing.
+
+\subsection{The Hooks}
+\label{subsec:credit-hooks}
+[Placeholder] Guardrails enforced throughout: no uncited factual claims; all
+ratios reconcile to source statements; train/test separation before evaluation;
+target-leakage checks pass before any PD is reported; every scenario specifies
+assumptions in a parameter table; the recommendation is not final until the
+skeptic agent signs off; code regenerates all tables, figures, and exhibits
+end-to-end; and the memo may not state ``low risk'' unless both base-case and
+stressed expected loss are below explicit thresholds.
+
+\subsection{The Eleven-Iteration Narrative}
+\label{subsec:credit-iterations}
+[Placeholder] The loop in motion:
+(1) naive memo from historical profitability and leverage;
+(2) accounting-quality agent finds EBITDA add-backs and inconsistent
+working-capital definitions;
+(3) feature-engineering agent adds payment delays, customer concentration, cash
+conversion cycle, and covenant headroom;
+(4) PD-model agent's first model is rejected when leakage hooks fire;
+(5) model rebuilt on clean features with out-of-sample validation;
+(6) stress-scenario agent imposes the combined shock (revenue $-20\%$, gross
+margin $-300$\,bps, rates $+250$\,bps, DSO $+25$ days, slower inventory turnover);
+(7) cash-flow agent finds the borrower survives the base case but breaches
+interest-coverage and minimum-liquidity covenants under stress;
+(8) LGD agent finds weaker recovery because inventory is specialized and
+receivables are concentrated in two customers;
+(9) skeptic agent demands alternative macro assumptions, peer benchmarking, and
+recovery-rate sensitivity;
+(10) agents rerun PD, LGD, expected loss, and covenants under base, adverse, and
+severe scenarios;
+(11) memo-writing agent produces the final recommendation (reject, smaller
+facility, tighter covenants, additional collateral, or pricing compensation).
+
+\subsection{The Compact Final Result Table}
+\label{subsec:credit-table}
+[Placeholder] A compact summary table with base-case PD, stressed PD, base-case
+LGD, stressed LGD, expected loss, covenant-breach indicator, liquidity shortfall,
+and recommended action.
+
+% =====================================================================
+\section{Human Oversight, Accountability, and Audit Trails}
+\label{sec:human-oversight}
+% =====================================================================
+
+[Placeholder] Distinct from hooks: in regulated finance the loop's output must be
+signed off, attributable, and reproducible. The credit-memo example raises
+``who is accountable?''; this section answers it.
+
+\subsection{Human-in-the-Loop and Escalation Points}
+\label{subsec:human-in-the-loop}
+[Placeholder] Where a human must approve before the loop proceeds, and how
+escalation is triggered.
+
+\subsection{Accountability and Sign-Off in Regulated Finance}
+\label{subsec:accountability-signoff}
+[Placeholder] Model-risk governance: who owns the model, who validates it, and
+how sign-off is recorded.
+
+\subsection{Reproducible Audit Trails}
+\label{subsec:audit-trails}
+[Placeholder] Commits, logs, and iteration traces as evidence. An audit-ready
+loop can reconstruct exactly how every number in the final memo was produced.
+
+% =====================================================================
+\section{Failure Modes in Agentic Iteration}
+\label{sec:failure-modes}
+% =====================================================================
+
+[Placeholder] Catalogue the ways agentic loops fail, with warning signs and
+remedies. Emphasize that hooks and explicit stopping rules are the primary
+defenses.
+
+\subsection{Infinite Loops and Fake Convergence}
+\label{subsec:infinite-fake-convergence}
+[Placeholder] Loops that never stop, and loops that declare convergence without
+real progress. Warning signs and remedies.
+
+\subsection{Goal Drift and Premature Success}
+\label{subsec:goal-drift-premature}
+[Placeholder] The goal silently mutating across iterations, and the agent
+declaring success before the goal is met. How file-based goals and tolerance
+hooks prevent both.
+
+\subsection{Overfitting to Validation Checks (Goodhart's Law)}
+\label{subsec:goodhart-overfitting}
+[Placeholder] When a measure becomes a target it ceases to be a good measure: the
+agent games the validator instead of meeting the goal. Remedies: diverse checks,
+held-out validation, adversarial review.
+
+\subsection{Excessive Agent Delegation}
+\label{subsec:excessive-delegation}
+[Placeholder] Spawning agents where a function would do; coordination overhead
+swamping benefit. Connects back to Section~\ref{subsec:when-not-to-loop}.
+
+\subsection{Warning Signs and Remedies}
+\label{subsec:warning-signs-remedies}
+[Placeholder] A consolidated table mapping each failure mode to its early warning
+signs and the hook or stopping rule that mitigates it.
+
+% =====================================================================
+\section{Practical Design Patterns}
+\label{sec:design-patterns}
+% =====================================================================
+
+[Placeholder] A catalogue of reusable loop architectures and when each applies.
+
+\subsection{Planner--Executor--Critic}
+\label{subsec:pattern-planner-executor-critic}
+[Placeholder] One agent plans, one executes, one critiques. When separation of
+planning from execution pays off.
+
+\subsection{Generate--Test--Revise}
+\label{subsec:pattern-generate-test-revise}
+[Placeholder] The tightest feedback loop: produce, validate, fix, repeat. The
+default for well-specified, machine-checkable goals.
+
+\subsection{Scaffold--Draft--Audit--Repair}
+\label{subsec:pattern-scaffold-draft-audit-repair}
+[Placeholder] The pattern behind this very book: scaffold structure, draft
+content, audit against a rubric, repair failures. When goals are subjective and
+rubric-scored.
+
+\subsection{Data-Pipeline: Build--Validate--Document}
+\label{subsec:pattern-data-pipeline}
+[Placeholder] For reproducible data work: build the pipeline, validate the
+outputs, document the lineage. When provenance matters.
+
+\subsection{Credit-Model: Build--Stress-Test--Red-Team--Finalize}
+\label{subsec:pattern-credit-model}
+[Placeholder] Generalize Example~2 (Section~\ref{sec:example-credit-risk}) into a
+reusable pattern for any high-stakes financial model.
+
+\subsection{Choosing a Pattern}
+\label{subsec:choosing-a-pattern}
+[Placeholder] A decision guide mapping properties of the goal (checkable vs.
+subjective, single-number vs. judgment, stakes, reproducibility needs) to the
+appropriate pattern.
+
+% =====================================================================
+\section{Summary and Takeaways}
+\label{sec:loops-summary}
+% =====================================================================
+
+[Placeholder] Close the chapter.
+
+\subsection{Iteration Is Useful Only When Feedback Is Informative}
+\label{subsec:takeaway-feedback}
+[Placeholder] The central thesis restated: a loop without an informative feedback
+signal is just expensive repetition.
+
+\subsection{Agents Specialize the Loop; Skills Reuse It; Hooks Enforce It}
+\label{subsec:takeaway-three-blocks}
+[Placeholder] Recap the division of labor: agents specialize parts of the loop,
+skills make procedures reusable, and hooks make quality control automatic.
+
+\subsection{Complex Finance Workflows Demand Explicit Goals, Validation, Stress Testing, and Skepticism}
+\label{subsec:takeaway-finance}
+[Placeholder] Why finance in particular needs this discipline, drawing the thread
+from the credit-risk example through governance and audit trails.

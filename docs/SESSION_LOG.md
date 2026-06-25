@@ -201,3 +201,4 @@
 | 2026-06-21 | 68 files | chore: session log 2026-06-21;chore: session log 2026-06-20;content: make all exercises depend on LLMs/agents, not pure finance; | — |
 | 2026-06-21 | 7 files | chore: session log 2026-06-21;chore: session log 2026-06-21;chore: session log 2026-06-20; | — |
 | 2026-06-21 | 7 files | chore: session log 2026-06-21;chore: session log 2026-06-21;chore: session log 2026-06-21; | — |
+| 2026-06-26 | 45 files | chore: scaffold topic 17-loops-goals-iterations;feat(exercises): agentic business-valuation Claude Code exercise;docs(exercises): business valuation implementation plan; | — |

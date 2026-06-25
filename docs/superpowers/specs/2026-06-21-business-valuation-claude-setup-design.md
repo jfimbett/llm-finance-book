@@ -142,7 +142,7 @@ and where market price falls within the P10–P90 band.
 | `financials.py` | `--cik` | `financials.json` (revenue, EBIT, D&A, capex, ΔNWC, debt, cash, shares) |
 | `montecarlo_dcf.py` | `--financials --config --seed --n` | `dcf_result.json` (median, P10/P90, samples) |
 | `embeddings.py` | `--cik --universe --top-k --rebuild` | `embed_peers.json` (neighbors + scores) |
-| `comps.py` | `--cik --peers --source --seed` | `comps_result.json` (implied value dist per source) |
+| `comps.py` | `--cik --peers --source --seed` | `comps_<source>.json` (implied value dist per source) |
 | `market_price.py` | `--ticker` | `market.json` (price, market cap, currency) |
 | `reconcile.py` | `--dcf --comps --weights --seed` | `final.json` (median, P10/P90) |
 

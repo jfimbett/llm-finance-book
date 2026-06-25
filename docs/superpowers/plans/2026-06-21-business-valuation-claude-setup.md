@@ -41,7 +41,7 @@ exercises/business_valuation/
 │   │   └── reconciliation-analyst.md
 │   └── skills/valuation/SKILL.md   # Task 10
 ├── tools/
-│   ├── _io.py                      # Task 1  shared cache/JSON/error helpers
+│   ├── _common.py                      # Task 1  shared cache/JSON/error helpers
 │   ├── edgar_fetch.py              # Task 2
 │   ├── financials.py               # Task 3
 │   ├── montecarlo_dcf.py           # Task 4
@@ -55,7 +55,7 @@ exercises/business_valuation/
     ├── fixtures/
     │   ├── company_tickers.json    # Task 1
     │   └── companyfacts_TEST.json  # Task 3
-    ├── test_io.py                  # Task 1
+    ├── test_common.py                  # Task 1
     ├── test_edgar_fetch.py         # Task 2
     ├── test_financials.py          # Task 3
     ├── test_montecarlo_dcf.py      # Task 4
@@ -77,11 +77,11 @@ All `pytest` commands run from `exercises/business_valuation/`. Add `tests/conft
 - Create: `exercises/business_valuation/.gitignore`
 - Create: `exercises/business_valuation/universe.txt`
 - Create: `exercises/business_valuation/.claude/settings.json`
-- Create: `exercises/business_valuation/tools/_io.py`
+- Create: `exercises/business_valuation/tools/_common.py`
 - Create: `exercises/business_valuation/tests/conftest.py`
 - Create: `exercises/business_valuation/tests/fixtures/company_tickers.json`
 - Create: `exercises/business_valuation/reports/.gitkeep`
-- Test: `exercises/business_valuation/tests/test_io.py`
+- Test: `exercises/business_valuation/tests/test_common.py`
 
 **Interfaces:**
 - Produces:
@@ -193,31 +193,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 
 - [ ] **Step 7: Create `reports/.gitkeep`** (empty file).
 
-- [ ] **Step 8: Write the failing test** — `tests/test_io.py`
+- [ ] **Step 8: Write the failing test** — `tests/test_common.py`
 
 ```python
 import json
 import pytest
-import _io
+import _common
 
 
 def test_cik_pad_from_int():
-    assert _io.cik_pad(320193) == "0000320193"
+    assert _common.cik_pad(320193) == "0000320193"
 
 
 def test_cik_pad_from_padded_string():
-    assert _io.cik_pad("CIK0000320193") == "0000320193"
+    assert _common.cik_pad("CIK0000320193") == "0000320193"
 
 
 def test_write_then_read_roundtrip(tmp_path):
     p = tmp_path / "x.json"
-    _io.write_json(p, {"a": 1})
-    assert _io.read_json(p) == {"a": 1}
+    _common.write_json(p, {"a": 1})
+    assert _common.read_json(p) == {"a": 1}
 
 
 def test_die_exits_nonzero_with_error_json(capsys):
     with pytest.raises(SystemExit) as e:
-        _io.die("boom")
+        _common.die("boom")
     assert e.value.code == 1
     out = json.loads(capsys.readouterr().out)
     assert out == {"error": "boom"}
@@ -226,20 +226,20 @@ def test_die_exits_nonzero_with_error_json(capsys):
 def test_sec_headers_requires_env(monkeypatch):
     monkeypatch.delenv("SEC_USER_AGENT", raising=False)
     with pytest.raises(SystemExit):
-        _io.sec_headers()
+        _common.sec_headers()
 
 
 def test_sec_headers_uses_env(monkeypatch):
     monkeypatch.setenv("SEC_USER_AGENT", "Tester t@example.com")
-    assert _io.sec_headers()["User-Agent"] == "Tester t@example.com"
+    assert _common.sec_headers()["User-Agent"] == "Tester t@example.com"
 ```
 
 - [ ] **Step 9: Run test to verify it fails**
 
-Run: `cd exercises/business_valuation && python -m pytest tests/test_io.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named '_io'` / attribute errors.
+Run: `cd exercises/business_valuation && python -m pytest tests/test_common.py -v`
+Expected: FAIL — `ModuleNotFoundError: No module named '_common'` / attribute errors.
 
-- [ ] **Step 10: Create `tools/_io.py`**
+- [ ] **Step 10: Create `tools/_common.py`**
 
 ```python
 import json
@@ -293,7 +293,7 @@ def sec_headers():
 
 - [ ] **Step 11: Run test to verify it passes**
 
-Run: `cd exercises/business_valuation && python -m pytest tests/test_io.py -v`
+Run: `cd exercises/business_valuation && python -m pytest tests/test_common.py -v`
 Expected: PASS (6 passed).
 
 - [ ] **Step 12: Commit**
@@ -312,7 +312,7 @@ git commit -m "feat(valuation): scaffold project, deps, and shared I/O helpers"
 - Test: `exercises/business_valuation/tests/test_edgar_fetch.py`
 
 **Interfaces:**
-- Consumes: `_io.cik_pad`, `_io.sec_headers`, `_io.read_json`, `_io.write_json`, `_io.data_dir`, `_io.emit`, `_io.die`, `_io.DATA_ROOT`.
+- Consumes: `_common.cik_pad`, `_common.sec_headers`, `_common.read_json`, `_common.write_json`, `_common.data_dir`, `_common.emit`, `_common.die`, `_common.DATA_ROOT`.
 - Produces:
   - `resolve_cik(ticker, tickers_map) -> str` (10-digit; `die()` if not found)
   - `strip_html(html) -> str` (tags/entities/whitespace removed)
@@ -355,7 +355,7 @@ import re
 
 import requests
 
-from _io import (DATA_ROOT, cik_pad, data_dir, die, emit, read_json,
+from _common import (DATA_ROOT, cik_pad, data_dir, die, emit, read_json,
                  sec_headers, write_json)
 
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -429,7 +429,8 @@ def fetch_narrative(cik, no_cache=False):
     doc_url = (f"https://www.sec.gov/Archives/edgar/data/"
                f"{int(cik_pad(cik))}/{accession}/{primary}")
     doc = requests.get(doc_url, headers=sec_headers(), timeout=60)
-    doc.raise_for_status()
+    if doc.status_code != 200:
+        die(f"10-K document fetch failed for CIK {cik} (HTTP {doc.status_code})")
     text = strip_html(doc.text)
     path.write_text(text)
     return text
@@ -442,7 +443,7 @@ def main():
     g.add_argument("--cik")
     ap.add_argument("--no-cache", action="store_true")
     a = ap.parse_args()
-    tickers = load_tickers_map()
+    tickers = load_tickers_map(a.no_cache)
     if a.ticker:
         cik = resolve_cik(a.ticker, tickers)
         ticker = a.ticker.upper()
@@ -486,7 +487,7 @@ git commit -m "feat(valuation): EDGAR fetch tool (CIK resolve, facts, narrative)
 - Test: `exercises/business_valuation/tests/test_financials.py`
 
 **Interfaces:**
-- Consumes: `_io.read_json`, `_io.write_json`, `_io.data_dir`, `_io.cik_pad`, `_io.emit`, `_io.die`; `edgar_fetch` (CLI path only).
+- Consumes: `_common.read_json`, `_common.write_json`, `_common.data_dir`, `_common.cik_pad`, `_common.emit`, `_common.die`; `edgar_fetch` (CLI path only).
 - Produces:
   - `latest_annual(facts, tags, unit="USD") -> float | None`
   - `delta_nwc(facts) -> float`
@@ -596,7 +597,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'financials'`.
 ```python
 import argparse
 
-from _io import cik_pad, data_dir, die, emit, read_json, write_json
+from _common import cik_pad, data_dir, die, emit, read_json, write_json
 
 TAGS = {
     "revenue": ["RevenueFromContractWithCustomerExcludingAssessedTax",
@@ -670,17 +671,22 @@ def _fiscal_year(facts):
     return None
 
 
+def _num(facts, tags, default=0.0):
+    val = latest_annual(facts, tags)
+    return float(val) if val is not None else default
+
+
 def normalize(facts, ticker=None):
     rev = latest_annual(facts, TAGS["revenue"])
     if rev is None or rev <= 0:
         die("could not find positive annual revenue in company facts")
-    ebit = latest_annual(facts, TAGS["ebit"]) or 0.0
-    da = latest_annual(facts, TAGS["da"]) or 0.0
-    capex = latest_annual(facts, TAGS["capex"]) or 0.0
-    ltd = latest_annual(facts, TAGS["long_term_debt"]) or 0.0
-    dc = latest_annual(facts, TAGS["debt_current"]) or 0.0
-    cash = latest_annual(facts, TAGS["cash"]) or 0.0
-    ni = latest_annual(facts, TAGS["net_income"]) or 0.0
+    ebit = _num(facts, TAGS["ebit"])
+    da = _num(facts, TAGS["da"])
+    capex = _num(facts, TAGS["capex"])
+    ltd = _num(facts, TAGS["long_term_debt"])
+    dc = _num(facts, TAGS["debt_current"])
+    cash = _num(facts, TAGS["cash"])
+    ni = _num(facts, TAGS["net_income"])
     shares = latest_annual(facts, TAGS["shares"])
     if not shares or shares <= 0:
         die("could not find shares outstanding in company facts")
@@ -747,7 +753,7 @@ git commit -m "feat(valuation): normalize XBRL company facts into DCF inputs"
 - Test: `exercises/business_valuation/tests/test_montecarlo_dcf.py`
 
 **Interfaces:**
-- Consumes: `_io.read_json`, `_io.write_json`, `_io.data_dir`, `_io.emit`, `_io.die`; financials dict from Task 3.
+- Consumes: `_common.read_json`, `_common.write_json`, `_common.data_dir`, `_common.emit`, `_common.die`; financials dict from Task 3.
 - Produces:
   - `run_dcf(fin: dict, cfg: dict, seed=0, n=10000) -> dict` with keys `lane="dcf", median, p10, p90, n, samples`.
   - Config schema: `{years, revenue_growth, operating_margin, wacc, terminal_growth, tax_rate?}` where each driver is `{"dist": "normal"|"lognormal"|"uniform"|"fixed", ...}`.
@@ -807,7 +813,7 @@ import argparse
 
 import numpy as np
 
-from _io import data_dir, die, emit, read_json, write_json
+from _common import data_dir, die, emit, read_json, write_json
 
 
 def _draw(rng, spec, n):
@@ -904,7 +910,7 @@ git commit -m "feat(valuation): Monte-Carlo DCF lane with seedable drivers"
 - Test: `exercises/business_valuation/tests/test_market_price.py`
 
 **Interfaces:**
-- Consumes: `_io.emit`, `_io.die`, `_io.data_dir`, `_io.write_json`.
+- Consumes: `_common.emit`, `_common.die`, `_common.data_dir`, `_common.write_json`.
 - Produces:
   - `get_price(ticker, fetcher=None) -> dict` with keys `ticker, price, market_cap, currency`. `fetcher` is injectable `(ticker) -> dict` for offline testing; default uses yfinance.
 
@@ -936,7 +942,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'market_price'`.
 ```python
 import argparse
 
-from _io import data_dir, die, emit, write_json
+from _common import data_dir, die, emit, write_json
 
 
 def _yfinance_fetch(ticker):
@@ -1002,7 +1008,7 @@ git commit -m "feat(valuation): market price benchmark tool (yfinance, injectabl
 - Test: `exercises/business_valuation/tests/test_comps.py`
 
 **Interfaces:**
-- Consumes: `_io.emit`, `_io.die`, `_io.read_json`, `_io.write_json`, `_io.data_dir`, `_io.cik_pad`; `financials.normalize`, `edgar_fetch.{load_tickers_map,resolve_cik,fetch_company_facts}`, `market_price.get_price`.
+- Consumes: `_common.emit`, `_common.die`, `_common.read_json`, `_common.write_json`, `_common.data_dir`, `_common.cik_pad`; `financials.normalize`, `edgar_fetch.{load_tickers_map,resolve_cik,fetch_company_facts}`, `market_price.get_price`.
 - Produces:
   - `peer_metrics(fin: dict, price: float) -> dict` with keys `ev_ebitda, pe` (either may be `None`).
   - `implied_values(target: dict, multiples: list[dict], seed=0, n=10000) -> dict` with keys `median, p10, p90, n, samples`.
@@ -1052,10 +1058,7 @@ import argparse
 
 import numpy as np
 
-import edgar_fetch
-import financials as fin_mod
-import market_price
-from _io import cik_pad, data_dir, die, emit, read_json, write_json
+from _common import data_dir, die, emit, read_json, write_json
 
 
 def peer_metrics(fin, price):
@@ -1072,8 +1075,8 @@ def peer_metrics(fin, price):
 
 def implied_values(target, multiples, seed=0, n=10000):
     rng = np.random.default_rng(seed)
-    evb = np.array([m["ev_ebitda"] for m in multiples if m.get("ev_ebitda")], dtype=float)
-    pe = np.array([m["pe"] for m in multiples if m.get("pe")], dtype=float)
+    evb = np.array([m["ev_ebitda"] for m in multiples if m.get("ev_ebitda") is not None], dtype=float)
+    pe = np.array([m["pe"] for m in multiples if m.get("pe") is not None], dtype=float)
     if evb.size == 0 and pe.size == 0:
         die("no valid peer multiples to build comparables")
     shares = float(target["shares"])
@@ -1102,6 +1105,9 @@ def implied_values(target, multiples, seed=0, n=10000):
 
 
 def _peer_financials_and_price(ticker, tickers_map):
+    import edgar_fetch
+    import financials as fin_mod
+    import market_price
     cik = edgar_fetch.resolve_cik(ticker, tickers_map)
     facts = edgar_fetch.fetch_company_facts(cik)
     fin = fin_mod.normalize(facts, ticker=ticker)
@@ -1110,6 +1116,7 @@ def _peer_financials_and_price(ticker, tickers_map):
 
 
 def main():
+    import edgar_fetch
     ap = argparse.ArgumentParser()
     ap.add_argument("--cik", required=True)
     ap.add_argument("--peers", required=True, help="comma-separated peer tickers")
@@ -1162,7 +1169,7 @@ git commit -m "feat(valuation): comparables lane (peer multiples -> implied valu
 - Test: `exercises/business_valuation/tests/test_embeddings.py`
 
 **Interfaces:**
-- Consumes: `_io.read_json`, `_io.write_json`, `_io.data_dir`, `_io.cik_pad`, `_io.emit`, `_io.die`, `_io.DATA_ROOT`; `edgar_fetch.{load_tickers_map,resolve_cik,fetch_narrative}`.
+- Consumes: `_common.read_json`, `_common.write_json`, `_common.data_dir`, `_common.cik_pad`, `_common.emit`, `_common.die`, `_common.DATA_ROOT`; `edgar_fetch.{load_tickers_map,resolve_cik,fetch_narrative}`.
 - Produces:
   - `build_index(items, embed=...) -> (np.ndarray, list)` where `items` is `list[{"ticker","cik","text"}]`; `embed(texts) -> np.ndarray` is injectable (rows L2-normalized).
   - `nearest(target_vec, vecs, items, k=8, exclude_cik=None) -> list[{"ticker","cik","score"}]`.
@@ -1218,8 +1225,7 @@ import argparse
 import numpy as np
 
 import edgar_fetch
-from _io import (DATA_ROOT, cik_pad, data_dir, die, emit, read_json,
-                 write_json)
+from _common import DATA_ROOT, cik_pad, data_dir, die, emit, write_json
 
 _MODEL = None
 
@@ -1253,14 +1259,15 @@ def nearest(target_vec, vecs, items, k=8, exclude_cik=None):
 
 
 def _load_universe(path):
-    return [ln.strip().upper() for ln in open(path) if ln.strip()]
+    with open(path) as fh:
+        return [ln.strip().upper() for ln in fh if ln.strip()]
 
 
 def _build_universe_index(universe_tickers, tickers_map, rebuild=False):
     cache = DATA_ROOT / "embed_index.npz"
     if cache.exists() and not rebuild:
         z = np.load(cache, allow_pickle=True)
-        return z["vecs"], list(z["items"])
+        return z["vecs"], [dict(d) for d in z["items"]]
     items = []
     for tk in universe_tickers:
         try:
@@ -1324,7 +1331,7 @@ git commit -m "feat(valuation): embedding-similarity peer discovery (local sente
 - Test: `exercises/business_valuation/tests/test_reconcile.py`
 
 **Interfaces:**
-- Consumes: `_io.read_json`, `_io.write_json`, `_io.data_dir`, `_io.emit`, `_io.die`.
+- Consumes: `_common.read_json`, `_common.write_json`, `_common.data_dir`, `_common.emit`, `_common.die`.
 - Produces:
   - `pool(dcf: dict, comps_list: list[dict], weights: dict, seed=0, n=10000) -> dict` with keys `median, p10, p90, n, weights`. Each input result carries a `samples` list; comps results carry a `source` label; DCF lane name is `"dcf"`.
   - CLI reads `--dcf`, repeated `--comps`, `--weights` (JSON string), writes `data/<cik>/final.json`.
@@ -1371,7 +1378,7 @@ import json
 
 import numpy as np
 
-from _io import data_dir, die, emit, read_json, write_json
+from _common import data_dir, die, emit, read_json, write_json
 
 
 def pool(dcf, comps_list, weights, seed=0, n=10000):
@@ -1520,9 +1527,12 @@ Steps:
    company. Run:
    `python tools/comps.py --cik <CIK> --peers TICK1,TICK2,... --source llm --seed <SEED>`.
 2. Embedding peers: run
-   `python tools/embeddings.py --cik <CIK> --universe universe.txt --top-k 8`
-   to get narrative-similarity neighbors, then pass their tickers to:
-   `python tools/comps.py --cik <CIK> --peers <those tickers> --source embedding --seed <SEED>`.
+   `python tools/embeddings.py --cik <CIK> --universe universe.txt --top-k 8`.
+   This writes `data/<CIK>/embed_peers.json`. Read that file, take the `ticker`
+   field from each entry in its `peers` list (ignore the `cik` and `score`
+   fields), and join those tickers comma-separated. Pass that comma-separated
+   string to:
+   `python tools/comps.py --cik <CIK> --peers TICK1,TICK2,... --source embedding --seed <SEED>`.
 3. Report both implied-value ranges (median, p10, p90) per source, the peer
    lists used, and whether the two sources converge or diverge. Surface any tool
    errors verbatim; if one source fails, continue with the other and say so.
@@ -1538,7 +1548,8 @@ tools: Read
 ---
 
 You own the qualitative/risk lane. You read text and translate it into concrete,
-numeric guidance for reconciliation. You never produce a valuation.
+numeric guidance for reconciliation. You never produce a valuation. Never invent a
+number — every weight and adjustment you emit must derive from the text you actually read.
 
 Steps:
 1. Read `data/<CIK>/narrative.txt`.
@@ -1579,6 +1590,10 @@ Steps:
    falls in the P10–P90 band). If a lane is missing, note it and its effect on
    confidence.
 5. Return the headline line and the report path.
+
+If any tool (`reconcile.py`, `market_price.py`) exits with an error, report it
+verbatim and stop before writing the report; never fill in a number the tools did
+not produce.
 ```
 
 - [ ] **Step 6: Verify the agents reference real tool commands**

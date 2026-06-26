@@ -204,3 +204,4 @@
 | 2026-06-26 | 45 files | chore: scaffold topic 17-loops-goals-iterations;feat(exercises): agentic business-valuation Claude Code exercise;docs(exercises): business valuation implementation plan; | — |
 | 2026-06-26 | 47 files | feat(ch17): draft Loops, Goals, and Iterations chapter;chore: session log 2026-06-26;chore: scaffold topic 17-loops-goals-iterations; | — |
 | 2026-06-26 | 12 files | feat(lec17): add exercises and solutions;feat(code-17): companion notebooks for iteration loops;feat(lec17): draft Loops, Goals, and Iterations lecture and practical; | — |
+| 2026-06-26 | 12 files | chore: session log 2026-06-26;feat(lec17): add exercises and solutions;feat(code-17): companion notebooks for iteration loops; | — |

@@ -207,3 +207,4 @@
 | 2026-06-26 | 12 files | chore: session log 2026-06-26;feat(lec17): add exercises and solutions;feat(code-17): companion notebooks for iteration loops; | — |
 | 2026-06-26 | 11 files | chore: session log 2026-06-26;chore: session log 2026-06-26;feat(lec17): add exercises and solutions; | — |
 | 2026-06-26 | 13 files | refine(book): restructure chapter order for concept progression; add agentic-tooling intro;chore: session log 2026-06-26;chore: session log 2026-06-26; | — |
+| 2026-06-26 | 12 files | chore: session log 2026-06-26;refine(book): restructure chapter order for concept progression; add agentic-tooling intro;chore: session log 2026-06-26; | — |

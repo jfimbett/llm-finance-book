@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 1 — From Text to Signals in Finance</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 1 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 1</div>
+    <h1>From Text to Signals in Finance</h1>
+    <div class="sub">How words in filings, calls, and headlines become numbers you can trade.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>A founding moment</strong> — the 2007 study that turned newspaper tone into a market signal.</li>
+          <li class="frag"><strong>Why text matters</strong> — and why a "signal in the news" can survive efficient markets.</li>
+          <li class="frag"><strong>The classic toolkit</strong> — counting words: bag-of-words, TF-IDF, their blind spots.</li>
+          <li class="frag"><strong>Word embeddings</strong> — giving words a geometry, where meaning becomes distance.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          The whole course is one question: <em>what is the best way to turn a document into a
+          number that predicts a return?</em> We start with word-counting and build toward LLMs
+          that reason about the text.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>A brief history of textual analysis in finance</h2>
+    <div class="secsub">From hand-coded dictionaries to the first machine-read sentiment signals.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The founding moment</div>
+    <h2>Tetlock (2007): the news has a mood, and the mood has a price</h2>
+    <div class="title-rule"></div>
+    <p class="lead frag">A simple experiment: measure how <strong>negative</strong> the <em>Wall Street Journal's</em>
+      daily market column sounds, then ask whether tomorrow's market moves with it.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">The setup (1984–1999)</div>
+          <ul>
+            <li>Daily share of negative words in the WSJ "Abreast of the Market" column</li>
+            <li>Next-day Dow Jones return</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">What he found</div>
+          <ul>
+            <li>Gloomy prose → <strong>lower</strong> next-day returns</li>
+            <li>...that <em>reverses</em> within a week</li>
+            <li>Extreme tone → heavier trading volume</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Human language can be turned into a quantitative, return-predicting signal. And the
+      <em>reversal</em> is the tell: this is sentiment temporarily moving prices, not fresh fundamental news.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Counting words, carefully</div>
+    <h2>Why a finance dictionary beat a general-English one</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>The old way: General Inquirer (1966)</h3>
+        <ul>
+          <li>11,000 word stems sorted into Positive, Negative, Strong, Weak…</li>
+          <li>Score a document by counting words per bucket</li>
+          <li>Transparent, reproducible — but blunt</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>The fix: Loughran–McDonald (2011)</h3>
+        <ul>
+          <li><em>tax, liability, depreciation</em> look "negative" to a general dictionary — but they're just finance vocabulary</li>
+          <li>LM hand-coded sentiment from actual 10-K filings</li>
+          <li>Substantially better at predicting filing-date returns</li>
+        </ul>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the catch with every dictionary</span>
+      It can't read order. "Earnings did <em>not</em> decline" counts the same as "Earnings <em>did</em> decline"
+      unless someone hard-codes the negation.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Why text matters in finance</h2>
+    <div class="secsub">Where the words come from — and why a profitable signal can hide in plain sight.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The raw material</div>
+    <h2>Six places financial language lives</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Earnings calls</strong> — scripted talk + spontaneous Q&amp;A (the Q&amp;A leaks the most)</li>
+          <li class="frag"><strong>10-K / 10-Q filings</strong> — risk factors, MD&amp;A; up to 200 pages</li>
+          <li class="frag"><strong>Newswire</strong> — fast, narrow window; value is in speed and breadth</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Analyst reports</strong> — dense; complexity rises with information asymmetry</li>
+          <li class="frag"><strong>Central-bank comms</strong> — FOMC statements move rates on release</li>
+          <li class="frag"><strong>Social media</strong> — high-frequency, noisy, hotly debated</li>
+        </ul>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why an MBA should care</span>
+      Each source trades off <em>signal richness</em> against <em>speed</em> and <em>cost to process</em>.
+      That trade-off is exactly where technology — and this course — creates an edge.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The puzzle</div>
+    <h2>If markets are efficient, why does news tone predict returns?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Efficient-markets theory says prices already reflect public information. Yet the data keeps
+      finding that text predicts returns. Three reconciling reasons:</p>
+    <ol>
+      <li class="frag"><strong>Processing costs &amp; limited attention.</strong> A 200-page 10-K is expensive to read.
+        Not everyone does — so signals persist until the technology to read at scale spreads.</li>
+      <li class="frag"><strong>Soft information &amp; disagreement.</strong> Is a cautious tone genuine worry, or
+        expectation management? When readers disagree, price reflects the <em>average</em> belief, not the sharpest one.</li>
+      <li class="frag"><strong>Latent information.</strong> Regulation limits explicit selective disclosure, so meaning
+        leaks through word choice, omissions, and structure.</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Text adds value not because markets are irrational, but because <em>extracting information from text
+      is genuinely costly</em>. Whoever lowers that cost captures the signal.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Four facts any theory must explain</div>
+    <h2>The stylized facts of text-and-returns</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Negative tone → negative short-run returns, then reversal.</strong>
+        <span class="small">Tetlock (2007).</span></li>
+      <li class="frag"><strong>Finance dictionaries beat general ones.</strong>
+        <span class="small">Loughran–McDonald (2011).</span></li>
+      <li class="frag"><strong>Call tone predicts future earnings surprises.</strong>
+        <span class="small">Larcker–Zakolyukina (2012): deceptive speech has linguistic fingerprints.</span></li>
+      <li class="frag"><strong>LLM-based signals add fresh predictive power.</strong>
+        <span class="small">Lopez-Lira &amp; Tang (2023): ChatGPT headline sentiment predicts next-day returns —
+        absent in older, smaller models. An <em>emergent</em> property of scale.</span></li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Making it precise</div>
+    <h2>A "textual signal," defined once and used all course</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Strip away the jargon and a text signal is just a recipe that turns a document into numbers.</p>
+    <div class="block">
+      <div class="block-title">In plain words</div>
+      A function that reads document \(d_t\) at time \(t\) and outputs a value \(s_t\) — a sentiment score,
+      a topic mix, an embedding, a class label.
+    </div>
+    <aside class="underhood" data-title="formal definition">
+      A textual signal is a measurable function
+      \[ f \colon \mathcal{D} \longrightarrow \mathbb{R}^k, \qquad s_t = f(d_t). \]
+      Examples of \(f\): fraction of LM-negative words (\(k=1\)); LDA topic proportions
+      (\(k=\)#topics); a 300-dim sentence embedding (\(k=300\)); an LLM classifier (\(k=\)#classes).
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">the whole course in one line</span>
+      We are searching for the best \(f\): word counts → topic models → transformer embeddings → LLMs as reasoning agents.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From signal to strategy</div>
+    <h2>When is a signal actually worth trading?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A signal earns its keep only if it moves returns <em>and</em> survives real-world frictions.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Two hurdles</div>
+          <ol>
+            <li>Predictive power remains after controlling for size, value, momentum…</li>
+            <li>The implied Sharpe ratio beats transaction costs</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="the linear factor model">
+          The empirical question is whether \(\mathrm{Cov}(s_t, r_{t+1}) \neq 0\). Under a linear model
+          \[ r_{t+1} = \alpha + \beta^\top s_t + \varepsilon_{t+1}, \quad \mathbb{E}[\varepsilon_{t+1}\mid s_t]=0, \]
+          \(\beta\) is <em>economically</em> significant iff it is non-zero after controlling for known factors
+          <em>and</em> the implied Sharpe ratio exceeds plausible costs.
+        </aside>
+      </div>
+    </div>
+    <div class="alert callout">
+      <span class="callout-tag">don't confuse the two</span>
+      Statistical significance without economic significance does not justify a trade.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The hard part</div>
+    <h2>Four ways a "signal" can fool you</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Reverse causality</strong> — the document reacts to past returns, not the future</li>
+          <li class="frag"><strong>Confounding</strong> — macro conditions drive both tone and returns</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Multiple testing</strong> — NLP spits out thousands of candidate signals; some win by luck</li>
+          <li class="frag"><strong>Misspecification</strong> — your choice of \(f\) is itself an assumption</li>
+        </ul>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the discipline</span>
+      Use known release times for clean event studies, and a strict out-of-sample split
+      (train pre-2010, test post-2010) so you don't mistake luck for skill.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>The classic toolkit: counting words</h2>
+    <div class="secsub">Bag-of-words and TF-IDF — simple, fast, surprisingly strong, and fundamentally blind to order.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Step zero</div>
+    <h2>Cleaning text before you can count it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Every method starts by standardizing raw text into a tidy vocabulary.</p>
+    <ol>
+      <li class="frag"><strong>Case folding</strong> — "Revenue" = "revenue"</li>
+      <li class="frag"><strong>Stop-word removal</strong> — drop "the", "and", "of"… (100–300 words)</li>
+      <li class="frag"><strong>Stemming / lemmatization</strong> — <em>earnings, earned, earns</em> → <em>earn</em></li>
+      <li class="frag"><strong>Vocabulary truncation</strong> — keep the common types, discard the rare ones</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">a peek ahead</span>
+      LLMs skip most of this. They use <em>sub-word</em> tokens — "earnings" → ["earn", "ings"] — so even
+      rare words are built from frequent pieces. Nothing is thrown away.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The workhorse</div>
+    <h2>Bag-of-words: a document as a pile of word counts</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Tip every document into a bag, count each word, forget the order. Crude — but a strong baseline.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Why it works</div>
+          <ul><li>Simple, interpretable</li><li>Sparse → cheap to store</li><li>Competitive baseline on many tasks</li></ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">the fatal flaw</span>
+          "The fund outperformed the market" and "The market outperformed the fund" have <em>identical</em>
+          bags — opposite meanings.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the vector form">
+      \[ \mathbf{x}(d) = \big(\mathrm{count}(v_1,d),\dots,\mathrm{count}(v_V,d)\big)^\top \in \mathbb{Z}_{\geq 0}^V. \]
+      Stack all \(N\) documents to get the term-document matrix \(\mathbf{X}\in\mathbb{Z}_{\geq0}^{N\times V}\).
+      Each word is a one-hot basis vector \(\mathbf{e}_k\); a document is the sum of its words' one-hots.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The hidden geometry problem</div>
+    <h2>To a computer, "revenue" and "income" are total strangers</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When every word is its own dimension, no two distinct words share <em>any</em> similarity —
+      "revenue" is as far from "income" as it is from "penguin."</p>
+    <aside class="underhood" data-title="orthogonality &amp; the discrete metric">
+      Each token maps to a basis vector \(\mathbf{e}_k=(0,\dots,1,\dots,0)^\top\). Then
+      \[ \mathbf{e}_j^\top \mathbf{e}_k = \mathbb{1}[j=k] \;\Rightarrow\;
+         \mathrm{sim}(\text{revenue},\text{income}) = 0 = \mathrm{sim}(\text{revenue},\text{penguin}). \]
+      Every distinct pair is equally dissimilar — the <em>discrete metric</em>. Semantically wrong.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      This single defect is what word embeddings exist to fix: replace "all-or-nothing" similarity with a
+      continuous space where related words sit close together.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A smarter count</div>
+    <h2>TF-IDF: rare words carry more signal</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Raw counts are dominated by common words. TF-IDF up-weights words that are frequent in
+      <em>this</em> document but rare across the corpus — the ones that actually distinguish it.</p>
+    <ul>
+      <li class="frag">A word in <em>every</em> document → weight \(0\) (says nothing)</li>
+      <li class="frag">A word in <em>one</em> document → maximal weight (highly distinctive)</li>
+    </ul>
+    <aside class="underhood" data-title="term frequency × inverse document frequency">
+      \[ \mathrm{tf}(v,d)=\frac{\mathrm{count}(v,d)}{|d|}, \qquad
+         \mathrm{idf}(v,\mathcal{C})=\log\!\frac{|\mathcal{C}|}{\mathrm{df}(v,\mathcal{C})}, \qquad
+         \mathrm{tfidf}=\mathrm{tf}\times\mathrm{idf}. \]
+      Document similarity is the cosine of the TF-IDF vectors:
+      \[ \mathrm{sim}(d_i,d_j)=\frac{\tilde{\mathbf{x}}(d_i)^\top \tilde{\mathbf{x}}(d_j)}
+         {\|\tilde{\mathbf{x}}(d_i)\|\,\|\tilde{\mathbf{x}}(d_j)\|}\in[0,1]. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where counting hits a wall</div>
+    <h2>The shared blind spots of every classical method</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Order-blind</strong> — "earnings beat estimates" = "estimates beat earnings"</li>
+          <li class="frag"><strong>No synonyms</strong> — <em>revenue</em> and <em>sales</em> score zero similarity if they never co-occur</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Fixed vocabulary</strong> — new acronyms and names are simply dropped</li>
+          <li class="frag"><strong>Huge &amp; sparse</strong> — tens of thousands of dimensions, mostly zeros</li>
+        </ul>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the move that follows</span>
+      Replace the discrete one-word-one-dimension basis with a <em>continuous embedding space</em> — the
+      idea behind everything from Word2Vec to GPT.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Word embeddings: meaning as geometry</h2>
+    <div class="secsub">Give every word a location in space, and similarity becomes distance you can compute.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The founding idea</div>
+    <h2>"You shall know a word by the company it keeps"</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the distributional hypothesis · Firth, 1957</span>
+      Words that mean similar things show up in similar contexts. So if you can capture <em>which words
+      appear near which</em>, you capture meaning — without anyone hand-labeling a thing.
+    </div>
+    <p class="lead">An embedding maps each word to a point in a few-hundred-dimensional space where
+      <strong>direction and distance encode meaning</strong>.</p>
+    <aside class="underhood" data-title="what an embedding is, formally">
+      An injective map \(\varphi:\mathcal{V}\to\mathbb{R}^d\) with \(d\ll V\); the embedding matrix
+      \(\mathbf{W}\in\mathbb{R}^{V\times d}\) has row \(i = \varphi(w_i)\). Typically \(d\in\{50,100,300\}\),
+      a compression of \(\sim\!150\text{–}1000\times\). Cosine similarity then \(\approx\) semantic similarity.
+    </aside>
+    <p class="small">Famous party trick: \(\varphi(\text{king}) - \varphi(\text{man}) + \varphi(\text{woman}) \approx \varphi(\text{queen})\).
+      In finance: \(\varphi(\text{call}) - \varphi(\text{upside}) + \varphi(\text{downside}) \approx \varphi(\text{put})\).</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How the geometry gets learned · Word2Vec</div>
+    <h2>Predict the neighbors, and meaning falls out</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Train a model to guess the words surrounding a target word. To do that well it's
+      <em>forced</em> to place related words near each other. That arrangement <em>is</em> the embedding.</p>
+    <aside class="underhood" data-title="skip-gram objective">
+      Each center word \(w_t\) predicts its \(\pm c\) context words:
+      \[ J_{\mathrm{SG}}=\frac1T\sum_{t=1}^{T}\sum_{k\neq 0}\log P(w_{t+k}\mid w_t),\quad
+         P(w_{t+k}\mid w_t)=\frac{\exp(\mathbf{v}_{w_{t+k}}^\top \hat{\mathbf{v}}_{w_t})}{\sum_{w=1}^{V}\exp(\mathbf{v}_w^\top \hat{\mathbf{v}}_{w_t})}. \]
+      The catch: that denominator sums over all \(V\approx10^4\text{–}10^5\) words at <em>every</em> step.
+      For a billion tokens, intractable — which is why negative sampling exists.
+    </aside>
+    <aside class="underhood" data-title="negative sampling (the speed trick)">
+      Replace the full softmax with binary classification: one real context word vs. \(K\) random "noise" words.
+      \[ \mathcal{L}=\log\sigma(\mathbf{v}_{w_{t+k}}^\top\hat{\mathbf{v}}_{w_t})
+         +\sum_{j=1}^{K}\mathbb{E}_{w_j\sim P_n}\!\big[\log\sigma(-\mathbf{v}_{w_j}^\top\hat{\mathbf{v}}_{w_t})\big]. \]
+      Only \(K{+}1\) rows update per step. Recommended \(K=5\text{–}20\), \(P_n(w)\propto \mathrm{freq}(w)^{3/4}\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why finance needs its own embeddings</div>
+    <h2>"Risk" means something different on Wall Street</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Word</th><th>General nearest neighbours</th><th>Finance nearest neighbours</th></tr>
+      <tr><td><em>risk</em></td><td>danger, threat, hazard</td><td>volatility, exposure, VaR</td></tr>
+      <tr><td><em>short</em></td><td>brief, concise</td><td>short-sell, bear position</td></tr>
+      <tr><td><em>margin</em></td><td>edge, border</td><td>profit margin, maintenance margin</td></tr>
+    </table>
+    <h3>Three ways to adapt</h3>
+    <ul>
+      <li class="frag"><strong>Train from scratch</strong> on a financial corpus (e.g. Bloomberg Word2Vec)</li>
+      <li class="frag"><strong>Fine-tune</strong> a general model (FinBERT: BERT re-trained on news, 10-Ks, calls)</li>
+      <li class="frag"><strong>Retrofit</strong> — nudge synonyms together / antonyms apart using a financial lexicon</li>
+    </ul>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What we covered — and where Lecture 2 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Today</h3>
+        <ul>
+          <li>Why text predicts returns: three EMH-consistent reasons</li>
+          <li>The textual-signal framework and when a signal is tradeable</li>
+          <li>Classical reps: BoW, TF-IDF — order-blind, discrete</li>
+          <li>Embeddings: meaning as geometry; Word2Vec; domain adaptation</li>
+        </ul>
+        <div class="block"><div class="block-title">Practical Session 1</div>
+          TF-IDF by hand · cosine similarity · TF-IDF on earnings-call snippets in Python.
+        </div>
+      </div>
+      <div class="col">
+        <h3>Lecture 2 — LLM Foundations</h3>
+        <ul>
+          <li>RNNs: sequential order &amp; vanishing gradients</li>
+          <li>LSTM: cell state, forget / input / output gates</li>
+          <li>The Transformer: self-attention, multi-head, positional encoding</li>
+          <li>Pre-training: masked LM (BERT) vs. autoregressive (GPT)</li>
+        </ul>
+        <p class="small"><strong>Key refs:</strong> Tetlock (2007) · LM (2011) · Mikolov (2013) ·
+          Pennington (2014) · Lopez-Lira &amp; Tang (2023).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extra &amp; optional material</h2>
+    <div class="secsub">Timeline, worked TF-IDF example, GloVe, and a PCA case study. Beyond the core lecture.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · context</div>
+    <h2>From dictionaries to neural methods — a timeline</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Year</th><th>Method</th><th>Key advance</th></tr>
+      <tr><td>1966</td><td>General Inquirer</td><td>Systematic word counting</td></tr>
+      <tr><td>2003</td><td>LDA topic models</td><td>Data-driven topics, no labels</td></tr>
+      <tr><td>2011</td><td>LM dictionary</td><td>Finance-domain sentiment</td></tr>
+      <tr><td>2013</td><td>Word2Vec / GloVe</td><td>Dense embeddings, semantic geometry</td></tr>
+      <tr><td>1997/2015</td><td>LSTM / Attention</td><td>Sequential context, negation</td></tr>
+      <tr><td>2017</td><td>Transformer</td><td>Parallel self-attention, massive scale</td></tr>
+      <tr><td>2018–19</td><td>BERT / FinBERT</td><td>Pre-train, then fine-tune</td></tr>
+      <tr><td>2020+</td><td>GPT-4, Claude, Llama</td><td>Instruction-following, reasoning</td></tr>
+    </table>
+    <p class="muted">Each generation fixes the core limitation of the one before it.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · worked example</div>
+    <h2>TF-IDF on three tiny sentences</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Doc</th><th>Tokens</th></tr>
+      <tr><td>\(d_1\)</td><td><code class="inline">revenue grew strong earnings</code></td></tr>
+      <tr><td>\(d_2\)</td><td><code class="inline">earnings declined weak guidance</code></td></tr>
+      <tr><td>\(d_3\)</td><td><code class="inline">revenue guidance raised strong</code></td></tr>
+    </table>
+    <aside class="underhood" data-title="the numbers">
+      Words in one doc: \(\mathrm{idf}=\ln 3 \approx 1.099\). Words in two docs: \(\mathrm{idf}=\ln(3/2)\approx 0.405\).
+      Resulting cosine similarities:
+      \[ \mathrm{sim}(d_1,d_3)\approx 0.213\ (\text{share revenue, strong}),\quad
+         \mathrm{sim}(d_1,d_2)\approx 0.106\ (\text{share earnings only}). \]
+    </aside>
+    <p class="small">Full computation in Practical Session 1.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the other embedding</div>
+    <h2>GloVe: factorizing global co-occurrence</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Word2Vec learns word-by-word as it streams text; GloVe instead counts all co-occurrences
+      first, then fits the geometry in one pass. Similar quality, different engineering.</p>
+    <aside class="underhood" data-title="the objective">
+      With \(X_{ij}\) = times word \(j\) occurs in the context of word \(i\), GloVe minimises
+      \[ J=\sum_{i,j=1}^{V} f(X_{ij})\big(\mathbf{w}_i^\top\tilde{\mathbf{w}}_j+b_i+\tilde b_j-\log X_{ij}\big)^2, \]
+      with \(f(x)=(x/x_{\max})^{\alpha}\) for \(x<x_{\max}\) else 1; recommended \(\alpha=0.75,\ x_{\max}=100\).
+      The key insight: the <em>ratio</em> \(P_{ik}/P_{jk}\) encodes relational meaning better than raw probabilities.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · case study</div>
+    <h2>PCA on financial vocabulary: the clusters are real</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Project 30 financial terms to 2D via PCA on GloVe vectors and color by theme —
+      consistent clusters appear across pre-trained models.</p>
+    <ul>
+      <li><em>option, futures, derivative</em> → tight cluster</li>
+      <li><em>default, credit</em> → together, away from equities</li>
+      <li><em>merger, acquisition</em> → nearly identical vectors</li>
+      <li>Rates (<em>yield, spread, inflation, interest rate</em>) → the most cohesive group</li>
+    </ul>
+    <div class="alert callout">
+      <span class="callout-tag">read the axes with care</span>
+      PCA axes are <em>not</em> automatically interpretable as named financial concepts without further validation.
+    </div>
+    <p class="small">Full code: <code class="inline">code/notebooks/01-intro/demo.ipynb</code></p>
+  </section>
+
+</div></div>
+</body>
+</html>

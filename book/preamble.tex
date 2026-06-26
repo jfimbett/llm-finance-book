@@ -74,6 +74,7 @@
 
 % --- Colors ---
 \usepackage{xcolor}
+\usepackage{colortbl} % single-pass row/column shading inside math arrays
 \definecolor{linkblue}{RGB}{14, 75, 140}
 \definecolor{codebg}{RGB}{248, 248, 248}
 \definecolor{coderule}{RGB}{210, 210, 210}
@@ -117,6 +118,13 @@
   framesep   = 3mm,
   breaklines = true,
 }
+
+% --- Cross-document references (main <-> appendix) ---
+% xr-hyper must be loaded BEFORE hyperref. Each top-level document
+% (main.tex, appendix.tex) declares \externaldocument{...} for the other,
+% so that \ref/\cref/\pageref to labels in the sibling PDF resolve to the
+% correct numbers instead of "??".
+\usepackage{xr-hyper}
 
 % --- Hyperlinks ---
 \usepackage[

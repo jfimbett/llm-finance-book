@@ -80,3 +80,47 @@ Not re-scored via `/score-content` in this pass.
 ## Remaining Issues
 
 - None blocking.
+
+---
+
+## Revision Round 2 (user review feedback)
+
+User feedback: (1) references not compiling; (2) one-hot encoding of tokens not
+shown; (3) `<s>` unexplained — add a special-tokens section; (4) highlight
+rows/columns to show movement between matrices.
+
+### Changes
+
+- **References fixed.** Root cause was a **corrupt biber cache** (an environment
+  issue, not the chapter or `.bib`, which is git-clean): biber crashed silently
+  mid-parse, leaving a 0-byte `main.bbl`, and `set -e` in `build-book.sh` aborted
+  the remaining pdflatex passes, so every citation rendered undefined. Fixed by
+  `rm -rf "$(biber --cache)"`. Build now resolves 0 undefined citations/refs.
+- **One-hot lookup shown.** Step 1 now presents embedding lookup as the explicit
+  matrix product `O E = X^{(emb)}`, with `O` the 3x6 one-hot matrix, tying back to
+  Proposition `thm:mean-embed-is-bow`.
+- **Special Tokens subsection added** (§3.3.5, `sec:special-tokens`): `<s>/<bos>`,
+  `</s>/<eos>`, `[CLS]`, `[SEP]`, `[MASK]`, `<pad>`, `<unk>`, with finance framing.
+  The walk-through is now §3.3.6.
+- **Row/column highlighting** via `colortbl` (added to preamble). A blue band
+  follows the `fell` query row (position 3) from the one-hot through `O E`,
+  `X^{(0)}`, `A`, `Att`, `Z`, `X^{(1)}`; an orange column marks the `sharply`
+  logit, with the winning cell bold + darker. `colortbl` was chosen over
+  `nicematrix` because it shades during table construction in a **single pass** —
+  `nicematrix` color panels need 3+ passes to converge and render as giant blocks
+  under the book's fixed-pass build.
+
+### Build / checks (round 2)
+
+- Full book builds clean (exit 0), 0 undefined citations/references.
+- Figures still 3.1 / 3.2 / 3.3; no hardcoded figure numbers.
+- One residual ~11pt overfull on the masked-softmax chain line (cosmetic).
+- Rendered pages inspected (print pp. 76–81): one-hot product, blue thread,
+  orange logits column + bold winning cell, and Special Tokens all display
+  correctly.
+
+### Open question for the user
+
+- The highlight thread follows the `fell` row and the `sharply` column. If you'd
+  prefer a different colour scheme, or highlighting at fewer/more transitions,
+  say so.

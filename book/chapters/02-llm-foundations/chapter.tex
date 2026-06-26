@@ -1022,6 +1022,42 @@ Modern LLMs use $L = 32$--$96$.
 \end{remark}
 
 % ---
+\subsection{Special Tokens}
+\label{sec:special-tokens}
+
+Before tracing a forward pass it is worth pausing on a detail that the input
+\texttt{<s> revenue fell} already hints at.  Alongside the word-pieces of the text,
+every LLM reserves a handful of \emph{special tokens} that carry structural rather
+than lexical meaning.  They are appended to the vocabulary $\mathcal{V}$ and embedded
+through the same matrix $E$ as ordinary tokens --- the model simply learns to treat
+their vectors as control signals.  The most common are:
+\begin{itemize}
+  \item \texttt{<s>} (also written \texttt{<bos>}) --- \emph{beginning of sequence}:
+        prepended to every input so that the first real prediction has something to
+        condition on.  Our walk-through uses \texttt{<s>} in exactly this role.
+  \item \texttt{</s>} / \texttt{<eos>} --- \emph{end of sequence}: the token a
+        generative model emits to declare that it is finished; decoding stops when it
+        is sampled.
+  \item \texttt{[CLS]} --- a summary slot prepended in BERT-style encoders whose final
+        hidden state feeds the classification head
+        (Section~\ref{sec:transformer-pretrain}).
+  \item \texttt{[SEP]} --- a separator marking the boundary between two segments, such
+        as a question and a passage, or sentence $A$ and sentence $B$.
+  \item \texttt{[MASK]} --- the placeholder that masked-language-model pre-training
+        asks the encoder to reconstruct (Section~\ref{sec:transformer-pretrain}).
+  \item \texttt{<pad>} --- filler appended so that all sequences in a batch share one
+        length; an attention mask (cf.\ Definition~\ref{def:sbert-pool}) zeroes its
+        contribution so padding never influences the output.
+  \item \texttt{<unk>} --- a fallback emitted for any input piece absent from
+        $\mathcal{V}$.
+\end{itemize}
+These tokens are not cosmetic: in a financial pipeline a misplaced \texttt{<eos>} can
+truncate a generated risk disclosure mid-sentence, failing to mask \texttt{<pad>}
+tokens biases a sentiment score, and a retrieval system that splices context into a
+prompt must respect the model's special-token conventions or the model silently
+misreads where the document boundaries lie.
+
+% ---
 \subsection{A Numerical Walk-Through: One Forward Pass of a Tiny GPT}
 \label{sec:transformer-walkthrough}
 
@@ -1061,35 +1097,54 @@ traced here.
 \setlength{\arraycolsep}{3.5pt}
 
 \paragraph{Step 1 --- Tokenise and embed.}
-The three input tokens have ids $(0, 1, 2)$.  Each id selects a row of the learned
-token-embedding matrix $E \in \mathbb{R}^{6 \times 4}$ (one row per vocabulary item);
-rows $0$--$2$ pick out the embeddings of \texttt{<s>}, \texttt{revenue}, and
-\texttt{fell}:
+The three input tokens have ids $(0, 1, 2)$.  Embedding lookup is, quite literally,
+multiplication of a \emph{one-hot} matrix by the embedding table
+(Proposition~\ref{thm:mean-embed-is-bow}): stack the one-hot row vectors of the three
+ids into $O \in \{0,1\}^{3 \times 6}$ and multiply by the learned token-embedding
+matrix $E \in \mathbb{R}^{6 \times 4}$.  Each one-hot row holds a single $1$ that
+\emph{selects} the matching row of $E$.  Throughout the trace we shade the
+\texttt{fell} token --- position $3$, whose next-token prediction is the whole point of
+the exercise --- so that it can be followed from one matrix to the next:
 \begin{equation*}
+  O =
+  \left[\begin{array}{cccccc}
+    1 & 0 & 0 & 0 & 0 & 0\\
+    0 & 1 & 0 & 0 & 0 & 0\\
+    \rowcolor{blue!14} 0 & 0 & 1 & 0 & 0 & 0
+  \end{array}\right]\!\!
+  \begin{array}{l}
+    \scriptstyle\texttt{<s>}\\[-1pt]\scriptstyle\texttt{revenue}\\[-1pt]
+    \scriptstyle\texttt{fell}
+  \end{array}
+  \qquad
   E =
-  \begin{bmatrix}
+  \left[\begin{array}{cccc}
     1 & 0 & 0 & 0\\
     0 & 1 & 0 & 1\\
-    1 & 0 & 1 & 0\\
+    \rowcolor{blue!14} 1 & 0 & 1 & 0\\
     0 & 1 & 1 & 0\\
     1 & 1 & 0 & 0\\
     0 & 0 & 0 & 1
-  \end{bmatrix}
-  \!\!\begin{array}{l}
+  \end{array}\right]\!\!
+  \begin{array}{l}
     \scriptstyle\texttt{<s>}\\[-1pt]\scriptstyle\texttt{revenue}\\[-1pt]
     \scriptstyle\texttt{fell}\\[-1pt]\scriptstyle\texttt{sharply}\\[-1pt]
     \scriptstyle\texttt{rose}\\[-1pt]\scriptstyle\texttt{.}
   \end{array}
-  \qquad
-  E_{[0:2]} =
-  \begin{bmatrix}
+\end{equation*}
+Multiplying out, $O E$ keeps exactly the selected row of $E$ at each input position:
+\begin{equation*}
+  X^{(\mathrm{emb})} = O\,E =
+  \left[\begin{array}{cccc}
     1 & 0 & 0 & 0\\
     0 & 1 & 0 & 1\\
-    1 & 0 & 1 & 0
-  \end{bmatrix},
+    \rowcolor{blue!14} 1 & 0 & 1 & 0
+  \end{array}\right]
+  \begin{array}{l}
+    \scriptstyle\leftarrow\texttt{<s>}\\[-1pt]\scriptstyle\leftarrow\texttt{revenue}\\[-1pt]
+    \scriptstyle\leftarrow\texttt{fell}
+  \end{array}.
 \end{equation*}
-where $E_{[0:2]}$ stacks the three selected embedding rows --- the sequence the model
-will now transform.
 
 \paragraph{Step 2 --- Add positional encoding.}
 Self-attention is permutation-equivariant, so position must be injected explicitly.
@@ -1103,12 +1158,12 @@ the embeddings gives the block input $X^{(0)}$:
     0.84 & 0.54 & 0.01 & 1.00\\
     0.91 & -0.42 & 0.02 & 1.00
   \end{bmatrix},\\[3pt]
-  X^{(0)} = E_{[0:2]} + \mathrm{PE} &=
-  \begin{bmatrix}
+  X^{(0)} = X^{(\mathrm{emb})} + \mathrm{PE} &=
+  \left[\begin{array}{cccc}
     1.00 & 1.00 & 0.00 & 1.00\\
     0.84 & 1.54 & 0.01 & 2.00\\
-    1.91 & -0.42 & 1.02 & 1.00
-  \end{bmatrix}.
+    \rowcolor{blue!14} 1.91 & -0.42 & 1.02 & 1.00
+  \end{array}\right].
 \end{align*}
 Row $t$ of $X^{(0)}$ is the representation of the token at position $t$; the model now
 forgets the words and works entirely with these vectors.
@@ -1155,15 +1210,15 @@ softmax then turns each masked row into attention weights $A$:
   \end{bmatrix}
   \xrightarrow{\text{softmax}}
   A =
-  \begin{bmatrix}
+  \left[\begin{array}{ccc}
     1.00 & 0.00 & 0.00\\
     0.21 & 0.79 & 0.00\\
-    0.13 & 0.17 & 0.70
-  \end{bmatrix}.
+    \rowcolor{blue!14} 0.13 & 0.17 & 0.70
+  \end{array}\right].
 \end{equation*}
 The first token can only attend to itself ($A_{1,1} = 1$); the last token,
-\texttt{fell}, spreads its attention as $0.13/0.17/0.70$ over the three positions,
-weighting itself most heavily.  Each row of $A$ is a probability distribution
+\texttt{fell} (shaded row), spreads its attention as $0.13/0.17/0.70$ over the three
+positions, weighting itself most heavily.  Each row of $A$ is a probability distribution
 (Proposition~\ref{thm:attention-prob}).
 
 \paragraph{Step 5 --- Attention output and the first ``Add \& Norm''.}
@@ -1173,21 +1228,23 @@ input and apply layer normalisation, $Z = \mathrm{LayerNorm}\!\left(X^{(0)} +
 \mathrm{Att}\right)$:
 \begin{equation*}
   \mathrm{Att} = AV =
-  \begin{bmatrix}
+  \left[\begin{array}{cccc}
     1.00 & 2.00 & 0.00 & 2.00\\
     1.43 & 2.67 & 0.01 & 3.22\\
-    0.09 & 2.78 & 0.72 & 1.26
-  \end{bmatrix},
+    \rowcolor{blue!14} 0.09 & 2.78 & 0.72 & 1.26
+  \end{array}\right],
   \qquad
   Z =
-  \begin{bmatrix}
+  \left[\begin{array}{cccc}
     0.00 & 0.82 & -1.63 & 0.82\\
     -0.33 & 0.64 & -1.46 & 1.15\\
-    -0.36 & 1.12 & -1.46 & 0.70
-  \end{bmatrix}.
+    \rowcolor{blue!14} -0.36 & 1.12 & -1.46 & 0.70
+  \end{array}\right].
 \end{equation*}
-Layer normalisation rescales each \emph{row} to zero mean and unit variance, which is
-why every row of $Z$ sums to zero.
+The shaded \texttt{fell} row shows the thread continuing: its attention weights
+($0.13/0.17/0.70$) combine the value rows into a new representation, which the residual
+connection and layer normalisation then rescale.  Layer normalisation acts on each
+\emph{row} (zero mean, unit variance), which is why every row of $Z$ sums to zero.
 
 \paragraph{Step 6 --- The position-wise feed-forward network.}
 The same little two-layer neural network of~\eqref{eq:ffn},
@@ -1236,11 +1293,11 @@ A second residual-and-norm step, $X^{(1)} = \mathrm{LayerNorm}(Z + F)$
 (Equation~\eqref{eq:enc-layer-out}), produces the block output:
 \begin{equation*}
   X^{(1)} =
-  \begin{bmatrix}
+  \left[\begin{array}{cccc}
     -1.00 & 1.00 & 1.00 & -1.00\\
     -1.67 & 0.35 & 0.35 & 0.98\\
-    -0.95 & 1.00 & 1.00 & -1.05
-  \end{bmatrix}.
+    \rowcolor{blue!14} -0.95 & 1.00 & 1.00 & -1.05
+  \end{array}\right].
 \end{equation*}
 
 \begin{center}
@@ -1287,14 +1344,16 @@ row-wise softmax yields, at each position, a probability distribution over the n
 token:
 \begin{equation*}
   \mathrm{logits} =
-  \begin{bmatrix}
+  \left[\begin{array}{ccc>{\columncolor{orange!16}}ccc}
     -1.00 & 0.00 & 0.00 & 2.00 & 0.00 & -1.00\\
     -1.67 & 1.32 & -1.32 & 0.70 & -1.32 & 0.98\\
-    -0.95 & -0.05 & 0.05 & 2.00 & 0.05 & -1.05
-  \end{bmatrix},
+    -0.95 & -0.05 & 0.05 & \cellcolor{orange!42}\mathbf{2.00} & 0.05 & -1.05
+  \end{array}\right],
   \quad
-  P = \mathrm{softmax}(\mathrm{logits}) .
+  P = \mathrm{softmax}(\mathrm{logits}).
 \end{equation*}
+The shaded column is the \texttt{sharply} logit at each position; the darker cell is the
+prediction we care about --- the score \texttt{fell} assigns to \texttt{sharply}.
 Only the \emph{last} row matters for generation, since it predicts the token that
 follows \texttt{fell}.  Its logit for \texttt{sharply} is the dot product of the final
 vector $X^{(1)}_3 = (-0.95,\,1.00,\,1.00,\,-1.05)$ with \texttt{sharply}'s embedding

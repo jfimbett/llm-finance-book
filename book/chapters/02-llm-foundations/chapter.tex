@@ -646,135 +646,154 @@ structural failures of the architectures traced in Section~\ref{sec:sequential}:
 The Transformer eliminates all three bottlenecks simultaneously: it replaces the
 recurrent loop with \emph{self-attention}, a mechanism in which every token
 computes a weighted sum over every other token in a single parallel operation.
-Figure~\ref{fig:ch02-transformer-pipeline} shows the full processing pipeline
-on the financial phrase \textit{``Revenue fell sharply''}, contrasting the
-Transformer's all-to-all connectivity with the RNN's sequential chain.
+
+Before dissecting the mathematics, it helps to see how the pieces fit together.
+Figure~\ref{fig:ch02-transformer-pipeline} reproduces the canonical
+\emph{encoder--decoder} design of \citet{vaswani2017attention} --- the template
+from which BERT, GPT, and the financial LLMs of later chapters all descend.
+The model has two halves:
+\begin{itemize}
+  \item The \textbf{encoder} (left) reads the whole input sequence at once and
+        maps it to a sequence of context-aware vectors $H$.  Each of its $N$
+        identical layers applies multi-head \emph{self-attention} --- every
+        input token attends to every other input token --- followed by a
+        position-wise feed-forward network.  Because the encoder sees the entire
+        input, its attention is \emph{bidirectional}: when encoding
+        \texttt{fell} it already ``knows'' that \texttt{sharply} follows.
+  \item The \textbf{decoder} (right) generates the output one token at a time,
+        left to right.  Each of its $N$ layers has \emph{three} sub-layers
+        rather than two: (i) \emph{masked} self-attention, in which a position
+        may attend only to tokens already generated (a causal mask,
+        Section~\ref{sec:transformer-selfattn}, stops the model from peeking at
+        the answer); (ii) \emph{cross-attention}, in which the partially
+        generated output attends back to the encoder vectors $H$ --- the channel
+        through which information crosses from input to output; and (iii) a
+        feed-forward network.
+\end{itemize}
+Every sub-layer is wrapped in a residual connection and layer normalisation
+--- the ``Add~\& Norm'' bars in the figure --- and the decoder is capped by a
+linear projection and a softmax that convert the final vector into a probability
+distribution over the next token.
+The rest of this section constructs each component in turn --- self-attention
+(Section~\ref{sec:transformer-selfattn}), multi-head attention
+(Section~\ref{sec:transformer-mha}), and positional encoding
+(Section~\ref{sec:transformer-pos}) --- and then reassembles them into the
+encoder and decoder layers (Section~\ref{sec:transformer-encdec}).
+
+Not every model keeps both halves: BERT-style models retain only the encoder,
+GPT-style models only the decoder, and sequence-to-sequence models (T5, BART)
+use the full stack --- a distinction Section~\ref{sec:transformer-pretrain} ties
+to specific financial tasks.
+The toy example in Figure~\ref{fig:ch02-transformer-pipeline} --- rewriting the
+input \textit{``Revenue fell sharply''} as the generated phrase
+\textit{``Sales dropped''} --- is a sequence-to-sequence task that exercises both
+halves at once.
 
 \end{deepdive}
 
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}[
-    node distance = 0.55cm and 1.5cm,
-    tok/.style    = {rectangle, draw=blue!60, fill=blue!8, rounded corners=3pt,
-                     minimum width=2.0cm, minimum height=0.65cm,
-                     font=\small\ttfamily},
-    emb/.style    = {rectangle, draw=green!50!black, fill=green!10,
-                     rounded corners=3pt, minimum width=2.0cm,
-                     minimum height=0.55cm, font=\scriptsize},
-    mha/.style    = {rectangle, draw=orange!70!black, fill=orange!12,
-                     rounded corners=3pt, minimum width=7.2cm,
-                     minimum height=0.8cm, font=\small, align=center},
-    ffn/.style    = {rectangle, draw=purple!60, fill=purple!8,
-                     rounded corners=3pt, minimum width=2.0cm,
-                     minimum height=0.55cm, font=\scriptsize},
-    ctx/.style    = {rectangle, draw=red!60, fill=red!8, rounded corners=3pt,
-                     minimum width=2.0cm, minimum height=0.65cm,
-                     font=\scriptsize},
-    rnnbox/.style = {rectangle, draw=gray!70, fill=gray!8, rounded corners=3pt,
-                     minimum width=1.3cm, minimum height=0.65cm,
-                     font=\scriptsize\ttfamily},
-    lbl/.style    = {font=\scriptsize\itshape, text=gray!70!black},
-    arr/.style    = {->, >=stealth, thick},
-    attn/.style   = {->, >=stealth, dashed, blue!50},
+    >=stealth,
+    font=\small,
+    block/.style = {rectangle, draw=black!70, rounded corners=2pt,
+                    minimum width=3.0cm, minimum height=0.8cm, align=center,
+                    font=\small},
+    attn/.style  = {block, fill=orange!12, draw=orange!75!black},
+    ffn/.style   = {block, fill=purple!10, draw=purple!60},
+    an/.style    = {rectangle, draw=black!45, fill=black!6, rounded corners=1pt,
+                    minimum width=3.0cm, minimum height=0.42cm, font=\scriptsize,
+                    align=center},
+    emb/.style   = {block, fill=green!12, draw=green!50!black, minimum height=0.7cm,
+                    font=\scriptsize},
+    io/.style    = {font=\scriptsize\itshape, text=black!75, align=center},
+    top/.style   = {block, fill=blue!10, draw=blue!60, minimum height=0.6cm,
+                    minimum width=2.2cm, font=\scriptsize},
+    flow/.style  = {->, thick, black!70},
+    cross/.style = {->, thick, red!65!black, dashed},
   ]
-  % ---- LEFT PANEL: Transformer ----
-  % Row 0: input tokens
-  \node[tok] (t1) {Revenue};
-  \node[tok, right=of t1] (t2) {fell};
-  \node[tok, right=of t2] (t3) {sharply};
-  \node[lbl, left=0.25cm of t1] {tokens};
 
-  % Row 1: embeddings
-  \node[emb, above=of t1] (e1) {$\mathbf{x}_1$};
-  \node[emb, above=of t2] (e2) {$\mathbf{x}_2$};
-  \node[emb, above=of t3] (e3) {$\mathbf{x}_3$};
-  \node[lbl, left=0.25cm of e1] {embed};
+  % ============ ENCODER (left column) ============
+  \node[io] (enc_in) {Inputs\\\ttfamily\footnotesize ``Revenue fell sharply''};
+  \node[emb, above=0.45cm of enc_in] (enc_emb) {Input Embedding\\+ Positional Encoding};
+  \node[attn, above=0.55cm of enc_emb] (enc_attn) {Multi-Head\\Self-Attention};
+  \node[an,   above=0.30cm of enc_attn] (enc_an1) {Add \& Norm};
+  \node[ffn,  above=0.30cm of enc_an1] (enc_ffn) {Feed Forward};
+  \node[an,   above=0.30cm of enc_ffn] (enc_an2) {Add \& Norm};
 
-  \draw[arr] (t1)--(e1); \draw[arr] (t2)--(e2); \draw[arr] (t3)--(e3);
+  \draw[flow] (enc_in)  -- (enc_emb);
+  \draw[flow] (enc_emb) -- (enc_attn);
+  \draw[flow] (enc_attn)-- (enc_an1);
+  \draw[flow] (enc_an1) -- (enc_ffn);
+  \draw[flow] (enc_ffn) -- (enc_an2);
 
-  % Row 2: Multi-head self-attention (one wide box)
-  \node[mha, above=0.9cm of e2] (mha) {Multi-Head Self-Attention\\
-    \scriptsize(every token attends to every other token in parallel)};
-  \node[lbl, left=0.25cm of mha.west, xshift=-0.1cm, align=right]
-    {attention};
+  % encoder stack box
+  \coordinate (enc_bl) at ($(enc_attn.south west)+(-0.30,-0.18)$);
+  \coordinate (enc_tr) at ($(enc_an2.north east)+(0.30,0.18)$);
+  \draw[black!55, rounded corners=3pt] (enc_bl) rectangle (enc_tr);
+  \node[rotate=90, font=\scriptsize\bfseries, anchor=south, text=black!60]
+    at ($(enc_bl)!0.5!(enc_bl |- enc_tr)+(-0.18,0)$) {$N\times$};
 
-  % Feeds into MHA
-  \draw[arr] (e1.north) -- ++(0,0.35) -| (mha.south west);
-  \draw[arr] (e2.north) -- (mha.south);
-  \draw[arr] (e3.north) -- ++(0,0.35) -| (mha.south east);
+  % ============ DECODER (right column) ============
+  \node[io, right=4.0cm of enc_in] (dec_in) {Outputs (shifted right)\\\ttfamily\footnotesize ``$\langle$s$\rangle$ Sales dropped''};
+  \node[emb, above=0.45cm of dec_in] (dec_emb) {Output Embedding\\+ Positional Encoding};
+  \node[attn, above=0.55cm of dec_emb] (dec_attn) {Masked Multi-Head\\Self-Attention};
+  \node[an,   above=0.30cm of dec_attn] (dec_an1) {Add \& Norm};
+  \node[attn, above=0.30cm of dec_an1] (dec_cross) {Multi-Head\\Cross-Attention};
+  \node[an,   above=0.30cm of dec_cross] (dec_an2) {Add \& Norm};
+  \node[ffn,  above=0.30cm of dec_an2] (dec_ffn) {Feed Forward};
+  \node[an,   above=0.30cm of dec_ffn] (dec_an3) {Add \& Norm};
 
-  % Attention weight arrows between embeddings (curved, thickness encodes weight)
-  \draw[attn, line width=1.8pt, bend left=35]
-    (e1.north east) to node[above, font=\tiny, text=blue!70] {0.71}
-    (e3.north west);
-  \draw[attn, line width=0.8pt, bend right=25]
-    (e2.north) to node[right, font=\tiny, text=blue!70] {0.21}
-    (e1.north east);
-  \draw[attn, line width=0.4pt, bend left=20]
-    (e2.north) to node[right, font=\tiny, text=blue!70] {0.08}
-    (e3.north west);
+  \draw[flow] (dec_in)   -- (dec_emb);
+  \draw[flow] (dec_emb)  -- (dec_attn);
+  \draw[flow] (dec_attn) -- (dec_an1);
+  \draw[flow] (dec_an1)  -- (dec_cross);
+  \draw[flow] (dec_cross)-- (dec_an2);
+  \draw[flow] (dec_an2)  -- (dec_ffn);
+  \draw[flow] (dec_ffn)  -- (dec_an3);
 
-  % Row 3: per-token FFN
-  \node[ffn, above=0.9cm of mha.north west, xshift=1.0cm] (f1) {FFN};
-  \node[ffn, right=of f1] (f2) {FFN};
-  \node[ffn, right=of f2] (f3) {FFN};
-  \node[lbl, left=0.25cm of f1] {FFN};
+  % decoder stack box
+  \coordinate (dec_bl) at ($(dec_attn.south west)+(-0.30,-0.18)$);
+  \coordinate (dec_tr) at ($(dec_an3.north east)+(0.30,0.18)$);
+  \draw[black!55, rounded corners=3pt] (dec_bl) rectangle (dec_tr);
+  \node[rotate=90, font=\scriptsize\bfseries, anchor=north, text=black!60]
+    at ($(dec_tr)!0.5!(dec_tr |- dec_bl)+(0.18,0)$) {$N\times$};
 
-  \draw[arr] (mha.north west) ++(1.0cm,0) -- (f1.south);
-  \draw[arr] (mha.north)                  -- (f2.south);
-  \draw[arr] (mha.north east) ++(-1.0cm,0) -- (f3.south);
+  % top head
+  \node[top, above=0.40cm of dec_an3] (lin) {Linear};
+  \node[top, above=0.28cm of lin] (soft) {Softmax};
+  \node[io, above=0.32cm of soft] (probs) {Output Probabilities\\\ttfamily\footnotesize $p(\text{next token})$};
+  \draw[flow] (dec_an3) -- (lin);
+  \draw[flow] (lin) -- (soft);
+  \draw[flow] (soft) -- (probs);
 
-  % Row 4: contextual output
-  \node[ctx, above=of f1] (o1) {$\mathbf{z}_1$};
-  \node[ctx, above=of f2] (o2) {$\mathbf{z}_2$};
-  \node[ctx, above=of f3] (o3) {$\mathbf{z}_3$};
-  \node[lbl, left=0.25cm of o1] {output};
+  % cross-attention link: encoder output -> decoder cross-attention (keys, values)
+  \draw[cross] (enc_an2.east) -- ++(0.45,0) |- (dec_cross.west);
+  \node[font=\scriptsize, text=red!65!black, anchor=south]
+    at ($(enc_an2.east |- dec_cross.west)!0.5!(dec_cross.west)+(0,0.06)$)
+    {keys \& values $H$};
 
-  \draw[arr] (f1)--(o1); \draw[arr] (f2)--(o2); \draw[arr] (f3)--(o3);
-
-  % ---- RIGHT PANEL: RNN contrast ----
-  \node[rnnbox, right=2.2cm of t3] (r1) {$h_1$};
-  \node[rnnbox, above=of r1]       (r2) {$h_2$};
-  \node[rnnbox, above=of r2]       (r3) {$h_3$};
-
-  \node[font=\scriptsize\bfseries, above=0.2cm of r3, align=center]
-    {RNN\\chain};
-  \node[font=\tiny, below=0.15cm of r1, text=gray] {\textit{Revenue}};
-  \node[font=\tiny, right=0.05cm of r2, text=gray] {\textit{fell}};
-  \node[font=\tiny, right=0.05cm of r3, text=gray] {\textit{sharply}};
-
-  \draw[arr, gray] (r1)--(r2) node[midway, right, font=\tiny, text=gray]
-    {copy};
-  \draw[arr, gray] (r2)--(r3) node[midway, right, font=\tiny, text=gray]
-    {copy};
-
-  % Brace showing "T steps to reach sharply"
-  \draw[decorate,
-        decoration={brace, amplitude=5pt, mirror, raise=4pt},
-        gray!60]
-    (r1.west) -- (r3.west)
-    node[midway, left=10pt, font=\tiny, text=gray, align=right]
-    {$T$ steps\\to bridge};
-
-  % Dividing rule between panels
-  \draw[gray!40, dashed] ($(t3.north east)+(0.8cm,-0.3cm)$) --
-                          ($(o3.south east)+(0.8cm, 0.5cm)$);
-
-  % Panel labels
-  \node[font=\small\bfseries, below=0.4cm of t2] {Transformer};
-  \node[font=\small\bfseries, below=0.4cm of r1] {RNN};
+  % column captions (placed safely below the input/output tokens)
+  \node[font=\small\bfseries, below=0.30cm of enc_in] {Encoder};
+  \node[font=\small\bfseries, below=0.30cm of dec_in] {Decoder};
 
   \end{tikzpicture}
-  \caption{Processing the phrase \textit{``Revenue fell sharply''} through a
-    Transformer encoder (left) versus an RNN (right).
-    In the Transformer, every token simultaneously attends to every other token;
-    dashed arrows show the attention weights that \texttt{Revenue} places on each
-    peer when computing its contextual representation $\mathbf{z}_1$
-    (thickness $\propto$ weight).
-    In the RNN, information about \texttt{Revenue} must propagate through
-    $T$ hidden states before reaching \texttt{sharply}, accumulating
-    gradient decay at every step.}
+  \caption{The canonical Transformer encoder--decoder architecture of
+    \citet{vaswani2017attention}, drawn on a sequence-to-sequence financial
+    example.  The \textbf{encoder} (left) maps the input
+    \textit{``Revenue fell sharply''} to context vectors $H$ through $N$ stacked
+    layers, each combining bidirectional multi-head self-attention with a
+    position-wise feed-forward network.  The \textbf{decoder} (right) generates
+    the output left to right; relative to the encoder, each of its $N$ layers
+    adds two things: a \emph{masked} self-attention sub-layer, so a position
+    attends only to tokens already produced, and a \emph{cross-attention}
+    sub-layer (red link) that reads the encoder output $H$ as its keys and
+    values --- the bridge from input to output.  ``Add~\& Norm'' denotes a
+    residual connection followed by layer normalisation; a final
+    linear-plus-softmax head turns the top vector into a distribution over the
+    next token.  Encoder-only models (BERT) keep only the left stack;
+    decoder-only models (GPT) keep only the right stack with cross-attention
+    removed.}
   \label{fig:ch02-transformer-pipeline}
 \end{figure}
 
@@ -949,6 +968,8 @@ which embed the rotation directly into query--key dot products.
 \subsection{Encoder--Decoder Structure}
 \label{sec:transformer-encdec}
 
+We now assemble the components of the previous three subsections into the full
+encoder and decoder layers sketched in Figure~\ref{fig:ch02-transformer-pipeline}.
 The encoder layer transforms its input through self-attention followed by a feed-forward network. Let $X^{(\ell)} \in \mathbb{R}^{n \times d_{\mathrm{model}}}$ be the layer-$\ell$ input.
 With residual connections \cite{he2016resnet} % [CITE: He et al. 2016, Deep Residual Learning for Image Recognition]
 and Layer Normalisation \cite{ba2016layernorm}: % [CITE: Ba et al. 2016, Layer Normalization]

@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 7 — Other Applications in Finance and Future Trends</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 7 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 7</div>
+    <h1>Other Applications in Finance and Future Trends</h1>
+    <div class="sub">From scattered use-cases to deployed systems — and the governance that has to come with them.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this final lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Applications across finance</strong> — and how to pick a deployment pattern and an architecture.</li>
+          <li class="frag"><strong>Automating workflows</strong> — treating a finance process as a graph of tasks.</li>
+          <li class="frag"><strong>A research assistant</strong> — the reference architecture, built on hybrid RAG.</li>
+          <li class="frag"><strong>Ethics, bias &amp; regulation</strong> — what fairness can and cannot mean.</li>
+          <li class="frag"><strong>Deploying in regulated environments</strong> — model risk, monitoring, incidents.</li>
+          <li class="frag"><strong>Frontier &amp; open problems</strong> — multimodal, long-context, autonomous agents.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          The earlier lectures built capability. This one is about turning capability into systems you can
+          <em>deploy, defend, and govern</em> — because in finance an unaccountable model is a liability, not an asset.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>LLM applications across finance</h2>
+    <div class="secsub">A map of where we have been — and how to choose the right tool for a new task.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where we have been</div>
+    <h2>The whole book on one page</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Every chapter paired a technique with an application. Read top to bottom, the book moves from
+      cheap word-counting to agents that reason in multiple steps.</p>
+    <table>
+      <tr><th>Ch.</th><th>Topic</th><th>Primary technique</th><th>Application</th></tr>
+      <tr><td>1</td><td>Text fundamentals</td><td>TF-IDF, word embeddings</td><td>Sentiment, classification</td></tr>
+      <tr><td>2</td><td>Modern LLM landscape</td><td>Transformer, RLHF</td><td>General financial NLP</td></tr>
+      <tr><td>3</td><td>Training &amp; fine-tuning</td><td>LoRA, PEFT</td><td>Domain adaptation</td></tr>
+      <tr><td>4</td><td>LLM agents</td><td>ReAct, tool use</td><td>Research automation</td></tr>
+      <tr><td>5</td><td>Business valuation</td><td>RAG, summarisation</td><td>DCF, comparables</td></tr>
+      <tr><td>6</td><td>Credit risk</td><td>Constrained gen., SHAP</td><td>Scoring, fairness</td></tr>
+      <tr><td><strong>7</strong></td><td><strong>Applications &amp; future</strong></td><td><strong>Workflows, multimodal</strong></td><td><strong>Deployment, governance</strong></td></tr>
+    </table>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the through-line</span>
+      Early chapters: lightweight representations, large corpora, modest compute. Later chapters: generative and
+      agent-based models with multi-step reasoning. This chapter: the cross-cutting concerns of
+      <strong>deployment, governance, and frontier capability</strong>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The application landscape</div>
+    <h2>Where LLMs are already earning their keep</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Beyond the chapters' headline cases, the same machinery shows up across the front and back office.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Portfolio management</div>
+          <ul>
+            <li>Natural-language mandates &rarr; quantitative optimisation inputs</li>
+            <li>ESG screening from heterogeneous sustainability reports</li>
+            <li>Earnings-surprise prediction from calls — beats bag-of-words dictionaries</li>
+          </ul>
+        </div>
+        <div class="block frag"><div class="block-title">Regulatory compliance</div>
+          <ul>
+            <li>MiFID II suitability reports (client + instrument + template)</li>
+            <li>AML Suspicious Activity Reports — more consistent, less analyst time</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Insurance</div>
+          Underwriting risk extraction · claims triage · policy question-answering.
+        </div>
+        <div class="block frag"><div class="block-title">Algorithmic trading</div>
+          Signal generation (news/filings &rarr; sentiment) · strategy co-pilot (hypothesis &rarr; testable code) ·
+          conversational OMS interface.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">a systemic warning</span>
+      López-Lira (2025): heterogeneous LLM agents in simulated markets reproduce real market dynamics — and
+      generate <em>systemic risk from correlated strategies</em>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">First decision: how to deploy</div>
+    <h2>Zero-shot, RAG, or fine-tuning?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before choosing a model, choose a <em>pattern</em>. Each trades off the data you need against latency and cost.</p>
+    <table>
+      <tr><th>Pattern</th><th>Best for</th><th>Data</th><th>Latency</th><th>Cost</th></tr>
+      <tr><td>Zero-shot</td><td>General reasoning, novel tasks</td><td>None</td><td>Low</td><td>Per-call</td></tr>
+      <tr><td>RAG</td><td>Document QA, live data, audit trail</td><td>Corpus</td><td>Medium</td><td>Corpus + call</td></tr>
+      <tr><td>Fine-tuning</td><td>Structured output, consistency</td><td>Labelled</td><td>Low</td><td>High (train)</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Three heuristics</div>
+      <ol>
+        <li>Prefer <strong>RAG over fine-tuning</strong> when the task needs grounding in <em>updatable</em> documents (current regulation, recent filings). Fine-tuning embeds knowledge statically.</li>
+        <li><strong>Fine-tune</strong> when output is highly structured and consistency across thousands of calls beats generality.</li>
+        <li><strong>Zero-shot with a frontier model</strong> is a valid baseline first. FinanceBench: frontier models answer ≈80% of financial QA correctly on the first attempt.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When the axes conflict</div>
+    <h2>Real tasks don't sit in one column</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A task may want both the freshness of RAG and the consistency of fine-tuning, or both low latency
+      and rich generation. So what breaks the tie?</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">tiebreaker</span>
+      When the two selection axes conflict, <strong>latency and interpretability dominate</strong>: real-time,
+      high-stakes applications default to the simplest, most auditable approach.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">practical consequence</span>
+      In regulated finance, the auditability of a zero-shot or RAG pipeline often outweighs the marginal accuracy
+      gain of a fine-tuned model whose decision logic is harder to document and defend.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Second decision: which architecture family</div>
+    <h2>Match the architecture to the task's properties</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Encoder-only, decoder-only, encoder-decoder, or agentic — each is strong on different task properties.</p>
+    <table>
+      <tr><th>Task property</th><th>Enc-only</th><th>Dec-only</th><th>Enc-Dec</th><th>Agentic</th></tr>
+      <tr><td>Labelled fine-tuning data available</td><td>Strong</td><td>Weak</td><td>Strong</td><td>Weak</td></tr>
+      <tr><td>Output is classification / embedding</td><td>Strong</td><td>Weak</td><td>Weak</td><td>Weak</td></tr>
+      <tr><td>Output requires fluent generation</td><td>Weak</td><td>Strong</td><td>Strong</td><td>Strong</td></tr>
+      <tr><td>Needs up-to-date external data</td><td>Weak</td><td>Weak</td><td>Weak</td><td>Strong</td></tr>
+      <tr><td>Real-time / low-latency constraint</td><td>Strong</td><td>Weak</td><td>Weak</td><td>Weak</td></tr>
+      <tr><td>Audit trail / interpretability needed</td><td>Strong</td><td>Weak</td><td>Weak</td><td>Weak</td></tr>
+      <tr><td>Spans multiple steps / documents</td><td>Weak</td><td>Weak</td><td>Weak</td><td>Strong</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Archetypes</div>
+      <ul>
+        <li>Trade surveillance classifier &rarr; encoder-only + fine-tuning</li>
+        <li>Regulatory filing summariser &rarr; decoder-only or enc-dec + RAG</li>
+        <li>Autonomous due-diligence agent &rarr; agentic + zero/few-shot</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Automating financial workflows</h2>
+    <div class="secsub">Treat a process as a graph of tasks — then wire LLMs into it without breaking the plumbing.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The mental model</div>
+    <h2>A workflow is a graph of tasks with dependencies</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Picture a process as boxes (tasks) and arrows (one task feeds the next). No arrow loops back —
+      so there's always a sensible order to run it.</p>
+    <aside class="underhood" data-title="workflow as a directed acyclic graph">
+      A <em>financial workflow</em> is a DAG \(W = (T, E)\) where
+      \[ T = \{t_1,\ldots,t_n\},\quad t_i : \mathcal{X}_i \to \mathcal{Y}_i, \]
+      and \((t_i, t_j) \in E\) iff \(t_j\) requires an output of \(t_i\). <em>Acyclic</em>: no directed path from
+      any task back to itself. An <em>execution</em> is a topological ordering consistent with \(E\).
+    </aside>
+    <table>
+      <tr><th>Pattern</th><th>Concurrency</th><th>Best for</th></tr>
+      <tr><td>Sequential pipeline</td><td>None</td><td>Ordered, batch, cascading failures</td></tr>
+      <tr><td>Event-triggered</td><td>Per-event</td><td>Semantic triggers, alert systems</td></tr>
+      <tr><td>Orchestrator-worker</td><td>Parallel subtasks</td><td>Expert specialisation, replanning</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Workflow examples · 1 &amp; 2</div>
+    <h2>Two finance workflows: a pipeline and a monitor</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">1 · Earnings call pipeline (sequential)</div>
+          <ol>
+            <li>Retrieve transcript</li>
+            <li>Extract structured guidance (revenue, margin, capex) as JSON</li>
+            <li>Compare to analyst consensus; compute surprises</li>
+            <li>Classify tone (constructive / cautious / evasive)</li>
+            <li>Draft a standardised analyst briefing</li>
+          </ol>
+          <p class="small">Minutes from call end to delivered briefing, vs. hours of analyst time.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">2 · Regulatory filing monitor (event-triggered)</div>
+          SEC EDGAR RSS feed &rarr; classify each 8-K by type and materiality &rarr; route to the right team with a summary.
+          <p class="small"><em>Materiality is semantic, not syntactic</em> — you can't catch it with a keyword filter.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Workflow examples · 3</div>
+    <h2>Trade surveillance: humans decide, LLMs draft</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An orchestrator-worker pattern: a rule-based system flags an unusual order, then an LLM assembles
+      the story for a human to judge.</p>
+    <div class="block frag"><div class="block-title">3 · Trade surveillance narrative (orchestrator-worker)</div>
+      Rule-based system flags an unusual order pattern &rarr; LLM retrieves news + social media + internal comms
+      &rarr; drafts a structured narrative &rarr; compliance analyst reviews and decides.
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">integration principle</span>
+      LLMs operate at seconds-to-minutes scale; execution systems operate at microseconds. Integration is always
+      <strong>asynchronous</strong>. This is structural, not a limitation.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What the three share</div>
+    <h2>Every workflow has a trigger, an LLM stage, and a human gate</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>A trigger</strong> — a finished call, an EDGAR feed item, a rule-based flag.</li>
+      <li class="frag"><strong>One or more LLM stages</strong> — doing extraction, classification, or drafting.</li>
+      <li class="frag"><strong>A human checkpoint</strong> — before any consequential decision is taken.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why the asynchronous boundary matters</span>
+      Because LLM stages run at seconds-to-minutes latency, they never sit on the critical path of trade
+      execution. They produce <em>analysis and narrative</em>, which humans or downstream systems act on —
+      preserving both speed and auditability.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Building a financial research assistant</h2>
+    <div class="secsub">A reference architecture in five separable parts — and why retrieval has to be hybrid.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The reference architecture</div>
+    <h2>Five components, each developed and audited on its own</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A good research assistant isn't one black box — it's five concerns kept apart so each can be
+      validated separately.</p>
+    <aside class="underhood" data-title="the assistant, formally">
+      \[ \mathcal{A} = (\mathcal{R}, \mathcal{M}, \mathcal{K}, \mathcal{T}, \mathcal{I}) \]
+      <ul>
+        <li>\(\mathcal{R}\): retrieval engine over corpus \(\mathcal{D}\)</li>
+        <li>\(\mathcal{M}\): LLM reader synthesising a response from query + retrieved passages</li>
+        <li>\(\mathcal{K}\): persistent memory (user preferences, portfolio context)</li>
+        <li>\(\mathcal{T}\): tool layer (market-data APIs, filing databases, calculators)</li>
+        <li>\(\mathcal{I}\): interface layer (text, voice, tables, visualisations)</li>
+      </ul>
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">why separate them</span>
+      Retrieval, synthesis, memory, tools, and interface can each be developed, validated, and audited
+      independently — the only way to keep a regulated system maintainable.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Retrieval, done right</div>
+    <h2>Why hybrid retrieval is non-negotiable</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Meaning-based search is great at paraphrase but bad at exact figures and codes. So production
+      assistants run two retrievers and fuse the results.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="alert callout"><span class="callout-tag">semantic search alone fails on</span>
+          <ul>
+            <li>Numerical queries ("Apple's FCF in fiscal 2023?")</li>
+            <li>Exact-term queries ("Article 22 GDPR", "IFRS 9 ECL")</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <p>Dense embeddings capture meaning but blur exact tokens and figures; sparse (BM25) retrieval nails exact
+          terms but misses paraphrase. Run both; fuse the rankings.</p>
+      </div>
+    </div>
+    <aside class="underhood" data-title="reciprocal rank fusion">
+      \[ s_{\text{RRF}}(q, d_i) = \frac{1}{k + r_{\text{dense}}(d_i)} + \frac{1}{k + r_{\text{sparse}}(d_i)},
+         \quad k = 60. \]
+      Parameter-free; robust to the different score scales of dense and sparse systems.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">RAG for filings</div>
+    <h2>Chunk a 10-K by its structure, not by token count</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Slicing a filing into blind 512-token blocks shreds exactly the structure that carries the meaning.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="alert callout"><span class="callout-tag">naive 512-token chunking</span>
+          <ul>
+            <li>Fragments financial tables (destroys row/column structure)</li>
+            <li>Splits financial statements across chunks</li>
+            <li>Disrupts cross-references between sections</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Section-aware chunking</div>
+          <ul>
+            <li>Each SEC Item indexed independently (Item 1A, 7, 8, …)</li>
+            <li>Tables extracted as structured objects; indexed by a separate retriever</li>
+            <li>Substantial reduction in retrieval noise on financial-document QA</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">RAG for filings · attribution &amp; context</div>
+    <h2>Cite every claim — and don't drown the model in context</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Every claim must cite a retrieved passage.</strong></li>
+      <li class="frag">Claims without retrieved support are flagged as <em>model inference</em>, not retrieved fact.</li>
+      <li class="frag">In regulated contexts, source attribution <em>is</em> the audit mechanism.</li>
+    </ul>
+    <div class="block frag"><div class="block-title">Context-length paradox (Balogh &amp; Didisheim, 2025)</div>
+      LLM predictive accuracy follows an inverted-U in context length. Excessive context degrades performance —
+      mirroring cognitive overload in human analysts.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">implication</span>
+      More retrieved context is not automatically better: tightly targeted, well-attributed passages beat dumping
+      an entire filing into the prompt.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Ethical considerations and bias mitigation</h2>
+    <div class="secsub">Where bias enters, what fairness can mean, and why no single metric wins.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Four sources of bias</div>
+    <h2>Bias is a pricing error, not just a fairness problem</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Training-data bias.</strong> Frontier LLMs learn from English-language, US-centric content. Geographic bias in risk assessment is a <em>systematic pricing error</em>, not merely a fairness concern.</li>
+      <li class="frag"><strong>Historical discrimination encoded in data.</strong> Trained on discriminatory lending records, LLMs reproduce those patterns — not a model failure, but faithful reproduction of the training signal.</li>
+      <li class="frag"><strong>Feedback-loop bias.</strong> When outputs move prices, those prices enter future training data, reinforcing the model's priors. Soros's reflexivity, at faster timescales; widespread similar strategies amplify volatility.</li>
+      <li class="frag"><strong>Anchoring bias.</strong> LLMs over-weight salient numerical anchors. Documented in humans by Tversky &amp; Kahneman (1974); reproduced by LLMs trained on human text.</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Fairness, made precise</div>
+    <h2>You cannot have all three fairness criteria at once</h2>
+    <div class="title-rule"></div>
+    <p class="lead">There are several reasonable definitions of "fair" — and a famous result says that when groups
+      differ in base rates, you literally cannot satisfy them all together.</p>
+    <aside class="underhood" data-title="three fairness criteria">
+      <strong>Demographic parity:</strong> \(\Pr(\hat{Y}=1 \mid A=a) = \Pr(\hat{Y}=1 \mid A=b)\) for all \(a,b\).<br>
+      <strong>Equalized odds:</strong> \(\Pr(\hat{Y}=1 \mid Y=y, A=a) = \Pr(\hat{Y}=1 \mid Y=y, A=b)\) for \(y \in \{0,1\}\).<br>
+      <strong>Calibration within group:</strong> \(\Pr(Y=1 \mid \hat{P}=p, A=a) = p\) for all \(p\).
+    </aside>
+    <aside class="underhood" data-title="Chouldechova (2017) impossibility theorem">
+      When base rates differ across groups — \(\Pr(Y=1 \mid A=a) \neq \Pr(Y=1 \mid A=b)\) — a non-trivial
+      classifier <strong>cannot simultaneously</strong> satisfy demographic parity, equalized odds, and calibration
+      within group. Demographic parity and calibration within group are mutually incompatible whenever base rates differ.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">implication</span>
+      Fairness is a <em>family of criteria</em>, not one concept. Choosing which to satisfy is a <strong>policy
+      choice</strong>, not a technical one — and in regulated finance it must be justified to regulators.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Mitigation · stages 1 &amp; 2</div>
+    <h2>Fixing bias before and during training</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Pre-processing</div>
+          <ul>
+            <li>Data rebalancing (oversample underrepresented groups)</li>
+            <li>Causal augmentation: vary protected attributes, hold other features fixed</li>
+            <li>Effect: reduces representation bias; some cost to majority-group accuracy</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">In-processing</div>
+          <ul>
+            <li>Adversarial debiasing: classifier predicts the outcome while an adversary <em>cannot</em> recover the sensitive attribute from intermediate representations</li>
+            <li>Requires sensitive-attribute annotations in training data</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Mitigation · stage 3 &amp; oversight</div>
+    <h2>Fixing bias after training — and never trusting it to stay fixed</h2>
+    <div class="title-rule"></div>
+    <div class="block frag"><div class="block-title">Post-processing</div>
+      <ul>
+        <li>Threshold adjustment: pick decision thresholds that satisfy the desired fairness criterion on a held-out calibration set</li>
+        <li>Works on black-box APIs; costs you different error rates for different groups</li>
+      </ul>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">human-in-the-loop</span>
+      Mandatory for high-stakes decisions regardless of technical mitigation. Regular auditing is essential —
+      bias can emerge or worsen after deployment as the population shifts and models feed back into the features
+      of the next generation.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The rulebook</div>
+    <h2>The regulatory landscape for AI in finance</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Five frameworks shape what you may deploy — and what you must be able to explain.</p>
+    <table>
+      <tr><th>Framework</th><th>Key implications for LLM finance</th></tr>
+      <tr><td><strong>EU AI Act (2024)</strong></td><td>Credit scoring &amp; life-insurance risk = <em>high-risk</em> AI. Conformity assessment before market entry, mandatory registration, transparency obligations, meaningful human oversight.</td></tr>
+      <tr><td><strong>ECOA / Fair Housing Act</strong></td><td>Adverse-action notices must be specific and accurate, not generic — in direct tension with LLM opacity.</td></tr>
+      <tr><td><strong>GDPR Art. 22</strong></td><td>Right to human review of automated decisions. "We use a large language model" is <em>not</em> meaningful information about the logic involved.</td></tr>
+      <tr><td><strong>MiFID II</strong></td><td>LLM-generated recommendations and analyses must be logged: prompt, model version, output, timestamp.</td></tr>
+      <tr><td><strong>FSB (2024)</strong></td><td>AI amplifies third-party concentration risk, herding-driven market correlations, and financial disinformation; calls for AI-powered supervisory tools.</td></tr>
+    </table>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Deploying LLMs in regulated environments</h2>
+    <div class="secsub">Model-risk management, explainability, monitoring, and a plan for when things go wrong.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Model risk · SR 11-7</div>
+    <h2>An LLM that feeds a decision is a model — govern it like one</h2>
+    <div class="title-rule"></div>
+    <p class="lead">SR 11-7 (2011): when an LLM produces quantitative estimates feeding material business decisions,
+      it is a <em>model</em> — regardless of its internal architecture. That triggers three lines of defence.</p>
+    <ol>
+      <li class="frag"><strong>First line (Development).</strong> Document purpose, scope, data inputs, architecture (foundation model + fine-tuning), known limitations, performance metrics. For LLMs: document red-teaming failure modes explicitly, even if incomplete.</li>
+      <li class="frag"><strong>Second line (Independent Validation).</strong> Adversarial testing — prompt injection, jailbreaking, distribution shift. The FAIR framework (Noguer, 2025) targets LLM-specific failures: temporal data inconsistencies, hallucination in numerical extraction, privacy leakage.</li>
+      <li class="frag"><strong>Third line (Internal Audit).</strong> Periodically verify documentation is current, validation is genuinely independent, findings are tracked to resolution, and usage hasn't drifted beyond validated scope.</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">SR 11-7 · what changes</div>
+    <h2>The structure is old; the risk it must catch is new</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The three-lines structure is unchanged from classical model-risk management. What changes is the
+      <em>nature of the risk</em> the three lines must catch.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">what changes for LLMs</span>
+      The failure-mode space is not fully characterised. Emergent capabilities can cause unexpected behaviour on
+      out-of-distribution inputs. Best practice: red-team aggressively and document observed failures honestly.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">consequence for validation</span>
+      Because failure modes can't be fully enumerated in advance, validation shifts from one-off sign-off toward
+      continuous, adversarial monitoring — treating every newly observed failure as documentation to add, not an
+      embarrassment to hide.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Explainability &amp; monitoring</div>
+    <h2>Two kinds of explanation, four kinds of monitoring</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Two kinds of explainability</div>
+          <ul>
+            <li><strong>Post-hoc attribution</strong> (SHAP, attention saliency): "what features most influenced this output?"</li>
+            <li><strong>Procedural transparency</strong> (chain-of-thought): an auditable reasoning trace — but a <em>natural-language reconstruction</em>, not an explanation of network internals.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Four monitoring signal classes</div>
+          <ol>
+            <li><strong>Input distribution</strong> — KL divergence between prompt embeddings detects drift</li>
+            <li><strong>Output quality</strong> — accuracy on sampled outputs with verifiable ground truth</li>
+            <li><strong>Operational</strong> — latency, cost, error rates, refusal rates</li>
+            <li><strong>Fairness</strong> — periodic re-runs of the bias-evaluation framework</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Incident response</div>
+    <h2>Decide severity before the incident, not during it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Pre-define severity tiers and tie each to a concrete escalation path.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Low</div>
+          Hallucination in low-stakes summarisation &rarr; standard review cycle.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">High</div>
+          Hallucinated figure in a credit decision &rarr; immediate escalation, potential reversal, regulatory
+          notification, root-cause investigation.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">why severity must be pre-defined</span>
+      Classifying severity <em>during</em> a live incident invites motivated reasoning toward the least disruptive
+      response. Fixing the criteria in advance is what makes the monitoring signals actionable rather than decorative.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 6 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Future trends and open research problems</h2>
+    <div class="secsub">Multimodal, long-context, autonomous agents — and the questions still unanswered.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Frontier · multimodal</div>
+    <h2>Finance isn't only text — and neither should the model be</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the limit of text-only models</span>
+      <ul>
+        <li>Earnings presentations contain charts visualising trends</li>
+        <li>Annual reports embed tables organising financial statements</li>
+        <li>Earnings calls carry prosodic cues (hesitation, urgency) lost in transcription</li>
+      </ul>
+    </div>
+    <p class="lead frag"><strong>Multimodal models</strong> jointly encode text, images, audio, and structured data.
+      Early benchmark evidence: they outperform text-only models on financial QA tasks requiring chart and table
+      interpretation.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Frontier · long context</div>
+    <h2>Read the whole 10-K at once — but mind the middle</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Long-context models (hundreds of thousands of tokens) can process an entire 10-K in one pass —
+      linking risk factors to MD&amp;A to legal proceedings without losing context between chunks.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">the "lost in the middle" problem</span>
+      Recall accuracy degrades for passages positioned far from either end of the context. Retrieval-augmented
+      approaches do not share this limitation.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">optimal architecture</span>
+      Combine long-context reasoning for intra-document tasks with retrieval for multi-document synthesis.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Frontier · autonomous agents</div>
+    <h2>Self-improving agents: the opportunity and the systemic risk</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The trajectory</div>
+          <ul>
+            <li>Quantitative research: hypothesis &rarr; tested strategy, order-of-magnitude faster</li>
+            <li>Self-improvement: propose signal modifications, back-test, adopt those passing quality thresholds</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout"><span class="callout-tag">systemic risk (FSB 2024, López-Lira 2025)</span>
+          <ul>
+            <li>Many participants running similar LLM strategies &rarr; correlated actions</li>
+            <li>Cascade risk: simultaneous repositioning on a common signal</li>
+            <li>Regulators examining circuit-breakers for AI-driven strategies</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Governance of autonomy</div>
+    <h2>The fix for autonomy's risks is bounding autonomy</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Opportunity and systemic risk share one root cause — <em>autonomy</em>. So the governance question
+      is how much autonomy to grant, and over what action space.</p>
+    <div class="block frag"><div class="block-title">Governance principle: three output categories</div>
+      <ol>
+        <li><strong>Informational</strong> — analysis and recommendations</li>
+        <li><strong>Advisory</strong> — proposed actions for human approval</li>
+        <li><strong>Executive</strong> — acts on the financial system directly</li>
+      </ol>
+      Confine executive autonomy to pre-approved action spaces with hard limits. Anything outside that space
+      requires explicit human authorisation.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The research frontier</div>
+    <h2>Five open research problems</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Calibrated uncertainty.</strong> Well-calibrated uncertainty from token-level log-probabilities (Chen et al., 2024) beats post-hoc sampling on financial QA — essential for risk-adjusted decisions and regulatory documentation.</li>
+      <li class="frag"><strong>Comparables in thin markets.</strong> Embeddings trained on US text are biased toward US characteristics. Cross-market comparables need market-invariant, firm-sensitive embeddings.</li>
+      <li class="frag"><strong>Cross-lingual finance LLMs.</strong> Multilingual models do much worse on non-English filings (J-GAAP, HGB, local GAAP). Corpora and evaluation frameworks don't yet exist.</li>
+      <li class="frag"><strong>Feedback loops &amp; memorisation.</strong> Didisheim &amp; López-Lira (2025) formalise the LLM's "predictable memory" — look-ahead bias is worst at low frequencies for large models. Credible identification is open.</li>
+      <li class="frag"><strong>Faithful chain-of-thought.</strong> Stated reasoning may not be the actual computation ("unfaithful reasoning"). Verifying consistency between stated reasoning and output has direct regulatory relevance.</li>
+    </ol>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Why this matters</div>
+    <h2>Capability and responsibility are jointly necessary</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the stakes</span>
+      An LLM credit model that discriminates unlawfully <em>misallocates capital</em>. A trading system that
+      amplifies volatility <em>damages market infrastructure</em>. A valuation agent that hallucinates figures
+      <em>undermines the professional standards</em> that give financial analysis its social function.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The path forward</div>
+    <h2>Three disciplines that separate success from failure</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Measure everything.</strong> Retrieval quality, output faithfulness, fairness metrics, distributional drift. What is not measured cannot be managed — and in regulated finance, what is not managed creates liability.</li>
+      <li class="frag"><strong>Document honestly.</strong> Purpose, limitations, known failure conditions, the human-oversight structure that catches failures. Documentation is how institutional knowledge survives model updates and team turnover.</li>
+      <li class="frag"><strong>Escalate appropriately.</strong> Build human review into every consequential decision as a genuine check — not a legal formality — where the reviewer is empowered to override.</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">the closing line</span>
+      The tools are new. The professional standards are not.
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — code sketch, local AI, course map</h2>
+    <div class="secsub">An EDGAR monitor in code, the OpenClaw local assistant, and a summary of the whole stack.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · code sketch</div>
+    <h2>Event-triggered EDGAR monitor: classifying a filing</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The materiality classifier at the heart of the filing monitor — one LLM call returning structured JSON.</p>
+    <pre class="code">CLASSIFICATION_PROMPT = """Classify this newly filed SEC 8-K.
+Company: {company}
+Filing description: {description}
+
+Respond with valid JSON:
+{"materiality_score": 1-5, "event_type": "earnings|merger_acquisition|...",
+ "summary": "..."}"""
+
+def classify_filing(client, company, description):
+    message = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=256,
+        messages=[{"role": "user", "content":
+                   CLASSIFICATION_PROMPT.format(
+                       company=company, description=description)}]
+    )
+    return json.loads(message.content[0].text)</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · code sketch (cont.)</div>
+    <h2>Event-triggered EDGAR monitor: the polling loop</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Poll the EDGAR feed, classify anything new, and dispatch an alert when materiality clears a threshold.</p>
+    <pre class="code">def monitor_edgar(poll_interval=300):
+    seen_ids = set()
+    while True:
+        feed = feedparser.parse(EDGAR_RSS)
+        for entry in feed.entries:
+            if entry.id not in seen_ids:
+                seen_ids.add(entry.id)
+                result = classify_filing(client,
+                    entry.get("edgar_companyname"),
+                    entry.get("summary"))
+                if result["materiality_score"] >= 3:
+                    dispatch_alert(result)
+        time.sleep(poll_interval)</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · local AI</div>
+    <h2>OpenClaw: a private, local AI for finance professionals</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A design where sensitive financial data never leaves your machine, but you still reach it from
+      wherever you work.</p>
+    <ol>
+      <li><strong>Privacy by default</strong> — all processing local; financial data never leaves the machine</li>
+      <li><strong>Meet users where they work</strong> — queries via WhatsApp, Telegram, Slack, Signal</li>
+      <li><strong>Model flexibility</strong> — cloud (Claude, GPT-4) for capability; local (Llama, Mistral) for sensitivity</li>
+      <li><strong>Extensibility through skills</strong> — a Python function with a descriptive docstring becomes a callable tool</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · local AI (cont.)</div>
+    <h2>OpenClaw skills — and an assistant that writes its own</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Skill</th><th>What it does</th></tr>
+      <tr><td><code class="inline">/earnings AAPL</code></td><td>Guidance summary vs. consensus from the most recent transcript</td></tr>
+      <tr><td>Filing monitor</td><td>Daily digest of new SEC filings from a watchlist</td></tr>
+      <tr><td>Portfolio Q&amp;A</td><td>Natural-language questions about a local CSV portfolio</td></tr>
+      <tr><td>Macro digest</td><td>Morning briefing from central-bank speeches + market moves</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">self-modification</span>
+      The assistant can write new skills itself. "Write me a skill that monitors short-interest changes above 5%"
+      &rarr; a new Python file, the user reviews it, and the capability is permanently added.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · course map</div>
+    <h2>Course summary: the LLM finance stack</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Layer</th><th>What we have learned</th></tr>
+      <tr><td>Text &amp; sentiment</td><td>Embeddings, sentiment dictionaries, event extraction</td></tr>
+      <tr><td>Foundation models</td><td>Transformer, attention, pre-training, RLHF, fine-tuning</td></tr>
+      <tr><td>Domain adaptation</td><td>LoRA, PEFT, instruction tuning, training-data curation</td></tr>
+      <tr><td>Agents</td><td>ReAct, tool use, orchestrator-worker, multi-agent systems</td></tr>
+      <tr><td>Business valuation</td><td>DCF pipeline, scenario analysis, comparables, Monte Carlo</td></tr>
+      <tr><td>Credit risk</td><td>Constrained generation, calibration, SHAP, fairness, SR 11-7</td></tr>
+      <tr><td>Workflows</td><td>DAG patterns, event triggers, EDGAR integration</td></tr>
+      <tr><td>Research assistant</td><td>Hybrid RAG, persistent memory, OpenClaw</td></tr>
+      <tr><td>Governance</td><td>SR 11-7, EU AI Act, GDPR, MiFID II, incident response</td></tr>
+      <tr><td>Frontier</td><td>Multimodal, long-context, autonomous agents, open problems</td></tr>
+    </table>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the field is young</span>
+      Those reading this will shape its norms, its standards, and its failures as much as its successes. Use that
+      privilege deliberately.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

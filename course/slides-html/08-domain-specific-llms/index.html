@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 8 — Domain-Specific Financial LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 8 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 8</div>
+    <h1>Domain-Specific Financial LLMs</h1>
+    <div class="sub">When finance needs its own models — and when a general one will do.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Why finance needs its own models</strong> — what makes financial language genuinely different.</li>
+          <li class="frag"><strong>A taxonomy</strong> — encoder vs. decoder, built from scratch vs. adapted.</li>
+          <li class="frag"><strong>Pre-training strategies</strong> — the build-vs-continue decision and DAPT.</li>
+          <li class="frag"><strong>Benchmarks</strong> — where specialist models win, and where scale erases their edge.</li>
+          <li class="frag"><strong>Deployment</strong> — licensing, hosting, and the cost-vs-accuracy trade-off.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          The question isn't breadth <em>versus</em> depth — it's <em>how to combine them</em>.
+          A general model knows the world; a financial model knows the register. The art is
+          orienting a model toward financial text without losing the world knowledge that makes it useful.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- learning objectives -->
+  <section class="slide">
+    <div class="eyebrow">What you'll be able to do</div>
+    <h2>Five things to take away from today</h2>
+    <div class="title-rule"></div>
+    <p class="lead">By the end of the lecture you should be able to:</p>
+    <ol>
+      <li class="frag">Explain <em>why</em> general-purpose LLMs underperform on financial text, and name the linguistic features that create the gap.</li>
+      <li class="frag">Place any financial model in a taxonomy: encoder-only vs. decoder-only; from-scratch vs. domain-adaptive vs. fine-tune-only.</li>
+      <li class="frag">Apply <strong>domain-adaptive pre-training (DAPT)</strong> and design a balanced corpus.</li>
+      <li class="frag">Read FinQA / FLUE / FinBen results in terms of the task taxonomy.</li>
+      <li class="frag">Weigh licensing, compute, governance, and accuracy when choosing a model for production.</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Why domain-specific LLMs?</h2>
+    <div class="secsub">What makes financial language different — and why a general model misreads it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The central tension</div>
+    <h2>Breadth knows the world; finance demands precision</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A general model is trained on hundreds of billions of web tokens, so it has <em>breadth</em> —
+      world knowledge about options, CDS, and Basel III. But finance demands <em>specificity</em>.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">why "close enough" is dangerous here</span>
+      A model that confuses "basis risk" with "basis points", misreads an income-statement table, or
+      reads "liability" with its everyday connotation produces outputs that are not merely imprecise but
+      <strong>dangerous</strong> downstream.
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the resolution</span>
+      Not breadth <em>vs.</em> depth, but <em>how to combine them</em>. Domain-specific financial LLMs orient
+      pre-training, fine-tuning, or both toward the linguistic distribution of financial text.
+      First question: what actually makes that language different?
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Financial language is a distinct register</div>
+    <h2>Three things general corpora barely contain</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Financial text isn't just English with jargon — it differs structurally along three axes.</p>
+    <ol>
+      <li class="frag"><strong>Lexical specificity.</strong> Common words carry precise, sometimes <em>reversed</em> meanings:
+        "liability", "short", "haircut". The Loughran–McDonald dictionary catalogues ~350 words whose polarity
+        is neutral or inverted in SEC filings vs. general English.</li>
+      <li class="frag"><strong>Numeric density.</strong> "Revenue grew 12.3% YoY to \$4.7B" is fluent English <em>and</em>
+        an arithmetic claim. FinQA requires multi-step reasoning over tables from 10-Ks.</li>
+      <li class="frag"><strong>Tabular embedding.</strong> Income statements, balance sheets, and loan tapes encode meaning
+        in 2-D grids; standard tokenisation flattens them and loses the row/column alignment.</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the definition that follows</span>
+      A model is <em>financially literate</em> to the extent it resolves token meaning on all three dimensions.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A concrete cause</div>
+    <h2>The mismatch is, underneath, a tokenisation problem</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before a model can reason about "EBITDA", it has to chop the word into pieces.
+      A general model chops it badly.</p>
+    <ul>
+      <li class="frag">Tokenisers trained on financial corpora represent abbreviations (<code class="inline">EBITDA</code>,
+        <code class="inline">CUSIP</code>, <code class="inline">LIBOR</code>) as single tokens.</li>
+      <li class="frag">BloombergGPT trained a <em>custom</em> BPE tokeniser on its combined general+financial corpus
+        precisely so domain tokens stay compact.</li>
+    </ul>
+    <aside class="underhood" data-title="where the mismatch lives — sub-word splitting">
+      The mismatch operates at the <strong>sub-word</strong> level. A BPE tokeniser trained on general text may
+      split <code class="inline">EBITDA</code> into 4–5 sub-tokens, none of which carries financial meaning —
+      the burden then shifts onto the attention layers to reassemble it.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why it matters</span>
+      Fewer tokens per financial term ⇒ shorter sequences, lower compute, and crucially a <em>single embedding</em>
+      the model can specialise — instead of a fragile composition over fragments.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How general models fail</div>
+    <h2>Four concrete failure modes, one shared cause</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Failure mode</th><th>Evidence</th></tr>
+      <tr><td>Sentiment polarity inversion</td>
+        <td>"strong", "leverage", "unprecedented" flip valence; a general model fine-tuned on Financial PhraseBank
+          trails FinBERT despite <em>more</em> parameters.</td></tr>
+      <tr><td>Numerical hallucination</td>
+        <td>GPT-class models fabricate EPS / figures that diverge from the source 10-K (Kang &amp; Liu, 2023).</td></tr>
+      <tr><td>Table-parsing failure</td>
+        <td>On FinQA, GPT-3 (175B) zero-shot &lt;60%; fine-tuned specialists &gt;80%. Prompting alone does not close the gap.</td></tr>
+      <tr><td>Regulatory ambiguity</td>
+        <td>ISDA / Basel / SEC comment letters are a legal sub-dialect; SEC-BERT beats general BERT on NER and clause classification.</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">common root</span>
+      All four reflect the gap between the financial distribution and the web-text distribution that dominates
+      pre-training. The remedy: <em>shift the model's prior toward finance</em>.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>A taxonomy of financial LLMs</h2>
+    <div class="secsub">Every financial model is a point in a 2-D design space — and where it lands dictates everything.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two axes of classification</div>
+    <h2>Place any financial model on a 2-D map</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Where a model sits on this map dictates its compute cost, capability profile, and deployment constraints.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Axis 1 — Architecture</div>
+          <ul>
+            <li>Encoder-only (bidirectional): classification, extraction</li>
+            <li>Decoder-only (autoregressive): generation, multi-step reasoning</li>
+            <li>Encoder–decoder (seq2seq): summarisation, table-to-text</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Axis 2 — Training strategy</div>
+          <ul>
+            <li>From scratch (BloombergGPT)</li>
+            <li>Domain-adaptive continuation / DAPT (FinBERT)</li>
+            <li>Fine-tune / instruction-tune only (FinMA, InvestLM)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Definition — what makes a model "financial"</div>
+      A model is <em>financial</em> if its pre-training corpus has a significant financial fraction,
+      <em>or</em> it is fine-tuned on financial NLP tasks, <em>or</em> its tokeniser is extended for financial vocabulary.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The encoder–decoder family</div>
+    <h2>T5 in finance: read the whole source, then write</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Some tasks need a model that fully digests a long document before producing a single word of output.
+      That's what encoder–decoder models do.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Canonical model — T5 / FLAN-T5</div>
+          <ul>
+            <li>Earnings-call summarisation (hours of commentary → structured abstract)</li>
+            <li>Abstractive 10-K summarisation (100 pages → one-page narrative)</li>
+            <li>Financial table-to-text generation</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">when still preferred</span>
+          Constrained-output, extraction-heavy summarisation — even though large decoder-only models (FinMA)
+          now also handle these at scale.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="why the separate encoding pass helps">
+      A bidirectional <strong>encoder</strong> reads the full source; an autoregressive <strong>decoder</strong>
+      emits output token by token. The separate encoding pass lets the model attend to a long source
+      <em>before</em> writing a single output token — reducing copy errors and improving factual consistency.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The encoder family</div>
+    <h2>FinBERT, SEC-BERT, FinBERT-tone: the classification workhorses</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Model</th><th>Base / corpus</th><th>Specialisation</th></tr>
+      <tr><td>FinBERT (Araci 2019)</td>
+        <td>BERT-base, ~1.8B words: Reuters TRC2, Bloomberg news, PhraseBank</td>
+        <td>3-class sentiment; large F1 gain over BERT-base on PhraseBank</td></tr>
+      <tr><td>FinBERT-tone (Yang et al. 2020)</td>
+        <td>BERT-large, earnings calls + analyst reports + filings</td>
+        <td>LM tone: optimistic / pessimistic / litigious / uncertain / constraining</td></tr>
+      <tr><td>SEC-BERT (Loukas 2022)</td>
+        <td>BERT-base, ~3B tokens of EDGAR only (10-K/Q, 8-K, proxies)</td>
+        <td>NER + clause classification on regulatory text</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why default to encoders for classification</span>
+      110–340M params, open weights, well-understood fine-tuning. EDGAR is a coherent legal sub-dialect —
+      a news-trained model does <em>not</em> fully transfer to it.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Worked example</div>
+    <h2>"Cautiously optimistic" — and why the right model hears caution</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Transcript excerpt</div>
+      "While we are <strong>cautiously optimistic</strong> about the trajectory of our core business, we want to
+      flag meaningful <strong>headwinds</strong> in the European segment, driven by continued <strong>softness</strong>
+      in consumer demand and heightened <strong>competitive pressure</strong>."
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">General sentiment model</div>
+          Labels <span class="pill g">positive</span> — "optimistic" is a strong positive signal in
+          product-review / social-media text.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">FinBERT-tone</div>
+          Labels <span class="pill r">uncertain / pessimistic</span> — "cautiously optimistic" is a hedge;
+          "headwinds", "softness" are near-universally negative in this register.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">downstream stakes</span>
+      This tone feeds analyst sentiment indices that drive systematic trading strategies (Tetlock 2007).
+      A label error here is a <em>position</em> error.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The decoder family</div>
+    <h2>BloombergGPT, FinGPT, FinMA, InvestLM: four points on a spectrum</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Model</th><th>Scale</th><th>Approach</th></tr>
+      <tr><td>BloombergGPT</td><td>50B params, 708B tokens</td>
+        <td>From scratch; ~50/50 finance (363B FinPile) / general (345B Pile, Wiki, books). Beats peers on financial NLP, matches GPT-NeoX-20B on general tasks.</td></tr>
+      <tr><td>FinGPT</td><td>LoRA on LLaMA/ChatGLM/Falcon</td>
+        <td>Open-source, <em>data-centric</em>; fine-tune on a single A100 with live news APIs. Democratisation over peak accuracy.</td></tr>
+      <tr><td>FinMA (PIXIU)</td><td>7B LLaMA</td>
+        <td>Instruction-tuned on 136k financial instruction–response pairs across 5 task types. Strong in-distribution; weaker on unseen formats.</td></tr>
+      <tr><td>InvestLM</td><td>65B LLaMA</td>
+        <td>Instruction-tuned on a <em>small, curated</em> set (CFA Qs, research reports). Large base beats 7B models with fewer examples.</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Reading the four decoders</div>
+    <h2>The same objective, four different bets</h2>
+    <div class="title-rule"></div>
+    <p class="lead">All four decoders learn the same way — predict the next word — but each makes a different bet
+      on the accuracy-vs-accessibility trade.</p>
+    <ul>
+      <li class="frag"><strong>BloombergGPT</strong> buys peak accuracy with from-scratch compute few can match.</li>
+      <li class="frag"><strong>FinGPT</strong> trades peak accuracy for reproducibility on a single A100.</li>
+      <li class="frag"><strong>FinMA</strong> is strong in-distribution but brittle on unseen formats.</li>
+      <li class="frag"><strong>InvestLM</strong> shows a large base + small curated set can beat 7B models.</li>
+    </ul>
+    <aside class="underhood" data-title="the autoregressive objective">
+      Decoder LLMs are autoregressive — they predict each next token from the ones before it:
+      \[ \mathcal{L}_{\text{CLM}} = -\sum_t \log p_\theta(w_t \mid w_{&lt;t}). \]
+      The roughly 50/50 corpus split in BloombergGPT is deliberate: a finance-only model loses the world
+      knowledge that makes an LLM useful on finance tasks requiring general reasoning.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A practical heuristic</div>
+    <h2>Encoder or decoder? Ask what the output looks like</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Decision rule</div>
+      <ul>
+        <li><strong>Fixed label space</strong> (pos/neg/neutral, default/no-default)? ⇒ start with an
+          <strong>encoder</strong> (FinBERT, SEC-BERT): compact, fast, calibrated.</li>
+        <li><strong>Open-ended output</strong> (draft a risk section, answer from a 10-K)? ⇒ a
+          <strong>decoder</strong> is necessary.</li>
+      </ul>
+    </div>
+    <ul>
+      <li class="frag">Encoders: 110–340M, fast to fine-tune, well-understood.</li>
+      <li class="frag">Decoders: an order of magnitude larger, more inference memory, harder to calibrate for structured prediction.</li>
+      <li class="frag"><strong>Hybrid:</strong> a small decoder + a well-indexed document store (RAG) can substitute for a much larger model (see the LLM-agents lecture).</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Pre-training strategies for finance</h2>
+    <div class="secsub">Build a new model, or continue an existing one? The dominant answer is "continue."</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The build decision</div>
+    <h2>From scratch, or continue from a general model?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When Bloomberg built BloombergGPT it faced the choice every team confronts: train a new model on a
+      mixed corpus, or start from a general model and <em>continue</em> pre-training on financial text?</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">From scratch</div>
+          <ul>
+            <li>Clean control of tokeniser, positional encoding, corpus weights</li>
+            <li>Requires compute + data that <em>very few</em> organisations possess</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Continue (DAPT)</div>
+          <ul>
+            <li>Reuses learned representations of a general foundation model</li>
+            <li>Extends toward the domain at a fraction of the cost</li>
+            <li>The dominant strategy in practice</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Domain-adaptive pre-training</div>
+    <h2>DAPT: keep training the model, but on finance</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Take a finished general model and keep teaching it — feeding only financial text, gently,
+      so it leans toward the domain without forgetting what it knew.</p>
+    <ul>
+      <li class="frag">Gururangan et al. (2020): consistent downstream gains across 4 domains; <em>largest</em> when the domain is most dissimilar from pre-training.</li>
+      <li class="frag">Finance is strongly out-of-distribution for web-text models ⇒ DAPT gains should be large.</li>
+      <li class="frag">Budget: typically <strong>1–10B</strong> domain tokens vs. hundreds of billions for the original pre-training.</li>
+    </ul>
+    <aside class="underhood" data-title="DAPT, formally">
+      Given pre-trained parameters \(\theta_0\) of model \(M_0\) and an unlabelled domain corpus
+      \(\mathcal{D}_{\text{domain}}\),
+      \[ \theta^\star = \arg\min_\theta \, \mathcal{L}_{\text{PT}}(\theta;\, \mathcal{D}_{\text{domain}}), \]
+      where \(\mathcal{L}_{\text{PT}}\) is MLM (encoders) or CLM (decoders), the optimisation is
+      <em>initialised at</em> \(\theta_0\), and the learning rate is reduced (~10×) to mitigate
+      catastrophic forgetting. Then fine-tune \(M^\star\) on labelled task data.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How much data — and two refinements</div>
+    <h2>The first billion tokens does most of the work</h2>
+    <div class="title-rule"></div>
+    <p class="lead">DAPT shows diminishing returns: the largest gain is in the first ~1B domain tokens, with smaller increments thereafter.</p>
+    <ul>
+      <li class="frag">Encoders (110–340M): <strong>1–5B</strong> domain tokens usually suffice.</li>
+      <li class="frag">Decoders (7–70B): need proportionally larger corpora.</li>
+    </ul>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">TAPT (task-adaptive)</div>
+          Further pre-train on <em>unlabelled</em> examples from the task distribution before supervised
+          fine-tuning. Consistent gains, but needs task-specific unlabelled data.
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">catastrophic forgetting</span>
+          Narrow-domain continuation can degrade general ability. Mitigate with a reduced LR, a large enough
+          corpus, and <strong>replay</strong> — mixing a small fraction of general data back in.
+        </div>
+      </div>
+    </div>
+    <p class="small frag">Hirano (2024): Japanese financial LLMs confirm DAPT gains generalise across languages and sub-domains.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Corpus composition</div>
+    <h2>The web dwarfs every financial source — and that's the point</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Source</th><th>Scale</th><th>Quality</th><th>Access</th><th>Coverage</th></tr>
+      <tr><td>Bloomberg News</td><td>~300B</td><td>Very high</td><td>Proprietary</td><td>News, markets</td></tr>
+      <tr><td>SEC EDGAR</td><td>~50B</td><td>High</td><td>Open</td><td>Regulatory, corporate</td></tr>
+      <tr><td>Reuters TRC2</td><td>~2B</td><td>High</td><td>Licensed</td><td>Financial news</td></tr>
+      <tr><td>Financial PhraseBank</td><td>~5M</td><td>High</td><td>Open</td><td>Sentiment-labelled</td></tr>
+      <tr><td>Seeking Alpha</td><td>~10B</td><td>Medium</td><td>Open/API</td><td>Retail analysis</td></tr>
+      <tr><td>Earnings transcripts</td><td>~5B</td><td>High</td><td>Commercial</td><td>Corporate comms</td></tr>
+      <tr><td>SSRN / arXiv finance</td><td>~2B</td><td>High</td><td>Open</td><td>Academic research</td></tr>
+      <tr><td>General web (Pile)</td><td>~800B</td><td>Mixed</td><td>Open</td><td>Broad coverage</td></tr>
+    </table>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the defining fact</span>
+      General web text (~800B) dwarfs even the largest <em>financial</em> source. This asymmetry is exactly
+      <em>why DAPT beats from-scratch</em>: cheaply shift a model that already has the breadth, rather than rebuild it.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Example</div>
+    <h2>Building a central-bank communication model</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Goal:</strong> classify FOMC paragraphs as hawkish vs. dovish — which needs the precise
+      vocabulary of monetary policy ("accommodation", "balance-sheet normalisation", "neutral rate").</p>
+    <div class="block">
+      <div class="block-title">A deliberately narrow corpus</div>
+      <ol>
+        <li>FOMC statements + minutes 1994–present (~50M tokens) — target distribution.</li>
+        <li>Other central-bank publications: ECB, BoE, Beige Books (~200M).</li>
+        <li>Monetary-policy academic papers, SSRN/NBER (~500M).</li>
+        <li>Financial news mentioning policy keywords (1–2B).</li>
+      </ol>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the trade it makes</span>
+      This model would <em>lose</em> on general financial tasks — but on monetary-policy communication it
+      <em>beats</em> a general model fine-tuned on the same labels, because pre-training aligns with both the
+      vocabulary and the pragmatics of central-bank language.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Benchmark comparisons</h2>
+    <div class="secsub">Where specialist models win, where scale erases their edge — and what the numbers hide.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The standard benchmarks</div>
+    <h2>FinQA, FLUE, FinBen each stress a different muscle</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Bench</th><th>What it tests</th><th>Headline numbers</th></tr>
+      <tr><td>FinQA</td>
+        <td>8,281 QA pairs over 10-K/Q tables + prose; multi-step arithmetic. The hardest standard benchmark.</td>
+        <td>Fine-tuned specialists ~68–72% exec. acc.; zero-shot GPT-4 class ~55–60%.</td></tr>
+      <tr><td>FLUE</td>
+        <td>5-task NLU suite (GLUE analogue): sentiment, headline class., NER, FiQA QA, STS.</td>
+        <td>FinBERT &gt; general BERT/RoBERTa; biggest margins on sentiment + NER.</td></tr>
+      <tr><td>FinBen</td>
+        <td>36 datasets, 24 tasks, 5 capability categories incl. generation + risk mgmt.</td>
+        <td>Designed to test <em>decoder</em> open-ended generation, not just classification.</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">how to read the numbers</span>
+      Each benchmark stresses a different capability. FinQA isolates table + arithmetic reasoning;
+      FLUE isolates lexical NLU; FinBen pushes open-ended generation. A model strong on one is <em>not</em>
+      automatically strong on the others.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Scoring FinQA</div>
+    <h2>"Execution accuracy" — was the final number right?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">FinQA doesn't grade the wording of the reasoning — it checks whether the model's computed answer
+      matches the gold number, allowing a tiny tolerance for rounding.</p>
+    <aside class="underhood" data-title="execution accuracy, formally">
+      \[ \mathrm{EA} = \frac{1}{|\mathcal{Q}|}\sum_{q\in\mathcal{Q}}
+         \mathbf{1}\!\left[\,|\hat a_q - a_q| \le \epsilon\,\right], \]
+      with \(\epsilon = 0\) for exact match, or a small relative threshold (~1%) for rounding.
+    </aside>
+    <div class="block frag"><div class="block-title">Why a tolerance at all?</div>
+      A model can execute the right reasoning program yet differ from the gold answer by a rounding step
+      (e.g. reporting a ratio to two decimals). A small relative \(\epsilon\) credits correct <em>reasoning</em>
+      without rewarding spurious over-precision.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where the edge lives</div>
+    <h2>FinLLMs win on words, lose on reasoning at scale</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">FinLLMs win</div>
+          Tasks tied to domain <em>lexical semantics</em>:
+          <ul>
+            <li>PhraseBank sentiment — FinBERT ≫ BERT/RoBERTa, even after equal fine-tuning.</li>
+            <li>EDGAR NER — SEC-BERT ≫ general BERT (entity surface forms differ).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout"><span class="callout-tag">general models win / tie</span>
+          Tasks needing broad knowledge or deep reasoning:
+          <ul>
+            <li>Macro / regulatory-history / geopolitical questions.</li>
+            <li>FinQA with chain-of-thought on a large model often matches a smaller specialist — reasoning is a function of <em>scale</em>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The scaling crossover</div>
+    <h2>The bigger the model, the smaller the domain advantage</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Domain advantage vs. model scale</div>
+      The domain advantage is roughly <em>inversely proportional to model scale</em> at fixed difficulty.
+      <ul>
+        <li>≤7B: DAPT gives large, consistent gains.</li>
+        <li>≥70B: gains persist only for lexically sensitive tasks (sentiment, tone, NER); they fade for long-document reasoning.</li>
+      </ul>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">a countervailing result</span>
+      Rahimikia &amp; Drinkall: year-specific FinLLMs can still beat far larger general models on return prediction —
+      once one controls for look-ahead bias.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Read every number with suspicion</div>
+    <h2>Two caveats every benchmark figure carries</h2>
+    <div class="title-rule"></div>
+    <div class="alert callout frag">
+      <span class="callout-tag">data contamination</span>
+      A benchmark may already sit in a model's pre-training corpus. Several large models are <em>suspected</em>
+      to have seen PhraseBank / FinQA train splits, inflating apparent performance. Rigorous evaluation needs
+      held-out test sets with <strong>temporal cutoffs</strong> after the model's knowledge cutoff — which most
+      published benchmarks do not enforce.
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">hallucination is not solved by domain pre-training</span>
+      It can be <em>worsened</em>: a model trained on financial news learns to generate plausible-but-unverified
+      statistics. Kang &amp; Liu (2023) find finance-trained models <em>more</em> likely to fabricate specific
+      figures. Retrieval augmentation, constrained generation, and factual verification matter just as much for
+      FinLLMs as for general models.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Practical deployment considerations</h2>
+    <div class="secsub">Topping a benchmark is not the same as being deployable.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Deployment is a different question</div>
+    <h2>The best benchmark score may be undeployable</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      A model that tops FinQA but cannot be <em>licensed</em> commercially, needs a compute budget you cannot
+      sustain, or produces outputs you cannot <em>trace</em> to source for audit — is not a deployable model.
+    </div>
+    <p class="lead">Three consequential dimensions beyond accuracy:</p>
+    <ol>
+      <li class="frag">Licensing &amp; data governance</li>
+      <li class="frag">Hosting strategy (cloud API vs. on-prem)</li>
+      <li class="frag">Cost-vs-performance ⇒ hybrid architectures</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Licensing, hosting, governance</div>
+    <h2>Can you legally use it, and can you afford to host it?</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Model</th><th>License</th></tr>
+      <tr><td>BloombergGPT</td><td>Proprietary, not released (terminal subscribers only)</td></tr>
+      <tr><td>FinBERT (Araci); FinBERT (Yang)</td><td>Apache 2.0 — commercial use OK</td></tr>
+      <tr><td>FinGPT</td><td>MIT</td></tr>
+      <tr><td>InvestLM / FinMA</td><td>Research-only (LLaMA-1 / LLaMA-2 license structures)</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Data governance</div>
+      GDPR / GLBA / CCPA constrain training on customer data. Customer balances, transactions, and credit scores
+      generally <em>cannot</em> train a model for <em>other</em> customers without consent. <strong>Synthetic data</strong>
+      is a common workaround — at the cost of distribution shift.
+    </div>
+    <p class="small frag"><strong>Hosting.</strong> FinBERT (110–340M): single A10G, sub-50ms, fits in memory.
+      7–50B decoders: multi-GPU; <strong>quantisation</strong> (GPTQ, AWQ, QLoRA) cuts memory 2–4× to fit
+      13–30B on one server. 50B+: cluster-scale, few institutions.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Cost vs. performance</div>
+    <h2>Let a small model handle the easy majority</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The cheapest path is rarely one model. Send the easy, high-confidence cases to a small fast model
+      and route only the hard ones to a large model or a human.</p>
+    <div class="block">
+      <div class="block-title">Hybrid routing pattern</div>
+      A small, fast FinLLM handles the easy majority; low-confidence queries route to a larger model or a human.
+      Effective when difficulty is <strong>skewed</strong> — a large "easy" head + a small "hard" tail.
+    </div>
+    <aside class="underhood" data-title="effective cost per correct output">
+      With per-query model cost \(c_m\), human review cost \(c_h\), model correctness \(p_m\), and routed fraction \(\rho\):
+      \[ C_{\text{eff}}(m,\rho) = \frac{c_m + \rho\,c_h}{p_m + \rho(1-p_m)}, \]
+      assuming human review recovers all errors. Minimise subject to \(p_m + \rho(1-p_m) \ge p^\star\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Cost vs. performance</div>
+    <h2>RAG: ground the model instead of growing it</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Grounding instead of growing</div>
+      A compact 7–13B decoder grounded in a well-indexed EDGAR store can match a larger ungrounded model on
+      document tasks — at lower cost and with <strong>full traceability</strong> (an SR 11-7 / regulatory requirement).
+    </div>
+    <ul>
+      <li class="frag">The retrieved passage pins generated figures to source text, cutting numerical hallucination.</li>
+      <li class="frag">Traceability is not a nicety: model-risk regimes <em>require</em> an auditable link from output back to evidence.</li>
+      <li class="frag">This makes a small grounded model a regulatory-grade alternative to a large ungrounded one.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Example</div>
+    <h2>The hybrid wins the accuracy–cost frontier</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Task:</strong> classify "risk factor" sections of 10-Ks into 15 categories for 2,000
+      companies/year; 3–10 paragraphs each (≈20,000–60,000 paragraphs).</p>
+    <table>
+      <tr><th>Option</th><th>Accuracy</th><th>Annual cost</th></tr>
+      <tr><td>70B general model via API (all paragraphs)</td><td>93%</td><td>\$200–\$600</td></tr>
+      <tr><td>Fine-tuned FinBERT-base on a T4 GPU</td><td>88%</td><td>~\$400 server</td></tr>
+      <tr><td><strong>Hybrid</strong> (FinBERT + route 12% low-conf. to 70B)</td><td><strong>92%+</strong></td><td>~<strong>\$250</strong></td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">lesson</span>
+      The hybrid dominates either model <em>alone</em> on the accuracy–cost frontier. The break-even point is
+      highly sensitive to the <em>confidence distribution</em>, which must be measured on a held-out validation
+      set — not assumed.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Lecture 8 — five things to remember</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Register.</strong> Financial language = specialised vocabulary + numeric density +
+        tabular structure ⇒ a systematic general-model gap. The LM dictionary quantifies the inversion starkly.</li>
+      <li class="frag"><strong>Two families.</strong> Encoders (FinBERT, SEC-BERT) for fixed-label classification;
+        decoders (BloombergGPT, FinGPT, FinMA, InvestLM) for open-ended generation and reasoning.</li>
+      <li class="frag"><strong>DAPT</strong> is the broadly applicable strategy: continue the pre-training objective
+        on a financial corpus blended with enough general text.</li>
+      <li class="frag"><strong>Benchmarks.</strong> FinLLMs win on lexically sensitive tasks; lose the edge at large
+        scale on reasoning. Watch contamination and hallucination.</li>
+      <li class="frag"><strong>Deployment.</strong> License audit, governance, hosting, and the accuracy–cost
+        trade-off. <strong>Hybrid routing</strong> dominates single-model deployments.</li>
+    </ol>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extended &amp; optional material</h2>
+    <div class="secsub">Architecture internals, replay, secondary corpora, quantisation, and the hallucination stack.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix A · architecture</div>
+    <h2>Encoder–decoder internals, step by step</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Full encoder–decoder (T5) processing of a financial document:</p>
+    <ol>
+      <li><strong>Bidirectional encoder</strong> attends over the entire 10-K source ⇒ each source token sees full context.</li>
+      <li><strong>Cross-attention</strong> lets each decoder step query the encoded source.</li>
+      <li><strong>Autoregressive decoder</strong> emits the summary token by token.</li>
+    </ol>
+    <div class="block"><div class="block-title">Why factual consistency improves</div>
+      Because the encoder consumes the <em>whole</em> source before generation starts, the decoder can copy
+      figures and entities against a complete representation — fewer fabricated numbers in extraction-heavy
+      summarisation than a pure decoder reading left-to-right.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix B · forgetting</div>
+    <h2>Three ways to fight catastrophic forgetting</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Continued pre-training on a narrow corpus degrades general language ability. Three mitigations, in increasing cost:</p>
+    <ol>
+      <li class="frag"><strong>Reduced learning rate</strong> (~10× below original PT): cheapest; limits how far weights drift.</li>
+      <li class="frag"><strong>Sufficiently large domain corpus</strong> relative to total tokens processed: keeps the update well-conditioned.</li>
+      <li class="frag"><strong>Replay</strong>: interleave a small fraction of original general-corpus data with the domain corpus — modest extra cost, materially less forgetting.</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">stacking the stages</span>
+      TAPT can sit on top: DAPT (broad domain) → TAPT (task-distribution, unlabelled) → supervised fine-tuning.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix C · corpora</div>
+    <h2>Secondary corpus notes: richness vs. access</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Bloomberg archive:</strong> decades of professionally edited news — consistent terminology,
+        calibrated tone, high factual density. The gold standard, but proprietary (a barrier for academia / open source).</li>
+      <li class="frag"><strong>SEC EDGAR:</strong> free since 1996; full US public-company universe; continuously updated.
+        Caveat: uneven quality (small-firm boilerplate) and XML structure needs careful parsing to split prose from tables/metadata.</li>
+      <li class="frag"><strong>News aggregators</strong> (Reuters, AP, Seeking Alpha, subreddits): broader topical coverage,
+        lower editorial quality. Reuters TRC2 is a standard source.</li>
+      <li class="frag"><strong>Analyst reports:</strong> among the richest, most precise texts — almost entirely proprietary;
+        licensing at pre-training scale is cost-prohibitive.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix D · on-prem</div>
+    <h2>Quantisation: fitting a big decoder on one server</h2>
+    <div class="title-rule"></div>
+    <p class="lead">To fit a 13–30B decoder on a single high-memory GPU server:</p>
+    <table>
+      <tr><th>Method</th><th>Idea</th><th>Effect</th></tr>
+      <tr><td>GPTQ</td><td>Post-training weight quantisation (4-bit)</td><td>2–4× memory reduction</td></tr>
+      <tr><td>AWQ</td><td>Activation-aware weight quantisation</td><td>Preserves salient channels</td></tr>
+      <tr><td>QLoRA</td><td>4-bit base + LoRA adapters in fine-tuning</td><td>Train + serve cheaply</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the enabling trade</span>
+      All trade a modest accuracy cost for a large memory saving — the enabling technology for on-prem
+      deployment of mid-scale decoders where data residency forbids a cloud API.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix E · hallucination</div>
+    <h2>The production hallucination-mitigation stack</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Domain pre-training does <em>not</em> remove hallucination. A production stack layers:</p>
+    <ol>
+      <li class="frag"><strong>RAG</strong>: ground generation in retrieved, verified passages.</li>
+      <li class="frag"><strong>Constrained / structured generation</strong>: schema-enforced outputs.</li>
+      <li class="frag"><strong>Self-consistency</strong>: \(K\) samples, majority vote (numerical reasoning).</li>
+      <li class="frag"><strong>Claim decomposition</strong> + automated factual verification against source.</li>
+      <li class="frag"><strong>Confidence elicitation + abstention</strong>: route low-confidence to humans.</li>
+    </ol>
+    <div class="block frag"><div class="block-title">Governance hook</div>
+      SR 11-7 model-risk management and (a forthcoming lecture) the EU AI Act / MiFID II make <em>traceability</em>
+      a requirement — which is itself an argument for RAG-grounded architectures over ungrounded large models.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

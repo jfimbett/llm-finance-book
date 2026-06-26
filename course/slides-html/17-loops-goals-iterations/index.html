@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 17 — Loops, Goals, and Iterations</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 17 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 17</div>
+    <h1>Loops, Goals, and Iterations</h1>
+    <div class="sub">Agents, skills, and hooks — designing iterative systems, not writing better prompts.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>From prompts to loops</strong> — why one-shot prompting is fragile, and what a goal-directed loop fixes.</li>
+          <li class="frag"><strong>Goals as control objects</strong> — concrete, checkable, decomposable; written as a file.</li>
+          <li class="frag"><strong>Agents, skills, hooks</strong> — the who, the how, and the what-it-may-never-violate.</li>
+          <li class="frag"><strong>Two worked loops</strong> — a transparent root-finder and a nine-agent credit-stress memo.</li>
+          <li class="frag"><strong>Oversight &amp; patterns</strong> — sign-off, failure modes, and five reusable designs.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          The methodology capstone of the course. Almost every consequential use of an LLM in finance
+          is a <em>process</em> — a sequence of calls, checks, and revisions around a goal the first call never reaches.
+          Concrete tooling (Claude Code, Codex, the SDKs, Git) lives in the appendices.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>From linear prompts to iterative systems</h2>
+    <div class="secsub">The prompt is not the unit of design — the loop is.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The thesis</div>
+    <h2>The prompt is not the unit of design — the loop is</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Earlier lectures treated the LLM as a <em>function</em>: prompt in, completion out.
+      Here is the turn: almost every serious use is a <strong>process</strong>, not a single call.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          We study the <strong>design of iterative agentic systems</strong> — a sequence of model calls,
+          tool calls, validations, and revisions around a goal the first call never achieves — not any single tool.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">What you will leave with</div>
+          A vocabulary — <em>goals, agents, skills, hooks, stopping rules</em> — and two worked loops:
+          a transparent root-finder and a nine-agent credit-stress loop.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why the old way breaks</div>
+    <h2>Why one-shot prompting is fragile</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A single prompt is an <strong>open-loop controller</strong>: its output is used downstream
+      with no channel to correct an error. The model never learns whether it was right.</p>
+    <ol>
+      <li class="frag"><strong>Errors propagate un-attenuated.</strong> One forward pass to parse, extract,
+        compute, and narrate &rArr; an early slip corrupts everything after it, unnoticed.</li>
+      <li class="frag"><strong>The spec exceeds one pass.</strong> Interacting constraints — turnover, sector caps,
+        tracking error, tax lots — are satisfied <em>jointly</em>, and joint satisfaction falls roughly multiplicatively.</li>
+      <li class="frag"><strong>The model cannot see the environment.</strong> It guesses the schema, the rate,
+        whether a file exists — acting on a <em>hallucinated</em> world.</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      No analyst writes a DCF top-to-bottom and submits it. They sketch, sanity-check the terminal value,
+      walk back an over-ceiling margin, re-run, circulate. Expert workflow is intrinsically <em>iterative</em>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The core mechanism</div>
+    <h2>The goal-directed loop: five phases that repeat</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Observe → Propose → Act → Evaluate → Revise</strong>, repeating until the goal holds
+      or a stopping rule fires.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li><strong>Observe</strong> the state (files, tests, data, prior outputs)</li>
+          <li><strong>Propose</strong> an action toward the goal, given that state</li>
+          <li><strong>Act</strong>: execute it &rArr; a new state</li>
+          <li><strong>Evaluate</strong>: run checks; does the success test hold?</li>
+          <li><strong>Revise</strong>: fold the feedback back in, return to Observe</li>
+        </ul>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="the loop as a recurrence">
+          State \(s_t\); goal \(G\) with success predicate \(\mathrm{ok}(\cdot)\). Each step:
+          \[ a_t=\pi(s_t),\quad s_{t+1}=\mathrm{Act}(a_t),\quad e_{t+1}=\mathrm{Eval}(s_{t+1}). \]
+          <strong>Revise</strong> feeds the concrete evidence \(e_{t+1}\) of what went wrong back into the next
+          <strong>Propose</strong> — the error-correction channel one-shot prompting lacks.
+        </aside>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the Evaluate phase carries most of the value</span>
+      A loop is only as good as its feedback. A weak success test converges happily to something useless.
+      Design the feedback like you design the prompt.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A crucial distinction</div>
+    <h2>Looping vs. just repeating — and when <em>not</em> to loop</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Genuine iteration carries information forward; mere repetition just re-rolls the dice.
+      The difference decides whether a loop helps at all.</p>
+    <aside class="underhood" data-title="iteration vs. repetition, formally">
+      Genuine iteration: \(a_{t+1}=\pi(s_{t+1},e_{t+1},h_t)\) — the next action depends on the
+      <em>evaluated feedback</em>. If \(a_{t+1}\perp e_{t+1}\), it is <strong>mere repetition</strong> (sampling),
+      not iteration.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">anti-pattern — spurious repetition</span>
+      Re-prompt "fix the failing test" without reading whether it now passes. Same number of calls;
+      <em>no information carried forward</em>; partial edits may leave the code worse.
+    </div>
+    <p class="frag"><strong>Loop only if:</strong> output is mechanically verifiable; reasoning varies with input;
+      the first attempt is likely wrong <em>and</em> costly; no irreversible harm before a human gate.</p>
+    <table class="frag">
+      <tr><th>Task</th><th>Right tool</th><th>Why</th></tr>
+      <tr><td>Bond yield to maturity</td><td>Pure function</td><td>Deterministic</td></tr>
+      <tr><td>Daily price-file download</td><td>Cron job</td><td>Scheduled, no reasoning</td></tr>
+      <tr><td>Figures from a novel filing</td><td>Loop + validator</td><td>Checkable output</td></tr>
+      <tr><td>Harden a valuation model</td><td>Agentic loop</td><td>Costly silent errors</td></tr>
+    </table>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Goals as control objects</h2>
+    <div class="secsub">The setpoint of the loop — concrete, checkable, decomposable, and written down.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What a good goal is made of</div>
+    <h2>Concrete, checkable, decomposable — one property per phase</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The goal is the loop's <strong>setpoint</strong>: it governs behavior, decides when to stop,
+      and decides what is acceptable.</p>
+    <ul>
+      <li class="frag"><strong>Concrete</strong> (for <em>Act</em>) — names the artifact.
+        "Improve the model" &rarr; "raise OOS AUC of <code class="inline">credit.py</code>, measured by
+        <code class="inline">backtest.py</code>, to \(\geq 0.78\)."</li>
+      <li class="frag"><strong>Checkable</strong> (for <em>Evaluate</em>) — supplies the predicate \(\mathrm{ok}(\cdot)\):
+        "every rubric dimension \(\geq 90\) via <code class="inline">/score-content</code>."</li>
+      <li class="frag"><strong>Decomposable</strong> (for <em>Revise</em>) — splits into independently checkable subgoals;
+        localizes failures and bounds context.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">a complete goal specifies three distinct things</span>
+      <strong>Success criterion</strong> (stop because we won) · <strong>stopping rule</strong> (stop anyway: budget,
+      no-progress) · <strong>anticipated failure modes</strong> (named in advance, each becomes a check).
+      The common defect: specifying only the first.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Make the goal durable</div>
+    <h2>Write the goal as a file — ideally executable</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A goal in a chat prompt vanishes when context rolls over. A goal in a <em>file</em> is durable,
+      auditable, version-controlled — and, when executable, usable <strong>directly as the Evaluate phase</strong>.</p>
+    <pre class="code"># TASK: Harden the FCF valuation script
+## Artifact
+valuation/dcf.py  (value_company(ticker) -> float)
+## Success criteria
+- pytest tests/test_dcf.py exits 0
+- Coverage of dcf.py >= 90%
+- No division-by-zero on the 12 edge-case tickers
+## Stopping rule
+- Halt after 6 iterations, or 2 with no new passing tests.
+## Anticipated failure modes
+- Passing tests by catching all exceptions and returning 0
+  -> forbidden; every value finite & positive or raise ValueError.</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">the decisive move</span>
+      Make "done" and "acceptable" the <em>same code</em> — a <code class="inline">validate.sh</code> that exits 0
+      iff the goal is met, wired into Evaluate and enforced before commit.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A diagnostic</div>
+    <h2>Bad goals vs. good goals — each repair re-enables a phase</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Bad goal</th><th>Good goal</th><th>Repair adds</th></tr>
+      <tr><td>"Improve the chapter."</td><td>Every dimension \(\geq 90\) via <code class="inline">/score-content</code>.</td><td>Checkable predicate</td></tr>
+      <tr><td>"Make the model accurate."</td><td>Held-out AUC \(\geq 0.78\) on 2023; no post-origination features.</td><td>Artifact, target, leakage guard</td></tr>
+      <tr><td>"Get tests passing."</td><td><code class="inline">pytest</code> 0 <em>and</em> coverage \(\geq 90\%\); swallowing exceptions forbidden.</td><td>Anti-gaming guard</td></tr>
+      <tr><td>"Keep improving the portfolio."</td><td>Max Sharpe s.t. turnover \(\leq 30\%\); stop after 8 runs or gain \(&lt; 0.05\).</td><td>Constraint + stopping rule</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">each bad goal disables a loop phase</span>
+      Unconcrete, uncheckable, or unbounded. <strong>A loop is only ever as good as the goal you hand it</strong> —
+      no amount of clever iteration recovers a broken goal.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Agents, skills, and hooks</h2>
+    <div class="secsub">The who, the how, and the guardrails that don't depend on the agent.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The who</div>
+    <h2>Agents are specialized iterators — five roles</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Useful agents are not chatbots-with-tools; each does <em>one</em> transformation on project state
+      and hands off.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Worker</strong> — produces/transforms the artifact (the only mandatory role)</li>
+          <li class="frag"><strong>Critic</strong> — structured judgment without rewriting; the natural-language <em>gradient</em></li>
+          <li class="frag"><strong>Validator</strong> — objective deterministic pass/fail; most often omitted, most missed</li>
+          <li class="frag"><strong>Planner</strong> — decomposes a goal into ordered subtasks</li>
+          <li class="frag"><strong>Refactorer</strong> — improves structure, preserves behavior</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout frag">
+          <span class="callout-tag">critic vs. validator, in finance terms</span>
+          The critic is the senior reviewer who says the model <em>looks</em> aggressive; the validator is the limit
+          system that simply <em>rejects</em> the trade. A loop of only workers + critics can drift confidently in
+          a wrong direction.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">central discipline</span>
+      An agent's value is the <em>durable change to state</em> (files, green tests, a commit) — not the text it prints.
+      Measure it by its diff.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The how</div>
+    <h2>Skills are reusable procedures — a skill ≈ a function</h2>
+    <div class="title-rule"></div>
+    <p class="lead">If agents are the <em>who</em>, a skill is the <em>how</em>: a named, composable sequence run the
+      same way every time (<code class="inline">/draft-chapter</code>, <code class="inline">/score-content</code>,
+      <code class="inline">/iterate-book-quality</code>).</p>
+    <div class="block">
+      <div class="block-title">The skill–function correspondence</div>
+      A <em>name</em> you invoke it by · <em>scoped inputs</em> · a <em>single responsibility</em> ·
+      <em>repeatable</em> (same inputs &rarr; same procedure) · <em>composable</em> (one skill calls another:
+      <code class="inline">/draft-chapter</code> &rarr; <code class="inline">/score-content</code> &rarr;
+      <code class="inline">/refine-until-threshold</code>).
+    </div>
+    <ul>
+      <li class="frag"><strong>Freeze conventions:</strong> <code class="inline">/new-topic</code> creates
+        chapter/lecture/notebook \(N\) together — numbering <em>cannot</em> drift.</li>
+      <li class="frag"><strong>Reduce entropy:</strong> every invocation pushes a long-running project <em>back</em>
+        toward consistency. The skill library is the project's standard operating procedures.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The guardrail</div>
+    <h2>Hooks: guardrails that don't depend on the agent</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A <strong>hook</strong> runs automatically on an event (pre-tool, post-write, session-end),
+      <em>outside the agent's control</em>. Its defining property: it does not depend on the agent's cooperation.</p>
+    <p class="frag"><strong>Pre-action</strong> = pre-trade limit check (can block). &nbsp;
+      <strong>Post-action</strong> = post-trade surveillance (validate / record / repair / escalate).</p>
+    <pre class="code">#!/usr/bin/env bash
+# check-citations.sh -- post-write validation hook
+set -euo pipefail
+BIB="book/bibliography.bib"; MISSING=0
+for f in $(git diff --cached --name-only | grep '\.tex$'); do
+  for key in $(grep -oE '\\cite\{[^}]+\}' "$f" \
+               | sed -E 's/\\cite\{([^}]+)\}/\1/'); do
+    grep -q "{$key," "$BIB" || { echo "Unresolved: $key"; MISSING=$((MISSING+1)); }
+  done
+done
+[ "$MISSING" -gt 0 ] && { echo "FAIL"; exit 1; }; echo "OK"; exit 0</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">the move</span>
+      A hook converts "is this good?" (opinion) into "compiles, citations resolve, scores \(\geq\) threshold"
+      (a <em>reproducible bit</em>). Hang the stopping condition on the bit, not on the model's confidence.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Making feedback trustworthy</div>
+    <h2>A passing check is necessary, not sufficient</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The loop optimizes for the <em>check</em>, not the goal. If the check is easy to pass without
+      meeting the goal, an optimizing loop <strong>will</strong> find the gap.</p>
+    <aside class="underhood" data-title="Goodhart, formally">
+      The loop optimizes for \(V=\text{pass}\), not the true goal \(G\). Unless
+      \[ \{x: V(x)=\text{pass}\}\subseteq\{x: G\text{ met}\}, \]
+      there exist artifacts that pass yet fail — and an optimizing loop will find them (Goodhart's law).
+    </aside>
+    <p class="frag"><strong>Make \(V\) hard to satisfy without meeting \(G\):</strong> outcome-tied not proxy checks;
+      <em>diverse</em> checks (game them all at once); validator logic out of the worker's reach;
+      a hidden release-time holdout. (Model-risk management's playbook.)</p>
+    <div class="block frag">
+      <div class="block-title">Failure hooks — what fires on a red verdict (escalating)</div>
+      <strong>Block</strong> (refuse) · <strong>Revert</strong> (undo to last-good) · <strong>Escalate</strong>
+      (hand to a human) · <strong>Re-enter</strong> (feed the failure back as next input).
+      The operational-risk playbook in miniature.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Designing an iteration loop</h2>
+    <div class="secsub">A seven-step template, its pseudocode, and why state must live on disk.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The template</div>
+    <h2>Seven steps — and three of them must stay separate</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Read state</strong> — ground truth from disk + version control first</li>
+      <li class="frag"><strong>State the next local goal</strong> — a checkable target for <em>this</em> turn</li>
+      <li class="frag"><strong>Propose</strong> a change (reason)</li>
+      <li class="frag"><strong>Apply</strong> it (act — write to disk; only now has the world changed)</li>
+      <li class="frag"><strong>Validate</strong> — a deterministic check; the agent does <em>not</em> grade its own work</li>
+      <li class="frag"><strong>Interpret feedback</strong> — direction and magnitude of the error</li>
+      <li class="frag"><strong>Decide:</strong> stop / continue / <strong>escalate</strong></li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">two non-negotiables</span>
+      Validation (5), interpretation (6), and decision (7) are <em>separate</em> — collapsing them removes the
+      independent check. And the decision always includes <strong>escalate</strong>: a loop that can only succeed
+      or grind forever <em>will</em> grind forever.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From template to code</div>
+    <h2>Pseudocode — mapped onto Claude Code primitives</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Every line corresponds to a primitive you already know: file reads, a checked-in goal,
+      a skill that validates, a commit that records.</p>
+    <pre class="code">state &lt;- read_state()            # file reads
+goal  &lt;- read_goal()             # checked-in goal file
+best  &lt;- evaluate(state, goal)
+while not goal.satisfied(best) and not goal.budget_exhausted():
+    local  &lt;- choose_objective(state, best)
+    change &lt;- propose(state, local)     # REASON (ReAct)
+    state2 &lt;- apply(change, state)      # ACT: write to disk
+    report &lt;- validate(state2)          # a SKILL: deterministic check
+    if report.improves_on(best):
+        commit(state2, summarize(change, report))   # audit trail
+        state, best &lt;- state2, report.score         # accept
+    else:
+        state &lt;- rollback(state)                     # reject (Self-Refine)
+    if stalled(history) or report.requires_human:
+        escalate(state, report); break               # hook-gated
+emit_report(state, best, history)                     # hook-gated</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">why this is robust</span>
+      The accept/reject discipline makes the loop robust to a <em>noisy proposer</em>: a bad proposal costs one
+      iteration, not the whole run — because validation and version control are deterministic.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Memory and termination</div>
+    <h2>State lives on disk; stop on a budget</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">design for amnesia</span>
+      The agent has no durable memory between turns — it is a new employee every morning who reads the files,
+      does a day's work, commits it, and is replaced overnight. <strong>Write before you forget.</strong>
+    </div>
+    <p class="frag"><strong>Persists:</strong> files, git history (long-term memory), validation reports, a
+      human-readable status scratchpad. <strong>Lost:</strong> chain-of-thought, unsaved values.
+      Bonus: all-on-disk state makes the loop <em>resumable</em>.</p>
+    <div class="block frag">
+      <div class="block-title">Stopping rules — exactly one must be guaranteed-terminating</div>
+      Success · convergence (no gain for \(k\) steps) · <strong>budget exhaustion (mandatory)</strong> ·
+      human-review-required. Convergence/escalation make the loop <em>smart</em>; the budget makes it <em>safe</em>.
+    </div>
+    <p class="small frag"><strong>Economics:</strong> marginal value shrinks near the goal while cost stays flat —
+      stop where marginal value crosses marginal cost (latency binds interactively; dollars bind overnight).</p>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Example 1: derivative-free root finding</h2>
+    <div class="secsub">The whole machinery, stripped bare — a loop that improves on feedback alone.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The stripped-bare loop</div>
+    <h2>A loop that improves using feedback alone</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Find an \(x\) where a function is (nearly) zero, using only the sign and size of the residual —
+      no calculus allowed.</p>
+    <aside class="underhood" data-title="the problem">
+      Find \(x\) with \(f(x)=x^3-x-2\approx 0\) to tolerance \(|f(x)|&lt;10^{-3}\) (single root near \(x\approx 1.52\)).
+      The agent may <em>evaluate</em> \(f\) anywhere but is <strong>forbidden derivatives</strong> — no
+      \(f'(x)=3x^2-1\), no Newton update. It reads only the sign and size of the residual.
+    </aside>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">finance analogue</span>
+      This is mechanically an <em>IRR</em> or <em>implied-volatility</em> solver. For an IRR, seek \(r\) with
+      \(\mathrm{NPV}(r)=\sum_t c_t/(1+r)^t=0\) — no closed form, so evaluate at trial rates and move by the sign
+      (too-high NPV &rArr; rate too low). Swap \(f\) and the loop is unchanged.
+    </div>
+    <p class="frag"><strong>Three artifacts, none containing an algorithm:</strong> a <em>goal file</em>
+      (\(|f|&lt;0.001\), \(\leq 12\) iters), a <em>skill</em>
+      (<code class="inline">python evaluator.py $x | tee -a results.log</code>), and a <em>stop hook</em>
+      that vetoes "success" unless the last \(|f(x)|&lt;10^{-3}\).</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Watching it converge</div>
+    <h2>Iteration trace from a deliberately poor start (x = 0)</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Iter</th><th>\(x\)</th><th>\(f(x)\)</th><th>Agent's reasoning</th></tr>
+      <tr><td>1</td><td>\(0\)</td><td>\(-2\)</td><td>Negative; root to the right. Jump up.</td></tr>
+      <tr><td>2</td><td>\(2\)</td><td>\(4\)</td><td>Positive; root bracketed in \((0,2)\).</td></tr>
+      <tr><td>3</td><td>\(1.5\)</td><td>\(-0.125\)</td><td>Negative but small; root just above \(1.5\).</td></tr>
+      <tr><td>4</td><td>\(1.6\)</td><td>\(0.496\)</td><td>Positive; bracket \((1.5,1.6)\).</td></tr>
+      <tr><td>5</td><td>\(1.52\)</td><td>\(-0.008192\)</td><td>Tiny negative; nudge up.</td></tr>
+      <tr><td>6</td><td>\(1.522\)</td><td>\(\approx 0.004\)</td><td>Overshot; back off a touch.</td></tr>
+      <tr><td>7</td><td>\(1.5214\)</td><td>\(\approx 0\)</td><td>\(|f(x)|&lt;0.001\): hook passes.</td></tr>
+    </table>
+    <p class="small frag">The <strong>sign change</strong> between \(0\) and \(2\) is the engine: a continuous function
+      going \(-\to+\) crosses zero between. The magnitudes (\(|f(1.5)|\ll|f(1.6)|\)) place the root near \(1.5\)
+      (false-position reading). <strong>Declaring success at iteration 5 would be vetoed by the hook.</strong></p>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why the inefficiency is the point</span>
+      The zig-zag past the root means the loop reached tolerance <em>without an algorithm</em> — so the same loop
+      works when the residual is a failing test, a style violation, or a reviewer's objection.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 6 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Example 2: credit-risk stress-testing loop</h2>
+    <div class="secsub">From a point estimate to a memo a committee would actually accept.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The real-world loop</div>
+    <h2>A defensible credit-committee memo — not a point estimate</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Meridian Components</strong> (fictional; figures illustrative): a mid-market manufacturer
+      seeking a \$40m revolver. Looks comfortable — growth, rising EBITDA, leverage in appetite — but cyclical
+      end markets, illiquid inventory, concentrated receivables.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">the goal is <em>not</em> "estimate the PD"</span>
+      A point estimate cannot be <em>wrong</em> — nothing fails against it. The goal is a <em>memo a committee
+      would accept</em>: that acceptance is checkable, so the loop runs until the checks pass.
+    </div>
+    <aside class="underhood" data-title="expected-loss decomposition">
+      Reconciled in every column:
+      \[ \mathrm{EL} = \mathrm{PD}\times\mathrm{LGD}\times\mathrm{EAD}. \]
+      PD = 1-yr default probability; \(\mathrm{LGD}=1-\text{recovery}\); EAD = drawn balance plus drawdown.
+    </aside>
+    <p class="frag">The memo must give PD, LGD, EAD, EL (\$ and bps), drivers, and a recommendation —
+      <em>lend / modify / decline</em>. A "low risk" phrase is gated on both base <em>and</em> stressed EL clearing thresholds.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The shock and the ensemble</div>
+    <h2>One combined macro shock, nine role-scoped agents</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Combined macro shock</div>
+          <table>
+            <tr><th>Parameter</th><th>Adv.</th><th>Sev.</th></tr>
+            <tr><td>Revenue</td><td>\(-20\%\)</td><td>\(-30\%\)</td></tr>
+            <tr><td>Gross margin</td><td>\(-300\)</td><td>\(-450\) bps</td></tr>
+            <tr><td>Rate</td><td>\(+250\)</td><td>\(+350\) bps</td></tr>
+            <tr><td>DSO</td><td>\(+25\)</td><td>\(+40\) d</td></tr>
+            <tr><td>Inventory days</td><td>\(+20\)</td><td>\(+35\) d</td></tr>
+            <tr><td>ICR covenant</td><td colspan="2">\(\to 2.5\times\)</td></tr>
+          </table>
+        </div>
+        <p class="small"><strong>Combined</strong>, because the drivers are correlated; breaches trigger only when
+          several coincide.</p>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Nine agents (each output → next input)</div>
+          <ol class="small">
+            <li>Data-ingestion</li>
+            <li>Accounting-quality (normalize)</li>
+            <li>Feature-engineering</li>
+            <li>PD-model <em>(leakage hook)</em></li>
+            <li>Stress-scenario</li>
+            <li>Cash-flow (covenants, liquidity)</li>
+            <li>LGD (collateral, recovery)</li>
+            <li><strong>Skeptic</strong> — returns to ANY agent</li>
+            <li>Memo-writing <em>(skeptic-gated)</em></li>
+          </ol>
+        </div>
+        <p class="small">Two <em>feedback edges</em> (skeptic + failing hooks) turn a pipeline into a loop.</p>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the two load-bearing hooks</span>
+      <strong>Leakage check</strong> (the easy path to a beautiful backtest is to peek at the answer) and the
+      <strong>"low risk" gate</strong> (language is a control surface — earned by arithmetic, not chosen by the writer).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What the loop found</div>
+    <h2>Eleven iterations, one exhibit (EAD = \$40m)</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The arc</div>
+          <ol class="small">
+            <li>Naive PD \(\approx 1.2\%\)</li>
+            <li>Add-backs &rArr; lev. \(3.0\to3.8\times\)</li>
+            <li>Richer features</li>
+            <li><strong>Leakage hook rejects</strong> PD \(0.9\%\)</li>
+            <li>Clean rebuild &rarr; PD \(2.5\%\)</li>
+            <li>Adverse stress &rarr; PD \(9\%\)</li>
+            <li>Covenant breach; \(\sim\)\$6m hole</li>
+            <li>LGD \(40\%\to55\%\)</li>
+            <li>Skeptic demands severe + peers</li>
+            <li>Severe: PD \(13\%\), LGD \(60\%\)</li>
+            <li>Conditional approval</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>Metric</th><th>Base</th><th>Stressed</th></tr>
+          <tr><td>PD</td><td>\(2.5\%\)</td><td>\(9.0\%\)</td></tr>
+          <tr><td>LGD</td><td>\(40\%\)</td><td>\(55\%\)</td></tr>
+          <tr><td>EAD</td><td>\$40.0m</td><td>\$40.0m</td></tr>
+          <tr><td>EL (\$)</td><td>\$0.40m</td><td>\$1.98m</td></tr>
+          <tr><td>EL (bps)</td><td>100</td><td>495</td></tr>
+          <tr><td>Covenant breach?</td><td>No</td><td>Yes</td></tr>
+          <tr><td>Liquidity short.</td><td>—</td><td>\(\approx\)\$6.0m</td></tr>
+        </table>
+        <aside class="underhood" data-title="the reconciliation">
+          \[ \mathrm{EL}_{\text{base}}=0.025\cdot0.40\cdot40=\$0.40\text{m}, \]
+          \[ \mathrm{EL}_{\text{str}}=0.09\cdot0.55\cdot40=\$1.98\text{m}. \]
+        </aside>
+        <p class="small"><strong>Action:</strong> conditional — \$30m, tighter covenants, more collateral, repriced.</p>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the story the loop found, the naive memo missed</span>
+      Sound <em>in expectation</em>, fragile <em>in the tail</em>: EL nearly quintuples, and the damage is
+      <em>structural</em> (breach + liquidity hole). A 1.2% point estimate hid all of it.
+      A <em>recommendation</em>, not a decision — a human signs.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 7 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">07</div>
+    <h2>Oversight, failure modes, and patterns</h2>
+    <div class="secsub">What the human signature adds, what breaks, and five designs to reuse.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Accountability, not just analysis</div>
+    <h2>Human oversight, sign-off, and audit trails</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Hooks answer "did it pass the checks?", never "who is <em>answerable</em>?" The loop manufactures
+      analysis, not accountability or legal standing.</p>
+    <ul>
+      <li class="frag"><strong>Escalation triggers</strong> (stated in the goal file, not improvised): materiality
+        threshold crossed, low confidence / out-of-range inputs, agents that cannot reconcile, a hook firing
+        repeatedly, irreversible action. <em>Human-review-required</em> is a terminal state.</li>
+      <li class="frag"><strong>Sign-off</strong> (SR 11-7) = an event with time, identity, scope — not a property
+        of the artifact. The skeptic is internal challenge, <strong>not</strong> independent validation.
+        Carry an <em>unsigned sign-off block</em> the loop cannot complete.</li>
+      <li class="frag"><strong>Audit trail:</strong> version control + structured run log + content-addressed inputs
+        &rArr; an auditor can <em>regenerate</em> every number. "Reproducible" means the derivation is recoverable
+        and therefore challengeable.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What breaks, and what catches it</div>
+    <h2>Six failure modes — each is omitted machinery</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Failure mode</th><th>Warning sign</th><th>Control</th></tr>
+      <tr><td>Infinite loop</td><td>Iters climb, no change; oscillation</td><td>Hard budget + cost ceiling</td></tr>
+      <tr><td>Fake convergence</td><td>"Done" but metric plateaued below goal</td><td>Terminate on <em>external</em> validator, not self-report</td></tr>
+      <tr><td>Goal drift</td><td>Later iters optimize a different objective</td><td>File-based goal re-read each iteration</td></tr>
+      <tr><td>Premature success</td><td>"Low risk" before the number is met</td><td>Tolerance hook</td></tr>
+      <tr><td>Goodhart overfit</td><td>One check passes; OOS lags</td><td>Diverse + held-out + adversarial</td></tr>
+      <tr><td>Excessive delegation</td><td>Agents for deterministic subtasks</td><td>Functions for closed-form; when-not-to-loop test</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">the meta-point</span>
+      Every control is a mechanism introduced earlier. <strong>The failure modes are the predictable consequences
+      of omitting machinery the lecture already argued for</strong> — build the loop right and you have defended
+      against most of them by construction.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Designs to reuse</div>
+    <h2>Five design patterns — pick by the goal's properties</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Planner–executor–critic</strong> — planning + execution + independent evaluation;
+        for tasks where the next step depends on earlier results.</li>
+      <li class="frag"><strong>Generate–test–revise</strong> — the tightest loop; default when the goal is
+        "make this check pass." Only as good as its test.</li>
+      <li class="frag"><strong>Scaffold–draft–audit–repair</strong> — for subjective, rubric-scored goals.
+        <em>This is the pattern behind this very book.</em></li>
+      <li class="frag"><strong>Data-pipeline: build–validate–document</strong> — the artifact is a process;
+        <em>lineage</em> must be trustworthy.</li>
+      <li class="frag"><strong>Credit-model: build–stress-test–red-team–finalize</strong> — Example 2 generalized;
+        stress-test and red-team are <em>mandatory</em> stages (SR 11-7 governance encoded as a pattern).</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">choosing — and composing</span>
+      Pick by the goal's properties (machine-checkable vs. judgment; number vs. artifact; stakes; reproducibility).
+      Real workflows <em>nest</em> patterns. What never changes: the feedback must be <strong>informative</strong>.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Lecture 17 in one idea — and what's next</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <p><strong>The shift:</strong> from issuing instructions and accepting the reply, to
+          <em>designing a goal-directed loop</em> whose output is observed, evaluated, and revised against an
+          explicit objective.</p>
+        <ul>
+          <li><strong>Three building blocks:</strong> <em>agents</em> specialize the loop (who),
+            <em>skills</em> reuse it (how), <em>hooks</em> enforce it (what it may never violate).</li>
+          <li><strong>Three controls:</strong> goals (the setpoint), validators (honest feedback),
+            stopping rules (terminate safely).</li>
+        </ul>
+        <div class="block"><div class="block-title">Next — practical session</div>
+          Hand-run the root-finding loop, write a tolerance success-gate in bash, and decide lend/no-lend
+          from base vs. stressed EL.
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">the one idea to internalize</span>
+          A loop adds value <em>exactly to the degree each iteration's feedback informs the next action.</em>
+          In finance the goal is never to produce an answer, but to produce an answer someone can stand behind —
+          achieved not by a better prompt but by a <strong>better loop</strong>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — definitions, literature, and reference material</h2>
+    <div class="secsub">The agentic lineage, Meridian's acceptance criteria, and the root-finding stop hook.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · lineage</div>
+    <h2>The agentic-AI lineage — the loop is not new</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">LLM side — the loop generalizes a family of methods</div>
+          <ul class="small">
+            <li><strong>ReAct</strong> (Yao 2022): interleave reason + act = Observe–Propose–Act</li>
+            <li><strong>Reflexion</strong> (Shinn 2023): verbalized Evaluate–Revise</li>
+            <li><strong>Self-Refine</strong> (Madaan 2023): single-model generate–critique–revise</li>
+            <li><strong>Chain-of-thought</strong> (Wei 2022); <strong>Toolformer</strong> (Schick 2023);
+              <strong>AutoGen</strong> (Wu 2023): split phases across role-typed agents</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Engineering side — the loop predates LLMs by decades</div>
+          <ul class="small">
+            <li>Boehm's <strong>spiral model</strong> (1988): risk-driven cycles replace waterfall</li>
+            <li>Deming's <strong>PDCA</strong>: Plan–Do–Check–Act</li>
+            <li>The convergence is no coincidence: it is what any system producing correct output under
+              uncertainty looks like once it closes its feedback loop.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="control-theoretic reading">
+      One-shot = open-loop; goal-directed = feedback control. Error \(e_{t+1}=G-s_{t+1}\); instability when gain is
+      too high (oscillation); steady-state error when the success predicate is biased.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · acceptance criteria</div>
+    <h2>The Meridian acceptance criteria — every deliverable has a check</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Deliverable</th><th>Acceptance criterion</th><th>Checked by</th></tr>
+      <tr><td>PD (base &amp; stressed)</td><td>OOS-validated; horizon stated</td><td>Hook + skeptic</td></tr>
+      <tr><td>LGD</td><td>Tied to collateral; recovery logic</td><td>Skeptic</td></tr>
+      <tr><td>EAD</td><td>Drawdown assumption stated</td><td>Hook</td></tr>
+      <tr><td>Expected loss</td><td>\(\mathrm{EL}=\mathrm{PD}\cdot\mathrm{LGD}\cdot\mathrm{EAD}\) reconciles</td><td>Hook</td></tr>
+      <tr><td>Risk drivers</td><td>Each traced to a source statement</td><td>Hook</td></tr>
+      <tr><td>Scenarios</td><td>Base / adverse / severe, parameterized</td><td>Hook</td></tr>
+      <tr><td>Recommendation</td><td>lend / modify / decline, justified</td><td>Skeptic</td></tr>
+      <tr><td>"Low risk"</td><td>Only if base <em>and</em> stressed EL below thresholds</td><td>Hook</td></tr>
+    </table>
+    <div class="block frag">
+      <div class="block-title">The test for "goal" vs. "task"</div>
+      Ask what it would mean for the work to be <em>wrong</em>. "Estimate the PD" cannot be wrong. "A memo whose
+      stressed EL reconciles, whose every ratio ties to source, and which the skeptic cannot break" can be wrong
+      in a dozen concrete ways — and each is a hook waiting to fire.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the enforcing hook</div>
+    <h2>The root-finding stop hook — what makes "success" un-fakeable</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The goal says <em>what</em> convergence means; the skill says <em>how</em> to measure it;
+      this hook <strong>enforces</strong> it.</p>
+    <pre class="code">#!/usr/bin/env bash
+# stop-hook: veto "success" unless the latest |f(x)| &lt; 0.001
+last=$(grep -o 'f(x)=[-0-9.eE]*' results.log | tail -n1 | cut -d= -f2)
+abs=$(python -c "print(abs(float('$last')))")
+ok=$(python -c "print(1 if abs(float('$last')) &lt; 0.001 else 0)")
+if [ "$ok" -ne 1 ]; then
+  echo "BLOCKED: |f(x)|=$abs >= 0.001 -- not converged" >&2
+  exit 1
+fi
+echo "OK: |f(x)|=$abs &lt; 0.001"
+exit 0</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">why it works</span>
+      The harness treats a nonzero exit from a stop hook as a <em>veto</em>: the agent literally cannot end the loop
+      claiming success while the residual is too large.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

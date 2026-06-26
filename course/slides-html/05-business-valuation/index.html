@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 5 — LLMs for Business Valuation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 5 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 5</div>
+    <h1>LLMs for Business Valuation</h1>
+    <div class="sub">Turning filings into a defensible enterprise value — and knowing exactly which steps to trust the model with.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Valuation frameworks</strong> — DCF, multiples, net assets — and where an LLM actually helps.</li>
+          <li class="frag"><strong>Getting the data</strong> — pulling clean numbers out of SEC filings.</li>
+          <li class="frag"><strong>Cash flows</strong> — computing and normalising free cash flow.</li>
+          <li class="frag"><strong>Forecasting &amp; arithmetic</strong> — reasoning with the model, computing with code.</li>
+          <li class="frag"><strong>Scenarios, comparables, and the full pipeline</strong>.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          One rule runs through the whole lecture: an LLM is brilliant at <em>reading and reasoning over
+          text</em> and unreliable at <em>doing the arithmetic</em>. The art is routing each task to the
+          right tool.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Business valuation: frameworks and the LLM opportunity</h2>
+    <div class="secsub">Three ways to put a number on a company, and where language models change the workflow.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What we are actually computing</div>
+    <h2>What is a business valuation?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Valuation turns financial facts — cash flows, growth, a discount rate — into a single
+      number: what a rational, fully informed buyer would pay for the claim.</p>
+    <aside class="underhood" data-title="the object we estimate">
+      Valuation maps observable and projected financial variables into a scalar enterprise value
+      \( V \in \mathbb{R}_+ \) that a rational, fully informed market participant would assign to the claim.
+    </aside>
+    <div class="block"><div class="block-title">Where this number gets used</div>
+      <ul>
+        <li><strong>M&amp;A</strong> — the spread between buyer and seller defines the zone of possible agreement</li>
+        <li><strong>IPOs</strong> — banks produce valuation ranges to price new shares</li>
+        <li><strong>Portfolio management</strong> — model value vs. market price generates trade signals</li>
+        <li><strong>Financial reporting</strong> — IFRS 13 / ASC 820 Level 3 assets require documented models</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why this is hard in the first place</div>
+    <h2>You are pricing the future, not the past</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A balance sheet records what a company spent. The market prices what it will <em>earn</em>.
+      The whole game is turning today's information into a credible forward estimate.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Valuation is forward-looking. Translating current information into a credible forward estimate is
+      exactly where LLMs add the most value.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Three lenses</div>
+    <h2>Three ways to value a company — and you want all three</h2>
+    <div class="title-rule"></div>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block"><div class="block-title">Income — DCF</div>
+          Discount projected free cash flows back to today. The dominant method for going concerns.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Market — multiples</div>
+          Apply EV/EBITDA, P/E, P/Book from comparable firms. The hard part is finding genuine peers —
+          <em>LLMs and embeddings help here</em>.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Asset — net asset value</div>
+          Sum asset fair values minus liabilities. Best for asset-heavy firms or as a floor cross-check.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the three formulas">
+      Income approach (DCF):
+      \[ V = \sum_{t=1}^{n} \frac{\text{FCF}_t}{(1+\text{WACC})^t}
+          + \underbrace{\frac{\text{FCF}_{n+1}/(\text{WACC}-g)}{(1+\text{WACC})^n}}_{\text{Terminal Value}} \]
+      A 100-bps change in WACC or \(g\) alters terminal value by <strong>20–40%</strong> — scenario analysis is indispensable.
+      Asset approach (net asset value):
+      \[ V_{\text{NAV}} = \sum_i FV(\text{Asset}_i) - \sum_j FV(\text{Liability}_j) \]
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">in practice</span>
+      Triangulate across all three and present a valuation <em>range</em>, not a point estimate.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The division of labour</div>
+    <h2>What does an LLM change at each step?</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Step</th><th>Traditional approach</th><th>LLM contribution</th></tr>
+      <tr><td>Data collection</td><td>Manual EDGAR parsing</td><td>Automated extraction pipeline</td></tr>
+      <tr><td>FCF computation</td><td>Spreadsheet formulas</td><td>Code interpreter (error-free)</td></tr>
+      <tr><td>Forecasting</td><td>Analyst judgment</td><td>CoT prompting + evaluation</td></tr>
+      <tr><td>Scenario analysis</td><td>Manual scenarios</td><td>Narrative coherence checking</td></tr>
+      <tr><td>Comparable selection</td><td>SIC codes + manual</td><td>Embedding + LLM hybrid</td></tr>
+      <tr><td>Report generation</td><td>Analyst writing</td><td>LLM first-draft synthesis</td></tr>
+    </table>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the key principle</span>
+      LLMs are most valuable where the task is <em>qualitative reasoning over text</em>, and least reliable
+      where the task is <em>numerical computation</em>. Route arithmetic to a code interpreter.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Extracting financial data from SEC EDGAR</h2>
+    <div class="secsub">Where the raw numbers live, and how to get them out cleanly.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The source of truth</div>
+    <h2>Everything starts with the filings</h2>
+    <div class="title-rule"></div>
+    <p class="lead">U.S. public companies disclose through EDGAR. A handful of filing types carry almost
+      everything a valuation needs.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Filing types that matter</div>
+          <ul>
+            <li class="frag"><strong>10-K</strong> — annual audited financials + MD&amp;A. Primary source.</li>
+            <li class="frag"><strong>10-Q</strong> — quarterly unaudited interim statements.</li>
+            <li class="frag"><strong>8-K</strong> — material events within 4 business days (earnings, M&amp;A, CEO changes).</li>
+            <li class="frag"><strong>DEF 14A</strong> — proxy: executive comp, board composition.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Programmatic access</div>
+          <ul>
+            <li class="frag">Submissions API: <code class="inline">data.sec.gov/submissions/CIK{cik}.json</code></li>
+            <li class="frag">Full-text search: <code class="inline">efts.sec.gov/LATEST/search-index?q=...</code></li>
+            <li class="frag">XBRL companyfacts: <code class="inline">data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">XBRL: the first-pass extractor</span>
+      Since 2009 the SEC requires XBRL tagging, which covers most standard line items reliably. The LLM
+      fills the gap for non-standard layouts, merged cells, and extension elements.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When the table fights back</div>
+    <h2>Why parsing financial tables needs an LLM</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Merged cells, multi-level headers, footnotes buried inside cells, non-standard layouts —
+      classical parsers break on the long tail. An LLM reads the table the way a person would.</p>
+    <aside class="underhood" data-title="LLM extraction pattern">
+      <ol>
+        <li>Extract raw HTML of the candidate table with BeautifulSoup</li>
+        <li>Convert to compact plain text (preserve headers, strip HTML tags)</li>
+        <li>Send to the LLM with a structured extraction prompt requesting a JSON schema</li>
+        <li>Validate output against the schema; retry on parse failure</li>
+      </ol>
+    </aside>
+    <div class="block frag"><div class="block-title">Design principles</div>
+      <ul>
+        <li>Request JSON directly — reduces post-processing; enables automatic validation</li>
+        <li>Add "Respond only with valid JSON. No markdown code fences." if the model lacks JSON mode</li>
+        <li>Use XBRL as ground truth; flag conflicts between XBRL tags and LLM extractions</li>
+      </ul>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">avoid look-ahead bias</span>
+      Always record the <em>filing date</em>, not the fiscal year-end date. Using fiscal year-end in a
+      backtest can include information not yet available.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Computing free cash flows</h2>
+    <div class="secsub">The number that goes into the DCF — and the judgment calls that distort it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two flavours of cash flow</div>
+    <h2>Free cash flow to the firm, or to equity?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Free cash flow is the cash a business throws off after paying to keep running and grow.
+      One version belongs to <em>everyone</em> who funded the firm; the other only to shareholders.</p>
+    <aside class="underhood" data-title="FCFF, FCFE, and their relationship">
+      Free Cash Flow to Firm:
+      \[ \text{FCFF}_t = \text{EBIT}_t(1-\tau) + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t \]
+      Free Cash Flow to Equity:
+      \[ \text{FCFE}_t = \text{NI}_t + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t + \text{NB}_t \]
+      Relationship (Modigliani–Miller with taxes):
+      \[ \text{FCFE}_t = \text{FCFF}_t - \text{InterestExp}_t(1-\tau) + \text{NB}_t \]
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">which to use</span>
+      When leverage is changing materially, <strong>FCFF</strong> is more robust: WACC can be held constant,
+      while the cost of equity must be re-levered per scenario. (Discount-rate mapping in the appendix.)
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Numbers on the board</div>
+    <h2>FCFF, worked end to end</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A hypothetical software company (USD millions) shows how the pieces combine.</p>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>Item</th><th>Value</th></tr>
+          <tr><td>Revenue</td><td>4,200</td></tr>
+          <tr><td>EBIT</td><td>840</td></tr>
+          <tr><td>D&amp;A</td><td>310</td></tr>
+          <tr><td>CapEx</td><td>180</td></tr>
+          <tr><td>NWC (current)</td><td>620</td></tr>
+          <tr><td>NWC (prior)</td><td>540</td></tr>
+          <tr><td>Tax rate \(\tau\)</td><td>21%</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="the computation">
+          \[ \Delta\text{NWC} = 620 - 540 = 80 \]
+          \[ \text{FCFF} = 840(1-0.21) + 310 - 180 - 80 \]
+          \[ = 663.6 + 310 - 180 - 80 = \mathbf{713.6\text{ M}} \]
+        </aside>
+        <div class="block frag"><div class="block-title">From cash flow to value</div>
+          With WACC = 9%, 5-year explicit growth = 8%, terminal growth = 3%, enterprise value
+          \(\approx\) <strong>$15.2B</strong> \(\approx\) 3.6× trailing revenue.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Cleaning the inputs</div>
+    <h2>"Normalising" EBIT: stripping out the noise</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Reported EBIT is full of one-off events that won't repeat. Forecasting off the raw number
+      bakes in distortions. The LLM reads the MD&amp;A and flags what to adjust.</p>
+    <div class="block"><div class="block-title">Three categories that distort FCFF</div>
+      <ol>
+        <li class="frag"><strong>One-time items</strong> — restructuring charges, litigation settlements, impairments. Remove from base EBIT.</li>
+        <li class="frag"><strong>Capitalised operating leases</strong> (IFRS 16, ASC 842) — mismatch between reported EBIT, depreciation, and cash flows; must be reconciled.</li>
+        <li class="frag"><strong>Acquired intangible amortisation</strong> — from purchase-accounting step-up; often excluded in "cash EBIT".</li>
+      </ol>
+    </div>
+    <aside class="underhood" data-title="the adjustment">
+      Prompt the model on the MD&amp;A to identify non-recurring items; return JSON with description, amount,
+      and confidence. Adjusted EBIT:
+      \[ \text{EBIT}^* = \text{EBIT} + \sum_{k \in \mathcal{K}} a_k \]
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">human-in-the-loop design</span>
+      High confidence → auto-strip. Medium → flag for analyst review. Low → pass through. The LLM
+      accelerates identification; the analyst makes the final call.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Forecasting cash flows with LLMs</h2>
+    <div class="secsub">Where qualitative information beats pure time-series — if it actually improves accuracy.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The baselines to beat</div>
+    <h2>What classical forecasting can and can't do</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Simple statistical models project cash flow from its own past. They're honest baselines —
+      but blind to anything not already in the numbers.</p>
+    <aside class="underhood" data-title="two classical models">
+      Random walk with drift:
+      \[ \text{FCF}_{t+1} = \mu + \text{FCF}_t + \varepsilon_{t+1}, \quad \varepsilon \sim \mathcal{N}(0,\sigma^2) \]
+      Mean-reverting model:
+      \[ \text{FCF}_{t+1} - \bar{\text{FCF}} = \phi(\text{FCF}_t - \bar{\text{FCF}}) + \varepsilon_{t+1} \]
+      Empirically \( \phi \approx 0.5\text{–}0.7 \) for earnings — substantial persistence, non-trivial mean reversion.
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">the key limitation</span>
+      Pure time-series models rely exclusively on historical values. They ignore management guidance,
+      industry trends, and macro conditions.
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the LLM opportunity</span>
+      LLMs are trained on disclosures, analyst reports, and economic news — they can fold in the qualitative
+      dimensions time-series models miss. The empirical question: does this measurably improve accuracy?
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Make the reasoning visible</div>
+    <h2>Chain-of-thought: force the model to show its work</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Wei et al. (2022): prompting the model to reason step by step before answering. For
+      forecasting, this makes it spell out the causal story — so the output is auditable.</p>
+    <div class="block"><div class="block-title">Four-stage CoT forecasting prompt</div>
+      <ol>
+        <li class="frag"><strong>Macro context</strong> — how do rates, GDP, and inflation affect revenue and margins?</li>
+        <li class="frag"><strong>Industry dynamics</strong> — drivers, headwinds, competition, regulation.</li>
+        <li class="frag"><strong>Firm-specific</strong> — competitive position; margin trajectory; CapEx plans from MD&amp;A.</li>
+        <li class="frag"><strong>Synthesis</strong> — point estimate + upside (P90) + downside (P10) per year; 2-sentence justification.</li>
+      </ol>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">why separating reasoning from numbers matters</span>
+      If the reasoning says "highly competitive market with stable pricing" but the number says 20% revenue
+      growth, an automated consistency-checker catches it before the number enters the DCF.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Did it actually work?</div>
+    <h2>How to grade a forecast</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three metrics, each answering a different question: how far off, how far off in dollars,
+      and did we at least get the direction right.</p>
+    <aside class="underhood" data-title="MAPE, RMSE, directional accuracy">
+      \[ \text{MAPE} = \frac{1}{n}\sum_{t=1}^{n} \frac{|y_t - \hat{y}_t|}{|y_t|} \times 100 \]
+      \[ \text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}(y_t - \hat{y}_t)^2} \]
+      \[ \text{DA} = \frac{1}{n}\sum_{t=1}^{n}
+         \1\!\left[\mathrm{sign}(y_t - y_{t-1}) = \mathrm{sign}(\hat{y}_t - y_{t-1})\right] \]
+    </aside>
+    <table>
+      <tr><th>Metric</th><th>Problem</th><th>When to use</th></tr>
+      <tr><td>MAPE</td><td>Undefined when \(y_t \approx 0\)</td><td>Stable, positive cash flows</td></tr>
+      <tr><td>RMSE</td><td>Scale-dependent</td><td>Within-company comparison</td></tr>
+      <tr><td>DA</td><td>Scale-invariant</td><td>Investment-decision relevance</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the discipline</span>
+      Always compare against a random-walk baseline <em>and</em> analyst consensus.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Tool-augmented agents for financial arithmetic</h2>
+    <div class="secsub">The single most important rule in this lecture: never let the LLM do the math.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A structural problem, not a prompting one</div>
+    <h2>Why you can't trust an LLM with arithmetic</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM predicts the next word. Arithmetic is a deterministic algorithm. It can pattern-match
+      simple sums, but reliability collapses as the computation grows.</p>
+    <aside class="underhood" data-title="the architectural mismatch">
+      LLMs are next-token predictors; arithmetic is a deterministic algorithm. Statistical pattern-matching
+      approximates arithmetic for simple cases, and reliability degrades rapidly with complexity.
+    </aside>
+    <div class="block"><div class="block-title">For valuation, this is serious</div>
+      <ul>
+        <li class="frag">A 5-year DCF involves \(\approx 15\text{–}20\) chained arithmetic operations</li>
+        <li class="frag">An incorrectly applied tax rate propagates through every calculation</li>
+        <li class="frag">A 5% FCFF extraction error + 1% terminal-growth bias can together cause a \(&gt;10\%\) error in enterprise value</li>
+      </ul>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the rule</span>
+      No financial calculation — however simple — should be performed by in-context LLM reasoning. Remove
+      arithmetic from the LLM entirely and route all computation to a deterministic executor.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The pattern that fixes it</div>
+    <h2>The agent reasons; the code interpreter computes</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A ReAct agent emits structured Thought / Action steps and hands every number to a Python
+      executor. The arithmetic is delegated, not guessed.</p>
+    <pre class="code"># ReAct agent trace --- DCF computation
+
+Thought 1: I need to compute FCFF. EBIT=840, DA=310, CapEx=180,
+           delta_NWC=80, tau=0.21. Use python_executor.
+
+Action 1:  python_executor(code="""
+               ebit=840; da=310; capex=180; delta_nwc=80; tau=0.21
+               fcff = ebit*(1-tau) + da - capex - delta_nwc
+               print(f"FCFF = {fcff:.1f} M")
+           """)
+
+Observation 1: FCFF = 713.6 M</pre>
+    <div class="block frag"><div class="block-title">Why this is the right design</div>
+      Arithmetic is delegated to <code class="inline">python_executor</code> rather than performed
+      in-context — and the generated code is an auditable artefact.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The pattern that fixes it · continued</div>
+    <h2>The same trace finishes the DCF</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Step two chains the cash flows into a full discounted valuation — again, entirely in code.</p>
+    <pre class="code">Thought 2: Now compute the 5-year DCF with g=8%, g_term=3%, WACC=9%.
+
+Action 2:  python_executor(code="""
+               import numpy as np
+               fcff0=713.6; g=0.08; g_t=0.03; wacc=0.09; n=5
+               fcfs=[fcff0*(1+g)**t for t in range(1,n+1)]
+               tv=fcfs[-1]*(1+g_t)/(wacc-g_t)
+               ev=sum(f/(1+wacc)**t for t,f in enumerate(fcfs,1))+tv/(1+wacc)**n
+               print(f"EV = {ev:.1f} M")
+           """)
+
+Observation 2: EV = 15224.0 M</pre>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the deliverable is the code</span>
+      Generated code is an auditable artefact: human reviewers inspect it to verify formula, inputs, and units.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Know your enemy</div>
+    <h2>Four ways an LLM will sabotage a valuation</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">1 · Phantom tickers</div>
+          Realistic-sounding but non-existent tickers. <em>Mitigation:</em> validate every ticker against a
+          securities master before use.
+        </div>
+        <div class="block"><div class="block-title">2 · Invented ratios</div>
+          Confabulated numbers in no filing. <em>Mitigation:</em> trace every figure to a specific EDGAR
+          accession number — <strong>do not trust until verified</strong>.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">3 · Misapplied formulas</div>
+          Correct code, wrong formula (FCFE when FCFF was asked; missing tax shield). <em>Mitigation:</em>
+          automated formula-level testing against benchmark cases.
+        </div>
+        <div class="block"><div class="block-title">4 · Stale knowledge</div>
+          Models have a knowledge cutoff; tax rates and standards change. <em>Mitigation:</em> prefer
+          EDGAR-retrieved facts over parametric memory.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 6 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Scenario analysis and Monte Carlo</h2>
+    <div class="secsub">A single number hides the risk. Show the distribution.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Three coherent stories</div>
+    <h2>Bull, base, bear — and why each must hang together</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Build three internally consistent worlds. The danger isn't optimism or pessimism — it's a
+      scenario whose pieces contradict each other.</p>
+    <table>
+      <tr><th>Scenario</th><th>Percentile</th><th>Description</th></tr>
+      <tr><td>Bull</td><td>P90</td><td>Favourable macro, strong execution, above-consensus growth</td></tr>
+      <tr><td>Base</td><td>P50</td><td>Median expectation; most likely trajectory</td></tr>
+      <tr><td>Bear</td><td>P10</td><td>Adverse macro, margin compression, or competitive deterioration</td></tr>
+    </table>
+    <p class="frag">Every scenario must specify a complete, consistent set: revenue growth, EBIT margins,
+      CapEx intensity, NWC ratios, terminal growth. A scenario combining <strong>25% revenue CAGR and 1%
+      terminal growth is internally contradictory.</strong></p>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the LLM's job here</span>
+      LLMs excel at <em>narrative coherence checking</em> — does the story justify the numbers? — and should
+      <em>not</em> compute the resulting valuations. That goes to the code interpreter.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From three points to a full picture</div>
+    <h2>Monte Carlo: the whole distribution of value</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Instead of three hand-built cases, draw thousands of WACC and growth values from
+      distributions and re-run the DCF each time. The output is a range, not a point.</p>
+    <aside class="underhood" data-title="the simulation">
+      Let \( \text{WACC} \sim \mathcal{N}(\mu_W, \sigma_W^2) \) and \( g \sim \mathcal{N}(\mu_g, \sigma_g^2) \)
+      (truncated so \( g &lt; \text{WACC} \)). For \(M\) paths:
+      \[ V^{(m)} = \sum_{t=1}^{n} \frac{\text{FCF}_t^{(m)}}{(1+\text{WACC}^{(m)})^t}
+         + \frac{\text{FCF}_{n+1}^{(m)}}{(\text{WACC}^{(m)}-g^{(m)})(1+\text{WACC}^{(m)})^n} \]
+      Typical parameters: \( \mu_W = 0.09,\ \sigma_W = 0.015,\ \mu_g = 0.03,\ \sigma_g = 0.01 \). With
+      \( M = 10{,}000 \), runtime \( &lt; 1 \) second.
+    </aside>
+    <p class="frag"><strong>Output:</strong> mean, median, standard deviation, and P10 / P25 / P75 / P90 of the EV distribution.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">why Monte Carlo is not optional</span>
+      A 100-bps error in terminal growth → <strong>15–18% error in enterprise value</strong>. Point
+      estimates aren't just imprecise — they're misleading.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 7 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">07</div>
+    <h2>Comparable selection</h2>
+    <div class="secsub">Finding genuine peers — the place SIC codes fail and embeddings shine.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why the old way breaks</div>
+    <h2>The trouble with picking comparables</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Multiples are only as good as the peer set. The traditional tools for choosing peers are
+      decades out of date.</p>
+    <div class="block"><div class="block-title">Traditional pitfalls</div>
+      <ol>
+        <li class="frag"><strong>Code obsolescence</strong> — SIC codes last revised in 1987. A cloud-computing firm and a 1990s software distributor share a code.</li>
+        <li class="frag"><strong>Diversified conglomerates</strong> — a "manufacturing" SIC firm deriving revenue from financial services.</li>
+        <li class="frag"><strong>Cyclical timing</strong> — temporarily distressed firms depress the median multiple.</li>
+      </ol>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">prompt-based selection — the catch</span>
+      Describe the target and ask for 8–12 comparable firms as JSON. Easy, broad world knowledge — but
+      <em>hallucinated tickers occur frequently</em>. Validating every ticker against a securities master is mandatory.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The grounded alternative</div>
+    <h2>Embedding-based peers: every candidate is real</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Turn each company's MD&amp;A into a vector and retrieve the closest ones. Because candidates
+      come from actual filings, no ticker can be hallucinated.</p>
+    <aside class="underhood" data-title="cosine retrieval">
+      Embed the MD&amp;A of every company in the universe; retrieve the top-\(k\) by cosine similarity:
+      \[ \text{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \]
+      Empirically, embedding-based peers have lower IQR of EV/EBITDA and lower deviation from transaction
+      prices than SIC-based peers.
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">the trade-off</span>
+      Embeddings are grounded — every retrieved peer is a real firm — but may surface textual lookalikes
+      whose business model differs from the target.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Best of both</div>
+    <h2>The hybrid pipeline: retrieve, then reason</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Neither approach alone is enough. Combine grounded retrieval with qualitative filtering —
+      each used only for what it's good at.</p>
+    <div class="block"><div class="block-title">Two-stage hybrid</div>
+      <ol>
+        <li class="frag"><strong>Candidate generation</strong> — the embedding index returns the top 30 by cosine similarity.</li>
+        <li class="frag"><strong>LLM filtering</strong> — the model receives candidates + brief descriptions and removes firms that are geographically incomparable, in different competitive positions, or hit by idiosyncratic events (pending acquisition, bankruptcy). A filtered set of 8–12 proceeds to multiple analysis.</li>
+      </ol>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">confine the LLM to its strengths</span>
+      Stage 1 is grounded retrieval — no hallucination risk. Stage 2 is business-model reasoning, where the
+      LLM excels. Stage 2 never needs to recall whether a ticker exists — Stage 1 already guaranteed it.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 8 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">08</div>
+    <h2>End-to-end pipeline and best practices</h2>
+    <div class="secsub">Where errors compound, and the rules that keep a production system honest.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where the uncertainty really lives</div>
+    <h2>One input dominates the error in your valuation</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Errors flow through a multi-step pipeline. Tracing how each input perturbs value shows that
+      one of them swamps the rest: the terminal growth rate.</p>
+    <aside class="underhood" data-title="first-order error propagation">
+      With extraction error \( \varepsilon_1 \) in FCF and terminal-growth bias \( \varepsilon_2 \):
+      \[ \Delta V \approx \frac{\partial V}{\partial \text{FCF}} \varepsilon_1 + \frac{\partial V}{\partial g} \varepsilon_2 \]
+      For the Gordon-Growth perpetuity:
+      \[ \frac{\partial V}{\partial \text{FCF}_n} = \frac{1+g}{\text{WACC}-g}, \qquad
+         \frac{\partial V}{\partial g} = \frac{\text{FCF}_n(1+\text{WACC})}{(\text{WACC}-g)^2} \]
+    </aside>
+    <div class="statrow">
+      <div class="stat"><div class="num">≈1%</div><div class="lbl">EV error from a 1% FCF error</div></div>
+      <div class="stat"><div class="num">15–18%</div><div class="lbl">EV error from a 100-bps terminal-growth error</div></div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the dominant uncertainty source</span>
+      Terminal-growth uncertainty <em>dominates</em> enterprise-value uncertainty. Always run Monte Carlo;
+      always present percentile ranges.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The rules of the road</div>
+    <h2>Five best practices for production deployment</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>XBRL first</strong> — verify extracted numbers against XBRL tags; flag any conflict. LLM extraction is a complement, not a sole source.</li>
+      <li class="frag"><strong>Code interpreter for all arithmetic</strong> — no calculation in-context; the generated code is the deliverable.</li>
+      <li class="frag"><strong>Run Monte Carlo</strong> — a point-estimate DCF is misleading; communicate the P10–P90 range.</li>
+      <li class="frag"><strong>Mandatory hallucination guards</strong> — validate every ticker; trace every figure to an EDGAR accession number; suppress unverifiable claims.</li>
+      <li class="frag"><strong>Human review before publication</strong> — the LLM is a powerful assistant, not an autonomous decision-maker. A qualified analyst owns the figures.</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">governance anchor</span>
+      Consistent with FSB (2023) guidance on AI in finance: human accountability, model transparency, and
+      robust back-testing are prerequisites.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What we covered — and where Lecture 6 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>The LLM-assisted valuation stack</h3>
+        <table>
+          <tr><th>Component</th><th>Key mechanism</th></tr>
+          <tr><td>Data extraction</td><td>EDGAR API + LLM table parsing + XBRL validation</td></tr>
+          <tr><td>FCF computation</td><td>Pydantic schema + code interpreter</td></tr>
+          <tr><td>Forecasting</td><td>CoT prompting; MAPE / RMSE / DA</td></tr>
+          <tr><td>Scenarios</td><td>Bull/base/bear + Monte Carlo over WACC and \(g\)</td></tr>
+          <tr><td>Comparables</td><td>Embedding index + LLM qualitative filter</td></tr>
+          <tr><td>Orchestration</td><td>Multi-agent, parallel specialists</td></tr>
+          <tr><td>Governance</td><td>HITL review; hallucination guards; audit trail</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <h3>Lecture 6 — Credit Risk</h3>
+        <div class="block"><div class="block-title">Connection to Chapter 6</div>
+          The same data-extraction and forecasting tools, now applied to credit risk — where the targets are
+          probability of default and loss given default, and regulatory constraints on model transparency are
+          stricter.
+        </div>
+        <p class="small"><strong>Key refs:</strong> Wei et al. (2022) · FSB (2023) · IFRS 13 / ASC 820 · IFRS 16 / ASC 842.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — worked case study &amp; production orchestration</h2>
+    <div class="secsub">A full mid-cap valuation, the multi-agent architecture, and the discount-rate mapping. Beyond the core lecture.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · case study</div>
+    <h2>A mid-cap SaaS company, valued three ways</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Profile: revenue $4.2B (+12% YoY), EBIT margin 20%, D&amp;A $310M, CapEx $180M, net debt
+      $800M, 280M shares outstanding.</p>
+    <p class="frag"><strong>After normalisation:</strong> EBIT = $915M, FCFF = $789M (two non-recurring items:
+      $45M restructuring + $30M acquired intangible amortisation).</p>
+    <table>
+      <tr><th>Method</th><th>Enterprise value</th><th>Equity / share</th></tr>
+      <tr><td>DCF (WACC 9%, \(g\) 3%)</td><td>$17.0B</td><td>$57.9</td></tr>
+      <tr><td>Comparables (EV/EBITDA 24.5×)</td><td>$29.9B</td><td>—</td></tr>
+    </table>
+    <p class="frag">The DCF-vs-comparables gap reflects a sector trading at elevated growth multiples. Both
+      are informative; neither is definitive.</p>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">Monte Carlo (10,000 draws)</span>
+      Mean $17.2B, P10–P90 range $12.5B–$24.1B. The range quantifies the uncertainty a point estimate conceals.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · architecture</div>
+    <h2>Why a multi-agent orchestrator beats one big script</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A monolithic pipeline reruns everything when step 6 fails and is untestable in parts. Split
+      it into an orchestrator plus specialists.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Orchestrator + specialists</div>
+          <ul>
+            <li><code class="inline">edgar_agent</code> — retrieval and extraction</li>
+            <li><code class="inline">fcf_agent</code> — computation and normalisation</li>
+            <li><code class="inline">forecast_agent</code> — CoT projections</li>
+            <li><code class="inline">comps_agent</code> — comparable selection</li>
+            <li><code class="inline">dcf_agent</code> — final valuation and scenario synthesis</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Parallelism</div>
+          Comparable selection has no dependency on the FCF forecast — both run concurrently, cutting latency.
+        </div>
+        <div class="takeaway callout"><span class="callout-tag">production latency</span>
+          6 LLM calls × 1–5s each, with parallelisation ≈ <strong>15–30 seconds</strong> per company.
+          Cost: $0.50–$3.00 per company at 2024 frontier-model pricing.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · reference</div>
+    <h2>FCFF vs. FCFE: which rate discounts which cash flow</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The two free-cash-flow definitions are discounted at different rates and yield different
+      value measures.</p>
+    <table>
+      <tr><th>Metric</th><th>Discounted at</th><th>Yields</th></tr>
+      <tr><td>FCFF</td><td>WACC</td><td>Enterprise value</td></tr>
+      <tr><td>FCFE</td><td>Cost of equity</td><td>Equity value directly</td></tr>
+    </table>
+    <p>Discounting FCFF at WACC gives enterprise value; subtract net debt to recover equity value.
+      Discounting FCFE at the cost of equity yields equity value directly.</p>
+  </section>
+
+</div></div>
+</body>
+</html>

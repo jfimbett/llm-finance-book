@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 6 — LLMs for Credit Risk Analysis</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 6 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 6</div>
+    <h1>LLMs for Credit Risk Analysis</h1>
+    <div class="sub">Where a smarter model and a defensible model have to be the same model.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>The data</strong> — what a credit file holds, and the laws that fence it in.</li>
+          <li class="frag"><strong>The model</strong> — fine-tuning and structured generation to turn a borrower into a default probability.</li>
+          <li class="frag"><strong>The household</strong> — people don't optimise; LLMs as decision-support, not decision-makers.</li>
+          <li class="frag"><strong>Personas</strong> — simulating how different borrowers would actually choose.</li>
+          <li class="frag"><strong>Governance</strong> — evaluation, SHAP, SR 11-7, and shipping a compliant system.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          Credit is the one domain where <em>predictive accuracy</em> and <em>regulatory defensibility</em>
+          must be achieved at the same time. Every signal an LLM adds has to survive Fair Lending scrutiny.
+          That tension is the lens for everything that follows.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Credit data: sources, privacy, and regulation</h2>
+    <div class="secsub">The richest behavioural dataset in finance — and one of the most heavily policed.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The founding cautionary tale</div>
+    <h2>Why credit AI is different from everything else</h2>
+    <div class="title-rule"></div>
+    <p class="lead frag">Get a sentiment model wrong and you lose a trade. Get a credit model wrong and you face
+      regulators, lawsuits, and headlines.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">the Apple Card incident · 2019</span>
+      David Heinemeier Hansson's Apple Card limit came in <strong>20×</strong> lower than his wife's — despite
+      joint tax returns and comparable profiles. Senator Warren wrote to Goldman Sachs; the NY DFS opened a
+      formal investigation.
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Credit data is two things at once</div>
+          <ul>
+            <li>The richest behavioural dataset a bank has</li>
+            <li>One of the most legally regulated datasets in existence</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Both directions carry consequences</div>
+          <ul>
+            <li>Deny unfairly → Fair Lending violations</li>
+            <li>Extend recklessly → capital losses, systemic risk</li>
+            <li>Either → regulatory action, litigation, reputational damage</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The raw material</div>
+    <h2>What's actually inside a credit file</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The three US bureaus — Equifax, Experian, TransUnion — each hold files on roughly
+      <strong>220 million adults</strong>. A standard file is four kinds of record.</p>
+    <ul>
+      <li class="frag"><strong>Account data</strong> — 24–84 months of payment history per account, plus balance and limit</li>
+      <li class="frag"><strong>Inquiry data</strong> — hard inquiries (applications) vs. soft inquiries (pre-qualification)</li>
+      <li class="frag"><strong>Public records</strong> — bankruptcies (7–10 years), civil judgments</li>
+      <li class="frag"><strong>Collections</strong> — charged-off accounts</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The score everyone knows — and its blind spot</div>
+    <h2>FICO records credit behaviour, so it can't see those without any</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>FICO factor</th><th>Weight</th></tr>
+          <tr><td>Payment history</td><td>35%</td></tr>
+          <tr><td>Amounts owed</td><td>30%</td></tr>
+          <tr><td>Length of credit history</td><td>15%</td></tr>
+          <tr><td>New credit</td><td>10%</td></tr>
+          <tr><td>Credit mix</td><td>10%</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">the structural limitation</span>
+          Bureau data is <em>circular</em>: it records credit behaviour, so you need credit to build credit.
+          Roughly <strong>45M US adults</strong> have thin or no file — recent immigrants, young adults,
+          lower-income households.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Filling the gap — carefully</div>
+    <h2>Alternative data can reach thin-file borrowers, within limits</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When the bureau file is empty, lenders look elsewhere — but each new source comes with its own legal leash.</p>
+    <ul>
+      <li class="frag"><strong>Bank transaction data</strong> — cash-flow signals; consent governed by Dodd-Frank §1033</li>
+      <li class="frag"><strong>Rent and utility payments</strong> — the largest recurring obligation, yet historically invisible to scores</li>
+      <li class="frag"><strong>Unstructured text</strong> — loan-purpose statements; "medical emergency" ≠ "consolidating payday loans"</li>
+      <li class="frag"><strong>Social / behavioural data</strong> — largely prohibited; too easily a proxy for protected classes</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">where the LLM earns its place</span>
+      That unstructured-text row is exactly where a language model adds signal a tabular scorecard can't.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The legal fence</div>
+    <h2>Three laws every LLM credit model has to clear</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Law</th><th>Key constraint for LLM credit models</th></tr>
+      <tr><td><strong>FCRA</strong></td><td>Adverse action must cite specific reasons (reason codes). A transformer that emits one scalar is not inherently compliant.</td></tr>
+      <tr><td><strong>ECOA / Reg B</strong></td><td>Prohibits disparate <em>impact</em> on protected classes, not only disparate <em>treatment</em>.</td></tr>
+      <tr><td><strong>GDPR Art. 22</strong></td><td>Right to human review of automated credit decisions. Human-in-the-loop is legally mandated.</td></tr>
+    </table>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      These three rules quietly dictate the architecture: you must explain decisions (FCRA), test for impact
+      (ECOA), and keep a human in the loop (GDPR). Design around them, not after them.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Cleaning before modelling · 1 of 2</div>
+    <h2>Two of the three universal preprocessing traps</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Anonymisation</div>
+          Quasi-identifiers create re-identification risk. Sweeney (2002): <strong>87%</strong> of the US population
+          is uniquely identifiable from ZIP + date of birth + sex. Fixes: tokenisation, generalisation
+          (age → bracket), suppression, differential privacy.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Class imbalance</div>
+          Default rates run 1–10% over 12 months. With 3% defaults in 1M rows, "always predict non-default"
+          scores <strong>97% accuracy</strong> and is useless. Re-weight the classes so each carries equal pull.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="balanced class weights">
+      Give the minority class proportionally more weight so each class has equal aggregate influence on the gradient:
+      \[ w_+ = \frac{n}{2\,n_+}, \qquad w_- = \frac{n}{2\,n_-}. \]
+      Here \(n\) is the sample size and \(n_+, n_-\) the positive / negative counts. The class ratio no longer
+      decides whose errors the optimiser cares about.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Cleaning before modelling · 2 of 2</div>
+    <h2>Missing data isn't always missing by accident</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The fact that a field is blank can <em>itself</em> be informative — a borrower with no bureau
+      score is telling you something.</p>
+    <ul>
+      <li class="frag"><strong>MCAR</strong> — missing completely at random; simple mean imputation is unbiased</li>
+      <li class="frag"><strong>MAR</strong> — missing at random; multiple imputation is consistent</li>
+      <li class="frag"><strong>MNAR</strong> — missing not at random; needs an explicit model of the missingness</li>
+    </ul>
+    <div class="block frag"><div class="block-title">The LLM move</div>
+      Don't silently impute — serialise the gap into the text so the model can read it:
+      <code class="inline">"[INCOME: MISSING] [BUREAU_SCORE: 687]"</code>.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Credit risk modelling with LLMs</h2>
+    <div class="secsub">From a 1968 five-ratio score to a language model that reads loan-purpose text.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Fifty years of default models</div>
+    <h2>Where language models fit in a long lineage</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Era</th><th>Method</th><th>Key insight</th></tr>
+      <tr><td>1968</td><td>Altman Z-score</td><td>Linear discriminant of 5 financial ratios</td></tr>
+      <tr><td>1974</td><td>Merton model</td><td>Equity as a call option on firm assets</td></tr>
+      <tr><td>1990s</td><td>Reduced-form</td><td>Default as a Poisson intensity process</td></tr>
+      <tr><td>2015–22</td><td>Gradient boosting</td><td>Non-linear tabular features; missing values</td></tr>
+      <tr><td>Now</td><td>Language models</td><td>Text-native signals; thin-file borrowers</td></tr>
+    </table>
+    <aside class="underhood" data-title="Altman Z-score">
+      A weighted sum of five accounting ratios, fit on just <em>sixty-six</em> firms in 1968 and still a benchmark:
+      \[ Z = 1.2 X_1 + 1.4 X_2 + 3.3 X_3 + 0.6 X_4 + 1.0 X_5. \]
+      \(Z &lt; 1.81\): distressed; \(Z > 2.99\): healthy.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">where LLMs actually add value</span>
+      Three places: <strong>text-native features</strong> (loan purpose, officer notes),
+      <strong>thin-file borrowers</strong> (text resists tabularisation), and
+      <strong>complex commercial credit</strong> (covenant reasoning, sector outlook).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Turning a borrower into a prediction</div>
+    <h2>Three ways to fine-tune for default prediction</h2>
+    <div class="title-rule"></div>
+    <p class="lead">First write the borrower's profile as a sentence; then pick how the model emits a verdict.</p>
+    <ul>
+      <li class="frag"><strong>Sequence classification</strong> — a BERT encoder with a <code class="inline">[CLS]</code> head and sigmoid. The most common choice in published LLM credit-scoring papers.</li>
+      <li class="frag"><strong>Causal LM with label generation</strong> — prompt a decoder-only model, read off the label-token probability. Scales to few-shot.</li>
+      <li class="frag"><strong>Regression on probability</strong> — output a scalar probability directly.</li>
+    </ul>
+    <div class="block frag"><div class="block-title">Input serialisation — consistency is critical</div>
+      <pre class="code">Age 34. Employment: full-time, 6 years. Income: $58K.
+Bureau score: 672. Delinquencies 24m: 1.
+Loan purpose: debt consolidation. Assess default risk:</pre>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Training without retraining everything</div>
+    <h2>LoRA: fine-tune a giant model by nudging a tiny slice</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Full fine-tuning updates every weight — expensive and storage-heavy. LoRA freezes the model and
+      learns only a small low-rank correction, cutting trainable parameters dramatically.</p>
+    <aside class="underhood" data-title="parameter-efficient fine-tuning (LoRA)">
+      Constrain the weight update to a low-rank factorisation:
+      \[ \Delta W = B A, \quad B \in \mathbb{R}^{d \times r}, \; A \in \mathbb{R}^{r \times d}, \quad r \ll d. \]
+      With \(r = 8\), \(d = 768\): about <strong>48× fewer</strong> trainable parameters than full fine-tuning.
+      The original \(W_0\) stays frozen; only \(A\) and \(B\) are trained.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Getting a number out of a word machine</div>
+    <h2>How do you extract a single default probability from an LLM?</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">The problem</div>
+      A decoder-only LLM produces a distribution over its <em>entire vocabulary</em> at each position — not a
+      single scalar probability of default. So how do we read off a well-defined PD?
+    </div>
+    <p class="lead frag">The trick: force the model to write its answer in a fixed format, then read the digits.</p>
+    <aside class="underhood" data-title="constrained decoding · Willard et al. 2023">
+      Using the <code>outlines</code> library:
+      <ol>
+        <li>Define an output grammar — a JSON object with one key <code>"pd"</code> mapped to a float in \([0,1]\).</li>
+        <li>At each step, intersect the model's next-token distribution with the grammar's automaton.</li>
+        <li>Renormalise over valid tokens only:</li>
+      </ol>
+      \[ P_{\text{constrained}}(x_{t+1} = v \mid x_{1:t}) =
+         \frac{\exp(\ell_v)\,\mathbb{1}[v \in \mathcal{V}_{\text{valid}}]}
+              {\sum_{u \in \mathcal{V}_{\text{valid}}} \exp(\ell_u)}. \]
+      The model writes <code>{"pd":</code> then produces the float <em>digit by digit</em>. If it emits
+      <code>0.23</code>, the implied default probability is \(\hat{p} = 0.23\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Read that number carefully</div>
+    <h2>A generated probability is not a calibrated one</h2>
+    <div class="title-rule"></div>
+    <div class="alert callout">
+      <span class="callout-tag">the key point</span>
+      \(\hat{p}\) is not the model's "confidence" — it is the specific number the model was <em>guided</em> to express.
+      It reflects the model's internal representation of risk, but it is <strong>not guaranteed to be calibrated</strong>
+      against real default rates.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Making the number mean what it says</div>
+    <h2>Calibration: of everyone scored 10%, do 10% actually default?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A probability is only useful if it matches reality. We check this with a reliability diagram,
+      then fix it if the line bends.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Reliability diagram</div>
+          Bin the interval \([0,1]\); plot mean predicted probability vs. observed default rate per bin.
+          Perfect calibration is the 45-degree line.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Platt scaling</div>
+          Fit a logistic regression on raw scores on a held-out set. Cheap; works with small data.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="perfect calibration &amp; Platt scaling">
+      A model is <em>perfectly calibrated</em> if
+      \[ \mathbb{E}[Y \mid \hat{P} = p] = p \quad \text{for all } p \in [0,1]. \]
+      Platt scaling fits
+      \[ \hat{p}_{\text{Platt}}(x) = \sigma\big(a \cdot f(x) + b\big), \]
+      where \(a &lt; 1\) corrects overconfident scores and \(a > 1\) corrects underconfident ones.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When the bend isn't a straight line</div>
+    <h2>Isotonic regression: more flexible, hungrier for data</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Platt assumes the miscalibration is a smooth logistic curve. Isotonic regression makes no such
+      assumption — it just fits any non-decreasing staircase that best matches observed defaults.</p>
+    <aside class="underhood" data-title="isotonic regression">
+      Find the non-decreasing step function minimising squared error:
+      \[ \hat{q} = \underset{q_1 \leq \cdots \leq q_n}{\arg\min} \sum_{i=1}^{n} (q_i - y_i)^2. \]
+      Solved by the pool-adjacent-violators (PAV) algorithm in \(O(n)\) time. More flexible than Platt,
+      but it needs more data.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Household decisions under uncertainty</h2>
+    <div class="secsub">Real people don't solve the optimisation — so what should an LLM do for them?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">People are not the textbook agent</div>
+    <h2>Why a "rational" borrower is the wrong default assumption</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">CFPB (2018)</div>
+      One-third of US mortgage borrowers did not shop before accepting the first offer. The average non-shopper
+      paid about <strong>$300/year</strong> more in interest — over 30 years, <strong>tens of thousands of dollars</strong>.
+    </div>
+    <p class="lead frag">Four reasons households depart from the neoclassical benchmark:</p>
+    <ol>
+      <li class="frag"><strong>Computational complexity</strong> — the full household problem is a high-dimensional stochastic control problem; people approximate</li>
+      <li class="frag"><strong>Information asymmetry</strong> — knowledge of credit terms, taxes, insurance is required and mostly absent</li>
+      <li class="frag"><strong>Dual-process cognition</strong> — high-stakes choices often made in fast, affective "System 1" mode</li>
+      <li class="frag"><strong>Preference inconsistency</strong> — hyperbolic discounting, loss aversion, framing effects</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A better model of the human</div>
+    <h2>Households satisfice — and that changes the LLM's job</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">Simon's bounded rationality</span>
+      Households don't solve the optimisation; they <em>satisfice</em> — searching alternatives until one clears
+      a threshold of acceptability, then stopping. The threshold itself adapts to recent outcomes.
+    </div>
+    <p class="lead frag">So an LLM that just hands back the "optimal" choice misses the point. The value is in
+      <strong>widening the set of alternatives</strong> a boundedly-rational household actually considers.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The right division of labour</div>
+    <h2>What a decision-support agent must do — and not do</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three functions, ending with a deliberate restraint.</p>
+    <ol>
+      <li class="frag"><strong>Information extraction</strong> — parse term sheets and insurance exclusions into structured, comparable summaries</li>
+      <li class="frag"><strong>Consequence tracing</strong> — compute the multi-period financial implications of each choice for this household</li>
+      <li class="frag"><strong>Trade-off articulation</strong> — present options so the trade-offs are legible <em>without nudging</em> toward one</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From principle to plumbing</div>
+    <h2>A practical decision-support architecture</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td>Document ingestion layer</td><td>RAG pipeline on term sheets</td></tr>
+      <tr><td>Household profile module</td><td>Income, wealth, risk preferences</td></tr>
+      <tr><td>Consequence engine</td><td>Scenario computations</td></tr>
+      <tr><td>Dialogue manager</td><td>Conversational trade-off presentation</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">design principle</span>
+      An LLM that always recommends the neoclassically optimal choice can <em>undermine</em> household autonomy
+      when stated and revealed preferences diverge. The goal is <strong>extension, not replacement</strong>, of
+      the household's cognitive frontier.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Persona agents and behavioural simulation</h2>
+    <div class="secsub">Conditioning an LLM on a backstory to preview how real borrowers would choose.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Silicon sampling</div>
+    <h2>Give an LLM a backstory, and it answers like that demographic</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Argyle et al. (2023)</div>
+      An LLM conditioned on a detailed demographic backstory reproduces the survey-response <em>distributions</em>
+      of the matching demographic group with striking fidelity. This is an empirical observation about
+      distributional encoding — <em>not</em> a claim about sentience.
+    </div>
+    <p class="lead frag">A persona is specified along four axes.</p>
+    <aside class="underhood" data-title="persona specification">
+      \(\Pi = (D, S, \Psi, L)\):
+      <ul>
+        <li>\(D\) — demographics: age, sex, household composition, education, region</li>
+        <li>\(S\) — socioeconomics: employment, income, wealth, existing debt</li>
+        <li>\(\Psi\) — psychology: risk aversion \(\gamma\), time preference \(\delta\), financial anxiety</li>
+        <li>\(L\) — financial literacy: the Lusardi–Mitchell 3-question battery</li>
+      </ul>
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two borrowers, two worlds</div>
+    <h2>Meet Maria and Thomas</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Maria · 28</div>
+          Rideshare driver · $2.4K/month variable income · $800 savings · bureau score 584 ·
+          no post-secondary education · high security preference.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Thomas · 52</div>
+          French teacher · €48K salary · €120K savings · 3/3 financial literacy ·
+          moderate risk aversion (\(\gamma \approx 2\)).
+        </div>
+      </div>
+    </div>
+    <p class="lead frag">Same loan offer, very different people. Let's watch them choose.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Persona simulation in action</div>
+    <h2>The same loan, reasoned two defensible ways</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Scenario:</strong> a $20,000 personal loan over 5 years.
+      Option A — fixed 12% APR, $444/month. Option B — variable starting 8% APR, $406/month, capped at 18%.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Maria → Option A</div>
+          <p class="small">"Option B starts lower but says <em>adjustable</em>. If it goes to 18%… My rent is $1,200
+          and some months I barely clear $1,800. I can't risk my payment jumping when work is slow. At least I
+          know exactly what I owe every month."</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Thomas → Option B</div>
+          <p class="small">"At 8%, five-year interest ≈ €4,300; at 12% ≈ €6,600. If rates stay below ~10% on
+          average, B is cheaper. My wife's income covers fixed obligations. I'd choose B and set aside the
+          monthly difference into the Livret A."</p>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the observation</span>
+      Both responses are coherent and defensible. <em>Neither is "wrong."</em> The contrast reflects genuine
+      heterogeneity in risk aversion, income volatility, and financial literacy.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Evaluation and model risk management</h2>
+    <div class="secsub">How good is the model — and can you defend it to a validator and a regulator?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Measuring discrimination power</div>
+    <h2>The metrics credit people actually report</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Credit modellers don't lead with accuracy — they ask how well scores <em>separate</em>
+      defaulters from non-defaulters. Three measures do that, and they're tightly linked.</p>
+    <div class="statrow">
+      <div class="stat"><div class="num">AUROC</div><div class="lbl">good &gt; 0.70 · excellent &gt; 0.80</div></div>
+      <div class="stat"><div class="num">KS</div><div class="lbl">good &gt; 0.40 · excellent &gt; 0.60</div></div>
+      <div class="stat"><div class="num">Gini</div><div class="lbl">good &gt; 0.40 · excellent &gt; 0.60</div></div>
+    </div>
+    <aside class="underhood" data-title="AUROC, KS, and the exact Gini identity">
+      AUROC is the probability a random defaulter outscores a random non-defaulter:
+      \[ \text{AUROC} = P(S_+ > S_-). \]
+      KS is the maximum gap between the two score CDFs:
+      \[ \text{KS} = \sup_{s} |F_+(s) - F_-(s)|. \]
+      Gini is an <em>exact</em> rescaling of AUROC (from the CAP/ROC relationship, not an approximation):
+      \[ \text{Gini} = 2\cdot\text{AUROC} - 1, \]
+      ranging 0 (random) to 1 (perfect). Retail credit models typically land at Gini 0.40–0.70.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The supervisory backbone</div>
+    <h2>SR 11-7: an LLM is unambiguously a "model"</h2>
+    <div class="title-rule"></div>
+    <p class="lead">SR 11-7 (Fed / OCC, 2011) says every model must be conceptually sound, monitored, independently
+      validated, and documented. LLMs qualify — no exemption. Three pillars, adapted.</p>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Development</div>
+          <ul>
+            <li>Document base-model provenance: data, licence, cutoff</li>
+            <li>Fine-tune data quality &amp; vintage vs. current cycle</li>
+            <li>Watch for emergent, untested reasoning</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Independent validation</div>
+          <ul>
+            <li>Outcome analysis vs. a logistic baseline</li>
+            <li>Sensitivity to word order, synonyms, missing fields</li>
+            <li>Disparate-impact testing by protected class</li>
+            <li>Adversarial probing</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Governance</div>
+          <ul>
+            <li>Versioning: base-model updates may trigger revalidation</li>
+            <li>Prompt governance: a system-prompt change <em>is</em> a model change</li>
+            <li>Vendor risk: API models leave residual model risk</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Explaining a single decision</div>
+    <h2>SHAP turns one prediction into reason codes the law requires</h2>
+    <div class="title-rule"></div>
+    <p class="lead">FCRA demands specific reasons for an adverse action. SHAP assigns each feature a fair share of the
+      prediction — borrowed straight from cooperative game theory — and the top contributors become the reason codes.</p>
+    <aside class="underhood" data-title="SHAP values and their axioms">
+      The SHAP value for feature \(j\) averages its marginal contribution over all feature subsets:
+      \[ \phi_j(x) = \sum_{S \subseteq \mathcal{F} \setminus \{j\}}
+         \frac{|S|!\,(|\mathcal{F}|-|S|-1)!}{|\mathcal{F}|!}\big[ f(S \cup \{j\}) - f(S) \big]. \]
+      Three axioms pin it down: <strong>efficiency</strong>
+      (\(\sum_j \phi_j = f(x) - \mathbb{E}[f(x)]\)), <strong>symmetry</strong>, and <strong>dummy</strong>.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">SHAP, made concrete</div>
+    <h2>Reading a waterfall — and turning it into a notice</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A 34-year-old, $58K income, bureau 672, one delinquency. Each feature pushes the predicted
+      default probability up or down from the base rate.</p>
+    <table>
+      <tr><th>Feature</th><th>SHAP \(\phi_j\)</th><th>Running PD</th></tr>
+      <tr><td>Base value</td><td>—</td><td>+0.050</td></tr>
+      <tr><td>Bureau score = 672</td><td>+0.041</td><td>+0.091</td></tr>
+      <tr><td>Delinquencies = 1</td><td>+0.027</td><td>+0.118</td></tr>
+      <tr><td>Loan purpose: debt consol.</td><td>+0.019</td><td>+0.137</td></tr>
+      <tr><td>Income = $58K</td><td>−0.012</td><td>+0.125</td></tr>
+      <tr><td>Employment: full-time 6yr</td><td>−0.015</td><td>+0.110</td></tr>
+      <tr><td>Age = 34</td><td>−0.008</td><td>+0.102</td></tr>
+      <tr><td><strong>Final PD</strong></td><td></td><td><strong>0.102</strong></td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">compliance, automated</span>
+      The top positive contributors become the <strong>FCRA adverse-action reasons</strong> — generated directly
+      from the SHAP output.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 6 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Deployment and governance</h2>
+    <div class="secsub">Shipping a credit model that stays auditable, monitored, and humane in production.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The production stack</div>
+    <h2>An architecture built for audit, not just inference</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td><strong>Feature Store</strong></td><td>Single source of truth; records retrieval timestamp and source per feature; enables point-in-time reconstruction of any past decision</td></tr>
+      <tr><td><strong>Inference API</strong></td><td>Versioned JSON: raw PD, calibrated PD, reason codes, SHAP values, decision ID</td></tr>
+      <tr><td><strong>LLM Serving</strong></td><td>Self-hosted preferred for credit (full data and model control); API-based creates vendor dependency</td></tr>
+      <tr><td><strong>Decision DB</strong></td><td>Append-only immutable log; records may be supplemented (outcome) but never overwritten</td></tr>
+      <tr><td><strong>Monitoring</strong></td><td>Data drift (PSI), embedding drift (MMD), score distribution; lagged AUROC by vintage cohort</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Catching the model going stale</div>
+    <h2>Drift monitoring: is today's population still last year's?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Models decay when the world moves. The Population Stability Index compares the distribution of
+      inputs now against the baseline, and flags when they've drifted too far.</p>
+    <aside class="underhood" data-title="Population Stability Index (PSI)">
+      \[ \text{PSI} = \sum_{b=1}^{B} (p_b - q_b)\,\ln\!\left(\frac{p_b}{q_b}\right), \]
+      summing over bins \(b\), where \(p_b, q_b\) are the current and baseline proportions.
+      PSI \(&lt; 0.1\): stable; \(0.1\text{–}0.25\): investigate; \(> 0.25\): model review required.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Keeping a human in the loop</div>
+    <h2>Three review tiers — and the bias they guard against</h2>
+    <div class="title-rule"></div>
+    <p class="lead">GDPR Art. 22, ECOA, and SR 11-7 all require human oversight. Route decisions by difficulty.</p>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">Tier 1 · clear approvals</div>Random quality-control sample only.</div></div>
+      <div class="col"><div class="block"><div class="block-title">Tier 2 · borderline</div>Active human review before the decision is communicated.</div></div>
+      <div class="col"><div class="block"><div class="block-title">Tier 3 · appeals</div>Full decision record (incl. SHAP) reviewed; reviewer documents an independent assessment.</div></div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">automation bias</span>
+      Reviewers anchor hard to a prominently displayed model recommendation. Mitigate: show the recommendation
+      <em>after</em> independent assessment; present SHAP prominently; require documented reasoning before the
+      reviewer sees the model's output.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Paper the regulator needs</div>
+    <h2>The documentation package that ships with the model</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>MDR</strong> — Model Development Report: business need, conceptual framework, data, performance, limitations</li>
+      <li class="frag"><strong>MVR</strong> — Model Validation Report: independent validation findings and model-risk rating</li>
+      <li class="frag"><strong>GDPR Art. 22</strong> — plain-language explanation for consumers, translated from SHAP via a constrained LLM</li>
+      <li class="frag"><strong>Model Inventory</strong> — versioned tracking of base model, fine-tune, calibration, and system prompt</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Explaining a denial to a human</div>
+    <h2>SHAP is the input to the explanation, never the output</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">GDPR Recital 71</div>
+      The consumer has "the right to obtain human intervention, to express his or her point of view, and to
+      contest the decision." The explanation must be comprehensible to someone with no financial or technical background.
+    </div>
+    <div class="block frag"><div class="block-title">Generated plain-language notice</div>
+      <p class="small">"Your application for a €12,000 personal loan was assessed using an automated system… Our
+      system estimated a higher probability of repayment difficulty than our lending criteria allow.
+      <strong>Factors that increased your estimated risk:</strong> your credit bureau score of 672…; one late
+      payment in the past twenty-four months; and a loan purpose of debt consolidation.
+      <strong>Factors that partially reduced your estimated risk:</strong> six years of continuous full-time
+      employment and an annual income of $58,000. You have the right to request human review of this decision…"</p>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">key principle</span>
+      SHAP values feed the plain-language generator; they are not shown raw. Putting raw SHAP numbers in
+      consumer communications creates confusion, not transparency.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Know your failure modes</div>
+    <h2>Five ways an LLM credit model can fail you</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Prompt sensitivity</strong> — instability under word-order or synonym changes is a red flag; sensitivity analysis is a mandatory SR 11-7 step</li>
+      <li class="frag"><strong>Calibration gap</strong> — constrained-decoded probabilities reflect internal representation, not empirical default rates; calibration is non-optional</li>
+      <li class="frag"><strong>Protected-class proxies</strong> — historical text can encode correlations between language, geography, occupation and protected classes; test for intersectional disparate impact</li>
+      <li class="frag"><strong>Adversarial manipulation</strong> — a sophisticated borrower may craft text to trigger favourable output; adversarial probing is part of validation</li>
+      <li class="frag"><strong>Vendor lock-in &amp; versioning</strong> — a silent base-model update changes outputs with no action by the institution; versioning contracts and revalidation triggers are required controls</li>
+    </ol>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>The whole stack on one page — and the through-line</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>Layer</th><th>Key design choice</th></tr>
+          <tr><td>Data</td><td>Bureau + alternative; FCRA/ECOA/GDPR</td></tr>
+          <tr><td>Preprocessing</td><td>LoRA; cost-sensitive loss; serialised missingness</td></tr>
+          <tr><td>Modelling</td><td>Sequence classification or constrained generation</td></tr>
+          <tr><td>Calibration</td><td>Platt (small data) or isotonic</td></tr>
+          <tr><td>Household</td><td>Persona agents; CRRA utility elicitation</td></tr>
+          <tr><td>Evaluation</td><td>AUROC / KS / Gini; SR 11-7 pillars</td></tr>
+          <tr><td>Interpretability</td><td>SHAP waterfall → FCRA reason codes</td></tr>
+          <tr><td>Monitoring</td><td>PSI; embedding drift for text</td></tr>
+          <tr><td>Oversight</td><td>Tier 1/2/3; automation-bias mitigations</td></tr>
+          <tr><td>Documentation</td><td>MDR + MVR + GDPR Art. 22</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the through-line</span>
+          Credit AI is not merely a prediction problem — it is a <em>regulated sociotechnical system</em>.
+          Every design choice, from the loss function to the API schema, has implications for fairness,
+          explainability, and regulatory compliance.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extended material</h2>
+    <div class="secsub">Utility elicitation, population simulation, and through-the-cycle validation. Beyond the core lecture.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix A · utility theory</div>
+    <h2>Framing the household choice as expected utility</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Underneath "satisficing" sits the classical benchmark: a household picks the action whose
+      expected utility of resulting wealth is highest. Risk aversion is one parameter, \(\gamma\).</p>
+    <aside class="underhood" data-title="expected utility &amp; CRRA">
+      The household with wealth \(W_0\) selects
+      \[ a^* = \underset{k}{\arg\max} \; \mathbb{E}\big[U(W_0 + \Delta W_k)\big]. \]
+      The most common parameterisation is CRRA utility:
+      \[ U(W) = \frac{W^{1-\gamma}}{1-\gamma}, \quad \gamma > 0, \]
+      where \(\gamma = 1\) is log utility, \(\gamma = 2\) moderate risk aversion, and \(\gamma > 5\) high risk aversion.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix A · eliciting preferences</div>
+    <h2>Letting the LLM measure a household's risk aversion</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Rather than assume \(\gamma\), run a dialogue of lottery choices, find where the household is
+      indifferent, and fit the utility curve to those points.</p>
+    <aside class="underhood" data-title="LLM-based preference elicitation">
+      <ol>
+        <li>Present a sequence of binary lottery choices to identify indifference points.</li>
+        <li>Extract the stated indifference points from the conversation.</li>
+        <li>Fit CRRA utility by minimising
+        \[ \hat{\gamma} = \underset{\gamma}{\arg\min} \sum_{j=1}^{J}
+           \big( U_\gamma(c_j) - \lambda_j U_\gamma(g_j) - (1-\lambda_j) U_\gamma(\varepsilon) \big)^2. \]</li>
+        <li>Use \(\hat{\gamma}\) to evaluate the household's alternatives.</li>
+      </ol>
+      Quality hinges on the LLM running a coherent multi-turn dialogue <em>without anchoring</em> the responses.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix B · population simulation</div>
+    <h2>Running many personas to preview a product launch</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Draw \(N\) personas from a target population and simulate their choices to see which subgroups
+      respond to which product features — before any live test.</p>
+    <aside class="underhood" data-title="synthetic-population estimate">
+      \[ \hat{P}(d = k) = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[d_i = k], \]
+      the share of \(N\) simulated personas choosing option \(k\).
+    </aside>
+    <ul>
+      <li class="frag"><strong>Loan uptake</strong> — estimate take-up vs. APR before a live A/B test</li>
+      <li class="frag"><strong>Mortgage suitability</strong> — flag which products create distress risk for which persona types</li>
+      <li class="frag"><strong>Retirement planning</strong> — test auto-enrolment schemes for low-literacy households</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix B · calibration</div>
+    <h2>A simulation is only useful if it matches a real survey</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Validate the synthetic population against survey data (ECB HFCS, US SCF) before trusting it.</p>
+    <ol>
+      <li class="frag"><strong>Population alignment</strong> — post-stratification weights so the joint attribute distribution matches the target survey</li>
+      <li class="frag"><strong>Behavioural alignment</strong> — compare simulated vs. survey decision distributions via a calibration loss</li>
+      <li class="frag"><strong>Prompt refinement</strong> — iterate when calibration loss is high</li>
+    </ol>
+    <aside class="underhood" data-title="calibration loss">
+      \[ \mathcal{L} = \sum_k \big(\hat{P}_{\text{sim}} - \hat{P}_{\text{survey}}\big)^2. \]
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">the standard</span>
+      A validated simulation explaining 60–70% of cross-sectional variation is useful. An <em>uncalibrated</em>
+      simulation that claims to predict population behaviour is not.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix C · through-the-cycle validation</div>
+    <h2>Models trained on good times underestimate the bad ones</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Concept drift</div>
+          The feature → default relationship shifts as the economy evolves. A model trained on 2015–2019 data
+          may underestimate recession-period default risk.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Population drift</div>
+          The applicant distribution shifts — new marketing strategy, regulatory change.
+        </div>
+      </div>
+    </div>
+    <p class="frag"><strong>Vintage analysis:</strong> group loans by origination quarter; track AUROC and KS as
+      outcomes mature; look for time trends in discrimination power.</p>
+    <aside class="underhood" data-title="PIT vs. TTC conversion">
+      Basel III Pillar 1 requires <em>through-the-cycle</em> (TTC) PD estimates — long-run average default rates —
+      but LLMs trained on recent data tend to produce <em>point-in-time</em> (PIT) estimates. Convert by Platt
+      scaling on a dataset spanning \(\geq 1\) full credit cycle (7–10 years):
+      \[ \hat{p}_{\text{TTC}} = \sigma\big(a \cdot f(x) + b\big), \]
+      where \(a\) and \(b\) absorb both the overconfidence correction and the cycle-position adjustment at once.
+    </aside>
+  </section>
+
+</div></div>
+</body>
+</html>

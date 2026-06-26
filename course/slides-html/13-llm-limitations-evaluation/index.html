@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 13 — LLM Limitations and Rigorous Evaluation in Finance</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 13 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 13</div>
+    <h1>When the Model Sounds Right but Is Wrong</h1>
+    <div class="sub">LLM limitations and the rigorous evaluation a finance shop needs before trusting any answer.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Five ways a fluent answer can betray you</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Calibration</strong> — does "80% confident" really mean right 80% of the time?</li>
+          <li class="frag"><strong>Temporal leakage</strong> — the model may have memorised the future.</li>
+          <li class="frag"><strong>Stock prediction</strong> — statistical accuracy vs. economic value.</li>
+          <li class="frag"><strong>Evaluation</strong> — judging in returns and risk, not classification scores.</li>
+          <li class="frag"><strong>Hallucination</strong> — fabricated facts with no warning signal.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          A model that answers with apparent certainty is not necessarily correct. In finance a confidently
+          wrong forecast cascades through portfolios, loan books, and regulatory submissions. This lecture is
+          the discipline that keeps that from happening.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Calibration and overconfidence</h2>
+    <div class="secsub">When stated confidence drifts away from actual accuracy — and how to measure the gap.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The core question</div>
+    <h2>Does "80% confident" actually mean "right 80% of the time"?</h2>
+    <div class="title-rule"></div>
+    <p class="lead frag">A model's expressed confidence — a stated probability, a hedging phrase, a fluent
+      rationale — can diverge sharply from its empirical accuracy. Calibration is whether the two line up.</p>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      In finance, confidence is something people act on. A credit officer who triages cases by the model's
+      stated certainty needs that certainty to be honest, or effort flows to exactly the wrong files.
+    </div>
+    <div class="block frag"><div class="block-title">Five fragilities of LLMs in finance (this lecture)</div>
+      <ol>
+        <li><strong>Calibration</strong> — systematic overconfidence</li>
+        <li><strong>Temporal leakage</strong> — memorising the future</li>
+        <li><strong>Stock prediction</strong> — statistical vs. economic value</li>
+        <li><strong>Evaluation</strong> — beyond classification accuracy</li>
+        <li><strong>Hallucination</strong> — fabricated facts with no warning signal</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two numbers for one idea</div>
+    <h2>ECE measures the average gap; MCE catches the worst region</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Perfect calibration means that among all the times the model says "p," exactly a fraction p
+      turn out right. We summarise how far reality strays from that promise with two scores.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">ECE — Expected Calibration Error</div>
+          A weighted-average gap between confidence and accuracy across all confidence levels.</div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">MCE — Maximum Calibration Error</div>
+          The single worst confidence band — the catastrophe an average can hide.</div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="ECE and MCE, formally">
+      Perfect calibration: among predictions with confidence \(p\), a fraction \(p\) are correct,
+      \[ \Pr(Y = 1 \mid \hat p = p) = p \quad\text{for all } p \in [0,1]. \]
+      Bin predictions into \(M\) equal-width intervals \(B_1,\dots,B_M\) (typically \(M=10\)). Plot mean
+      confidence \(\overline p(B_m)\) vs. accuracy \(\mathrm{acc}(B_m)\) — the <em>reliability diagram</em> —
+      and aggregate the gaps:
+      \[ \mathrm{ECE} = \sum_{m=1}^{M} \frac{|B_m|}{n}\,\bigl|\,\mathrm{acc}(B_m) - \overline p(B_m)\,\bigr|,
+         \qquad \mathrm{MCE} = \max_m \bigl|\,\mathrm{acc}(B_m) - \overline p(B_m)\,\bigr|. \]
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">why MCE matters</span>
+      A region where 90–100% confidence predictions are only 40% accurate is unacceptable in high-stakes
+      finance, even when the <em>average</em> looks fine.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Worked example</div>
+    <h2>An LLM credit-risk classifier with an 11.5% calibration error</h2>
+    <div class="title-rule"></div>
+    <p class="lead">1,000 default predictions, sorted into five confidence bins of width 0.2. The model is fine
+      where it is unsure — and badly overconfident where it is most sure.</p>
+    <table>
+      <tr><th>Bin</th><th>Interval</th><th>\(|B_m|\)</th><th>Mean conf. \(\overline p\)</th><th>Accuracy</th></tr>
+      <tr><td>1</td><td>[0.0, 0.2)</td><td>120</td><td>0.08</td><td>0.11</td></tr>
+      <tr><td>2</td><td>[0.2, 0.4)</td><td>180</td><td>0.31</td><td>0.28</td></tr>
+      <tr><td>3</td><td>[0.4, 0.6)</td><td>200</td><td>0.50</td><td>0.47</td></tr>
+      <tr><td>4</td><td>[0.6, 0.8)</td><td>300</td><td>0.71</td><td>0.55</td></tr>
+      <tr><td>5</td><td>[0.8, 1.0]</td><td>200</td><td>0.88</td><td>0.62</td></tr>
+    </table>
+    <aside class="underhood" data-title="computing the ECE">
+      \[ \mathrm{ECE} = 0.12(0.03) + 0.18(0.03) + 0.20(0.03) + 0.30(0.16) + 0.20(0.26) = \mathbf{0.115}. \]
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">reading the number</span>
+      An ECE of 11.5% is substantial. The top band — 80–100% confidence — is right only <strong>62%</strong>
+      of the time. A credit officer triaging by stated confidence would chase the least reliable cases first.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where overconfidence comes from</div>
+    <h2>Three reinforcing reasons LLMs sound surer than they are</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>RLHF-induced overconfidence.</strong> Human raters prefer confident, fluent
+        answers over hedged ones — even when hedging is more appropriate. The reward signal pushes toward
+        confident expression regardless of knowledge.</li>
+      <li class="frag"><strong>Token- vs. claim-level confidence.</strong> Token probabilities compound across
+        a multi-token claim. A model calibrated per token can be wildly miscalibrated per <em>claim</em>.</li>
+      <li class="frag"><strong>Distributional shift.</strong> Financial data is non-stationary. A model trained
+        on pre-2022 text stays confident on topics that have structurally changed — "it does not know that
+        it does not know."</li>
+    </ol>
+    <div class="block frag"><div class="block-title">Documented in finance</div>
+      Chen, Green, Gulen &amp; Zhou (2024): LLM return forecasts over-extrapolate recent trends and show
+      optimistic bias — a human-like extrapolation/over-optimism that <em>persists after prompt engineering</em>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Getting and fixing the numbers</div>
+    <h2>How to read confidence — and three ways to recalibrate it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">First you need a confidence score: log-probs from the API; or, for text-only access,
+      self-consistency (run \(k\) samples, take the fraction that agree) or just asking the model.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">the catch with asking</span>
+      Wang et al. (2023) show verbalised confidence is unstable — 70% under one prompt, 95% under another for
+      the same question.
+    </div>
+    <aside class="underhood" data-title="three post-hoc recalibration methods">
+      <ul>
+        <li><strong>Temperature scaling:</strong> \(\operatorname{softmax}(\mathbf z / T)\), one scalar \(T\)
+          fit by NLL. \(T>1\) spreads the probabilities (cures overconfidence); it preserves ranking, so
+          AUROC is unchanged.</li>
+        <li><strong>Isotonic regression:</strong> a non-parametric monotone map; flexible but needs a larger
+          calibration set.</li>
+        <li><strong>Platt scaling:</strong> a logistic fit on the raw scores; robust on small sets.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When you must not guess</div>
+    <h2>Output a set, not a point — and re-check it every quarter</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When the model is uncertain, the honest move is to hand back a <em>set</em> of possible
+      answers with a coverage guarantee, rather than one confident label.</p>
+    <aside class="underhood" data-title="conformal prediction">
+      Conformal prediction emits a set \(\mathcal C(\mathbf x)\) — e.g. \(\{\text{default}, \text{non-default}\}\)
+      when uncertain — carrying the guarantee
+      \[ \Pr\bigl(Y \in \mathcal C(\mathbf x)\bigr) \ge 1-\alpha. \]
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">operational rule</span>
+      Calibration is distribution-specific. Re-estimate it <strong>at least quarterly</strong> — it is part of
+      model monitoring under SR&nbsp;11-7.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Temporal leakage and look-ahead bias</h2>
+    <div class="secsub">The most underappreciated failure mode: the model may have already read the answer.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The silent advantage</div>
+    <h2>Did the model forecast the future — or just remember it?</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Evaluating an LLM is not just asking questions and scoring answers. The model may have seen the answers —
+      or the test instances themselves — during pretraining. If benchmark and training corpus draw on the same
+      news, filings, and forums, measured "performance" may be <strong>memorisation, not generalisation</strong>.
+    </div>
+    <p class="lead frag">Canonical trap: "Given this Q2-2021 earnings call, did the stock rise next month?" A
+      model with a Jan-2022 cutoff has <em>already read</em> the news, the analyst reactions, and the social
+      commentary on how it turned out.</p>
+    <div class="block frag"><div class="block-title">Three leakage channels (Ziemke et al., 2024)</div>
+      <ol>
+        <li><strong>Direct memorisation</strong> — the exact or near-verbatim document was seen.</li>
+        <li><strong>Outcome narratives</strong> — "how the trade played out" retrospectives.</li>
+        <li><strong>Imbalanced corpora</strong> — textual survivorship bias toward extreme outcomes that
+          attracted commentary.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">This is measured, not speculated</div>
+    <h2>The stakes are empirical: leakage has been quantified</h2>
+    <div class="title-rule"></div>
+    <div class="alert callout">
+      <span class="callout-tag">memorisation is measurable</span>
+      Lopez-Lira, Tang &amp; Zhu (2025): LLMs have memorised the <strong>exact numerical values</strong> of key
+      economic and financial variables inside their training window — making it impossible to distinguish
+      genuine out-of-sample forecasting from recall.
+    </div>
+    <p class="lead frag">Two confirmations of the magnitude:</p>
+    <ul>
+      <li class="frag"><strong>Rahimikia &amp; Drinkall (2024)</strong> pre-train <em>year-specific</em> LLMs
+        (2007–2023). Properly time-bounded models <strong>outperform</strong> much larger general-purpose
+        models on trading — so off-the-shelf benchmarks overstate true skill.</li>
+      <li class="frag"><strong>Gao, Jiang &amp; Yan (2025)</strong> introduce the <strong>Lookahead Propensity
+        (LAP)</strong>; a positive LAP–accuracy correlation on stock-return and capex tasks confirms apparent
+        skill is substantially lookahead bias.</li>
+    </ul>
+    <p class="small frag"><strong>Practitioner taxonomy:</strong> Noguer i Alonso (2024) catalogues look-ahead
+      sources — training cutoffs, entity embeddings, backtest design — and their mitigations.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The first two defences</div>
+    <h2>Use only what was knowable then, and hide who it was about</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Point-in-time (PIT)</strong> data is what was <em>actually available</em> at a
+      historical moment — not later-restated values (think CRSP/Compustat snapshots).</p>
+    <aside class="underhood" data-title="a rigorous LLM protocol demands">
+      <ol>
+        <li><strong>Hard temporal cutoffs</strong> — evaluate \(\ge 3\) months past the confirmed knowledge
+          cutoff (a publication-lag safety margin).</li>
+        <li><strong>Document-level timestamps</strong> — verified publication dates; exclude uncertain
+          provenance.</li>
+        <li><strong>Contextual anonymisation</strong> — replace company names, tickers, and executives with
+          synthetic identifiers.</li>
+      </ol>
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why anonymise</span>
+      "Will <em>Apple</em> report revenue above $100B in Q4 2022?" is a <strong>recall</strong> question, not a
+      forecast. Replace it with "Company X, a consumer electronics firm with ~$380B revenue" to force reasoning
+      from context.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Designing the split</div>
+    <h2>Random splits leak the future; split on time with a gap</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For temporal data, train, validation, and test must be ordered in time and separated by a
+      gap \(\Delta\) wide enough that no label window straddles the boundary.</p>
+    <aside class="underhood" data-title="temporal splitting with a gap">
+      \[ \mathcal D_{\text{train}} = \{(x_t,y_t): t \le T_1 - \Delta\}, \quad
+         \mathcal D_{\text{valid}} = \{(x_t,y_t): T_1 \le t \le T_2 - \Delta\}, \quad
+         \mathcal D_{\text{test}}  = \{(x_t,y_t): t \ge T_2\}. \]
+      Require \(\Delta \ge\) prediction horizon \(h\) + publication-lag buffer.
+    </aside>
+    <aside class="underhood" data-title="three additional controls">
+      <ul>
+        <li><strong>N-gram dedup</strong> — hash 13-gram windows (MinHash LSH) against the training corpus;
+          drop high-overlap instances.</li>
+        <li><strong>Factual probing</strong> — if the model answers facts a non-leaked model could not,
+          suspect contamination.</li>
+        <li><strong>Date-blinding ablation</strong> — a big accuracy drop when temporal markers are removed
+          signals pattern retrieval, not reasoning.</li>
+      </ul>
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Audit in action</div>
+    <h2>A contamination audit that shrank a real edge</h2>
+    <div class="title-rule"></div>
+    <p class="lead">500 earnings calls (2022–23), an LLM with a Dec-2023 cutoff, predicting EPS beat/miss.
+      Cleaning the data, step by step, exposes how much "skill" was memory.</p>
+    <ol>
+      <li class="frag"><strong>N-gram check:</strong> 34/500 transcripts have \(\ge 3\) matching 13-grams in
+        Common Crawl → flagged and removed.</li>
+      <li class="frag"><strong>Anonymise</strong> the remaining 466 (names, tickers, executives).</li>
+      <li class="frag"><strong>Compare:</strong> accuracy falls <strong>62% → 54%</strong> on anonymisation,
+        so ≈ 8 pp was entity-level memorisation.</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">conclusion</span>
+      The residual 54% still beats the 50% baseline — but the apparent edge has <strong>shrunk
+      substantially</strong>. Contamination auditing is not cosmetic: it changes conclusions.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Stock movement prediction: a cautionary tale</h2>
+    <div class="secsub">Why "51–65% accurate" is a much smaller claim than it sounds.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The theoretical ceiling</div>
+    <h2>Market efficiency caps what public text can be worth</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      If LLMs digest news, sentiment, and calls faster than humans, perhaps they find price-relevant signals
+      first. But market efficiency sets a hard limit on how much edge <em>publicly available text</em> can
+      contain.
+    </div>
+    <p class="lead frag">Under the semi-strong efficient-markets hypothesis (Fama, 1970), prices already reflect
+      all public information. An LLM trained on public text is <em>reconstructing</em> information already
+      traded on — not extracting novel alpha.</p>
+    <div class="block frag"><div class="block-title">Grossman–Stiglitz, the loophole</div>
+      Markets cannot be <em>perfectly</em> efficient — some mispricing must remain to pay informed traders.
+      The open question: can LLMs reach that residual edge before it is arbitraged away? (Where genuine value
+      might remain: see appendix.)
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What the data actually shows</div>
+    <h2>Directional accuracy lands a few points above a coin flip</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Across studies, the consistent pattern is daily/weekly directional accuracy only a little
+      above the 50% chance level (Xu et al., 2024).</p>
+    <ul>
+      <li class="frag"><strong>Lopez-Lira &amp; Tang (2023):</strong> ChatGPT headline sentiment yields
+        significant out-of-sample directional accuracy that scales with model complexity — but the window was
+        unusually volatile and returns concentrated in some news categories.</li>
+      <li class="frag"><strong>Vidal (2024):</strong> four leading LLMs on 30-day S&amp;P 500 direction —
+        accuracy only <strong>marginally above chance</strong>, below the economic threshold after costs.</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">above 62%? check for these artefacts (Zhao et al., 2025)</span>
+      Insufficient train–eval gap · no anonymisation · overlapping windows · gross accuracy without
+      transaction costs. After controls, the residual is <strong>51–54%</strong> — statistically positive at
+      best, economically negligible after costs.
+    </div>
+    <p class="small frag"><strong>CFA Institute:</strong> durable alpha is unlikely in liquid, well-covered
+      markets; value is possible in small-cap, EM, or private-information synthesis.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Sophistication is not skill</div>
+    <h2>When a simple model beats the LLM</h2>
+    <div class="title-rule"></div>
+    <p class="lead">"More sophisticated" does not mean more accurate. On many price-prediction tasks, decades-old
+      time-series models match or beat LLMs.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">ARIMA(-GARCH) — Box &amp; Jenkins (1970)</div>
+          <ul>
+            <li>Principled time-series structure (AR, differencing, MA + variance clustering)</li>
+            <li>Few parameters, fast to refit</li>
+            <li>No contaminable training corpus</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">LSTM — Hochreiter &amp; Schmidhuber (1997)</div>
+          <ul>
+            <li>Learns longer dependencies</li>
+            <li>On <em>pure price-sequence</em> prediction, often <strong>matches or beats</strong> LLMs
+              (Zhao et al., 2025)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Three conditions that favour simpler models</div>
+      <ol>
+        <li><strong>Text irrelevance</strong> — the target is driven by price/volume dynamics.</li>
+        <li><strong>Short history</strong> — too little labelled data to justify fine-tuning.</li>
+        <li><strong>Regime changes</strong> — ARIMA re-estimates cheaply; re-fine-tuning an LLM is an order of
+          magnitude more expensive.</li>
+      </ol>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">methodological lesson</span>
+      A random-walk baseline is not enough — benchmark against the <em>best</em> classical alternative on the
+      same information set.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Evaluation beyond classification accuracy</h2>
+    <div class="secsub">Judge the model in the language of capital: returns, risk, and alpha.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Accuracy is the wrong yardstick</div>
+    <h2>53% can be worthless and 51% can be gold</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      53% directional accuracy can be worthless after costs; 51% can be valuable if the confident calls land
+      on the big moves. Accuracy is necessary, not sufficient. Financial evaluation must speak in returns,
+      risk, and alpha.
+    </div>
+    <aside class="underhood" data-title="Sharpe and information ratios">
+      <strong>Sharpe ratio</strong> (risk-adjusted return):
+      \[ \mathrm{SR} = \frac{\overline R_p - R_f}{\sigma_p}, \qquad
+         \text{annualise } \times\sqrt{252}\ \text{(daily)},\ \sqrt{12}\ \text{(monthly)}. \]
+      <strong>Information ratio</strong> (active management): \(\mathrm{IR} = \alpha/\mathrm{TE} \approx
+      \mathrm{IC}\cdot\sqrt N\), where IC = signal quality (rank correlation of predicted vs. realised) and
+      \(N\) = independent bets per year. IR \(>0.5\) is strong, \(>1.0\) exceptional.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Three blind spots of accuracy</div>
+    <h2>Why economic metrics beat a hit-rate</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Accuracy ignores magnitude.</strong> A 51% model that is right on the big moves
+        and wrong on the small ones can dominate a 53% model that nails noise and misses the moves that matter.</li>
+      <li class="frag"><strong>Accuracy ignores costs.</strong> A directional hit-rate says nothing about the
+        turnover, spread, and impact needed to monetise the signal.</li>
+      <li class="frag"><strong>Accuracy ignores risk.</strong> Two strategies with identical returns but
+        different volatility and drawdown are not equivalent capital allocations.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the reframing</span>
+      Report performance in the language of capital — <em>returns, risk-adjusted returns, and alpha</em> — not
+      classification scores.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The hardest test</div>
+    <h2>Is the edge real skill, or just repackaged risk premia?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The economic question is not "does the strategy make money?" but "does it make money
+      <em>beyond</em> known risk premia?" To answer, strip out market, size, and value exposure and see what's
+      left.</p>
+    <aside class="underhood" data-title="factor alpha (Fama–French regression)">
+      \[ r_{p,t} = \alpha + \beta_{\mathrm{MKT}}r_{\mathrm{MKT},t}
+         + \beta_{\mathrm{SMB}}r_{\mathrm{SMB},t} + \beta_{\mathrm{HML}}r_{\mathrm{HML},t} + \varepsilon_t. \]
+      The intercept \(\alpha\) is the return unexplained by market, size, and value exposure — the genuine
+      skill component.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">the sobering finding</span>
+      Many LLM strategies produce \(\alpha\) <strong>indistinguishable from zero</strong>: their apparent
+      returns are repackaged factor exposure, not new information.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Validating without cheating</div>
+    <h2>Walk forward through time — never shuffle it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Standard \(k\)-fold cross-validation shuffles the data, leaking the future into the training
+      folds. For finance, the validation itself must respect the arrow of time.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Walk-forward</div>
+          Train up to \(t\), evaluate \([t, t{+}h]\), advance; aggregate the out-of-sample windows.</div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Expanding-window (anchored)</div>
+          Fix the start, grow the window, re-estimate each step — standard in financial ML
+          (Lopez de Prado, 2018).</div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the purge period">
+      Both need a <strong>purge period</strong> \(\Delta_{\text{purge}} \ge h\) between train and eval, so no
+      observation appears in both through overlapping label windows. At iteration \(k\):
+      \[ \mathcal D_{\text{train}}^{(k)} = \{t \le kh - \Delta_{\text{purge}}\}, \qquad
+         \mathcal D_{\text{eval}}^{(k)}  = \{kh \le t \le (k{+}1)h - 1\}. \]
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">cost trade-off</span>
+      Full LLM fine-tuning is expensive to re-estimate, so practitioners widen \(h\) — at the price of
+      evaluating a staler model late in each window.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Paper vs. practice</div>
+    <h2>Trading-grade evaluation: costs, capacity, drawdown</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A strategy can win on paper and fail in practice. A complete evaluation prices in the
+      frictions that erase paper edges.</p>
+    <aside class="underhood" data-title="costs, capacity, and drawdown">
+      <strong>Transaction costs</strong> (turnover \(\tau\)):
+      \[ c_{\text{round-trip}} = 2\tau\,(\text{half-spread} + \text{market impact}). \]
+      US large-cap half-spreads 1–3 bps; impact 5–20 bps; daily news rebalancing can hit
+      <strong>10–50 bps/day</strong>, erasing any edge.<br>
+      <strong>Capacity</strong> (Almgren–Chriss): temporary impact \(\approx \eta\,(q/V)\); profitable at $10M
+      may be unprofitable at $1B.<br>
+      <strong>Max drawdown:</strong>
+      \(\mathrm{MDD} = \max_{t_1&lt;t_2}\bigl(\frac{P_{t_1}-P_{t_2}}{P_{t_1}}\bigr)\); Calmar = annual return / MDD.
+    </aside>
+    <div class="block frag"><div class="block-title">A complete report should state</div>
+      Gross &amp; net Sharpe · IR vs. benchmark · MDD &amp; Calmar · turnover &amp; capacity · factor
+      decomposition · \(\alpha\) significance with robust SEs and a multiple-testing correction.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Hallucination in financial contexts</h2>
+    <div class="secsub">Fluent, confident, factually wrong — and invisible to a reader who lacks the answer.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The silent failure mode</div>
+    <h2>Hallucination gives no warning signal</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Hallucination — fluent, confident, factually wrong — is undetectable by a reader who lacks the correct
+      answer. A junior analyst handed a hallucinated analysis gets no warning: the prose reads exactly as
+      plausibly as accurate content.
+    </div>
+    <p class="lead frag">Four dangerous categories in finance:</p>
+    <ol>
+      <li class="frag"><strong>Fabricated citations</strong> — plausible journals, SSRN IDs, or regulatory
+        sections that do not exist (Bang et al., 2023). Serious liability in compliance filings.</li>
+      <li class="frag"><strong>Incorrect numerical facts</strong> — revenue, EPS, EBITDA, spreads. Kang et al.
+        (2023): GPT-4 class models err on a non-trivial fraction, with <em>no</em> lexical signal separating
+        right from wrong.</li>
+      <li class="frag"><strong>Phantom companies/executives</strong> — plausible but non-existent entities; a
+        material risk in due diligence and KYC.</li>
+      <li class="frag"><strong>Anachronistic facts</strong> — stale rates, ratings, or leadership stated
+        confidently (Ji et al., 2023); no awareness of obsolescence.</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The first line of defence</div>
+    <h2>Grounding: anchor the model to verified sources</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The fix is to reduce reliance on the model's <em>parametric memory</em> and tie answers to
+      external sources you can check.</p>
+    <aside class="underhood" data-title="retrieval and verification">
+      <ul>
+        <li><strong>RAG</strong> (Lewis et al., 2020) — retrieve verified docs into context. Effectiveness
+          hinges on retrieval quality; topically relevant but factually tangential context still yields
+          hallucination.</li>
+        <li><strong>Retrieval verification</strong> — FActScore (Min et al., 2023) decomposes output into
+          atomic facts and checks each against a source (EDGAR, Bloomberg, a regulatory DB).</li>
+      </ul>
+    </aside>
+    <aside class="underhood" data-title="tools and self-consistency">
+      <ul>
+        <li><strong>Tool use / function calling</strong> (Schick et al., 2023) — fetch live data; the model
+          becomes a reasoning engine, not a knowledge store.</li>
+        <li><strong>Self-consistency</strong> (Wang et al., 2022; Manakul et al., 2023) — facts stable across
+          samples are likelier correct; variable facts are flagged for review.</li>
+      </ul>
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">grounding reduces but does not eliminate</span>
+      RAG fails on erroneous docs; tools return stale data; self-consistency can be consistently wrong if the
+      error is strong in parametric memory. High-stakes claims still need <strong>human-in-the-loop</strong>
+      review.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Measuring the problem</div>
+    <h2>Hallucination benchmarks built for finance</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Benchmark</th><th>What it tests</th><th>Grounding</th></tr>
+      <tr><td>FinanceBench</td><td>QA over real SEC filings</td><td>retrieval vs. synthesis</td></tr>
+      <tr><td>FinQA</td><td>numerical reasoning over tables</td><td>program execution</td></tr>
+      <tr><td>Kang et al.</td><td>revenue/EPS/balance-sheet recall</td><td>real vs. fictitious firms</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>FinanceBench</strong> (Zhang et al., 2024): high hallucination rates even for
+        frontier models on multi-step numerical questions.</li>
+      <li class="frag"><strong>FinQA</strong> (Chen et al., 2021): evaluation via <em>program execution</em>
+        catches numerical hallucinations a string match would miss.</li>
+      <li class="frag"><strong>Kang et al. (2023):</strong> models confidently answer about <em>fictitious</em>
+        companies with invented-but-plausible figures.</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">caveat</span>
+      Benchmark scores ≠ real-world reliability. Evaluate on <em>your</em> task type, information source, and
+      output format — not aggregate leaderboard numbers.
+    </div>
+  </section>
+
+  <!-- ============================ SYNTHESIS / WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Five fragilities, one disciplined stance</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li><strong>Calibration</strong> — LLMs overconfident; ECE can exceed 10%. Recalibrate
+            (temperature/isotonic/Platt); use conformal sets for high stakes.</li>
+          <li><strong>Temporal leakage</strong> — in/near-cutoff evaluation inflates results. Hard splits,
+            purge, anonymisation, n-gram dedup. Audits cut accuracy by ≥8 pp.</li>
+          <li><strong>Stock prediction</strong> — 51–65%, the upper end from artefacts. After controls,
+            residual alpha is economically modest; ARIMA/LSTM often win.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="4">
+          <li><strong>Economic evaluation</strong> — Sharpe, IR, factor alpha; costs, capacity, drawdown.
+            Accuracy alone is not enough.</li>
+          <li><strong>Hallucination</strong> — fabricated citations/numbers/entities, no lexical tell.
+            Grounding helps; human review remains necessary.</li>
+        </ol>
+        <div class="takeaway callout"><div class="callout-tag">the disciplined stance</div>
+          Limitations do not preclude LLMs in finance — they demand treating outputs as <strong>inputs to a
+          decision process</strong>, not end products.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — supporting derivations, benchmarks, and further reading</h2>
+    <div class="secsub">The reliability diagram, binning detail, where value remains, the fundamental law, and references.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the picture behind the number</div>
+    <h2>Reliability diagram for the credit example</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Bars are empirical accuracy vs. mean predicted probability per bin; the dashed diagonal is
+      perfect calibration; red segments are the per-bin gaps that ECE aggregates (ECE = 0.115).</p>
+    <ul>
+      <li>Well calibrated at low confidence; increasingly overconfident at the top.</li>
+      <li>Generated deterministically by <code class="inline">gen_reliability_diagram.py</code>.</li>
+    </ul>
+    <p class="small">Figure source:
+      <code class="inline">book/chapters/13-llm-limitations-evaluation/figures/fig_reliability</code>.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · binning detail</div>
+    <h2>Adaptive binning, and when to prefer MCE</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Bin-boundary sensitivity.</strong> Equal-width ECE is sensitive to boundaries.
+        <strong>Adaptive binning</strong> — equal mass per bin — is more reliable when confidence scores
+        cluster near 0 or 1, as they do for overconfident models (Niculescu-Mizil &amp; Caruana, 2005).</li>
+      <li class="frag"><strong>When to prefer MCE.</strong> In high-stakes regimes a single catastrophically
+        miscalibrated region (e.g. 90–100% confidence at 40% accuracy) is unacceptable even with a good
+        average ECE. Report both.</li>
+    </ul>
+    <div class="block frag"><div class="block-title">Surfacing overconfidence in practice</div>
+      EPS to two decimals with no interval; definitive credit calls near the boundary; cherry-picked market
+      rationales; "in/not in compliance" that hides jurisdictional ambiguity.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the optimistic case</div>
+    <h2>Where genuine LLM value might remain</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Market efficiency limits the edge in <em>public</em> text, but residual value can survive in
+      three places:</p>
+    <ul>
+      <li class="frag"><strong>Synthesis at scale</strong> — diffuse signals across thousands of low-attention
+        documents.</li>
+      <li class="frag"><strong>Novel reasoning chains</strong> — cross-domain links a factor model misses.</li>
+      <li class="frag"><strong>Private/proprietary text</strong> — not in training, not in prices (raises
+        regulatory questions).</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the defensible uses</span>
+      These are exactly the cases the lecture flags — small-cap, emerging-market, or private-information
+      synthesis, where public-text efficiency bites least.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the fundamental law of active management</div>
+    <h2>Signal quality times breadth equals skill</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="IR ≈ IC · √N">
+      \[ \mathrm{IR} \approx \mathrm{IC}\cdot\sqrt N. \]
+      <ul>
+        <li><strong>IC</strong> (Information Coefficient): cross-sectional rank correlation between predicted
+          and realised returns — <em>signal quality</em>.</li>
+        <li><strong>N</strong>: number of independent bets per year — <em>breadth</em>, driven by securities
+          covered × prediction frequency.</li>
+      </ul>
+    </aside>
+    <div class="block">
+      <div class="block-title">Why this matters for LLMs</div>
+      It separates the two value sources: a weak signal (low IC) can still produce a respectable IR if breadth
+      \(N\) is large (many names, high frequency) — but breadth multiplies turnover, and turnover multiplies
+      transaction costs. The decomposition makes the cost/breadth tension explicit.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · further reading</div>
+    <h2>References by theme</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <p class="small"><strong>Calibration.</strong> Guo et al. (2017, temperature scaling);
+          Niculescu-Mizil &amp; Caruana (2005, Platt/isotonic); Angelopoulos &amp; Bates (2022, conformal).</p>
+        <p class="small"><strong>Temporal leakage.</strong> Ziemke et al. (2024); Lopez-Lira, Tang &amp; Zhu
+          (2025, numerical memorisation); Noguer i Alonso (2024, taxonomy); Rahimikia &amp; Drinkall (2024,
+          year-specific LLMs); Gao, Jiang &amp; Yan (2025, LAP); Lopez de Prado (2018, purged CV).</p>
+        <p class="small"><strong>Economic evaluation.</strong> Sharpe (1994); Grinold &amp; Kahn (1999).</p>
+      </div>
+      <div class="col">
+        <p class="small"><strong>Markets &amp; prediction.</strong> Fama (1970, 1991); Grossman &amp; Stiglitz
+          (1980); Lopez-Lira &amp; Tang (2023); Vidal (2024); Chen, Green, Gulen &amp; Zhou (2024); Xu et al.
+          (2024); Zhao et al. (2025).</p>
+        <p class="small"><strong>Hallucination.</strong> Ji et al. (2023); Kang et al. (2023); Min et al.
+          (2023, FActScore); Manakul et al. (2023, SelfCheckGPT); Lewis et al. (2020, RAG).</p>
+      </div>
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

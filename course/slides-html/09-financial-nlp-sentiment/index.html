@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 9 — Financial NLP and Sentiment Analysis</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 9 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 9</div>
+    <h1>Financial NLP and Sentiment Analysis</h1>
+    <div class="sub">Treating language as financial data — from raw text to a tradeable signal.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Text as data</strong> — where financial language comes from, and how to clean it.</li>
+          <li class="frag"><strong>Scoring sentiment</strong> — three generations: dictionaries, fine-tuned models, LLMs.</li>
+          <li class="frag"><strong>What each source predicts</strong> — social, news, calls, filings, central banks.</li>
+          <li class="frag"><strong>Score → signal</strong> — aggregation, standardization, and tests of economic content.</li>
+          <li class="frag"><strong>The production pipeline</strong> — inference at scale and honest evaluation.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          A single trading day now generates hundreds of thousands of articles, posts, filings,
+          and reports. Extracting the part that moves prices — in real time, repeatably — is a
+          defining problem of quantitative finance this decade.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Text as financial data</h2>
+    <div class="secsub">Where the words come from, and the measurement pitfalls hiding in raw text.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The premise</div>
+    <h2>Why treat language as data at all?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Text is a data source with its own measurement challenges — exactly like prices and volume,
+      just with different defects.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Every data source has flaws</div>
+          <ul>
+            <li>Price data has bid–ask bounce</li>
+            <li>Volume data has reporting lags</li>
+            <li><strong>Text</strong> has selection, duplication, and timestamp pitfalls</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">This lecture, end to end</div>
+          Where financial text comes from → how to score its sentiment → what each source
+          predicts → how to turn scores into a tradeable signal → the production pipeline.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why an MBA should care</span>
+      Treating text like any other noisy dataset — with explicit measurement error — is what separates
+      a defensible signal from a backtest mirage.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The raw material</div>
+    <h2>Five places financial language lives</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Sources differ on four axes: <em>frequency</em>, <em>curation</em>, <em>audience</em>,
+      and <em>regulatory oversight</em>.</p>
+    <table>
+      <tr><th>Source</th><th>Curation / latency</th><th>Canonical finding</th></tr>
+      <tr><td>Social media</td><td>none / real-time</td><td>Bollen 2011: Twitter mood → DJIA</td></tr>
+      <tr><td>News &amp; wires</td><td>high / ms–hours</td><td>Tetlock 2008: neg. words → returns</td></tr>
+      <tr><td>Earnings calls</td><td>scripted + Q&amp;A</td><td>Larcker 2012: tone → restatements</td></tr>
+      <tr><td>SEC filings</td><td>legal / quarterly</td><td>Loughran–McDonald 2011</td></tr>
+      <tr><td>Central banks</td><td>extreme / scheduled</td><td>Schmeling 2019: tone → equities</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">source shapes method</span>
+      Each source's structure determines both the information it carries <em>and</em> the right
+      preprocessing and model. There is no one-size-fits-all pipeline.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Knowing your source</div>
+    <h2>What makes each source behave differently</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Social media (X, Reddit/WSB, StockTwits)</div>
+          <ul>
+            <li>Least curated; high noise, sarcasm, bots</li>
+            <li>Captures <em>retail attention</em> orthogonal to institutions</li>
+            <li>Aggregates inform even when single posts don't</li>
+          </ul>
+        </div>
+        <div class="block frag"><div class="block-title">News &amp; wires</div>
+          <ul>
+            <li>Reuters/Bloomberg: ms latency, structured events</li>
+            <li>Key flaw: <strong>selection</strong> — only newsworthy firms</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Earnings calls</div>
+          <ul>
+            <li>Prepared remarks = soft-info framing</li>
+            <li>Q&amp;A reveals analyst concerns and candour</li>
+          </ul>
+        </div>
+        <div class="block frag"><div class="block-title">SEC filings (EDGAR)</div>
+          10-K (Item 1A, MD&amp;A), 10-Q, 8-K, DEF 14A — disclosure law ⇒ truthful but vague.
+        </div>
+        <div class="block frag"><div class="block-title">Central banks (FOMC, ECB)</div>
+          Meaning lives in calibrated <em>deviations</em> from boilerplate.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Step zero</div>
+    <h2>From raw text to tokens the model can read</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Every pipeline normalizes, deduplicates, and time-aligns before any modelling.
+      Skip a step and you bias the sentiment measure downstream.</p>
+    <div class="block">
+      <div class="block-title">Tokenization &amp; normalization</div>
+      <ul>
+        <li class="frag">Subword tokenizers: BPE (GPT) / WordPiece (BERT)</li>
+        <li class="frag">Case folding for lexicons; <em>preserve</em> case for cased transformers</li>
+        <li class="frag">Number handling (<code class="inline">[NUM]</code>) — but EPS $2.40 vs $0.24 carries real signal</li>
+        <li class="frag">Cashtag/ticker harmonisation ($AAPL); boilerplate removal (XBRL, exhibits)</li>
+      </ul>
+    </div>
+    <aside class="underhood" data-title="why preprocessing is not cosmetic">
+      Normalisation, deduplication, and temporal alignment are the three steps that must precede modelling.
+      Each one, if skipped, introduces a systematic bias in the downstream sentiment estimate — not random
+      noise that averages out, but a directional distortion.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The two cleaning steps people skip</div>
+    <h2>Duplicates and timestamps quietly break backtests</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Deduplication — most important, most neglected</div>
+          <ul>
+            <li class="frag">Wires reprint verbatim; retweets propagate identical text</li>
+            <li class="frag">Duplicates bias sentiment <em>and</em> inflate sample size → spuriously narrow confidence intervals</li>
+            <li class="frag">MinHash / LSH; mark dupes when trigram Jaccard &gt; 0.6–0.8</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">temporal alignment</span>
+          Avoid <strong>look-ahead bias</strong> — post-close news cannot explain the same-day return — and
+          <strong>stale timestamps</strong>. Store publication <em>and</em> retrieval times separately.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Three ways to score sentiment</h2>
+    <div class="secsub">Dictionaries, fine-tuned classifiers, and LLMs — coexisting, not competing.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">No method wins outright</div>
+    <h2>Three generations live side by side</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Lexicons are fast and interpretable; fine-tuned classifiers are strong in-domain; LLMs are
+      flexible and need no labels. A competent practitioner uses all three and knows when each fits.</p>
+    <table>
+      <tr><th>Method</th><th>Labels?</th><th>Strength</th><th>Weakness</th></tr>
+      <tr><td>Lexicon (LM)</td><td>none</td><td>transparent, cheap</td><td>no negation / context</td></tr>
+      <tr><td>Fine-tuned (FinBERT)</td><td>yes</td><td>strong in-domain</td><td>needs labelled data</td></tr>
+      <tr><td>LLM zero/few-shot</td><td>none</td><td>flexible, nuanced</td><td>cost &amp; latency</td></tr>
+    </table>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      The three rows are a cost–flexibility frontier, not a ranking. The "best" choice depends on
+      your labels, your latency budget, and how unusual your text is.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Generation one</div>
+    <h2>Counting words — but with a finance dictionary</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The simplest score: count positive and negative words and net them out — as long as your word
+      list was built from financial language, not everyday English.</p>
+    <p class="frag">Harvard's General Inquirer mislabels <em>tax, liability, cost, foreign, crude, cancer</em> as
+      negative — they're neutral in 10-Ks. On filings, GI "negativity" tracks legal boilerplate, not performance.</p>
+    <aside class="underhood" data-title="the LM net-sentiment ratio">
+      For a document \(d\), Loughran–McDonald sentiment is
+      \[ S_{\text{LM}}(d) = \frac{N_{\text{pos}}(d) - N_{\text{neg}}(d)}{N_{\text{words}}(d)}. \]
+    </aside>
+    <table class="frag">
+      <tr><th>Negative</th><th>Litigious</th><th>Positive</th><th>Uncertainty</th><th>Weak modal</th><th>Strong modal</th></tr>
+      <tr><td>2,355</td><td>903</td><td>354</td><td>297</td><td>27</td><td>19</td></tr>
+    </table>
+    <p class="small">The LM lists are built from the 10-K vocabulary; the <strong>negative</strong> list dominates —
+      the asymmetry of disclosure language.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Worked example</div>
+    <h2>Scoring one MD&amp;A paragraph by hand</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">MD&amp;A excerpt</div>
+      <em>"Revenue <u>declined</u> 12%, reflecting <u>challenging</u> conditions and competitive
+      <u>pressure</u>. The Company remains <u>cautious</u> but is <u>confident</u> in its long-term position."</em>
+    </div>
+    <ul>
+      <li class="frag">Negative hits: <em>declined, challenging, pressure, cautious</em> = 4</li>
+      <li class="frag">Positive hits: <em>confident</em> = 1; total non-trivial words ≈ 35</li>
+      <li class="frag">\(S_{\text{LM}} = (1-4)/35 \approx \mathbf{-0.086}\) — a bottom-quartile MD&amp;A</li>
+      <li class="frag">A General-Inquirer classifier also flags <em>competitive</em> → ≈ −0.17: a distortion</li>
+    </ul>
+    <aside class="underhood" data-title="the arithmetic">
+      With \(N_{\text{pos}}=1\), \(N_{\text{neg}}=4\), \(N_{\text{words}}\approx 35\),
+      \[ S_{\text{LM}} = \frac{1-4}{35} \approx -0.086. \]
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">known limits</span>
+      No negation ("not confident" scores positive); context-blind; domain shift (misses "headwinds",
+      "softness"). Still widely used: transparent, cheap, auditable.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Generation two</div>
+    <h2>Fine-tuned classifiers read the whole sentence</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Take a pre-trained language model, attach a small classification head, and train it on labelled
+      finance text. Because it sees the entire sequence, it handles negation and hedging that dictionaries miss.</p>
+    <aside class="underhood" data-title="the classification head">
+      Take a pre-trained encoder, attach a head, fine-tune. For the <code class="inline">[CLS]</code>
+      embedding \(\mathbf{h}\in\mathbb{R}^{d_h}\),
+      \[ P(y=c\mid d)=\mathrm{softmax}(\mathbf{W}_c\mathbf{h}+\mathbf{b}_c),
+         \quad c\in\{\text{pos},\text{neu},\text{neg}\}, \]
+      minimising cross-entropy; predict \(\hat{y}=\arg\max_c P(y=c\mid d)\).
+    </aside>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">FinBERT (Araci 2019; Huang 2023)</div>
+          <ul>
+            <li>Further-pretrain BERT on financial news + filings</li>
+            <li>Fine-tune on PhraseBank + analyst + call data</li>
+            <li>Beats GI, LM, and generic BERT</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">SEC-BERT (Loukas 2022)</div>
+          <ul>
+            <li>Pre-trained <em>only</em> on EDGAR (10-K/Q/8-K)</li>
+            <li>Vocabulary tuned to legal-financial text</li>
+            <li>Wins in-domain on risk-factor / event tasks</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="small frag"><strong>Edge over lexicons:</strong> \(\mathbf{h}\) sees the whole sequence ⇒ handles
+      negation, hedging, and entity-specific qualifications implicitly.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where the labels come from</div>
+    <h2>The Financial PhraseBank — and why neutral matters</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Fine-tuning needs labelled examples. The standard benchmark is a hand-labelled set of news
+      sentences (Malo et al. 2014).</p>
+    <ul>
+      <li class="frag"><strong>4,840</strong> news sentences, labelled pos / neu / neg</li>
+      <li class="frag"><strong>16</strong> finance-trained annotators; majority label used</li>
+      <li class="frag">At 75% agreement: ≈ 3,400 high-confidence sentences; inter-annotator agreement ≈ 75–80%</li>
+      <li class="frag"><strong>Neutral ≈ half the corpus</strong> — which is why we report macro-F1, not accuracy</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">caveat</span>
+      News-sentence style ≠ filings / call language. Models tuned on PhraseBank may transfer poorly to long,
+      syntactically complex documents — supplement with domain-matched labels.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Generation three</div>
+    <h2>LLMs classify with no training set at all</h2>
+    <div class="title-rule"></div>
+    <p class="lead">GPT-4, Claude, and LLaMA-3 classify sentiment from a task description alone — no fine-tuning,
+      no labelled set. That makes rapid prototyping on a new domain almost free.</p>
+    <div class="block">
+      <div class="block-title">Zero-shot prompt sketch</div>
+      <em>"You are a financial analyst. Classify the sentiment … from the perspective of a stock investor."</em>
+      → "Neutral", with a rationale (revenue growth offset by margin compression).
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      The model brings its own world knowledge to the task, so it can reason about <em>why</em> a sentence is
+      neutral instead of just matching words — the leap that older, smaller models could not make.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Does it actually work?</div>
+    <h2>LLMs match fine-tuned models — at a price</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Ko &amp; Lee 2024:</strong> GPT-4 zero-shot <em>matches or exceeds</em> FinBERT on
+        PhraseBank, FiQA, and a proprietary call dataset — with no labels.</li>
+      <li class="frag"><strong>López-Lira &amp; Tang 2023:</strong> GPT headline scores positively predict next-day
+        returns, beating lexicons.</li>
+      <li class="frag"><strong>Kirtac &amp; Germano 2024:</strong> OPT (GPT-3 family) yields a markedly higher
+        long–short Sharpe than the LM dictionary.</li>
+      <li class="frag"><strong>Fatemi &amp; Hu 2023:</strong> fine-tuned <em>small</em> LLMs hit SOTA; extra few-shot
+        examples beyond a small set add no accuracy.</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">cost is the catch</span>
+      Roughly $100–$500 per million short sentences ⇒ distil the LLM into a small model for production.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>What each source actually predicts</h2>
+    <div class="secsub">One source, one research question — and the evidence behind each.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Five sources, five questions</div>
+    <h2>Each source has a natural research question</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Does retail mood drive short-run prices? Does news carry information beyond prices? Does
+      management tone reveal private information? Does disclosure language predict performance? Do policy words
+      move asset prices?</p>
+    <table>
+      <tr><th>Source</th><th>Question</th></tr>
+      <tr><td>Social media</td><td>Retail attention → price pressure?</td></tr>
+      <tr><td>News</td><td>Incremental information beyond prices?</td></tr>
+      <tr><td>Earnings calls</td><td>Tone → private information?</td></tr>
+      <tr><td>SEC filings</td><td>Disclosure language → future risk / return?</td></tr>
+      <tr><td>Central banks</td><td>Linguistic cues → asset prices?</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Social media</div>
+    <h2>From retail mood to a bank run on Twitter</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The noisiest source is also the one that can <em>move</em> markets in real time, not just
+      reflect them.</p>
+    <ul>
+      <li class="frag"><strong>Bollen 2011:</strong> "calm" Twitter mood Granger-causes DJIA (10-week sample; mixed replications)</li>
+      <li class="frag"><strong>Cookson &amp; Niessner 2020:</strong> StockTwits <em>disagreement</em> predicts volume and spreads</li>
+      <li class="frag"><strong>Gil-Bazo et al. 2025:</strong> 1.6M fund-family posts — tone <em>and</em> volume predict fund inflows</li>
+      <li class="frag"><strong>Cookson et al. 2026:</strong> SVB collapse — high-Twitter-exposure banks lost more value; social media can <em>catalyse</em> bank runs (a streaming use case)</li>
+    </ul>
+    <p class="frag"><strong>WSB / GameStop (Jan 2021):</strong> coordinated WSB sentiment led GME/AMC by 1–2 days;
+      mechanism via call demand → gamma-hedging amplification.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">methodological hazards</span>
+      Bots and coordinated inauthentic behaviour; severe selection; reverse causality (returns → posting).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The other four sources</div>
+    <h2>News, calls, filings, and central banks — the evidence</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">News (Tetlock 2007/08)</div>
+          <ul>
+            <li>WSJ pessimism → price pressure + reversion</li>
+            <li>Firm-level negative language → earnings</li>
+            <li>Stale negativity adds no forecast power</li>
+          </ul>
+        </div>
+        <div class="block frag"><div class="block-title">Earnings calls</div>
+          <ul>
+            <li>Larcker 2012: deception cues → restatements</li>
+            <li>Price 2012: tone → post-call abnormal returns</li>
+            <li>Cook &amp; Kazinnik 2023: local LLMs ≈ closed-source, lower privacy risk</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">SEC filings</div>
+          <ul>
+            <li>LM negativity ↓ filing-day return, ↑ volume</li>
+            <li>Cohen 2020 "lazy prices": unchanged 10-Ks underperform</li>
+            <li>Lehner 2024: LLMs can rewrite filings to shift measured tone</li>
+          </ul>
+        </div>
+        <div class="block frag"><div class="block-title">Central banks</div>
+          <ul>
+            <li>Schmeling 2019: positive tone → equities ↑</li>
+            <li>Hansen 2018: deliberation quality → inflation outcomes</li>
+            <li>Nakamura 2018: <strong>information vs. policy</strong> effect confound</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Beyond sentiment — readability</div>
+    <h2>When managers hide bad news in dense prose</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Tone isn't the only signal in text. <em>How hard a document is to read</em> is itself
+      informative — harder MD&amp;A tends to accompany worse, more volatile performance.</p>
+    <aside class="underhood" data-title="the Fog index">
+      \[ \text{Fog} = 0.4\!\left(\frac{N_{\text{words}}}{N_{\text{sentences}}}
+         + 100\cdot\frac{N_{\text{complex}}}{N_{\text{words}}}\right) \]
+      where \(N_{\text{complex}}\) counts words with \(\geq 3\) syllables (excluding proper nouns,
+      compound modifiers, simple verb inflections).
+    </aside>
+    <ul>
+      <li class="frag">Fog = 12 ⇔ US high-school reading level</li>
+      <li class="frag">10-K MD&amp;A typically <strong>18–22</strong> — much harder than a newspaper</li>
+      <li class="frag">Li 2008: higher Fog → lower current earnings, higher earnings volatility (managers obscure when performance is poor)</li>
+      <li class="frag">Lehavy 2011: less readable 10-Ks → fewer, less accurate analysts</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>From sentiment to a tradeable signal</h2>
+    <div class="secsub">A score per document is not yet alpha. Aggregate, standardize, then test for economic content.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Mind the gap</div>
+    <h2>A raw score is not yet a signal</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A sentiment number on one document can't be traded. It needs aggregation, denoising, and
+      statistical transformation before it becomes a position.</p>
+    <div class="block">
+      <div class="block-title">Document → entity aggregation (all docs on firm \(i\), day \(t\))</div>
+      <ul>
+        <li>Volume-weighted by reach / circulation</li>
+        <li>Recency-weighted by exponential decay</li>
+        <li>Noisy sources (social) need weighting; curated sources (filings) do not</li>
+      </ul>
+    </div>
+    <aside class="underhood" data-title="the simple mean">
+      The baseline aggregate over the \(n_t\) documents on firm \(i\) at day \(t\) is
+      \[ \bar S_t = \frac{1}{n_t}\sum_i S_i, \]
+      then refined with volume- or recency-weights.
+    </aside>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Two empirical frameworks test whether the aggregate has economic content: <em>event studies</em> and
+      <em>predictive regressions</em>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Making scores comparable</div>
+    <h2>Standardize within industry — and check for drift</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A defence firm and a software firm use different language. Z-scoring within each
+      industry-year strips out that sector "accent" so the numbers are comparable.</p>
+    <aside class="underhood" data-title="cross-sectional z-score">
+      Within industry \(j(i)\) and year \(t\),
+      \[ \tilde S_{i,t} = \frac{S_{i,t}-\mu_{j(i),t}}{\sigma_{j(i),t}}, \]
+      removing sector language fixed effects so firms across industries become comparable.
+    </aside>
+    <div class="block">
+      <div class="block-title">Stationarity</div>
+      <ul>
+        <li>Long sentiment series drift (style change, universe change, regime shift)</li>
+        <li>Apply ADF / KPSS; first-difference or detrend non-stationary series</li>
+      </ul>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">sentiment inflation</span>
+      Re-scoring old text with a newer model changes measured sentiment. Use one <em>fixed</em> model vintage
+      across all periods — or document the vintages.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Testing for content</div>
+    <h2>Does the text beat the earnings number?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The sharp test: after you already know the earnings surprise, does sentiment still predict the
+      drift? If yes, the text carries information the number doesn't.</p>
+    <aside class="underhood" data-title="abnormal returns &amp; the event study">
+      Abnormal return \(AR_{i,\tau}=R_{i,\tau}-\hat R_{i,\tau}\) against a benchmark (e.g. CAPM); cumulated over \([a,b]\),
+      \[ \mathrm{CAR}_i[a,b]=\sum_{\tau=a}^{b}AR_{i,\tau},\qquad
+         \overline{\mathrm{CAR}}[a,b]=\tfrac1N\sum_i \mathrm{CAR}_i[a,b]. \]
+    </aside>
+    <aside class="underhood" data-title="the predictive regression">
+      Condition the post-event drift on the standardized earnings surprise and sentiment:
+      \[ \mathrm{CAR}_i[1,60]=\alpha+\beta_1\,\mathrm{SUE}_{i,0}+\beta_2\,\tilde S_{i,0}+\varepsilon_{i,0}, \]
+      with \(\mathrm{SUE}=(\mathrm{EPS}-\widehat{\mathrm{EPS}})/\hat\sigma\). Incremental text content ⇒ \(\hat\beta_2>0\).
+    </aside>
+    <p class="small frag"><strong>High-frequency FOMC:</strong> a 30-minute window around announcements (Nakamura 2018)
+      demands sentence-level scoring <em>inside</em> the window → low-latency inference.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two clocks, two strategies</div>
+    <h2>Short horizon vs. long horizon: different games</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th></th><th>Short horizon</th><th>Long horizon</th></tr>
+      <tr><td>Channel</td><td>attention / price pressure</td><td>fundamental information</td></tr>
+      <tr><td>Evidence</td><td>Da 2015: attention → reversal</td><td>Tetlock 2008; Cohen 2020</td></tr>
+      <tr><td>Data needs</td><td>real-time, low-latency</td><td>daily/weekly, heavier models</td></tr>
+      <tr><td>Audience</td><td>HFT-adjacent industry</td><td>most academic research</td></tr>
+      <tr><td>Alpha</td><td>larger (pre-cost)</td><td>smaller, more accessible</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">practical implication</span>
+      Short-horizon strategies need real-time feeds and execution within minutes; long-horizon strategies
+      tolerate batch processing and richer models. Industry chases the short horizon (more alpha); academia
+      studies the long horizon (lower data/execution cost).
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>The production pipeline</h2>
+    <div class="secsub">Collecting text at scale, running inference in production, and evaluating without fooling yourself.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From "what" to "how"</div>
+    <h2>Three engineering concerns turn research into product</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Earlier sections said <em>what</em> to extract and <em>why</em>. The pipeline is the
+      engineering that makes it real and repeatable.</p>
+    <ol>
+      <li class="frag"><strong>Data collection</strong> — EDGAR, social APIs, news vendors</li>
+      <li class="frag"><strong>Inference at scale</strong> — batch (throughput) vs. streaming (latency)</li>
+      <li class="frag"><strong>Evaluation</strong> — label quality <em>and</em> classifier quality <em>and</em> economic validity</li>
+    </ol>
+    <p class="small frag">(Collection and scale engineering detailed in the appendix.)</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Evaluation, part 1</div>
+    <h2>How much do human labellers even agree?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before trusting a classifier, ask how reliable the labels are. Finance sentences are genuinely
+      ambiguous, so agreement is moderate — and that ceiling matters.</p>
+    <aside class="underhood" data-title="Krippendorff's alpha">
+      Agreement beyond chance:
+      \[ \alpha = 1-\frac{D_o}{D_e}, \]
+      \(D_o\) = observed, \(D_e\) = expected disagreement. For nominal \(k\)-class data,
+      \(D_e = 1-\sum_c (n_c/n)^2\). \(\alpha=0\): chance; \(\alpha=1\): perfect.
+    </aside>
+    <p class="frag">Thresholds: \(\alpha\geq 0.667\) reliable; \(\geq 0.800\) high confidence.
+      Financial benchmarks land at <strong>0.65–0.78</strong> — the genuine ambiguity of finance sentences.</p>
+    <table class="frag">
+      <tr><th>Dataset</th><th>Classes</th><th>Alpha</th></tr>
+      <tr><td>Financial PhraseBank (100% agr.)</td><td>3</td><td>1.00</td></tr>
+      <tr><td>Financial PhraseBank (66% agr.)</td><td>3</td><td>≈ 0.72</td></tr>
+      <tr><td>Earnings call sentences (practitioner)</td><td>3</td><td>0.68–0.75</td></tr>
+      <tr><td>FOMC statement sentences</td><td>3</td><td>0.70–0.78</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Evaluation, part 2</div>
+    <h2>Report macro-F1 — and never confuse it with alpha</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Accuracy lies when one class dominates. With neutral at half the corpus, an "always neutral"
+      model looks great on accuracy and is useless for trading.</p>
+    <aside class="underhood" data-title="precision, recall, macro-F1">
+      Per class \(c\),
+      \[ \text{P}_c=\frac{TP_c}{TP_c+FP_c},\;
+         \text{R}_c=\frac{TP_c}{TP_c+FN_c},\;
+         F1_c=\frac{2\,\text{P}_c\text{R}_c}{\text{P}_c+\text{R}_c}. \]
+      Report <strong>macro-F1</strong> — the unweighted mean over classes.
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">why macro, not accuracy</span>
+      Neutral ≈ half of financial sentences. An accuracy-maximiser that over-predicts neutral scores high while
+      failing on the economically important positive / negative classes.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">economic validity ≠ statistical metrics</span>
+      Macro-F1 = 0.75 can still have zero alpha if the test set is unrepresentative or labels are misaligned.
+      Best practice: regress aggregate sentiment on forward returns / earnings surprises in a <em>strictly
+      held-out</em> period.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What we covered — and where Practical 9 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Today</h3>
+        <ul>
+          <li><strong>Sources:</strong> social → filings, spanning curation and oversight; structure dictates preprocessing and model</li>
+          <li><strong>Methods:</strong> lexicon (LM), fine-tuned (FinBERT/SEC-BERT), LLM zero/few-shot — LLMs match or beat fine-tuned without labels, at higher cost</li>
+          <li><strong>Applications:</strong> attention (social), information (news), soft disclosure (calls), risk (filings), policy signal (central banks)</li>
+          <li><strong>Signal:</strong> aggregate → z-score within industry-year → test stationarity → event study + predictive regression</li>
+          <li><strong>Pipeline:</strong> batch + streaming inference; evaluate with Krippendorff's \(\alpha\), macro-F1, <em>and</em> a held-out economic test</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Practical Session 9</div>
+          LM scoring, FinBERT vs. lexicon, and a filing-date event study on real EDGAR + price data.
+        </div>
+        <p class="small"><strong>Key refs:</strong> Tetlock (2007/08) · Loughran–McDonald (2011) ·
+          Malo et al. (2014) · Araci (2019) · López-Lira &amp; Tang (2023) · Ko &amp; Lee (2024).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — collection, scale, and extensions</h2>
+    <div class="secsub">Data sourcing, production inference, ordinal agreement, and recent research frontiers.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · data collection</div>
+    <h2>Where the text actually comes from</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">EDGAR full-text search (efts.sec.gov)</div>
+      <ol>
+        <li>Query form types (10-K, 8-K) and date range</li>
+        <li>Download index pages → document links</li>
+        <li>Parse primary HTML/SGML (<code class="inline">BeautifulSoup</code>, <code class="inline">sec-edgar-downloader</code>)</li>
+        <li>Extract MD&amp;A / Risk Factors by header matching</li>
+        <li>Store Parquet, indexed by CIK / period / filing date</li>
+      </ol>
+    </div>
+    <p class="small"><strong>Twitter/X Academic API</strong> (paid since 2022): filters
+      <code class="inline">has:cashtags</code>, <code class="inline">lang:en</code>, verified-author.
+      Alternatives: StockTwits API, Reddit Pushshift (restricted), commercial sentiment feeds.</p>
+    <p class="small"><strong>News vendors:</strong> Bloomberg, Dow Jones DNA, Refinitiv, RavenPack
+      (machine-readable event records); GDELT (free, noisier, 15-min updates) for research.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · inference at scale</div>
+    <h2>Batch for throughput, streaming for latency</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Batch (throughput-bound)</div>
+          <ul>
+            <li>FinBERT (110M), 512 tokens, single A100: hundreds of docs/sec; a multi-million archive in hours</li>
+            <li>Optimisations: dynamic padding/batching; FP16/BF16; distillation (110M → 33M, &lt;5% accuracy loss); data/CPU parallelism</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Streaming (latency-bound)</div>
+          <ul>
+            <li>Target &lt;100 ms for FOMC; near-real-time for live call transcription</li>
+            <li>Kafka/Kinesis → ONNX inference workers → downstream aggregation</li>
+            <li><code class="inline">onnxruntime</code> + quantised weights: &lt;100 ms/sentence on modern CPUs</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · ordinal agreement</div>
+    <h2>A stricter agreement measure for ordered labels</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Sentiment labels are ordered (pos &gt; neu &gt; neg), so disagreeing pos-vs-neg should count
+      worse than pos-vs-neu. Ordinal \(\alpha\) penalises by the number of scale steps.</p>
+    <aside class="underhood" data-title="ordinal coincidence metric">
+      The nominal metric is replaced by a weighted disagreement,
+      \[ d^2(c,c') = \Bigl(\sum_{g=c}^{c'} n_g\Bigr)^2, \]
+      penalising disagreements by the number of scale steps between labels (\(n_g\) = frequency of category \(g\)).
+      Ordinal \(\alpha\) is more conservative than nominal \(\alpha\) for sentiment corpora — a stricter lower
+      bound on agreement.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · research frontiers</div>
+    <h2>Text as a macro risk gauge: NVIX, factors, ESG</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>News-Implied Volatility (Manela &amp; Moreira 2017):</strong> project WSJ front-page text
+        onto realized VIX variation; the measure extends back to <strong>1890</strong>, capturing disaster-risk eras
+        (Depression, WWII, 2008–09) far beyond VIX's 1990 start.</li>
+      <li class="frag"><strong>News in factor models (Ke et al. 2019):</strong> supervised extraction of price-relevant
+        news features adds predictive content, especially at short horizons; intraday alpha captured by HFT,
+        longer-horizon signals lower-Sharpe but accessible.</li>
+      <li class="frag"><strong>Climate / ESG (Engle et al. 2020):</strong> a climate-news index builds a hedge
+        portfolio; high climate-news exposure → lower returns on high-news days. Generalises to pandemic /
+        geopolitical / supply-chain risk indices.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · LLMs on long filings</div>
+    <h2>Reading past the context window</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Chiu &amp; Hung 2024:</strong> finance-specific LLaMA-2 + LLM summarisation of long 10-Ks
+        → higher buy-and-hold abnormal returns than FinBERT.</li>
+      <li class="frag"><strong>Siano 2025:</strong> LLM word-context embeddings of earnings press releases explain
+        far more return variation than dictionaries; raise the \(R^2\) of financial-statement surprises.</li>
+      <li class="frag"><strong>Xu &amp; Babaian 2025:</strong> FinBERT + GPT-4o <em>ensemble</em> on FOMC press
+        conferences — cross-family combination is more stable than any single model.</li>
+    </ul>
+  </section>
+
+</div></div>
+</body>
+</html>

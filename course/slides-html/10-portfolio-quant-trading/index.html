@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 10 — Portfolio Optimization &amp; Quantitative Trading with LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 10 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 10</div>
+    <h1>Portfolio Optimization &amp; Quantitative Trading with LLMs</h1>
+    <div class="sub">Signals, backtests, and risk — where reading text at scale earns its keep, and where it doesn't.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Classical theory &amp; its limits</strong> — why "optimal" portfolios lose to naive ones.</li>
+          <li class="frag"><strong>LLMs as data processors</strong> — turning prose into views and factors.</li>
+          <li class="frag"><strong>LLM-guided trading</strong> — where in the stack a slow signal belongs.</li>
+          <li class="frag"><strong>Backtesting honestly</strong> — the discipline that separates research from real money.</li>
+          <li class="frag"><strong>Risk management</strong> — reading danger in text before it hits prices.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          One thesis runs through the whole lecture: <em>LLMs are information-extraction engines,
+          not optimizers.</em> They sharpen the <strong>inputs</strong>; classical finance still
+          decides how those inputs become positions.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Classical portfolio theory and its limits</h2>
+    <div class="secsub">The math is right; the inputs are noisy — and that gap is exactly the opening for text.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The central question</div>
+    <h2>Why does more sophistication lose to a naive 1/N split?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Given many risky assets, how should you split your money? Markowitz (1952) turned this
+      into one elegant optimization. Yet decades later, just putting an equal slice in everything
+      <strong>routinely beats</strong> the "optimal" answer.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">The puzzle</div>
+          <ul>
+            <li>Sophisticated optimizers chase the efficient frontier</li>
+            <li>Naive 1/N equal-weight has no model at all</li>
+            <li>1/N still wins out-of-sample (DeMiguel et al., 2009)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Why?</div>
+          <ul>
+            <li>The theory is right; the <em>inputs</em> are noisy</li>
+            <li>Estimating expected returns and covariances dominates the gains</li>
+            <li>This is where LLMs enter — sharper inputs from text</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">thesis of the lecture</span>
+      LLMs are <strong>information-extraction engines</strong>, not optimizers. They produce signals;
+      classical theory dictates how those signals become portfolio weights.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The classic recipe</div>
+    <h2>Markowitz: trade expected return against risk</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Mean-variance optimization picks weights that get the most expected return for a given
+      level of wobble. The famous result: you tilt toward assets with strong return signals and away
+      from risky ones.</p>
+    <aside class="underhood" data-title="mean-variance setup">
+      Let \(\mathbf{r}\in\R^N\) be excess returns, \(\boldsymbol{\mu}=\E[\mathbf{r}]\),
+      \(\boldsymbol{\Sigma}=\mathrm{Cov}[\mathbf{r}]\) (positive definite). For weights \(\mathbf{w}\),
+      \[ \mu_p = \boldsymbol{\mu}^\top\mathbf{w}, \qquad \sigma_p^2 = \mathbf{w}^\top\boldsymbol{\Sigma}\,\mathbf{w}. \]
+      Efficient portfolio at target return \(\bar\mu\):
+      \[ \min_{\mathbf{w}}\ \mathbf{w}^\top\boldsymbol{\Sigma}\,\mathbf{w}
+         \quad\text{s.t.}\quad \boldsymbol{\mu}^\top\mathbf{w}=\bar\mu,\ \ \mathbf{1}^\top\mathbf{w}=1,\ \ \mathbf{w}\ge\mathbf{0}. \]
+      Maximum-Sharpe (tangency) portfolio, unconstrained closed form:
+      \[ \mathbf{w}^{\text{SR}} \propto \boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}. \]
+      It scales <em>inversely</em> with risk and <em>linearly</em> with the return signal.
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">the move that follows</span>
+      The weights are driven by \(\boldsymbol{\mu}\), the expected-return signal — so improving that
+      signal is where the whole payoff lives.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why the optimizer disappoints</div>
+    <h2>Estimation error wins: the inputs are the problem</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Plug noisy historical estimates into the optimizer and it confidently makes huge bets on
+      whatever happened to do well lately — then falls apart out of sample.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Where the noise comes from</div>
+          <ul>
+            <li class="frag">Average returns are estimated imprecisely — the noise rivals the signal</li>
+            <li class="frag">The covariance matrix goes near-singular when assets outnumber history</li>
+            <li class="frag">Inverting it <em>amplifies</em> those errors into wild weights</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Standard remedies</div>
+          <ul>
+            <li class="frag"><strong>Shrinkage</strong> — pull the covariance toward a structured target</li>
+            <li class="frag"><strong>Robust optimization</strong> — swap point estimates for uncertainty sets</li>
+            <li class="frag"><strong>Factor models</strong> — compress to a few factors (Fama–French 3/5)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the numbers behind the noise">
+      With 60 months of data the standard error of a monthly mean is \(\approx\hat\sigma/\sqrt{60}\) —
+      on the order of the mean itself. A factor model writes
+      \(\boldsymbol{\Sigma}=\mathbf{B}\mathbf{F}\mathbf{B}^\top+\mathbf{D}\), cutting \(N(N{+}1)/2\)
+      covariance entries down to \(K\) factor loadings.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">DeMiguel et al. (2009)</span>
+      Across <strong>14 datasets</strong>, 1/N beats sophisticated optimizers on out-of-sample Sharpe.
+      A precise expected-return signal is the missing ingredient — enter LLMs.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A Bayesian fix</div>
+    <h2>Black–Litterman: start from the market, then add your view</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Instead of trusting raw historical averages, begin with what the market already implies,
+      then nudge it with specific opinions. This separates <em>where</em> you have a view from
+      <em>what</em> the view is — exactly the shape an LLM signal takes.</p>
+    <aside class="underhood" data-title="equilibrium prior + views (Bayes)">
+      Equilibrium implied returns from market-cap weights \(\mathbf{w}^{\text{mkt}}\), risk aversion \(\delta\):
+      \[ \boldsymbol{\Pi}=\delta\,\boldsymbol{\Sigma}\,\mathbf{w}^{\text{mkt}},
+         \qquad \boldsymbol{\mu}\sim\mathcal{N}(\boldsymbol{\Pi},\tau\boldsymbol{\Sigma}). \]
+      \(K\) views \(\mathbf{P}\boldsymbol{\mu}=\mathbf{q}+\boldsymbol{\varepsilon}\),
+      \(\boldsymbol{\varepsilon}\sim\mathcal{N}(\mathbf{0},\boldsymbol{\Omega})\). Posterior mean:
+      \[ \hat{\boldsymbol{\mu}}=
+         \bigl[(\tau\boldsymbol{\Sigma})^{-1}+\mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{P}\bigr]^{-1}
+         \bigl[(\tau\boldsymbol{\Sigma})^{-1}\boldsymbol{\Pi}+\mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{q}\bigr]. \]
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">sanity check</span>
+      With no views, the posterior collapses back to the equilibrium prior and the optimum is just the
+      market portfolio — the method can only move you for a reason.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Plugging in a machine's opinion</div>
+    <h2>One LLM view, handled with the right humility</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM reads Apple's earnings call and says there's a 72% chance of an EPS beat. Black–Litterman
+      turns that into a view — and, crucially, controls how much it's allowed to move the portfolio based
+      on how confident it is.</p>
+    <aside class="underhood" data-title="a single absolute view on AAPL">
+      The view targets one stock: \(\mathbf{P}=\mathbf{e}_{\text{AAPL}}^\top\), \(q=1\%\) monthly excess,
+      confidence \(\Omega_{11}=(0.5\%)^2\). Prior \(\Pi_{\text{AAPL}}=0.3\%\). The posterior shifts upward
+      by an amount \(\propto (q-\mathbf{P}\boldsymbol{\Pi})\) relative to total uncertainty
+      \(\tau\mathbf{P}\boldsymbol{\Sigma}\mathbf{P}^\top+\boldsymbol{\Omega}\).
+    </aside>
+    <ul>
+      <li class="frag"><strong>High confidence</strong> (small \(\Omega_{11}\)) ⇒ posterior moves close to the 1% view</li>
+      <li class="frag"><strong>Low confidence</strong> ⇒ posterior barely leaves the prior</li>
+      <li class="frag">BL prevents <em>any single noisy signal</em> from dominating the portfolio</li>
+    </ul>
+    <p class="small"><strong>Empirical validation:</strong> Mantshimuli &amp; Mwamba (2025) aggregate multi-LLM
+      sentiment views via an LSTM into BL — improving Sharpe and annualised return over single-LLM and
+      market-cap benchmarks. Yuksel (2025) treats the LLM as an evolutionary portfolio <em>selector</em>.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Drawing the boundary</div>
+    <h2>Where LLMs can — and cannot — add value</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Be honest about the edge. LLMs shine at turning messy text into structured signals; they are
+      not magic return predictors or covariance estimators.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Clear value</div>
+          <ul>
+            <li>Structuring <em>alternative data</em> (calls, filings) into factors/views at scale</li>
+            <li><em>Risk monitoring</em> — flagging emerging risks before the statements show them</li>
+            <li><em>Analyst-view aggregation</em> with calibrated uncertainty</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">no clear value</span>
+          <ul>
+            <li>Return prediction beyond a few days (factor risk dominates)</li>
+            <li>Replacing factor models (not built to estimate covariances)</li>
+            <li>Timing in isolation (no order-flow / microstructure access)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">two hypotheses underpin the case</span>
+      <em>Information</em>: text holds un-impounded return information (Grossman–Stiglitz — efficiency
+      can't be perfect); evidence is <strong>mixed</strong> — Lopez-Lira &amp; Tang (2023) find a significant
+      but small, costly-to-harvest signal. <em>Extraction</em>: LLMs read negation, hedging, and sarcasm
+      better than bag-of-words — this part is largely <strong>unambiguous</strong> (FinBERT).
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>LLMs as alternative-data processors</h2>
+    <div class="secsub">Turning the least-mined data source — language — into views and factors.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The raw material</div>
+    <h2>Text is the least-saturated alternative data</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Satellite imagery and credit-card flows lose their edge fast once everyone buys them. Text —
+      earnings calls, reports, filings, news, central-bank speak — pours out terabytes a year and stays
+      comparatively un-mined.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      LLMs convert this prose into numerical signals at scale, where older data sources have already
+      been arbitraged away.
+    </div>
+    <div class="block frag"><div class="block-title">Two construction pathways in this section</div>
+      <ol>
+        <li><strong>Views</strong> for Black–Litterman — a per-firm view with calibrated uncertainty.</li>
+        <li><strong>Factors</strong> for Fama–French — a long-short "language factor" tested for alpha.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From document to view</div>
+    <h2>A four-stage pipeline for extracting analyst views</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each document becomes a single number — a view — through a disciplined assembly line that
+      ends with a sanity-preserving normalization step.</p>
+    <ol>
+      <li class="frag"><strong>Retrieve &amp; chunk</strong> — pull from a feed or SEC EDGAR, split semantically</li>
+      <li class="frag"><strong>Score</strong> — an LLM (or FinBERT) assigns sentiment per chunk</li>
+      <li class="frag"><strong>Aggregate</strong> — position-weighted into a document signal in \([-1,1]\)</li>
+      <li class="frag"><strong>Normalize</strong> — within industry and period to remove sector trends</li>
+    </ol>
+    <aside class="underhood" data-title="mapping a signal to a BL view">
+      Map signal \(s_i\) to a view, with uncertainty <em>inverse</em> to signal strength:
+      \[ q_i=\alpha\cdot s_i+\Pi_i,\qquad \Omega_{ii}=\sigma_q^2\cdot(1-|s_i|). \]
+      \(\alpha\) is calibrated by regressing past signals on realized excess returns. A strong signal
+      (\(|s_i|\approx1\)) gets low uncertainty; a neutral one lets the prior dominate.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">beware staleness / look-ahead</span>
+      Use only text available <em>before</em> the rebalance close. After-hours summaries leaking into
+      next-day trades is look-ahead bias.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Worked example</div>
+    <h2>Earnings-call views across 100 S&amp;P 500 names</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Give the model an analyst's job description and one rule: read the excerpt, output a single
+      number from bearish to bullish.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The prompt</div>
+          <p class="small"><em>"You are a sell-side equity analyst. Given this earnings-call excerpt, assign a
+          return sentiment score from −1 (bearish) to +1 (bullish) over the next month. Output only the number."</em></p>
+        </div>
+        <ul>
+          <li class="frag">CFO "raising full-year guidance 5%, no demand softening" → score ∈ [0.6, 0.9]</li>
+          <li class="frag">CEO "cautious on macro, right-sizing cost structure" → score ∈ [−0.6, −0.3]</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="statrow frag">
+          <div class="stat"><div class="num">0.08</div><div class="lbl">signal–return correlation (significant)</div></div>
+          <div class="stat"><div class="num">0.25</div><div class="lbl">implied information ratio</div></div>
+          <div class="stat"><div class="num">+15%</div><div class="lbl">BL Sharpe vs. 1/N, pre-cost</div></div>
+        </div>
+        <p class="small">Calibrated on \(T=800\); BL optimizer with \(\delta=3,\ \tau=0.05\).</p>
+      </div>
+    </div>
+    <p class="small">Meskovskis &amp; Kenyon (2024): an LLM-generated <em>SWOT</em> view from strategic filings
+      supports longer horizons where price-based backtesting lacks power.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From view to factor</div>
+    <h2>Building a "language factor" — and asking if it earns alpha</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Rank every stock by its text signal, go long the most bullish and short the most bearish, and
+      you have a tradeable factor. The real test: does it pay <em>beyond</em> the well-known factors?</p>
+    <aside class="underhood" data-title="factor decomposition and the alpha test">
+      Returns decompose as \( r_{i,t}=\alpha_i+\sum_{k=1}^{K}\beta_{ik}f_{k,t}+\varepsilon_{i,t} \);
+      Fama–French uses MKT, SMB, HML (+ RMW, CMA in the 5-factor model). Demean \(s_{i,t}\) cross-sectionally,
+      sort into quintiles, and form
+      \[ \text{LF}_t = R_t^{\text{top quintile}} - R_t^{\text{bottom quintile}}. \]
+      Test \(\hat a>0\) in
+      \[ \text{LF}_t=a+\beta_{\text{MKT}}\text{MKT}_t+\beta_{\text{SMB}}\text{SMB}_t
+         +\beta_{\text{HML}}\text{HML}_t+\beta_{\text{RMW}}\text{RMW}_t+\beta_{\text{CMA}}\text{CMA}_t+\varepsilon_t. \]
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">the honest finding</span>
+      Earnings-call alpha exists <em>short-run</em> (≤ 5 days), then decays as the rest of the market
+      reads the same text.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The discovery risk</div>
+    <h2>The factor zoo — and why automated search makes it worse</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Test hundreds of candidate factors on one history and some will look profitable by pure luck.
+      Letting an LLM generate even more candidates multiplies that danger.</p>
+    <div class="alert callout">
+      <span class="callout-tag">multiple-testing inflation · Harvey, Liu &amp; Zhu (2016)</span>
+      With hundreds of candidate factors on one dataset, a t-statistic above 2 produces <em>many</em> false
+      discoveries. A factor that survives a <strong>Bonferroni</strong> or multiple-comparison Sharpe test
+      is far stronger evidence than a raw \(p&lt;0.05\).
+    </div>
+    <ul>
+      <li class="frag"><strong>AlphaQuant</strong> (Yuksel, 2025): an LLM-evolutionary loop that proposes,
+        evaluates, and refines alpha features — replacing manual feature engineering.</li>
+      <li class="frag">This <em>amplifies</em> the multiple-testing problem: the backtesting discipline that
+        follows becomes <strong>non-negotiable</strong>.</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>LLM-guided algorithmic trading</h2>
+    <div class="secsub">Slow signals, sized correctly — and why the model is a co-pilot, not the pilot.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Picking the right altitude</div>
+    <h2>Where in the trading stack do LLMs belong?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Trading runs from microsecond high-frequency to multi-week macro. LLMs matter in the
+      <strong>slow</strong> regime — where signal <em>quality</em>, not delivery <em>speed</em>, decides
+      performance. Think latency in hours, not milliseconds.</p>
+    <div class="block">
+      <div class="block-title">A signal must become a well-behaved position</div>
+      A signal \(s_t\) drives a position \(w_t=f(s_t)\) that should:
+      <ul>
+        <li class="frag">scale with signal strength,</li>
+        <li class="frag">stay bounded (no runaway concentration),</li>
+        <li class="frag">decay as the signal ages.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Sizing the bet</div>
+    <h2>From a raw sentiment score to a dollar-neutral position</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Standardize the model's output against its own recent history, then size positions so the
+      book is long the bullish names and short the bearish ones in equal measure — insulated from the
+      overall market.</p>
+    <aside class="underhood" data-title="z-scoring and position sizing">
+      Z-score the raw LLM output over a rolling window (e.g. 252 days), then size:
+      \[ z_{i,t}=\frac{\tilde s_{i,t}-\hat\mu_s}{\hat\sigma_s},
+         \qquad w_{i,t}=\frac{z_{i,t}}{\sum_j|z_{j,t}|}\cdot W_{\max}. \]
+      Balanced \(\pm\) signals give a dollar-neutral long-short book.
+    </aside>
+    <aside class="underhood" data-title="modeling sentiment decay (EWMA)">
+      Sentiment fades, so weight it by recency:
+      \[ s_{i,t}=\sum_{\tau\le t}\tilde s_{i,\tau}\,e^{-\lambda(t-\tau)},
+         \quad \lambda\approx 0.1\text{–}0.5\ \text{day}^{-1}\ \text{(half-life 1–7 days).} \]
+    </aside>
+    <p class="small">Kirtac &amp; Germano (2024): GPT-3-class news scores predict next-day returns with
+      above-chance directional accuracy and a high in-sample post-cost Sharpe — but single-sample Sharpes
+      rarely replicate out of sample. A <em>magnitude</em> baseline, not a promise.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A narrower, safer role</div>
+    <h2>LLMs as an extra sense for order execution</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When you must buy or sell a large block, the question is <em>how fast</em>. Classical theory
+      balances market impact against the risk of waiting; an LLM adds a warning light, not a new steering wheel.</p>
+    <aside class="underhood" data-title="Almgren–Chriss optimal execution">
+      With linear impact, minimize
+      \[ C(\mathbf{x})=\tfrac{1}{2}\gamma X^2+\eta\sum_{k}\tau_k v_k^2+\lambda\sigma^2\sum_{k}\tau_k x_k^2: \]
+      permanent impact + temporary slippage + shortfall-variance penalty. Front-load when risk-averse,
+      spread uniformly when not. RL (FinRL) extends this: state \(s_t=\)(inventory, time left, spread, momentum);
+      action \(a_t\in[0,X_t]\); reward \(r_t=-\text{cost}(a_t)\).
+    </aside>
+    <aside class="underhood" data-title="the LLM as state augmentation">
+      The LLM augments the state, it does not replace it:
+      \[ \tilde s_t=[\,s_t^{\text{micro}},\ \text{LLM-alert}_t\,],\qquad \text{LLM-alert}_t\in\{-1,0,+1\}. \]
+      A negative-surprise alert triggers <em>accelerated</em> execution, cutting adverse selection.
+    </aside>
+    <p class="small">HARLF (Coriat &amp; Benhamou, 2025): three-tier hierarchical RL injecting LLM sentiment into
+      the <em>reward</em> — strong risk-adjusted returns on 2018–2024 data.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The reality check</div>
+    <h2>Why LLMs are <em>not</em> stock pickers</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A statistically significant signal is not the same as a profitable one. Markets — especially
+      for big, heavily-watched stocks — are simply too fast and too crowded.</p>
+    <div class="alert callout">
+      <span class="callout-tag">significant ≠ profitable</span>
+      The market-efficiency literature has drawn this line for decades.
+    </div>
+    <ul>
+      <li class="frag"><strong>Semi-strong EMH</strong> (Fama, 1970): public info is already in prices; large
+        caps adjust to news in <em>minutes</em> — faster than an LLM API can read it.</li>
+      <li class="frag"><strong>Grossman–Stiglitz</strong>: <em>some</em> return must accrue to informed trading,
+        but if everyone subscribes to the same API the signal <em>crowds</em> and alpha compresses.</li>
+      <li class="frag"><strong>Calibration problem</strong>: a "70% positive" LLM probability is not a claim the
+        stock rises 70% of the time — it requires out-of-sample calibration to returns.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the right niche</span>
+      <strong>Heterogeneous, low-coverage, novel</strong> sources — small-cap filings, emerging-market news,
+      niche disclosures — where coverage is thin and price discovery is slow. There the Grossman–Stiglitz
+      return survives.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Backtesting with LLM signals</h2>
+    <div class="secsub">The discipline that turns a research artefact into a deployable strategy.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">First principles</div>
+    <h2>A backtest is necessary, never sufficient</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A backtest asks: would this have made money historically? A <em>realistic</em> one also
+      accounts for trading frictions, data limits, and the fact that you tried many strategies. An in-sample
+      Sharpe is nearly useless — the model has already seen the future.</p>
+    <div class="block">
+      <div class="block-title">Walk-forward validation = time-series cross-validation</div>
+      For each fold, with step \(\Delta\):
+      <ul>
+        <li class="frag"><strong>Train</strong> on a block of past data</li>
+        <li class="frag"><strong>Validate</strong> on the next window — hyperparameters only</li>
+        <li class="frag"><strong>Test</strong> on the next step; report performance <em>only</em> on
+          concatenated test windows</li>
+      </ul>
+    </div>
+    <aside class="underhood" data-title="the fold geometry">
+      For fold \(m\) with step \(\Delta\): train on \([m\Delta,\ m\Delta+T_{\text{train}})\), validate on the
+      next \(T_{\text{val}}\), test on the next \(\Delta\). For LLM signals the "parameters" include the scale
+      \(\alpha\), decay \(\lambda\), and cap \(W_{\max}\) — <em>never</em> tuned on the test period.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The metric that matters</div>
+    <h2>Out-of-sample Sharpe — and the costs that eat it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Judge a strategy on risk-adjusted return earned on data it never saw. Then subtract the bill:
+      trading frequently can quietly erase the very edge you found.</p>
+    <aside class="underhood" data-title="OOS Sharpe and a turnover-cost example">
+      Primary metric — annualised OOS Sharpe:
+      \[ \text{SR}^{\text{OOS}}=\frac{\bar r_p^{\text{OOS}}}{\hat\sigma_p^{\text{OOS}}}\cdot\sqrt{252}. \]
+      Turnover cost, \(\Delta w_{i,t}=w_{i,t}-w_{i,t-1}\): \(\text{TC}_t=c\sum_i|\Delta w_{i,t}|\). A daily
+      strategy at 15% one-way turnover with \(c=0.05\%\):
+      \[ 0.15\times 252\times 0.05\%\approx \mathbf{1.89\%}\ \text{p.a.} \ \Rightarrow\ \text{erases marginal alpha.} \]
+    </aside>
+    <ul>
+      <li class="frag"><strong>Rule of thumb:</strong> Sharpe &gt; 1.5 over ≥ 3 years OOS before paper trading</li>
+      <li class="frag"><strong>Cost components:</strong> bid–ask (single-digit bps large-cap, tens small-cap),
+        market impact, financing (&gt; 5% p.a. on hard-to-borrow)</li>
+      <li class="frag"><strong>Capacity:</strong> trade ≤ 5–10% of average daily volume; earnings-call signals
+        crowd in the first hours</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The silent killers</div>
+    <h2>Look-ahead and survivorship: how good backtests go wrong</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two biases quietly inflate nearly every naive backtest — and LLMs introduce subtle new ways
+      to leak the future into the past.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Look-ahead bias — LLM-specific forms</div>
+          <ul>
+            <li class="frag"><strong>Embedding leakage</strong> — model fine-tuned on transcripts <em>post-dating</em> the trade</li>
+            <li class="frag"><strong>Model-selection leakage</strong> — best variant chosen by full-period performance</li>
+            <li class="frag"><strong>Timestamp errors</strong> — calls release after close; day-\(t\) open uses unavailable info</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Survivorship bias</div>
+          Today's S&amp;P 500 list excludes the distressed names that were removed — exactly where a risk
+          strategy drew down. Use <em>point-in-time</em> constituents.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="backtest overfitting (PBO &amp; minimum track record)">
+      The probability of backtest overfitting (Bailey et al., 2014) tends to 1 for null strategies as more
+      combinations are tried. Minimum track record length (Lopez de Prado, 2018):
+      \[ T^*=1+\Bigl(1-\gamma_1\text{SR}^*+\tfrac{\gamma_2-1}{4}(\text{SR}^*)^2\Bigr)\frac{Z_{1-\alpha}^2}{(\text{SR}^*)^2}. \]
+      Fat-tailed LLM-sentiment returns push \(T^*\) to <em>several years</em>.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Risk management applications</h2>
+    <div class="secsub">The highest-value, lowest-competition use: reading danger in text before prices move.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Reading the tail</div>
+    <h2>Textual warnings shift risk before they hit prices</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Management caution, litigation, sovereign stress — these qualitative warnings fatten the
+      <em>bad tail</em> of the return distribution before they show up in the numbers. LLMs read this stream
+      and feed it into volatility and tail-loss estimates in near real time.</p>
+    <aside class="underhood" data-title="CVaR and a text-augmented GARCH">
+      CVaR (Expected Shortfall) at level \(\alpha\) — a coherent, LP-minimisable risk measure
+      (Rockafellar &amp; Uryasev, 2000):
+      \[ \text{CVaR}_\alpha(R)=-\E\bigl[R\mid R\le q_\alpha(R)\bigr]. \]
+      A textual volatility signal \(v_t\) enters a GARCH(1,1):
+      \[ \sigma_t^2=\omega+\varphi_1\varepsilon_{t-1}^2+\beta_1\sigma_{t-1}^2+\kappa\,v_{t-1}. \]
+      \(\kappa>0\): elevated risk-language forecasts higher variance — fatter tails next period. Connects to
+      NVIX (Manela &amp; Moreira, 2017), now at the <em>firm</em> level.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Where return prediction is a crowded, near-impossible game, <em>risk</em> reading is the durable edge:
+      the same text that's too slow to trade on is fast enough to protect you.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Acting on the signal</div>
+    <h2>Automatic de-risking when the text turns dark</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Wire the risk signal directly into the optimizer: as the language around a sector turns
+      negative, its modeled risk rises, the risk constraint tightens, and the system trims exposure on its own.</p>
+    <aside class="underhood" data-title="CVaR-constrained optimization">
+      \[ \min_{\mathbf{w}}\ \mathbf{w}^\top\boldsymbol{\Sigma}_t\mathbf{w}
+         \quad\text{s.t.}\quad \text{CVaR}_\alpha(\mathbf{w}^\top\mathbf{r}_t)\le\bar C, \]
+      with \(\boldsymbol{\Sigma}_t\) time-varying (DCC-GARCH). High \(v_{t-1}\) in a sector
+      \(\Rightarrow \sigma_{i,t}^2\uparrow \Rightarrow\) tighter CVaR \(\Rightarrow\) automatic de-risking.
+    </aside>
+    <div class="block">
+      <div class="block-title">Monitoring pipeline — three layers</div>
+      <ul>
+        <li class="frag"><strong>Ingestion</strong> — poll EDGAR, news APIs, social at a configurable frequency</li>
+        <li class="frag"><strong>Classification</strong> — LLM emits structured JSON
+          (<code class="inline">risk_level</code>, <code class="inline">risk_type</code>, <code class="inline">affected_positions</code>)</li>
+        <li class="frag"><strong>Action</strong> — route critical alerts to a risk officer or a pre-approved auto-response</li>
+      </ul>
+    </div>
+    <p class="small">Calibration: tune to the firm's portfolio; beat <em>alert fatigue</em> (&lt; 20/day for 100
+      positions); match latency to use (minutes EOD, seconds intraday).</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A concrete save</div>
+    <h2>An 8-K alert that cut half the loss</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>4:17 PM</strong> — a held name files an 8-K announcing an SEC investigation into
+      revenue recognition. Within 30 seconds the LLM classifies it.</p>
+    <pre class="code">{ "risk_level": "critical", "risk_type": "legal",
+  "affected_positions": ["TICKER_X"],
+  "summary": "SEC formal order into revenue recognition.
+              Historical precedent: 20-40% downside risk." }</pre>
+    <p class="frag">The action layer cuts the position from <strong>2.1% → 1.0%</strong> at the next open.
+      <strong>Next morning the stock opens −28%.</strong></p>
+    <div class="alert callout frag">
+      <span class="callout-tag">promise and limit</span>
+      The system acted faster than any human. But it could not foresee the exact magnitude, nor whether the
+      probe ends in no action or a restatement. It <em>reduces</em> tail exposure — human judgment still sets
+      the thresholds.
+    </div>
+  </section>
+
+  <!-- ============================ SUMMARY ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Lecture 10 — five takeaways</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Optimizers, not replaced.</strong> Markowitz and Black–Litterman remain the right
+        machinery; LLMs sharpen the expected-return signal from text. Extractors, not optimizers.</li>
+      <li class="frag"><strong>Factor construction is the most defensible channel.</strong> Test LLM-derived
+        long-short alpha against Fama–French; correct for multiple comparisons.</li>
+      <li class="frag"><strong>Efficiency limits but doesn't eliminate alpha.</strong> Grossman–Stiglitz ⇒ value
+        lives in low-coverage markets; large caps are the hardest target.</li>
+      <li class="frag"><strong>Backtesting discipline is non-negotiable.</strong> Walk-forward, real costs,
+        point-in-time data, overfitting correction — research artefact vs. deployable strategy.</li>
+      <li class="frag"><strong>Real-time risk monitoring</strong> is high-value, low-competition: structured risk
+        signals + GARCH augmentation + continuous surveillance, with auditable value.</li>
+    </ol>
+    <div class="block frag"><div class="block-title">Next — Practical 10</div>
+      Build the efficient frontier, map an LLM score to a Black–Litterman view, and run a cost-aware
+      walk-forward backtest in Python.
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extended derivations, benchmarks &amp; further reading</h2>
+    <div class="secsub">Frontier geometry, a literature map, the EMH evidence, and calibration detail.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · geometry</div>
+    <h2>The Sharpe-ratio geometry of the frontier</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The tangency portfolio is the single point that maximizes return per unit of risk — and a
+      deterministic plot shows it sitting almost on top of the naive 1/N portfolio.</p>
+    <aside class="underhood" data-title="maximizing the Sharpe ratio">
+      The unconstrained tangency portfolio \(\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\)
+      maximises
+      \[ \frac{\boldsymbol{\mu}^\top\mathbf{w}}{\sqrt{\mathbf{w}^\top\boldsymbol{\Sigma}\mathbf{w}}}. \]
+    </aside>
+    <ul>
+      <li>The frontier (<code class="inline">gen_efficient_frontier.py</code>, deterministic, no data/network)
+        places the tangency and 1/N portfolios <em>almost on top of one another</em> — a concrete picture of
+        the DeMiguel et al. result.</li>
+      <li>Adding the non-negativity constraint removes the closed form; the mean-variance program must then be
+        solved numerically as a quadratic program.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · literature</div>
+    <h2>A map of recent LLM-portfolio research</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Work</th><th>Mechanism</th><th>Result</th></tr>
+      <tr><td>Mantshimuli &amp; Mwamba (2025)</td><td>Multi-LLM → LSTM → BL views</td><td>Sharpe / return ↑ vs. single-LLM</td></tr>
+      <tr><td>Yuksel (2025), <em>alpha</em></td><td>LLM evolutionary tournament</td><td>Portfolio selection, large universes</td></tr>
+      <tr><td>Yuksel (2025), AlphaQuant</td><td>LLM-evolutionary factor search</td><td>Automated alpha-feature discovery</td></tr>
+      <tr><td>Coriat &amp; Benhamou (2025)</td><td>HARLF: 3-tier hierarchical RL</td><td>Strong risk-adj. returns 2018–2024</td></tr>
+      <tr><td>Meskovskis &amp; Kenyon (2024)</td><td>SWOT views from strategic filings</td><td>Long-horizon view generation</td></tr>
+      <tr><td>Saha, Lyu et al. (2025)</td><td>Survey of agentic PM systems</td><td>Taxonomy + open benchmarks</td></tr>
+    </table>
+    <p class="small">Practitioner survey: Mann (2024) — durable value sits in the <em>information-extraction
+      layer</em>, not the decision layer.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the evidence</div>
+    <h2>News, volatility, and what the EMH literature shows</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Tetlock (2007)</strong>: dictionary sentiment from a newspaper column predicted
+        excess returns over a decade ago — so the <em>incremental</em> value of LLMs over dictionaries is the
+        relevant comparison; broad-coverage signals have decayed.</li>
+      <li class="frag"><strong>NVIX</strong> (Manela &amp; Moreira, 2017): a text-based disaster-risk measure from
+        newspaper archives predicted market variance and crash risk. LLMs push this to firm-level, real-time.</li>
+      <li class="frag"><strong>Regulatory context</strong>: Fed SR 11-7 requires model outputs be explainable,
+        validated, and auditable — directly binding on LLM risk signals (see the RegTech chapter).</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · calibration</div>
+    <h2>Why view uncertainty shrinks as the signal grows</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The rule that ties confidence to signal strength is what keeps a loud-but-weak model from
+      hijacking the portfolio — and it must be calibrated only on past data.</p>
+    <aside class="underhood" data-title="why Ω depends on |s|">
+      \(\Omega_{ii}=\sigma_q^2(1-|s_i|)\) makes view <em>uncertainty</em> shrink as signal <em>magnitude</em>
+      grows. Neutral signals (\(s_i\approx0\)) get high \(\Omega_{ii}\), so the equilibrium prior \(\Pi_i\)
+      dominates and the optimizer ignores noise. The scale \(\alpha\) is the economic translation from a
+      unitless score to a return view, estimated by regressing realized excess returns on lagged signals.
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">pitfall</span>
+      Calibrating \(\alpha\) on the test window is model-selection leakage — it must use only data predating
+      the evaluation window.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

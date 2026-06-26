@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 3 — Training and Fine-Tuning LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 3 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Lecture 3</div>
+    <h1>Training and Fine-Tuning LLMs</h1>
+    <div class="sub">How a general model gets built, scaled, and bent toward finance — and what that costs.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Data</strong> — finance is a sliver of the web, and the tokenizer makes you pay for it.</li>
+          <li class="frag"><strong>Pre-training &amp; scaling</strong> — what the model learns, and the Chinchilla rule for how big to build.</li>
+          <li class="frag"><strong>Fine-tuning</strong> — cheap adaptation (LoRA) and aligning behaviour (RLHF, DPO).</li>
+          <li class="frag"><strong>Finance models &amp; evaluation</strong> — FinBERT, BloombergGPT, and how we score them.</li>
+          <li class="frag"><strong>Safety &amp; governance</strong> — bias, hallucination, and the rulebook (MiFID II, SR 11-7, EU AI Act).</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          A finance LLM is not bought off the shelf. Someone chooses the data, pays for the scale,
+          adapts the weights, and answers to a regulator. This lecture is the <em>economics and the
+          engineering</em> of those four choices.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Data for LLMs</h2>
+    <div class="secsub">Where financial language comes from — and why a general tokenizer taxes it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The raw material is scarce</div>
+    <h2>Financial text is a tiny slice of the web</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A model trained on "the internet" mostly reads casual prose. Financial contracts barely
+      register — so the model is fluent at chit-chat and weak on 10-Ks.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Financial text is roughly <strong>0.5%</strong> of a typical filtered web crawl. A model that has
+      seen the distribution of the web will be fluent in casual prose and weak on financial contracts.
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">EDGAR</div>
+          10-K, 10-Q, 8-K, proxy filings; full regulatory English; public from 1996 to present.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Earnings-call transcripts</div>
+          Spoken-register financial language, Q&amp;A with management; via commercial vendors or scraping.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two more sources — and the bill</div>
+    <h2>Bloomberg and alternative data round out the corpus</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Bloomberg news</div>
+          Licensed; high-density, entity-linked financial news with multi-decade coverage.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Alternative data</div>
+          Satellite-imagery metadata, credit-card transaction summaries, job-posting feeds, shipping manifests.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">consequence</span>
+      Low financial representation &rArr; high tokenizer <em>fertility</em> on financial text &rArr; longer
+      sequences &rArr; higher cost and lower accuracy.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why finance words cost more</div>
+    <h2>The tokenizer shreds financial vocabulary into pieces</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A tokenizer chops text into chunks the model reads. Common English words stay whole;
+      finance jargon it has rarely seen gets shattered into fragments — and you pay per fragment.</p>
+    <ul>
+      <li class="frag">Fertility &asymp; <strong>1.0</strong> means efficient coverage; fertility &gt; <strong>1.5</strong> means heavy fragmentation of domain vocabulary.</li>
+      <li class="frag"><code class="inline">CUSIP</code>, <code class="inline">EBITDA</code>, <code class="inline">ISDA</code> may split into 3–5 sub-tokens, each consuming an attention slot.</li>
+      <li class="frag">Training a domain-specific tokenizer alongside domain weights reduces fertility and shortens effective sequences.</li>
+    </ul>
+    <table class="frag">
+      <tr><th>Text type</th><th>Fertility (GPT-2 BPE)</th><th>Effect</th></tr>
+      <tr><td>Standard English prose</td><td>1.10–1.20</td><td>Efficient</td></tr>
+      <tr><td>Financial regulatory text</td><td>1.40–1.60</td><td>Fragmented</td></tr>
+    </table>
+    <aside class="underhood" data-title="BPE &amp; the fertility formula">
+      Byte-pair encoding (BPE) iteratively merges the most frequent adjacent symbol pair until the target
+      vocabulary size is reached. Fertility of tokenizer \(\tau\) on corpus \(C\):
+      \[ F(\tau, C) = \frac{\text{tokens produced by } \tau \text{ on } C}{\text{whitespace-separated words in } C}. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Cleaning before training</div>
+    <h2>Raw web crawl is about 90% noise</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before any learning happens, a pipeline throws away most of what it scraped. Four stages
+      turn garbage into a usable corpus.</p>
+    <ol>
+      <li class="frag"><strong>Language identification</strong> — a fastText classifier labels each document; non-target languages discarded.</li>
+      <li class="frag"><strong>Heuristic filters</strong> — punctuation rate, symbol-to-word ratio, minimum token count, repeated n-gram detection.</li>
+      <li class="frag"><strong>Perplexity filtering</strong> — a small KenLM reference model scores each document; high-perplexity outliers removed.</li>
+      <li class="frag"><strong>MinHash deduplication + PII scrubbing</strong> — near-duplicate removal by Jaccard similarity; emails, phone numbers, SSNs stripped.</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The most important filter</div>
+    <h2>Why removing duplicates matters most</h2>
+    <div class="title-rule"></div>
+    <p class="lead">If the same text appears a thousand times, the model memorizes it instead of learning
+      from it. In finance this is acute — one press release is mirrored by hundreds of portals.</p>
+    <div class="alert callout">
+      <span class="callout-tag">why deduplication matters most</span>
+      Duplicated training data causes <em>memorisation, not generalisation</em>. Financial press releases
+      are reproduced verbatim by hundreds of portals.
+    </div>
+    <aside class="underhood" data-title="MinHash &amp; Jaccard similarity">
+      With \(S(d)\) the set of \(k\)-gram shingles of document \(d\), the Jaccard similarity is
+      \[ J(A, B) = \frac{|S(A) \cap S(B)|}{|S(A) \cup S(B)|}. \]
+      Documents with \(J > 0.8\) are near-duplicates; all but one copy is removed.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Pre-training and scaling</h2>
+    <div class="secsub">What the model learns from raw text — and the rule for how big to build it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What "training" actually optimizes</div>
+    <h2>Three ways to teach a model to read</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Pre-training is a fill-in-the-blank game. The <em>kind</em> of blank you ask the model to
+      fill decides what it becomes good at.</p>
+    <table>
+      <tr><th>Objective</th><th>The blank</th><th>Best suited for</th></tr>
+      <tr><td>CLM (causal LM)</td><td>Predict the next token</td><td>Generation, chat, decoder-only (GPT)</td></tr>
+      <tr><td>MLM (masked LM)</td><td>Fill masked words from both sides</td><td>Classification, NER, encoder-only (BERT, FinBERT)</td></tr>
+      <tr><td>Span corruption (T5)</td><td>Reconstruct masked spans from sentinels</td><td>Seq2seq, QA, summarisation</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Finance rule of thumb</div>
+      Classification / extraction &rarr; MLM encoder (FinBERT). &nbsp; Open-ended analysis / generation &rarr; CLM decoder.
+    </div>
+    <aside class="underhood" data-title="the three losses">
+      CLM uses causal (lower-triangular) attention masking:
+      \[ -\sum_t \log P(x_t \mid x_{&lt;t}). \]
+      MLM attends <em>bidirectionally</em> to all unmasked tokens, over the masked set \(\mathcal{M}\):
+      \[ -\sum_{t\in\mathcal{M}} \log P(x_t \mid x_{\setminus\mathcal{M}}). \]
+      Span corruption replaces runs of consecutive tokens with a single sentinel
+      <code class="inline">&lt;extra_id_k&gt;</code> and trains the decoder to produce all spans in order.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How big should the model be?</div>
+    <h2>The scaling question: more parameters or more data?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You have a fixed compute budget. Spend it on a bigger brain or on more reading?
+      Hoffmann et al. (2022) measured the trade-off precisely.</p>
+    <ul>
+      <li class="frag"><strong>\(N\)</strong> = trainable parameters (model size)</li>
+      <li class="frag"><strong>\(D\)</strong> = training tokens (how much it reads)</li>
+      <li class="frag">Compute scales as \(C \approx 6ND\) — the budget that ties them together</li>
+    </ul>
+    <aside class="underhood" data-title="Chinchilla loss &amp; compute (Hoffmann et al., 2022)">
+      The empirical loss of an autoregressive LM is fit as
+      \[ L(N, D) = E + \frac{A}{N^{\alpha}} + \frac{B}{D^{\beta}}, \]
+      with \(E\) the irreducible entropy floor and \(\alpha,\beta>0\) governing each term's decay.
+      The compute constraint is
+      \[ C \approx 6ND \]
+      (factor 6: 2 for the forward pass, 4 for the backward pass and parameter update — standard
+      mixed-precision accounting). The question: given fixed \(C\), what is the optimal split \((N^*, D^*)\)?
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The answer that reshaped the field</div>
+    <h2>Roughly 20 tokens of data per parameter</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The compute-optimal recipe: for every parameter, feed it about twenty tokens. By that
+      ruler, the famous giant models were built wrong.</p>
+    <div class="statrow">
+      <div class="stat"><div class="num">≈ 20</div><div class="lbl">optimal \(D^*/N^*\) ratio</div></div>
+      <div class="stat"><div class="num">1.7</div><div class="lbl">GPT-3 ratio (over-parameterised)</div></div>
+    </div>
+    <table class="frag">
+      <tr><th></th><th>GPT-3 (175B)</th><th>Chinchilla-optimal 7B</th></tr>
+      <tr><td>Parameters</td><td>175B</td><td>7B</td></tr>
+      <tr><td>Training tokens</td><td>300B</td><td>140B</td></tr>
+      <tr><td>\(D/N\) ratio</td><td>1.7</td><td>20</td></tr>
+      <tr><td>Status</td><td>Over-parameterised</td><td>Optimal</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">practical implication</span>
+      A smaller model trained on more data often <em>outperforms</em> a larger model trained on less —
+      and inference cost favours the smaller model.
+    </div>
+    <aside class="underhood" data-title="the compute-optimal split">
+      Minimising \(L(N,D)\) subject to \(C = 6ND\) gives
+      \[ N^*(C) \propto C^{\beta/(\alpha+\beta)}, \qquad D^*(C) \propto C^{\alpha/(\alpha+\beta)}. \]
+      With Chinchilla estimates \(\alpha \approx 0.34,\ \beta \approx 0.28\):
+      \[ \frac{D^*}{N^*} \approx 20. \]
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Fine-tuning</h2>
+    <div class="secsub">Adapting a base model to finance — cheaply — and aligning it to what humans want.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A menu of adaptation</div>
+    <h2>Four ways to bend a model toward your task</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You don't always retrain. The choice runs from "just ask it" to "rebuild every weight,"
+      trading data and compute for accuracy.</p>
+    <table>
+      <tr><th>Method</th><th>Params updated</th><th>Data needed</th><th>Best use case</th></tr>
+      <tr><td>Zero-shot</td><td>0</td><td>0</td><td>Well-defined tasks in training distribution</td></tr>
+      <tr><td>Few-shot (ICL)</td><td>0</td><td>1–100 examples</td><td>Novel formats; no gradient compute</td></tr>
+      <tr><td>PEFT (LoRA)</td><td>0.1–1%</td><td>1K–100K</td><td>Domain shift; resource-constrained</td></tr>
+      <tr><td>Full fine-tuning</td><td>100%</td><td>100K+</td><td>Max in-domain accuracy; large data budget</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The hidden cost of specializing</div>
+    <h2>Why fine-tuning can make a model worse</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Teach a model only finance and it can forget how to be a good generalist — a real problem
+      when the same assistant must also answer everyday client questions.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the adaptation tax</span>
+      Full fine-tuning on a narrow domain can degrade performance on adjacent tasks — a real risk when a
+      deployed finance LLM must also handle general client queries. The art of adaptation is buying
+      in-domain accuracy <em>without surrendering the breadth</em> that made the base model useful.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The cheap-adaptation trick</div>
+    <h2>LoRA: train 0.12% of the weights, get most of the benefit</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Instead of moving all seven billion weights, LoRA freezes them and learns a tiny pair of
+      side-matrices. The update is so small it fits in a fraction of the memory.</p>
+    <div class="statrow">
+      <div class="stat"><div class="num">≈ 8.4M</div><div class="lbl">trainable params (7B LLaMA, r=8)</div></div>
+      <div class="stat"><div class="num">0.12%</div><div class="lbl">of the full model</div></div>
+    </div>
+    <aside class="underhood" data-title="low-rank adaptation">
+      For a pre-trained weight matrix \(W_0 \in \mathbb{R}^{d\times k}\), LoRA sets
+      \[ W = W_0 + BA, \quad B \in \mathbb{R}^{d\times r},\; A \in \mathbb{R}^{r\times k},\; r \ll \min(d,k). \]
+      \(W_0\) is frozen; only \(B\) and \(A\) train. Trainable parameters per layer: \(r(d+k)\).
+      <br><br>
+      Worked example — 7B LLaMA, \(r=8\), all 4 projections, 32 layers:
+      \[ 32 \times 4 \times 8 \times (4096 + 4096) = 8{,}388{,}608 \approx 8.4\text{M}, \qquad
+         \frac{8.4\text{M}}{7{,}000\text{M}} \approx 0.12\%. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What you save</div>
+    <h2>LoRA vs. full fine-tuning: 90 minutes against 40 hours</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The payoff is wall-clock time and money — and after training you merge the side-matrices
+      back in, so serving the model costs nothing extra.</p>
+    <table>
+      <tr><th></th><th>LoRA (r=8)</th><th>Full fine-tuning</th></tr>
+      <tr><td>Trainable params</td><td>8.4M (0.12%)</td><td>7,000M (100%)</td></tr>
+      <tr><td>A100 training time</td><td>≈ 90 min</td><td>≈ 40 hr</td></tr>
+      <tr><td>Inference overhead</td><td>Zero (merge \(BA\))</td><td>None</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From capable to compliant</div>
+    <h2>A trained model doesn't know what humans prefer</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Predicting the next word makes a model fluent, not trustworthy. Alignment teaches it the
+      difference between an answer that sounds right and one that is accurate and compliant.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">why alignment matters in finance</span>
+      A base model predicts the next token; it does not know what humans <em>prefer</em>. RLHF aligns
+      behaviour to human judgement — in finance, the gap between a "plausible" answer and an "accurate,
+      compliant" one is exactly what alignment must close.
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Stage 1 — SFT</div>
+          Train the base model on high-quality human-written demonstrations. Produces an initial policy \(\pi_{\text{SFT}}\).
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Stage 2 — Reward model</div>
+          Annotators rank pairs of responses \((y_w \succ y_l)\) for the same prompt \(x\); a reward model learns the ranking.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="Bradley-Terry reward loss">
+      The reward model \(r_\theta\) is fit on ranked pairs with
+      \[ \mathcal{L}_{\text{RM}} = -\mathbb{E}\!\left[\log \sigma\!\left(r_\theta(x,y_w) - r_\theta(x,y_l)\right)\right]. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">RLHF, the final stage</div>
+    <h2>Stage 3: chase the reward, but don't drift too far</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The model now tunes itself to score high on the reward model — while a leash keeps it
+      from wandering away from the sensible behaviour it started with.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">limitations for finance</span>
+      Reward models can be gamed; PPO is unstable; human annotation is expensive. A single annotator
+      disagreement on "plausible vs. accurate" in a financial context can propagate to thousands of
+      training examples.
+    </div>
+    <aside class="underhood" data-title="PPO with a KL penalty">
+      Stage 3 optimises the policy \(\pi_\theta\) against the reward \(r_\phi\), penalised for drifting
+      from the SFT reference \(\pi_{\text{ref}}\):
+      \[ \mathcal{L}_{\text{RL}}(\theta) = \mathbb{E}_{\pi_\theta}\!\left[r_\phi(x,y)
+         - \beta\,\mathrm{KL}\!\left(\pi_\theta(\cdot|x) \,\|\, \pi_{\text{ref}}(\cdot|x)\right)\right]. \]
+      \(\beta\) controls how far the policy can drift from the reference.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A simpler alignment</div>
+    <h2>DPO: align directly, skip the reward model</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Direct Preference Optimisation throws out the separate reward model and the unstable RL
+      loop. It learns straight from the same "this answer beats that one" pairs.</p>
+    <ul>
+      <li class="frag">No separate reward model to train or maintain</li>
+      <li class="frag">Same preference data as RLHF; simpler single-stage training loop</li>
+      <li class="frag">Empirically competitive with RLHF on alignment benchmarks</li>
+      <li class="frag">\(\beta\) still controls the implicit KL penalty vs. \(\pi_{\text{ref}}\)</li>
+    </ul>
+    <div class="block frag"><div class="block-title">Interpretation</div>
+      DPO increases the log-probability of the preferred response \(y_w\) relative to \(\pi_{\text{ref}}\)
+      while decreasing that of \(y_l\) — a direct implementation of the preference signal.
+    </div>
+    <aside class="underhood" data-title="the DPO objective">
+      DPO re-parameterises the reward in terms of policy log-ratios and optimises
+      \[ \mathcal{L}_{\text{DPO}}(\theta) = -\mathbb{E}_{(x,y_w,y_l)}\!\left[
+         \log \sigma\!\left(
+           \beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)}
+           - \beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)}
+         \right)\right]. \]
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Finance models and evaluation</h2>
+    <div class="secsub">The flagship finance models — and the metrics that decide whether they work.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Domain adaptation that paid off</div>
+    <h2>FinBERT: same architecture, finance diet, +7.8 points</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Take BERT, keep reading it financial text, and sentiment accuracy jumps — almost entirely
+      from <em>what it read</em>, not from any new architecture.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">How it was built</div>
+          BERT-large continued pre-training on ≈ 4.9B tokens of Reuters news, Financial PhraseBank, and
+          analyst reports (MLM objective).
+        </div>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>Model</th><th>Accuracy</th></tr>
+          <tr><td>Human upper bound</td><td>≈ 97%</td></tr>
+          <tr><td>FinBERT</td><td>88.5%</td></tr>
+          <tr><td>BERT-large (general)</td><td>80.7%</td></tr>
+          <tr><td>Dictionary / rule-based</td><td>≈ 72%</td></tr>
+        </table>
+      </div>
+    </div>
+    <p class="small frag">Financial PhraseBank, all-agree split. The 7.8 pp gain over BERT-large comes
+      almost entirely from domain-specific continued pre-training, not architectural changes.</p>
+    <aside class="underhood" data-title="the classification head">
+      A softmax head on the <code class="inline">[CLS]</code> token's final-layer representation:
+      \[ \hat{y} = \mathrm{softmax}(W_c \cdot h_{[\text{CLS}]} + b_c). \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A finance giant — built against the rule</div>
+    <h2>BloombergGPT: 50B parameters, but under-trained</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Bloomberg built a 50-billion-parameter finance model on its proprietary data. By the
+      Chinchilla ruler it was fed too little — proof that even deep pockets miss the optimum.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Training corpus</div>
+          363B tokens total — 51% Bloomberg financial data (news, filings, transcripts), 49% general web and books.
+        </div>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th></th><th>BloombergGPT</th><th>Chinchilla optimal</th></tr>
+          <tr><td>Parameters</td><td>50B</td><td>50B</td></tr>
+          <tr><td>Training tokens</td><td>363B</td><td>≈ 1T (50B × 20)</td></tr>
+        </table>
+        <p class="small">Status: under-trained by the Chinchilla criterion.</p>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the lesson</span>
+      Even a well-resourced organisation trained a model that violated the compute-optimal scaling prescription.
+    </div>
+    <aside class="underhood" data-title="ALiBi positional encoding">
+      BloombergGPT uses ALiBi, biasing attention scores by query-key distance:
+      \[ \text{score}(q_i, k_j) = \frac{q_i^\top k_j}{\sqrt{d_k}} - m\,(i - j), \]
+      where \(m\) is a head-specific slope. ALiBi extrapolates more gracefully to sequences longer than
+      those seen in training than learned absolute positional embeddings.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How do we grade a model?</div>
+    <h2>Perplexity and Macro-F1: fluency vs. fairness</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two different questions: how surprised is the model by real text (perplexity), and how
+      well does it classify <em>every</em> category — including the rare, important ones (Macro-F1)?</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Perplexity</div>
+          Language-modelling fluency. Three limits: not a task metric; gameable by spreading probability mass; needs token-level probabilities.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Macro-F1</div>
+          Treats all classes equally regardless of frequency — right for imbalanced financial datasets where rare event classes matter as much as common ones.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the two formulas">
+      Perplexity from per-token cross-entropy \(H\):
+      \[ \text{PPL} = 2^{H}, \qquad H = -\frac{1}{T}\sum_{t=1}^{T} \log_2 p(x_t \mid x_{&lt;t}). \]
+      Macro-F1 averages per-class F1 over \(K\) classes:
+      \[ \text{Macro-F1} = \frac{1}{K}\sum_{k=1}^{K} \frac{2\,P_k R_k}{P_k + R_k}. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Summaries and the finance scoreboard</div>
+    <h2>ROUGE for summaries — and where LLMs still fail</h2>
+    <div class="title-rule"></div>
+    <p class="lead">ROUGE checks how much of a reference summary the model recovered. The FinBen benchmark then
+      stress-tests finance LLMs broadly — and finds a revealing weak spot.</p>
+    <div class="block">
+      <div class="block-title">FinBen benchmark</div>
+      42 datasets, 24 tasks, 21 models. LLMs excel at extraction/classification but struggle on
+      forecasting and decision tasks — <em>exactly what practitioners want most</em>.
+    </div>
+    <aside class="underhood" data-title="ROUGE-N (recall of reference n-grams)">
+      \[ \text{ROUGE-N} = \frac{\sum_{\text{ref}}\sum_{g \in \text{ngrams(ref},N)} \text{count}_\text{match}(g)}
+                               {\sum_{\text{ref}}\sum_{g \in \text{ngrams(ref},N)} \text{count}(g)}. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Breaking the model on purpose</div>
+    <h2>Four ways a finance LLM fails under red-teaming</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Adversarial testing surfaces recurring, finance-specific failure modes — the kind that
+      turn a confident answer into a compliance incident.</p>
+    <ol>
+      <li class="frag"><strong>Factual hallucination</strong> — plausible but incorrect price forecasts or earnings figures</li>
+      <li class="frag"><strong>Temporal hallucination</strong> — cites outdated regulations as current (e.g., pre-2018 MiFID II rules)</li>
+      <li class="frag"><strong>Regulatory compliance failure</strong> — gives what looks like personalised investment advice without required licensing disclosures</li>
+      <li class="frag"><strong>Herd-bias amplification</strong> — echoes analyst consensus while suppressing dissenting signals</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">empirical illustration · Lopez-Lira &amp; Tang (2023)</span>
+      A long-short strategy on ChatGPT sentiment scores reached a Sharpe ratio <strong>&gt; 6</strong> in
+      2021, declining to <strong>≈ 1</strong> by late 2024 as the signal became known and arbitraged away.
+      <em>Any published alpha source degrades once it is public.</em>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Safety and governance</h2>
+    <div class="secsub">The biases baked into the data, the lies the model tells, and the rulebook around both.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The data has a worldview</div>
+    <h2>Four biases baked into financial training data</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A model inherits the blind spots of what it read. In finance, four recurring biases
+      systematically tilt its picture of the world.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="alert callout"><span class="callout-tag">survivorship bias</span>
+          Corpora overrepresent successful firms: public companies file EDGAR; bankrupt or never-public firms do not. The model learns a rosier world than practitioners inhabit.
+        </div>
+        <div class="block frag"><div class="block-title">Temporal bias</div>
+          Models trained on historical data are deployed in structurally different regimes (post-pandemic, rising rates, de-globalisation). Past test performance may not persist.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Geographic bias</div>
+          English-language, US-centric text dominates open web corpora. Non-US conventions, currencies, and legal structures are underrepresented.
+        </div>
+        <div class="block frag"><div class="block-title">Analyst consensus bias</div>
+          Commentary echoes dominant sell-side views; contrarian information is rarer in the training distribution and systematically under-weighted.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When the model makes things up</div>
+    <h2>Two kinds of hallucination, four layered defenses</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Models invent facts and misquote rules. No single fix works — production systems stack
+      several defenses with an audit trail at every step.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Two hallucination types</div>
+          <ul>
+            <li><strong>Factual</strong> — fabricated prices, dates, figures in no training document</li>
+            <li><strong>Regulatory</strong> — rules that are outdated, misquoted, or jurisdiction-mismatched</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>RAG</strong> — ground outputs in retrieved, verified passages</li>
+          <li class="frag"><strong>Confidence calibration</strong> — flag or reject responses below a calibrated threshold</li>
+          <li class="frag"><strong>Output verification</strong> — a checker flags claims inconsistent with a knowledge base</li>
+          <li class="frag"><strong>Human-in-the-loop</strong> — route low-confidence / high-stakes outputs to expert review</li>
+        </ol>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">no single mitigation is sufficient</span>
+      Production deployments should layer at least two mitigations, with audit trails at every step.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The rulebook</div>
+    <h2>Three regimes that govern finance AI</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Deploying an LLM in finance means answering to regulators. Three frameworks set the bar
+      for explainability, validation, and oversight.</p>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block"><div class="block-title">MiFID II (Art. 37)</div>
+          Research must be independent. LLM contributions need demonstrable <em>suitability</em> and <em>explainability</em>. Attention-weight visualisations are <em>not</em> sufficient — they show co-occurrence, not causal reasoning.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">SR 11-7 (Fed)</div>
+          Model-risk management with tiered validation. High-risk models (credit, capital, trading) need independent validation, assumption documentation, periodic monitoring.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">EU AI Act (Aug 2026)</div>
+          Conformity assessments, technical docs, human oversight, EU-database registration for high-risk financial AI (credit scoring, insurance pricing, investment decisions at scale).
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Operationalizing the rules</div>
+    <h2>Classify the risk, then control it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Governance starts by labelling each use case by how much damage a bad output could do —
+      then attaching controls proportional to that risk.</p>
+    <table>
+      <tr><th>Tier</th><th>Examples</th><th>Controls required</th></tr>
+      <tr><td>Low</td><td>Internal Q&amp;A, document search</td><td>Standard access controls, logging</td></tr>
+      <tr><td>Medium</td><td>Earnings summarisation, first-pass compliance screening</td><td>Audit trails, human review sample</td></tr>
+      <tr><td>High</td><td>Credit decisioning, trade recommendation, regulatory filing</td><td>Full SR 11-7 validation, EU AI Act registration</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Four-component governance framework</div>
+      <strong>1. Risk classification</strong> (Low/Medium/High by autonomy and impact) ·
+      <strong>2. Audit trails</strong> (prompts, retrieved context, outputs, actions — immutable) ·
+      <strong>3. Monitoring</strong> (drift and accuracy-degradation alerts) ·
+      <strong>4. Incident response</strong> (documented rapid mitigation).
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What we covered — and where Lecture 4 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Today</h3>
+        <ul>
+          <li><strong>Data</strong> — finance is 0.5% of the web; EDGAR, transcripts, Bloomberg; quality pipelines + MinHash dedup are essential</li>
+          <li><strong>Scaling</strong> — Chinchilla says \(D^*/N^* \approx 20\); GPT-3 over-parameterised, BloombergGPT under-trained</li>
+          <li><strong>Fine-tuning</strong> — LoRA: 0.12% of 7B params, 90 min vs. 40 hr, zero inference overhead</li>
+          <li><strong>Alignment</strong> — RLHF (SFT → reward → PPO); DPO simplifies to one supervised objective</li>
+          <li><strong>Finance</strong> — FinBERT +7.8 pp; BloombergGPT under-trained; FinBen: LLMs struggle on forecasting</li>
+          <li><strong>Governance</strong> — MiFID II + SR 11-7 + EU AI Act 2026; attention weights are not explanations</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Lecture 4 — AI Agents in Finance</div>
+          How do we compose trained LLMs into <em>agents</em> that plan, use tools, retrieve data, and
+          operate autonomously? Multi-agent orchestration, tool-use APIs, and agent-specific failure modes.
+        </div>
+        <p class="small"><strong>Key refs:</strong> Hoffmann et al. (2022) · Lopez-Lira &amp; Tang (2023).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — systems &amp; efficiency</h2>
+    <div class="secsub">Distributed training, kernels, and PEFT variants. Beyond the core lecture.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · scaling the hardware</div>
+    <h2>Three ways to split a model across machines</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Models too big for one chip are sliced across many. What you partition — the batch, the
+      weights, or the layers — defines the parallelism strategy.</p>
+    <table>
+      <tr><th>Type</th><th>What is partitioned</th><th>Key mechanism</th></tr>
+      <tr><td>Data parallelism</td><td>Batch (each device holds full model)</td><td>Ring-AllReduce gradient aggregation</td></tr>
+      <tr><td>Tensor / model parallelism</td><td>Weight matrices column-wise</td><td>All-gather / all-reduce intra-layer</td></tr>
+      <tr><td>Pipeline parallelism</td><td>Layer groups to successive devices</td><td>Micro-batches; bubble fraction</td></tr>
+    </table>
+    <aside class="underhood" data-title="partitioning &amp; ZeRO stages">
+      Tensor parallelism splits \(W \in \mathbb{R}^{d\times k} \to [W_1|W_2|\cdots]\). Pipeline bubble
+      fraction \(\approx \tfrac{p-1}{m+p-1}\) for \(p\) stages and \(m\) micro-batches. ZeRO (Zero
+      Redundancy Optimizer): <strong>Stage 1</strong> partitions optimiser states; <strong>Stage 2</strong>
+      also gradients; <strong>Stage 3</strong> also model weights — near-linear memory reduction with device count.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · doing more with less memory</div>
+    <h2>Lower precision, recomputed activations, fewer wasted moves</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three engineering tricks shrink the memory bill so far bigger models fit on the same chips.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Mixed precision (bfloat16)</div>
+          Weights in 16-bit with an fp32 master copy for the optimiser; halves memory and HBM bandwidth. Loss scaling prevents gradient underflow.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Gradient checkpointing</div>
+          Discard intermediate activations and recompute them in the backward pass — trade one extra forward pass for much less memory.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="loss scaling &amp; checkpoint memory">
+      Loss scaling: multiply the loss by \(s\) before the backward pass, divide gradients by \(s\) to
+      prevent underflow. Activation memory falls from
+      \[ O(L) \xrightarrow{\text{checkpoint every } \sqrt{L}} O(\sqrt{L}). \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the attention kernel</div>
+    <h2>FlashAttention: exact attention, far less memory traffic</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Attention's bottleneck is shuffling a huge matrix to and from memory. FlashAttention keeps
+      the work in fast on-chip memory — same answer, far fewer round-trips.</p>
+    <div class="block">
+      <div class="block-title">Combined effect</div>
+      bfloat16 + checkpointing + FlashAttention enable training models <strong>4–8×</strong> larger on the
+      same hardware versus naive full-precision training.
+    </div>
+    <aside class="underhood" data-title="tiling into SRAM">
+      FlashAttention tiles \(QK^\top\) into SRAM-resident blocks, avoiding writing the full \(N\times N\)
+      attention matrix to HBM. It reduces HBM reads/writes from \(O(N^2)\) to subquadratic in practice —
+      <em>exact attention, no approximation</em>.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · other PEFT methods</div>
+    <h2>Prefix tuning and adapters — and why LoRA usually wins</h2>
+    <div class="title-rule"></div>
+    <p class="lead">LoRA is not the only cheap-adaptation method. Two alternatives steer the model without
+      retraining it — but each carries a catch LoRA avoids.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Prefix tuning</div>
+          Learnable prefix vectors prepended to \(K\) and \(V\) at every layer; only the prefixes train. Effective for generation; steers output without touching weights.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Adapters</div>
+          A small bottleneck module inserted after each sub-layer. Adds inference latency unless fused.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why LoRA wins in practice</span>
+      Zero inference overhead (merge \(W_0 + BA\) before serving); multiple adapters swappable per task;
+      QLoRA extends it to 4-bit quantised base models.
+    </div>
+    <aside class="underhood" data-title="prefix &amp; adapter mechanics">
+      Prefix tuning prepends \(P_K, P_V\) of length \(l\):
+      \[ K' = \begin{bmatrix} P_K \\ K \end{bmatrix}, \qquad V' = \begin{bmatrix} P_V \\ V \end{bmatrix}, \]
+      and only \(P_K, P_V\) are trained. An adapter is a bottleneck residual update
+      \[ h \leftarrow h + W_{\text{up}}\,\text{ReLU}(W_{\text{down}}\,h), \quad
+         W_{\text{down}} \in \mathbb{R}^{d\times m},\; W_{\text{up}} \in \mathbb{R}^{m\times d},\; m \ll d. \]
+    </aside>
+  </section>
+
+</div></div>
+</body>
+</html>

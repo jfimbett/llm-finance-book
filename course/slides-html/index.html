@@ -33,10 +33,13 @@
   .card .num { font-family: var(--sans); font-weight: 800; font-size: 13px; color: var(--narrativerule); letter-spacing:.06em; }
   .card h3 { font-size: 20px; color: var(--linkblue); margin: 6px 0 8px; line-height: 1.16; }
   .card p { font-size: 15px; color: var(--ink-soft); margin: 0; line-height: 1.42; }
+  .card .links { margin-top: 14px; display:flex; gap:18px; align-items:center; }
   .card .go { font-family: var(--sans); font-size: 13.5px; font-weight: 700; color: var(--linkblue);
-    margin-top: 14px; display:inline-flex; align-items:center; gap:6px; }
-  .card:hover .go .arr { transform: translateX(4px); }
+    display:inline-flex; align-items:center; gap:6px; text-decoration:none; }
+  .card .go.prac { color: var(--narrativerule); font-weight: 600; }
+  .card .go:hover { text-decoration: underline; }
   .card .go .arr { transition: transform .2s; }
+  .card:hover .go .arr { transform: translateX(4px); }
   .foot { margin-top: 40px; font-family: var(--sans); font-size: 13.5px; color: var(--ink-soft); }
   .pillrow { margin-top: 14px; }
 </style>
@@ -90,12 +93,21 @@ const LECTURES = [
 const grid = document.getElementById("grid");
 LECTURES.forEach(([slug, title, desc], i) => {
   const n = slug.slice(0,2);
-  const a = document.createElement("a");
-  a.className = "card"; a.href = slug + "/index.html";
-  a.innerHTML = `<div class="num">Lecture ${n}</div><h3>${title}</h3><p>${desc}</p>
-    <div class="go">Open slides <span class="arr">→</span></div>`;
-  grid.appendChild(a);
-  setTimeout(() => a.classList.add("in"), 90 + i * 55);
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `<div class="num">Lecture ${n}</div><h3>${title}</h3><p>${desc}</p>
+    <div class="links">
+      <a class="go" href="${slug}/index.html">Lecture slides <span class="arr">→</span></a>
+      <a class="go prac" href="${slug}/practical.html">Practical session</a>
+    </div>`;
+  // make the whole card open the lecture, except when a specific link is clicked
+  card.addEventListener("click", (e) => {
+    if (e.target.closest("a")) return;
+    location.href = slug + "/index.html";
+  });
+  card.style.cursor = "pointer";
+  grid.appendChild(card);
+  setTimeout(() => card.classList.add("in"), 90 + i * 55);
 });
 </script>
 </body>

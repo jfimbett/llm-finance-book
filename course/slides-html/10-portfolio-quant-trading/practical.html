@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 10 — Practical: Portfolios, Views, and Backtests</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 10 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 10</div>
+    <h1>Portfolios, Views, and Backtests</h1>
+    <div class="sub">Turn a textual signal into a portfolio weight — then prove, with numbers, whether the strategy is deployable.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">Hands-on · 1 hour · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview · 50 min problems + 10 min debrief</div>
+    <h2>Where this hour is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — mean-variance, BL posterior, OOS Sharpe, turnover cost.</li>
+          <li class="frag"><strong>Problem 1</strong> (12 min) — how much to trust an LLM's return estimates: min-variance vs. tangency, and signal-error sensitivity.</li>
+          <li class="frag"><strong>Problem 2</strong> (12 min) — map an LLM sentiment score to a Black–Litterman view.</li>
+          <li class="frag"><strong>Problem 3</strong> (10 min) — does a daily signal survive transaction costs?</li>
+          <li class="frag"><strong>Case study</strong> (15 min) — walk-forward backtest of a sentiment factor in Python.</li>
+          <li class="frag"><strong>Discussion</strong> (6 min) — when is an LLM signal worth deploying?</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">the goal</span>
+          Leave able to translate a textual signal into a portfolio weight <em>and</em> to judge,
+          quantitatively, whether the resulting strategy is deployable.
+        </div>
+        <p class="small">Notebook: <code class="inline">code/notebooks/10-portfolio-quant-trading/</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the four formulas you will use</h2>
+    <div class="secsub">Mean-variance, Black–Litterman, out-of-sample Sharpe, and turnover cost.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · keep these four close</div>
+    <h2>Four formulas, in plain words first</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Mean-variance</strong> — a portfolio is a trade-off between expected return and risk; "best Sharpe" tilts toward high-return, low-risk assets.</li>
+          <li class="frag"><strong>Black–Litterman</strong> — start from the market's equilibrium view, then nudge it with <em>your</em> views, weighted by how confident you are.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Out-of-sample Sharpe</strong> — return per unit of risk, measured only on data the model never saw.</li>
+          <li class="frag"><strong>Turnover cost</strong> — every time you move the weights you pay; trading is not free.</li>
+        </ul>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the four formulas, formally">
+      <strong>Mean-variance:</strong> portfolio mean and variance, and the tangency (max-Sharpe) weights:
+      \[ \mu_p=\boldsymbol{\mu}^\top\mathbf{w},\quad \sigma_p^2=\mathbf{w}^\top\boldsymbol{\Sigma}\mathbf{w},
+         \quad \mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}. \]
+      <strong>Black–Litterman posterior mean</strong> (view $q_i=\alpha s_i+\Pi_i$):
+      \[ \hat{\boldsymbol{\mu}}=
+         \bigl[(\tau\boldsymbol{\Sigma})^{-1}+\mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{P}\bigr]^{-1}
+         \bigl[(\tau\boldsymbol{\Sigma})^{-1}\boldsymbol{\Pi}+\mathbf{P}^\top\boldsymbol{\Omega}^{-1}\mathbf{q}\bigr]. \]
+      <strong>Out-of-sample Sharpe</strong> (annualised) and <strong>turnover cost</strong>:
+      \[ \text{SR}^{\text{OOS}}=\frac{\bar r_p^{\text{OOS}}}{\hat\sigma_p^{\text{OOS}}}\sqrt{252},
+         \qquad \text{TC}_t=c\sum_i|\Delta w_{i,t}|,\;\; \Delta w_{i,t}=w_{i,t}-w_{i,t-1}. \]
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problems — from signal to position</h2>
+    <div class="secsub">Three short numerical exercises on trust, views, and costs.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 12 min</div>
+    <h2>How much should you trust the LLM's returns?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM reads each firm's news flow and outputs <em>estimated</em> monthly excess returns for two assets.
+      The covariance comes from price history. Question: how aggressively should you size on those estimates?</p>
+    <div class="block"><div class="block-title">The data</div>
+      \[ \boldsymbol{\mu}_{\text{LLM}}=\begin{pmatrix}0.8\%\\0.4\%\end{pmatrix},\qquad
+         \boldsymbol{\Sigma}=\begin{pmatrix}0.0036 & 0.0009\\ 0.0009 & 0.0016\end{pmatrix}. \]
+      ($\sigma_1=6\%$, $\sigma_2=4\%$, $\rho=0.375$.)
+    </div>
+    <ul>
+      <li class="frag"><strong>A. Min-variance</strong> — the "trust the LLM nothing" baseline, which ignores $\boldsymbol{\mu}$ entirely: \(w^\star=\dfrac{\sigma_2^2-\sigma_{12}}{\sigma_1^2+\sigma_2^2-2\sigma_{12}}\).</li>
+      <li class="frag"><strong>B. Tangency</strong> — "fully trust the LLM": \(\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}_{\text{LLM}}\), normalised.</li>
+      <li class="frag"><strong>C. Signal reliability</strong> — suppose the LLM over-states asset 1 by 50% ($\mu_1:0.8\%\to0.4\%$). Recompute tangency. How far do the weights move? What does that say about sizing on a noisy LLM signal vs. shrinking toward $1/N$ (DeMiguel et al., 2009)?</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 12 min</div>
+    <h2>From an LLM score to a Black–Litterman view</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A raw sentiment score is not yet a forecast. Black–Litterman wants two things from you:
+      a view value (where you think return goes) and a view uncertainty (how sure you are).</p>
+    <div class="block"><div class="block-title">Setup</div>
+      LLM scores firm $i$'s earnings call: $s_i=+0.6$ (bullish). Equilibrium prior $\Pi_i=0.30\%$ monthly.
+      Calibration constant $\alpha=0.8\%$; view-noise scale $\sigma_q^2=(0.5\%)^2$.
+    </div>
+    <ul>
+      <li class="frag"><strong>A.</strong> Compute the view value $q_i=\alpha s_i+\Pi_i$.</li>
+      <li class="frag"><strong>B.</strong> Compute the view uncertainty $\Omega_{ii}=\sigma_q^2(1-|s_i|)$.</li>
+      <li class="frag"><strong>C.</strong> A second firm scores $s_j=+0.05$ (near-neutral). Compute $q_j,\ \Omega_{jj}$. Which view moves the posterior more, and why?</li>
+      <li class="frag"><strong>D. Conceptual</strong> — you accidentally calibrate $\alpha$ on the same window you evaluate on. Name the bias and the fix.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">hint</span>
+      Posterior pull toward a view scales with view <em>precision</em> $\Omega_{ii}^{-1}$.
+      Strong signal $\Rightarrow$ small $\Omega_{ii}\Rightarrow$ large precision.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · 10 min</div>
+    <h2>Does the signal survive trading costs?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A backtest's headline return is gross. The honest number is what's left after you pay to trade —
+      and high turnover can quietly eat a whole strategy.</p>
+    <div class="block"><div class="block-title">Setup — a daily long-short sentiment strategy</div>
+      <ul>
+        <li>Gross (pre-cost) annualised return $4.0\%$, volatility $8.0\%$.</li>
+        <li>Average <em>one-way</em> daily turnover $20\%$; cost $c=0.04\%$ per unit turnover.</li>
+        <li>252 trading days.</li>
+      </ul>
+    </div>
+    <ul>
+      <li class="frag"><strong>A.</strong> Annualised transaction cost $\approx \text{turnover}\times252\times c$.</li>
+      <li class="frag"><strong>B.</strong> Net annualised return $=$ gross \(-\) cost. Net Sharpe (assume vol unchanged).</li>
+      <li class="frag"><strong>C.</strong> By how much must one-way turnover fall to keep net return $\ge 2\%$, holding $c$ fixed?</li>
+      <li class="frag"><strong>D. Capacity</strong> — the strategy wants \(\$\)10M in a stock with \(\$\)50M ADV. What participation rate is that, and does it breach the $5$–$10\%$ guideline?</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case study — a walk-forward sentiment backtest</h2>
+    <div class="secsub">Run a leakage-free backtest of a language factor and read off the cost-adjusted OOS Sharpe.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the plan</div>
+    <h2>The minimal honest backtest</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A backtest is only believable if the model never peeks at the future.
+      Walk-forward enforces that: fit on the past, evaluate strictly on the next, untouched window.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">What you will do</div>
+          <ol>
+            <li>Build quintile language-factor returns from per-firm sentiment scores.</li>
+            <li>Slide the walk-forward window; <em>fit calibration on train, evaluate on test</em>.</li>
+            <li>Subtract turnover costs; compute $\text{SR}^{\text{OOS}}$.</li>
+            <li>Answer three diagnostics on leakage and decay.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <p class="small">Notebook: <code class="inline">code/notebooks/10-portfolio-quant-trading/demo.ipynb</code></p>
+        <p class="small">Frontier figure: <code class="inline">gen_efficient_frontier.py</code> (deterministic, no network).</p>
+        <div class="alert callout">
+          <span class="callout-tag">discipline</span>
+          Any parameter ($\alpha$, $\lambda$, $W_{\max}$) touched by the test window invalidates the result.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code</div>
+    <h2>Two functions: the factor and the walk-forward</h2>
+    <div class="title-rule"></div>
+    <pre class="code">import numpy as np, pandas as pd
+
+def language_factor(scores, fwd_ret):     # firms x dates, scores in [-1,1]
+    """Top-minus-bottom quintile return from demeaned sentiment."""
+    s = scores.sub(scores.mean(axis=0), axis=1)   # cross-sectional demean
+    lf = {}
+    for t in s.columns:
+        q = s[t].rank(pct=True)
+        top, bot = q &gt;= 0.8, q &lt;= 0.2
+        lf[t] = fwd_ret.loc[top, t].mean() - fwd_ret.loc[bot, t].mean()
+    return pd.Series(lf)
+
+def walk_forward_sharpe(lf, train=252, step=21, turnover=0.15, c=5e-4):
+    oos = []
+    for m in range(0, len(lf) - train - step, step):
+        test = lf.iloc[m + train : m + train + step]  # never seen in fit
+        oos.append(test - turnover * c)               # cost-adjust
+    r = pd.concat(oos)
+    return float(r.mean() / r.std() * np.sqrt(252))
+# sharpe = walk_forward_sharpe(language_factor(scores, fwd_ret))</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>Three questions to ask after you run it</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Q1 (leakage).</strong> The demean step uses <code class="inline">scores.mean(axis=0)</code> — a <em>cross-sectional</em> (per-date) mean. Why is that safe, whereas a <em>time-series</em> mean over all dates would leak?</li>
+      <li class="frag"><strong>Q2 (decay).</strong> Replace raw scores with EWMA-decayed scores ($\lambda\in\{0.1,0.3,0.5\}$). How does $\text{SR}^{\text{OOS}}$ move? Relate to the 1–7 day half-life rule.</li>
+      <li class="frag"><strong>Q3 (costs).</strong> Sweep $c\in\{0,\,5,\,10\}$ bps. At what cost does the Sharpe cross below the $1.5$ paper-trading threshold? Connect to the capacity constraint.</li>
+    </ul>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">optional extension</span>
+      Feed the per-firm view $q_i=\alpha s_i+\Pi_i$ into a Black–Litterman optimizer instead of the raw
+      quintile sort. Does BL's prior shrinkage raise or lower turnover? Why?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion — is this signal worth deploying?</h2>
+    <div class="secsub">Three real scenarios. Go / no-go, justified with the lecture's criteria.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 6 min</div>
+    <h2>Go / no-go: three desks, three calls</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Large-cap US equity sentiment.</strong> OOS Sharpe $1.7$ in-backtest, but decays within 2 days and the desk runs \(\$\)2B. Crowding? Capacity?</li>
+      <li class="frag"><strong>Small-cap emerging-market filing signal.</strong> OOS Sharpe $1.2$, low coverage, wide spreads (tens of bps). A Grossman–Stiglitz niche?</li>
+      <li class="frag"><strong>Real-time 8-K risk-alert system.</strong> No return claim, but cuts tail losses. How would you value it, and audit it under SR 11-7?</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">frame your answer around</span>
+      OOS Sharpe <em>and</em> $T^*$, transaction costs, capacity / ADV, crowding, auditability, and whether the
+      LLM is acting as an <em>extractor</em> or (wrongly) as an <em>optimizer</em>.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Worked answers to Problems 1–3.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>One 50% error swings the book by ~37 points</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Fully trusting the LLM looks fine — until you nudge one input. A single noisy estimate
+      collapses the "optimal" tangency portfolio all the way back to the no-trust baseline.</p>
+    <ul>
+      <li class="frag"><strong>A. Min-variance:</strong> \(w^\star=\dfrac{0.0016-0.0009}{0.0034}\approx 0.21\Rightarrow \mathbf{w}_{\min}\approx(0.21,\,0.79)\).</li>
+      <li class="frag"><strong>B. Tangency:</strong> \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(9.2,\,6.7)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.58,\,0.42)\).</li>
+      <li class="frag"><strong>C. Reliability:</strong> with $\mu_1$ corrected to $0.4\%$, \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(2.8,\,10.8)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.21,\,0.79)\) — back to min-variance.</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">the takeaway</span>
+      A single 50% error in expected return swings the allocation by ~37 points. Position sizing is brutally
+      sensitive to LLM signal noise — which is exactly why you shrink toward $1/N$ or use Black–Litterman rather
+      than plug raw LLM $\boldsymbol{\mu}$ into mean-variance (DeMiguel et al., 2009).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>Confident view pulls the posterior; neutral view defers</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="the two views, computed">
+      <strong>Firm $i$ ($s_i=0.6$):</strong>
+      \[ q_i=0.8\%\times0.6+0.30\%=\mathbf{0.78\%},\quad
+         \Omega_{ii}=(0.5\%)^2(1-0.6)=\mathbf{1.0\times10^{-5}}. \]
+      <strong>Firm $j$ ($s_j=0.05$):</strong>
+      \[ q_j=0.8\%\times0.05+0.30\%=\mathbf{0.34\%},\quad
+         \Omega_{jj}=(0.5\%)^2(1-0.05)=\mathbf{2.375\times10^{-5}}. \]
+    </aside>
+    <ul>
+      <li class="frag"><strong>C.</strong> View $i$ moves the posterior more: bigger deviation from the prior ($0.78\%$ vs. $0.34\%$) <em>and</em> higher precision ($\Omega_{ii}^{-1}$ is $\approx2.4\times$ larger). The near-neutral signal $j$ lets the prior dominate — exactly the intent of $\Omega_{ii}=\sigma_q^2(1-|s_i|)$.</li>
+      <li class="frag"><strong>D.</strong> Calibrating $\alpha$ on the evaluation window is <em>model-selection look-ahead leakage</em>. Fix: estimate $\alpha$ only on data predating each test window (walk-forward).</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 3</div>
+    <h2>Costs halve the Sharpe; the strategy is cost-bound</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="the cost arithmetic">
+      <strong>A. Annualised cost:</strong> \[ 0.20\times252\times0.04\%=\mathbf{2.016\%}\ \text{p.a.} \]
+      <strong>B. Net return / Sharpe:</strong>
+      \[ \text{net}=4.0\%-2.016\%\approx\mathbf{1.98\%},\quad
+         \text{net SR}=\frac{1.98\%}{8.0\%}\approx\mathbf{0.25}\ \text{(vs. gross }0.50). \]
+      <strong>C. Turnover for net $\ge2\%$:</strong>
+      \[ \text{turnover}\times252\times0.0004\le0.02\Rightarrow \text{turnover}\le\frac{0.02}{0.1008}\approx\mathbf{19.8\%}. \]
+    </aside>
+    <ul>
+      <li class="frag"><strong>A–B.</strong> Cost $\approx 2.0\%$ p.a.; net return $\approx 1.98\%$; net Sharpe $\approx 0.25$ — costs <em>halve</em> the Sharpe, nearly destroying a marginal signal.</li>
+      <li class="frag"><strong>C.</strong> Turnover must fall below $\approx19.8\%$ — barely under the current $20\%$. No slack: the strategy is cost-bound.</li>
+      <li class="frag"><strong>D. Capacity:</strong> \(\$\)10M / \(\$\)50M ADV $=\mathbf{20\%}$ participation — <em>double</em> the $5$–$10\%$ guideline. Expect material price impact; scale the book down.</li>
+    </ul>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Four takeaways — and where Practical 11 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li><strong>P1:</strong> On two assets, $1/N$ already sits near tangency — the optimization prize is small once $\boldsymbol{\mu}$ is estimated.</li>
+          <li><strong>P2:</strong> $q_i=\alpha s_i+\Pi_i$, $\Omega_{ii}=\sigma_q^2(1-|s_i|)$ turns a raw LLM score into a confidence-weighted BL view; neutral signals defer to the prior.</li>
+          <li><strong>P3:</strong> Costs and turnover are first-order — a 4% gross strategy can net 2% and lose half its Sharpe; watch ADV participation.</li>
+          <li><strong>Case study:</strong> walk-forward + cross-sectional demean + cost adjustment is the minimal honest backtest; leakage is the silent killer.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Next practical</div>
+          Practical 11: regulatory &amp; compliance applications — structured extraction, auditability,
+          and SR 11-7 model-risk obligations for LLM outputs.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">CVaR budgeting and the minimum track-record length. Beyond the core session.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem A</div>
+    <h2>A CVaR budget under a textual risk spike</h2>
+    <div class="title-rule"></div>
+    <p class="lead">VaR tells you a threshold loss; CVaR tells you the average loss <em>beyond</em> it.
+      A textual risk signal can feed straight into the risk model that sets the position cap.</p>
+    <div class="block"><div class="block-title">Setup</div>
+      Daily returns are fat-tailed with $\text{VaR}_{0.05}=-3.0\%$ and expected shortfall (CVaR) $=-4.5\%$ in the worst 5%.
+    </div>
+    <ul>
+      <li class="frag"><strong>A.</strong> Interpret both numbers in one sentence each.</li>
+      <li class="frag"><strong>B.</strong> A textual risk signal $v_{t-1}$ spikes; the GARCH update \(\sigma_t^2=\omega+\varphi_1\varepsilon_{t-1}^2+\beta_1\sigma_{t-1}^2+\kappa v_{t-1}\) with \(\kappa&gt;0\) raises \(\sigma_t\) by 20%. Qualitatively, what happens to \(\text{CVaR}_{0.05}\) and to the CVaR-constrained weight on this position?</li>
+      <li class="frag"><strong>C.</strong> Why is CVaR preferred to VaR for <em>optimization</em>? (Hint: coherence; convex / LP-representable.)</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem B</div>
+    <h2>Can you trust the LLM strategy's track record?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before allocating, ask how long a record you would need to believe a reported Sharpe.
+      Fat left tails — common in text-driven strategies — inflate that requirement sharply.</p>
+    <aside class="underhood" data-title="minimum track-record length">
+      Your LLM news-sentiment strategy reports a daily $\text{SR}^*=0.08$. The minimum track record length:
+      \[ T^*=1+\Bigl(1-\gamma_1\text{SR}^*+\tfrac{\gamma_2-1}{4}(\text{SR}^*)^2\Bigr)\frac{Z_{1-\alpha}^2}{(\text{SR}^*)^2}, \]
+      with skewness $\gamma_1=-0.5$, kurtosis $\gamma_2=6$, $Z_{0.95}=1.645$.
+    </aside>
+    <ul>
+      <li class="frag"><strong>A.</strong> Compute $T^*$ in trading days, then in years ($\approx252$/yr).</li>
+      <li class="frag"><strong>B.</strong> Repeat for a symmetric, normal benchmark ($\gamma_1=0,\gamma_2=3$). How much does the fat left tail inflate the required record?</li>
+      <li class="frag"><strong>C.</strong> The strategy has only 18 months of genuine out-of-sample data (the model was pre-trained on overlapping earlier text). Given your $T^*$, is that enough to deploy? Connect to temporal leakage for text-trained signals.</li>
+    </ul>
+  </section>
+
+</div></div>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 17 — Practical: Building Agentic Iteration Loops</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 17 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 17</div>
+    <h1>Building Agentic Iteration Loops</h1>
+    <div class="sub">Hands-on: a root-finding loop and a credit-risk stress loop — both the same machine.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Overview</div>
+    <h2>Where this session is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> — the goal-directed loop and its three parts: agents, skills, hooks.</li>
+          <li class="frag"><strong>Three guided problems</strong> — an IRR search, a success-gate hook, a credit mini case.</li>
+          <li class="frag"><strong>Mini case + debate</strong> — wrap the credit analysis in a real loop, then argue whether to lend.</li>
+          <li class="frag"><strong>Worked solutions</strong> — the brackets tighten, the hook fires, the EL gets reconciled.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          The root-finder and the credit memo are <em>literally the same machine</em>: a state variable,
+          a validator, and a definition of "residual." Only the residual changes — a number, a failing test,
+          or a committee's objection.
+        </div>
+      </div>
+    </div>
+    <p class="small">Companion notebooks: <code class="inline">code/notebooks/17-loops-goals-iterations/</code></p>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — what you need before you start</h2>
+    <div class="secsub">The loop, its three building blocks, and the one rule we exploit twice today.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The shape of the thing</div>
+    <h2>A loop is feedback turned into the next action</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Observe → Propose → Act → Evaluate → Revise, again and again, until a check says "good
+      enough" or a stopping rule fires. The hallmark of a <em>genuine</em> loop: the next move depends on
+      the last result.</p>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Agents — <em>who</em> acts</div>
+          Worker, critic, validator, planner, refactorer. Their value is the durable change to state.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Skills — <em>how</em> work repeats</div>
+          The way recurring work is done the same way twice. A skill ≈ a function.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Hooks — <em>what</em> may never break</div>
+          Constraints that fire automatically, outside the agent's control.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the rule we exploit twice today</span>
+      Never let the agent's own "done" end the loop. Termination must hang on a check the agent does
+      <em>not</em> control — a <strong>tolerance hook</strong>.
+    </div>
+    <aside class="underhood" data-title="the loop, formally">
+      A goal-directed loop runs while $\neg\,\mathrm{ok}(s_t)$ and no stopping rule fires, with action
+      \[ a_{t+1} = \pi\big(s_t,\, e_t\big), \]
+      where $e_t$ is the feedback (residual, failing test, objection) from evaluating the previous action.
+      Genuine iteration means $a_{t+1}$ truly depends on $e_t$ — not a fixed script.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The two recipes you'll use</div>
+    <h2>Root-finding and expected loss, in plain words</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Sign-and-magnitude search</div>
+          From a bracket where the function is negative at one end and positive at the other, the answer is
+          trapped between them. Lean your next guess toward the end where the function is <em>closer</em> to zero.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Expected loss (credit)</div>
+          How much you expect to lose = chance of default × fraction lost if it defaults × amount at stake.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the formulas">
+      <strong>Root finding:</strong> from a bracket \([a,b]\) with \(f(a)&lt;0&lt;f(b)\), the root lies between;
+      weight the next guess toward the endpoint with the smaller \(|f|\) (false-position intuition).
+      Success when $|f(x)|&lt;10^{-3}$ (the IRR problem uses $|\mathrm{NPV}|&lt;0.05$).
+      <br><br>
+      <strong>Expected loss:</strong>
+      \[ \mathrm{EL} = \mathrm{PD}\times\mathrm{LGD}\times\mathrm{EAD},
+         \qquad \mathrm{EL}\,(\text{bps of EAD}) = \mathrm{PD}\times\mathrm{LGD}\times 10^4. \]
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">today's success criterion (illustrative bank policy)</span>
+      Stressed EL ≤ 150 bps → <strong>lend</strong> (clean) · 150 &lt; stressed ≤ 500 bps →
+      <strong>conditional / modify</strong> · stressed &gt; 500 bps → <strong>decline</strong>.
+      "Low risk" only if base ≤ 50 bps <em>and</em> stressed ≤ 150 bps.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Guided problems</h2>
+    <div class="secsub">P1 the directed search · P2 the guardrail that defines "done" · P3 the judgment a committee must accept.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How to work the next three problems</div>
+    <h2>Three angles on one loop</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>P1 — IRR loop (transfer):</strong> apply the sign-and-magnitude search to solve for an IRR from feedback alone.</li>
+      <li class="frag"><strong>P2 — the success gate:</strong> write the tolerance hook in bash that vetoes a premature "success."</li>
+      <li class="frag"><strong>P3 — credit mini case:</strong> compute base vs. stressed EL and make the lend / modify / decline call.</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      P1 and P2 are the <em>same loop</em> from two angles: P1 is the agent's directed search; P2 is the
+      guardrail that defines "done." P3 scales the idea up to a judgment a committee must accept.
+    </div>
+    <p class="small">Companion notebooks: <code class="inline">code/notebooks/17-loops-goals-iterations/</code> — run the evaluator, the stop hook, and the EL reconciliation end-to-end.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">P1 · transfer task</div>
+    <h2>Find an IRR using only feedback — no calculus</h2>
+    <div class="title-rule"></div>
+    <p class="lead">This is the root-finder's loop with $x$ renamed $r$ and $f$ renamed NPV — the same machine,
+      only the residual changes. You may only evaluate NPV at a trial rate and read the result.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The project</div>
+          Cash flows: \(-100\) at \(t=0\), \(+60\) at \(t=1\), \(+60\) at \(t=2\). Find the rate $r$ where NPV hits zero.
+          <br><span class="small">Sign rule: NPV &gt; 0 ⇒ the rate is too <em>low</em>, so raise $r$.</span>
+        </div>
+        <table>
+          <tr><th>$r$</th><th>$\mathrm{NPV}(r)$</th><th>Status</th></tr>
+          <tr><td>0.00</td><td>+20.00</td><td>Positive — rate too low</td></tr>
+          <tr><td>0.20</td><td>−8.33</td><td>Negative — overshot</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Your tasks</div>
+          <ol>
+            <li>Confirm the first two evaluations <em>bracket</em> the root. Where does the IRR lie?</li>
+            <li>From the sign and magnitude of NPV, propose the next two trial rates $r_3, r_4$.</li>
+            <li>Are you within tolerance yet? Which loop component decides — the agent or the hook?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the residual equation">
+      \[ \mathrm{NPV}(r) = -100 + \frac{60}{1+r} + \frac{60}{(1+r)^2} = 0,
+         \qquad \text{tolerance } |\mathrm{NPV}|&lt;0.05. \]
+      Derivatives are forbidden — this is deliberately a black-box, feedback-only search.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">P2 · build it from spec</div>
+    <h2>Write the gate that decides when "done" is real</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Do not copy code — build it from the specification. The IRR evaluator appends one line per
+      call to <code class="inline">run-log.txt</code>; the last line is the current state on disk.</p>
+    <div class="block">
+      <div class="block-title">Specification — a bash stop hook that…</div>
+      <ul>
+        <li>reads the <em>latest</em> logged NPV from <code class="inline">run-log.txt</code>;</li>
+        <li>exits <code class="inline">0</code> (allow "success") <em>only if</em> $|\mathrm{NPV}|&lt;0.05$;</li>
+        <li>otherwise prints a clear, human-readable message and exits <code class="inline">1</code>, which <strong>blocks</strong> the agent from declaring success.</li>
+      </ul>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">why this matters</span>
+      This single script is the difference between feedback-driven iteration and premature success.
+      Without it, the agent can announce "done" at $r=0.135$ ($|\mathrm{NPV}|=0.56$) and be believed.
+    </div>
+    <p class="small"><strong>Plan first:</strong> how do you grab the last line's number
+      (<code class="inline">tail</code> / <code class="inline">grep</code> / <code class="inline">cut</code>),
+      and how do you test an absolute-value inequality in shell? Then write it. Reference solution follows later.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">P3 · credit mini case</div>
+    <h2>Atlas Foods wants a revolver — lend, modify, or decline?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Atlas Foods (fictional; figures illustrative) seeks a committed revolver with
+      <strong>EAD = \(\$\)20m</strong>. The base-case PD model and LGD agent report:</p>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>Input</th><th>Base case</th><th>Stressed</th></tr>
+          <tr><td>Probability of default (PD)</td><td>2.0%</td><td>8.0%</td></tr>
+          <tr><td>Loss given default (LGD)</td><td>35%</td><td>50%</td></tr>
+          <tr><td>Exposure at default (EAD)</td><td>\(\$\)20m</td><td>\(\$\)20m</td></tr>
+        </table>
+        <p class="small">Stressed PD and LGD are the loop's outputs after a combined shock (revenue −20%,
+          margin −300 bps, rate +250 bps, DSO +25 days), with recovery deteriorating on illiquid collateral.</p>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Your tasks</div>
+          <ol>
+            <li>Compute base and stressed EL, in <em>dollars</em> and in <em>bps of EAD</em>.</li>
+            <li>Apply the policy (recap slide): lend / modify / decline?</li>
+            <li>May the memo say "low risk"? Which <em>hook</em> decides, and why is that better than leaving it to the writer?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Mini case study and discussion</h2>
+    <div class="secsub">Design the Atlas loop, then debate whether a green loop is enough to lend.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Mini case study · design</div>
+    <h2>Wrap Atlas in a loop, not a one-shot memo</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Sketch, in two minutes with a neighbour, the four pieces a real goal-directed loop needs:</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Goal file</strong> — state the success criterion, a stopping rule, and one anticipated failure mode.</li>
+          <li class="frag"><strong>Agents</strong> — which two or three roles are genuinely needed (resist excessive delegation)?</li>
+          <li class="frag"><strong>Hooks</strong> — which automatic checks must fire, and <em>when</em> (pre- vs. post-action)?</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Escalation trigger</strong> — what condition forces a human into the loop before it proceeds?</li>
+          <li class="frag"><strong>Pattern selection</strong> — which of the lecture's <em>five</em> design patterns best fits the Atlas credit workflow? Name it and justify it.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      There is no single right answer — but a good design names a <em>checkable</em> goal, a
+      <em>guaranteed-terminating</em> stopping rule, at least one <em>outcome-tied</em> hook, and an
+      escalation point that does not depend on the agent's goodwill.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · debate (5 minutes)</div>
+    <h2>"Every hook is green and the skeptic signed off. Should the bank lend?"</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Argue both sides, using the lecture's vocabulary:</p>
+    <ul>
+      <li class="frag"><strong>Goodhart / fake convergence</strong> — could the hooks be green while the true goal is unmet? What would gaming look like here?</li>
+      <li class="frag"><strong>Accountability</strong> — the skeptic's sign-off is <em>not</em> sign-off. Who owns the decision, and what does the unsigned block add?</li>
+      <li class="frag"><strong>Audit trail</strong> — if a regulator asks "where did the stressed 8% PD come from?" three months later, can you answer?</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">the point</span>
+      A green loop produces a <em>defensible recommendation</em>, not a decision. "Lend" is a human act that
+      the loop can evidence but never authorize.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Solutions</h2>
+    <div class="secsub">The bracket tightens, the hook fires, the expected loss reconciles — and the same machine appears twice.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">P1 solution</div>
+    <h2>The IRR bracket tightens to ≈ 13.1%</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>(a)</strong> NPV goes $+20.00 \to -8.33$ as $r$ goes $0.00 \to 0.20$: it crosses
+      zero in between, so the IRR lies in \((0.00, 0.20)\).</p>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>$r$</th><th>$\mathrm{NPV}(r)$</th><th>Reasoning</th></tr>
+          <tr><td>0.00</td><td>+20.00</td><td>Positive; rate too low</td></tr>
+          <tr><td>0.20</td><td>−8.33</td><td>Negative; bracket (0.00, 0.20)</td></tr>
+          <tr><td><strong>0.13</strong></td><td><strong>+0.09</strong></td><td>Root in (0.13, 0.20)</td></tr>
+          <tr><td><strong>0.135</strong></td><td><strong>−0.56</strong></td><td>Root in (0.13, 0.135)</td></tr>
+          <tr><td>0.131</td><td>−0.04</td><td>$|\mathrm{NPV}|&lt;0.05$: IRR ≈ 13.1%</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Who decides "done"?</div>
+          <strong>The hook, not the agent.</strong> At $r=0.135$, $|\mathrm{NPV}|=0.56$ — still above
+          tolerance. The agent proposes; the tolerance hook (P2) is the only thing allowed to certify convergence.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="(b) the first proposal, by linear interpolation">
+      Across the bracket, $0 + \tfrac{20}{20+8.33}\times 0.20 \approx 0.14$ points near $14\%$; test there
+      and tighten on each sign change. This is the sign-and-magnitude search with $x\to r$ and
+      $f\to\mathrm{NPV}$: bracket on a sign change, then weight the next guess toward the endpoint with the
+      smaller $|\mathrm{NPV}|$.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">P2 solution · the success-gate hook</div>
+    <h2>A deterministic veto the agent cannot skip</h2>
+    <div class="title-rule"></div>
+    <pre class="code">#!/usr/bin/env bash
+# stop-hook: veto "success" unless the latest |NPV| &lt; 0.05
+set -euo pipefail
+
+last=$(grep -o 'NPV=[-0-9.eE]*' run-log.txt | tail -n1 | cut -d= -f2)
+ok=$(python -c "print(1 if abs(float('$last')) &lt; 0.05 else 0)")
+
+if [ "$ok" -ne 1 ]; then
+  echo "BLOCKED: |NPV|=$last &gt;= 0.05 -- not converged" &gt;&amp;2
+  exit 1          # nonzero exit = veto: the loop may NOT stop
+fi
+echo "OK: |NPV| &lt; 0.05 -- converged"
+exit 0</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">key properties</span>
+      It reads the <em>last</em> line (current state on disk), it is <em>deterministic</em>
+      (same log → same verdict), and the agent cannot skip it — the harness treats the nonzero exit as a
+      hard veto. This is the seven-step template's step 5 (validate) made real.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">P3 solution · Atlas Foods expected loss</div>
+    <h2>Stressed EL = 400 bps → conditional / modify</h2>
+    <div class="title-rule"></div>
+    <div class="statrow">
+      <div class="stat"><div class="num">70 bps</div><div class="lbl">base EL — \(\$\)0.14m</div></div>
+      <div class="stat"><div class="num">400 bps</div><div class="lbl">stressed EL — \(\$\)0.80m</div></div>
+      <div class="stat"><div class="num">modify</div><div class="lbl">policy call (150–500 bps)</div></div>
+    </div>
+    <aside class="underhood" data-title="the arithmetic">
+      <strong>Base case:</strong>
+      \[ \mathrm{EL} = 0.020 \times 0.35 \times \$20\text{m} = \$0.14\text{m} = 70 \text{ bps of EAD}. \]
+      <strong>Stressed (adverse):</strong>
+      \[ \mathrm{EL} = 0.080 \times 0.50 \times \$20\text{m} = \$0.80\text{m} = 400 \text{ bps of EAD}. \]
+    </aside>
+    <div class="block">
+      <div class="block-title">Decision</div>
+      Stressed EL = 400 bps falls in (150, 500] ⇒ <strong>conditional / modify</strong> — not a clean lend,
+      not a decline. Reasonable conditions: a smaller facility, tighter covenants, more collateral (to cut
+      LGD), and pricing that compensates for the stressed EL.
+    </div>
+    <div class="alert callout">
+      <span class="callout-tag">may the memo say "low risk"?</span>
+      No. That gate requires base ≤ 50 <em>and</em> stressed ≤ 150 bps; here base = 70 and stressed = 400.
+      The hook decides, not the writer — language is a control surface, and the phrase must be earned by the arithmetic.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Mini-case solution · which design pattern?</div>
+    <h2>Build → stress-test → red-team → finalize</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The intended answer: the <strong>credit-model pattern</strong> — a specialization of
+      <em>scaffold–draft–audit–repair</em> with an explicit adversarial skeptic stage.</p>
+    <ul>
+      <li class="frag"><strong>The goal is a judgment</strong>, not a single machine-checkable number, so generate–test–revise alone is too thin.</li>
+      <li class="frag"><strong>It is high-stakes</strong>: the two distinguishing stages — mandatory stress testing (adverse and severe, not just base) and a red-team skeptic demanding sensitivities and peer benchmarks — are exactly what Atlas needs.</li>
+      <li class="frag"><strong>It finalizes into a governed artifact</strong> with an unsigned sign-off block, encoding SR 11-7 governance.</li>
+    </ul>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">patterns nest</span>
+      Sub-patterns still sit inside: the PD-model build stage is generate–test–revise; the red-team is
+      planner–executor–critic.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What you practised — and why it's one machine</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li>Directed search from <strong>feedback alone</strong> (P1) — the engine inside every loop in the book.</li>
+      <li>A <strong>tolerance hook</strong> (P2) that makes "done" external to the agent.</li>
+      <li>EL reconciliation and a <strong>policy-gated</strong> lend decision (P3) — the credit loop in miniature.</li>
+    </ul>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      The root-finder and the credit memo are the <em>same machine</em>: a state variable, a validator, and
+      a definition of "residual." Only the residual changes — a number, a failing test, or a committee's objection.
+    </div>
+    <p class="small"><strong>Take it further:</strong> <code class="inline">code/notebooks/17-loops-goals-iterations/</code>
+      runs both loops end-to-end. See book Chapter 17 and Appendices A–F for the full treatment and concrete tooling.</p>
+  </section>
+
+</div></div>
+</body>
+</html>

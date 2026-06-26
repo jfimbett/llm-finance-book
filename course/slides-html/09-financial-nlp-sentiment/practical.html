@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 9 — Practical: Financial NLP &amp; Sentiment</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 9 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 9</div>
+    <h1>Financial NLP &amp; Sentiment — Hands On</h1>
+    <div class="sub">LM scoring by hand, FinBERT vs. the lexicon, and a filing-date event study.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Overview</div>
+    <h2>One hour: 50 minutes of work, 10 of debrief</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three pencil-and-paper problems, a deterministic notebook, and a production-choice discussion — all aimed at one question: <em>how do you turn a filing into a number you can trust?</em></p>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — LM net sentiment, macro-F1, CAR.</li>
+          <li class="frag"><strong>Problem 1</strong> (12 min) — score an MD&amp;A excerpt with the LM lexicon by hand.</li>
+          <li class="frag"><strong>Problem 2</strong> (12 min) — macro-F1 vs. accuracy on an imbalanced 3-class matrix.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="4">
+          <li class="frag"><strong>Problem 3</strong> (8 min) — build a \(\mathrm{CAR}[1,60]\) predictive regression.</li>
+          <li class="frag"><strong>Case study</strong> (15 min) — run the chapter-09 companion notebook.</li>
+          <li class="frag"><strong>Discussion</strong> (8 min) — lexicon vs. FinBERT vs. LLM in production.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Code</div>
+      <code class="inline">code/notebooks/09-financial-nlp-sentiment/</code> —
+      <code class="inline">demo.ipynb</code> (deterministic) and <code class="inline">exercises.ipynb</code> (live EDGAR lab).
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1: RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the three formulas you need</h2>
+    <div class="secsub">Net sentiment, macro-F1, and cumulative abnormal return — plus why standardizing comes first.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · the toolkit</div>
+    <h2>Three formulas, one for each problem</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each of today's problems is one of these in disguise: a sentiment score, a fairness-aware accuracy metric, and an event-study return.</p>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block"><div class="block-title">LM net sentiment — P1</div>
+          Positive minus negative word hits, scaled by length.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Macro-F1 — P2</div>
+          Average the per-class F1, so rare classes count as much as common ones.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">CAR — P3</div>
+          Stack up firm-specific abnormal returns over the event window.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the three formulas">
+      LM net sentiment:
+      \[ S_{\text{LM}}(d)=\frac{N_{\text{pos}}(d)-N_{\text{neg}}(d)}{N_{\text{words}}(d)} \]
+      Macro-F1 over three classes, with \(\text{P}_c=\tfrac{TP_c}{TP_c+FP_c}\) and \(\text{R}_c=\tfrac{TP_c}{TP_c+FN_c}\):
+      \[ F1_c=\frac{2\,\text{P}_c\text{R}_c}{\text{P}_c+\text{R}_c},\qquad \text{macro-F1}=\tfrac13\sum_{c}F1_c \]
+      Cumulative abnormal return and its predictive regression:
+      \[ \mathrm{CAR}_i[1,60]=\sum_{\tau=1}^{60}\bigl(R_{i,\tau}-\hat R_{i,\tau}\bigr),\quad
+         \mathrm{CAR}_i[1,60]=\alpha+\beta_1\mathrm{SUE}_{i,0}+\beta_2\tilde S_{i,0}+\varepsilon_i \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · the pre-step everyone skips</div>
+    <h2>Standardize before you compare</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A defence or chemicals firm uses structurally gloomy language. Compare raw scores across firms and you measure their industry, not their mood.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The fix: z-score within industry-year</div>
+          Subtract the industry-year mean, divide by its standard deviation. Now every firm is judged against its own peers.
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">why it matters for the regression</span>
+          Skip the transform and \(\beta_2\) just picks up an industry fixed effect, not a sentiment signal. The event study uses \(\tilde S\), never raw \(S_{\text{LM}}\).
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the standardization">
+      \[ \tilde S_{i,t}=\frac{S_{i,t}-\mu_{j(i),t}}{\sigma_{j(i),t}} \]
+      where \(j(i)\) is firm \(i\)'s industry. Also check: ADF/KPSS for long series; one fixed model vintage to avoid sentiment inflation; align timestamps to market hours to avoid look-ahead.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 2: PROBLEMS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>The problems</h2>
+    <div class="secsub">Score a filing by hand, expose accuracy's blind spot, and design an event study.</div>
+  </section>
+
+  <!-- PROBLEM 1 -->
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 12 min</div>
+    <h2>Score an MD&amp;A excerpt with the LM lexicon by hand</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Excerpt (10-K MD&amp;A)</div>
+      <em>"Operating margins contracted as input costs rose. Management remains uncertain about demand but is confident the restructuring will deliver improved profitability."</em>
+    </div>
+    <p class="lead frag">Using the LM lists — negative dominates; <em>uncertain</em> is on the uncertainty list; <em>cost</em> is <strong>neutral</strong> in finance, not negative:</p>
+    <ol>
+      <li class="frag">Identify the LM negative, positive, and uncertainty hits.</li>
+      <li class="frag">Take \(N_{\text{words}}=24\). Compute \(S_{\text{LM}}\).</li>
+      <li class="frag">A Harvard-GI classifier would also flag <em>costs</em> and <em>contracted</em>. Recompute the GI-style score — how large is the distortion?</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">discussion</span>
+      Which word does the lexicon get <em>wrong</em> on negation — and how would FinBERT handle it?
+    </div>
+  </section>
+
+  <!-- PROBLEM 2 -->
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 12 min</div>
+    <h2>Macro-F1 vs. accuracy on a neutral-heavy classifier</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A 3-class classifier on 1,000 financial sentences. The neutral class is huge — exactly the case where a single accuracy number lies to you. Rows = true, columns = predicted.</p>
+    <table>
+      <tr><th></th><th>pred neg</th><th>pred neu</th><th>pred pos</th><th>total</th></tr>
+      <tr><td><strong>true neg</strong></td><td>60</td><td>35</td><td>5</td><td>100</td></tr>
+      <tr><td><strong>true neu</strong></td><td>20</td><td>560</td><td>20</td><td>600</td></tr>
+      <tr><td><strong>true pos</strong></td><td>5</td><td>90</td><td>205</td><td>300</td></tr>
+    </table>
+    <ol>
+      <li class="frag">Compute overall accuracy.</li>
+      <li class="frag">Compute precision, recall, and F1 for the <strong>negative</strong> class.</li>
+      <li class="frag">Given \(F1_{\text{neu}}\approx 0.86\) and \(F1_{\text{pos}}\approx 0.74\), compute macro-F1.</li>
+      <li class="frag">Why is the gap between accuracy and macro-F1 the whole point?</li>
+    </ol>
+  </section>
+
+  <!-- PROBLEM 3 -->
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · 8 min</div>
+    <h2>Design the filing-date event study</h2>
+    <div class="title-rule"></div>
+    <p class="lead">800 earnings calls. For each you have the call-day standardized text sentiment \(\tilde S_{i,0}\), the earnings surprise \(\mathrm{SUE}_{i,0}\), and daily returns.</p>
+    <ol>
+      <li class="frag">Write \(\mathrm{CAR}_i[1,60]\) in terms of abnormal returns. What benchmark \(\hat R\) would you use, and why not raw returns?</li>
+      <li class="frag">State the regression and the null/alternative on \(\beta_2\).</li>
+      <li class="frag">You find \(\hat\beta_2 = 0.018\) (\(t=2.6\)) after controlling for SUE. Interpret it economically.</li>
+      <li class="frag">Name two robustness checks before you trust this.</li>
+    </ol>
+    <aside class="underhood" data-title="the surprise variable">
+      The earnings surprise is the standardized unexpected earnings,
+      \[ \mathrm{SUE}_{i,0}=\frac{\mathrm{EPS}-\widehat{\mathrm{EPS}}}{\hat\sigma_i}, \]
+      so the regression asks whether text \(\tilde S\) adds drift <em>beyond</em> the number analysts already priced.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 3: CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case study — the companion notebook</h2>
+    <div class="secsub">Reproduce the LM dictionary figure and the worked net-sentiment number, then probe it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the figure</div>
+    <h2>The Loughran–McDonald dictionary, at a glance</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Open <code class="inline">code/notebooks/09-financial-nlp-sentiment/demo.ipynb</code>. It is deterministic (no network) and reproduces the LM lexicon figure plus the worked net-sentiment example.</p>
+    <pre class="code">import matplotlib.pyplot as plt
+
+# Loughran-McDonald finance dictionary word-list sizes.
+lists = {"Negative": 2355, "Litigious": 903, "Positive": 354,
+         "Uncertainty": 297, "Weak modal": 27, "Strong modal": 19}
+items = sorted(lists.items(), key=lambda kv: kv[1])
+plt.barh([k for k, _ in items], [v for _, v in items], color="#4c72b0")
+plt.xlabel("Number of words"); plt.title("Loughran-McDonald dictionary")
+plt.tight_layout(); plt.show()</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the worked number</div>
+    <h2>Net LM sentiment on the chapter excerpt</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The same notebook reproduces the worked net-sentiment number from the chapter — one positive hit, four negative, 35 words.</p>
+    <pre class="code"># Net LM sentiment for the chapter MD&amp;A excerpt (ex:lm-example).
+n_pos, n_neg, n_words = 1, 4, 35
+s_lm = (n_pos - n_neg) / n_words
+print(f"S_LM = ({n_pos} - {n_neg}) / {n_words} = {s_lm:.3f}")  # ~ -0.086</pre>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the move that follows</span>
+      That single decimal — whether a word is on a list or not — is what the diagnostic questions stress-test.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>Three questions to interrogate the score</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Asymmetry.</strong> The negative list (2,355) dwarfs the positive list (354). What does that tell you about corporate-disclosure language — and about the <em>base rate</em> a lexicon produces on a typical 10-K?</li>
+      <li class="frag"><strong>Sensitivity.</strong> The excerpt scores \(S_{\text{LM}}=-0.086\). Re-run with <code class="inline">n_pos, n_neg = 2, 2</code>. How sensitive is the sign to a single word-list decision — and what does that imply for reproducibility?</li>
+      <li class="frag"><strong>Live lab.</strong> In <code class="inline">exercises.ipynb</code>, pull a real 10-K from EDGAR and prices from <code class="inline">yfinance</code>. Score the filing, then test whether filing-day LM negativity is associated with the filing-day abnormal return. Does the sign match Loughran–McDonald (2011)?</li>
+    </ol>
+    <div class="block frag"><div class="block-title">Extension</div>
+      Swap the lexicon for <code class="inline">yiyanghkust/finbert-tone</code> on the same filings. Where do the two methods <em>disagree</em>, and which sentences drive it?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4: DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion — choosing a method in production</h2>
+    <div class="secsub">No universal winner: auditability vs. throughput vs. cold-start flexibility.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 8 min</div>
+    <h2>Three scenarios — pick lexicon, FinBERT, or LLM</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each, choose a method and justify it on cost, latency, labels, interpretability, and accuracy.</p>
+    <ol>
+      <li class="frag"><strong>The regulator.</strong> Must audit <em>why</em> every sentiment score on a 10-K was assigned. 50k filings/year, no labelled data, full transparency required.</li>
+      <li class="frag"><strong>The desk.</strong> Scores 5M news headlines/day on a &lt;50 ms/headline budget, with 10k labelled examples in hand.</li>
+      <li class="frag"><strong>The research team.</strong> Prototypes sentiment on a brand-new document type (crypto whitepapers) with <em>zero</em> labels and a small corpus.</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">frame your answer around</span>
+      Auditability (lexicon wins), throughput/latency (distilled FinBERT wins), cold-start flexibility (LLM zero-shot wins) — and when you would <em>distil</em> an LLM into a small model for scale.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5: SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Worked answers — try the problems first, then reveal.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>The GI sign-flip is the whole case for finance lexicons</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">LM hits</div>
+          <ul class="small">
+            <li>Negative: <em>contracted</em> → 1</li>
+            <li>Positive: <em>confident</em>, <em>improved</em> → 2</li>
+            <li>Uncertainty: <em>uncertain</em> → 1 (hedging, not polarity)</li>
+            <li><em>costs</em>, <em>rose</em> are <strong>neutral</strong> in LM</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">sign flips</span>
+          GI adds <em>costs</em> and <em>contracted</em> as negative → the conclusion reverses. This is exactly the Loughran–McDonald (2011) critique: false positives on neutral finance vocabulary.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the two scores">
+      LM score (2 positive, 1 negative, 24 words):
+      \[ S_{\text{LM}}=\frac{2-1}{24}=+0.042 \quad(\text{mildly positive}) \]
+      GI-style (negatives become 3):
+      \[ S_{\text{GI}}=\frac{2-3}{24}=-0.042 \]
+      <strong>Negation:</strong> "not confident" would still score positive under any lexicon; FinBERT's contextual <code class="inline">[CLS]</code> embedding resolves it.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>Accuracy 0.825 hides a weak negative class</h2>
+    <div class="title-rule"></div>
+    <div class="statrow">
+      <div class="stat"><div class="num">0.825</div><div class="lbl">overall accuracy</div></div>
+      <div class="stat"><div class="num">0.649</div><div class="lbl">F1, negative class</div></div>
+      <div class="stat"><div class="num">0.750</div><div class="lbl">macro-F1</div></div>
+    </div>
+    <aside class="underhood" data-title="the arithmetic">
+      Accuracy \(=(60+560+205)/1000 = 0.825\). For the negative class:
+      \[ TP=60,\quad FP=20+5=25,\quad FN=35+5=40 \]
+      \[ \text{P}=\tfrac{60}{85}=0.706,\quad \text{R}=\tfrac{60}{100}=0.600,\quad
+         F1_{\text{neg}}=\frac{2(0.706)(0.600)}{0.706+0.600}=0.649 \]
+      Macro-F1 \(=\tfrac13(0.649+0.86+0.74)=0.750\).
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">the lesson</span>
+      Accuracy 0.825 is propped up by 600 easy neutral cases. Macro-F1 0.750 reveals the model is markedly weaker on the economically important negative tail (\(F1=0.65\)) — and the tails are what you trade on. Report macro-F1.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 3</div>
+    <h2>Text carries drift orthogonal to the EPS surprise</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Benchmark.</strong> \(\hat R\) from a market model / CAPM / factor benchmark. Raw returns mix in market-wide moves; abnormal returns isolate firm-specific drift.</li>
+      <li class="frag"><strong>Hypotheses.</strong> \(H_0:\beta_2=0\) (text adds nothing beyond EPS); \(H_1:\beta_2&gt;0\) (residual sentiment predicts drift).</li>
+      <li class="frag"><strong>Interpretation.</strong> \(\hat\beta_2=0.018,\ t=2.6\): a one-SD rise in standardized sentiment → +1.8 pp of 60-day abnormal return, <em>orthogonal</em> to the quantitative surprise — post-announcement drift conditioned on tone.</li>
+      <li class="frag"><strong>Robustness.</strong> (i) strictly out-of-sample period not used for model selection; (ii) cluster SEs by firm/date; also check look-ahead (timestamp vs. close) and a placebo pre-event window.</li>
+    </ol>
+    <aside class="underhood" data-title="the regression">
+      \[ \mathrm{CAR}_i[1,60]=\sum_{\tau=1}^{60}(R_{i,\tau}-\hat R_{i,\tau}),\qquad
+         \mathrm{CAR}_i[1,60]=\alpha+\beta_1\mathrm{SUE}_{i,0}+\beta_2\tilde S_{i,0}+\varepsilon_i \]
+    </aside>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Four takeaways — and where the next practical goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li><strong>Lexicons are auditable but brittle</strong> — the GI vs. LM sign flip (P1) is the whole case for domain dictionaries.</li>
+          <li><strong>Report macro-F1, not accuracy</strong> — the neutral majority hides weakness on the actionable tails (P2).</li>
+          <li><strong>Standardize, then test economically</strong> — z-score within industry-year, run the CAR regression, validate out-of-sample (P3).</li>
+          <li><strong>Method choice is a trade-off</strong> — auditability vs. throughput vs. cold-start, with no universal winner.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Next practical</div>
+          Practical 10 — domain-specific LLMs: fine-tuning and adaptation of FinBERT's successors on long financial documents.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">Inter-annotator reliability and the score-to-Sharpe pipeline. Beyond the core session.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Stretch · reliability</div>
+    <h2>Krippendorff's alpha on two annotators</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two annotators label five sentences (P = pos, N = neu, G = neg). How reliable is the labelling?</p>
+    <table>
+      <tr><th></th><th>s1</th><th>s2</th><th>s3</th><th>s4</th><th>s5</th></tr>
+      <tr><td><strong>Annot. A</strong></td><td>P</td><td>N</td><td>G</td><td>N</td><td>P</td></tr>
+      <tr><td><strong>Annot. B</strong></td><td>P</td><td>N</td><td>G</td><td>G</td><td>P</td></tr>
+    </table>
+    <ol>
+      <li class="frag">Compute observed disagreement \(D_o\) (fraction of disagreeing pairs).</li>
+      <li class="frag">With marginal frequencies, compute \(D_e=1-\sum_c(n_c/n)^2\).</li>
+      <li class="frag">Compute \(\alpha=1-D_o/D_e\). Is it above Krippendorff's 0.667 reliability bar?</li>
+      <li class="frag">Why would the <em>ordinal</em> variant give a more lenient verdict on the s4 N/G disagreement?</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Stretch · from score to Sharpe</div>
+    <h2>When a backtest Sharpe of 1.4 becomes 0.5</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A standardized news-sentiment signal \(\tilde S\) is rebalanced daily into a long–short portfolio (long top decile, short bottom decile).</p>
+    <ol>
+      <li class="frag">In-sample annualized Sharpe is 1.4; strictly out-of-sample it is 0.5. Name three reasons for the decay (hint: one is the lecture's "sentiment inflation" box).</li>
+      <li class="frag">Kirtac &amp; Germano (2024) report OPT beats the LM dictionary on long–short Sharpe. Why might the gap shrink <em>after</em> transaction costs at high turnover?</li>
+      <li class="frag">Lehner (2024) shows LLMs can rewrite filings to shift measured tone. How does adversarial text-generation threaten a filings-based signal's out-of-sample stability?</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">the discipline</span>
+      A backtest Sharpe is an upper bound. Turnover, sentiment inflation, and adversarial text all erode it before a dollar is traded.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

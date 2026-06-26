@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 16 — Practical: AI/ML Foundations for Financial Text</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 16 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 16</div>
+    <h1>AI/ML Foundations for Financial Text</h1>
+    <div class="sub">Hands-on: lexicon sentiment, bag-of-words vs. embeddings, and a mini attention trace by hand.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview</div>
+    <h2>One hour, three pencils, one keyboard</h2>
+    <div class="title-rule"></div>
+    <p class="lead">50 minutes of activities, 10 minutes to debrief. We score text three ways — by dictionary,
+      by averaging word vectors, and by attention — and watch each one break.</p>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — the AI/ML/DL/LLM hierarchy and the attention formula.</li>
+          <li class="frag"><strong>Problem 1</strong> (12 min) — Loughran–McDonald dictionary sentiment by hand, and why a <em>general</em> lexicon misleads.</li>
+          <li class="frag"><strong>Problem 2</strong> (10 min) — show mean bag-of-words pooling is order-blind, and quantify the failure.</li>
+          <li class="frag"><strong>Problem 3</strong> (8 min) — trace a \(3\times3\) self-attention step on a financial sequence.</li>
+          <li class="frag"><strong>Case Study</strong> (15 min) — Python: dictionary vs. embedding sentiment on SEC snippets.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Discussion (10 min)</div>
+          When is a 1990s-vintage dictionary still the <em>right</em> tool, and when must you reach
+          for an embedding or an LLM?
+        </div>
+        <p class="small frag">Notebook: <code class="inline">code/notebooks/16-ai-ml-finance-text/</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap: the ideas the problems lean on</h2>
+    <div class="secsub">Where text sits in the AI hierarchy, and the three formulas you will use with your pencil.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The map</div>
+    <h2>Why statistics, not hand-coded rules, runs the desk</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      AI \(\supset\) ML \(\supset\) DL \(\supset\) LLM. <strong>Statistical</strong> AI — learn the parameters
+      from data — dominates finance over <strong>symbolic</strong> AI — hand-coded rules — because markets are
+      data-rich. But symbolic rules come back for compliance and interpretability.
+    </div>
+    <p class="lead">Carry one thing into every problem today: text is hard for three specific reasons.</p>
+    <ul>
+      <li class="frag"><strong>Ambiguous</strong> — about \(3/4\) of general "negative" words are neutral or positive inside filings \(\Rightarrow\) use a <em>finance</em> lexicon.</li>
+      <li class="frag"><strong>Sparse</strong> — a 50k-word vocabulary dwarfs the number of observations you actually have.</li>
+      <li class="frag"><strong>Strategic</strong> — disclosures are written by lawyers, not handed to you as unbiased signals.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The toolbox</div>
+    <h2>Three formulas you will use today</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A sentiment score is a fraction; a bag-of-words vector is an average; attention is a
+      weighted average where the weights come from how well words match.</p>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block"><div class="block-title">Dictionary sentiment</div>
+          Net polarity = how positive minus how negative, per word.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Mean BoW embedding</div>
+          Average the word vectors — order is thrown away by construction.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Scaled dot-product attention</div>
+          Match queries to keys, soften into weights, average the values.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the three formulas, written out">
+      Dictionary sentiment of a document:
+      \[ \mathrm{Sentiment} = \frac{\#\text{positive words} - \#\text{negative words}}{\#\text{total words}}. \]
+      Mean bag-of-words embedding (order-blind by construction):
+      \[ \bar{\varphi}(d) = \frac{1}{n}\sum_{i=1}^{n}\varphi(w_i). \]
+      Scaled dot-product attention:
+      \[ \mathrm{Attention}(Q,K,V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V,
+         \qquad \mathrm{softmax}(\mathbf{x})_i = \frac{e^{x_i}}{\sum_j e^{x_j}}. \]
+      <em>Tip:</em> subtract \(\max(\mathbf{x})\) before exponentiating for numerical stability.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>The problems: pencil-and-paper</h2>
+    <div class="secsub">Three short exercises that each expose a different way text scoring goes wrong — or gets fixed.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 12 min</div>
+    <h2>Dictionary sentiment, and why domain matters</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Snippet — 10-K risk factors, stylised</div>
+      "Demand remained <strong>positive</strong>, but <strong>litigation</strong> exposure and macroeconomic
+      <strong>uncertainty</strong> could adversely affect results; management believes the outlook is
+      <strong>strong</strong>."
+    </div>
+    <p class="lead frag">Three tasks — classify the bold words, expose the general-dictionary trap, then score it.</p>
+    <ul>
+      <li class="frag"><strong>Task A.</strong> Using Loughran–McDonald's six categories (negative, positive, uncertainty, litigious, strong/weak modal), classify the four bold words. Which category do "litigation" and "uncertainty" fall into?</li>
+      <li class="frag"><strong>Task B.</strong> A <em>general</em> (Harvard Inquirer) dictionary tags "litigation," "liability," and "tax" as negative — yet about \(3/4\) of Harvard negatives are neutral or positive in filings. What does that imply for a naive negative-word count on legal-heavy filings?</li>
+      <li class="frag"><strong>Task C.</strong> Compute net sentiment \((\#\text{pos}-\#\text{neg})/\#\text{total}\) for the snippet (10 words after dropping stop-words), where only the <em>positive</em> and <em>negative</em> categories count toward polarity.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 10 min</div>
+    <h2>Mean pooling is order-blind</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two sentences, same words, opposite meaning. Watch a bag-of-words representation
+      collapse them into one identical vector.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The pair</div>
+          <ul>
+            <li>\(A\): "Revenue rose, costs fell."</li>
+            <li>\(B\): "Costs rose, revenue fell."</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Task A.</strong> The sentences share the same multiset of words. Show that the mean BoW embedding \(\bar\varphi(A)=\bar\varphi(B)\) exactly. Why?</li>
+          <li class="frag"><strong>Task B.</strong> A long-only signal goes <em>long</em> on positive-sentiment filings. If your representation can't tell \(A\) from \(B\), what failure mode appears when the <em>subject</em> of "rose" vs. "fell" matters?</li>
+          <li class="frag"><strong>Task C.</strong> Name the architectural ingredient (from the lecture) that restores order sensitivity, and say in one line <em>why</em> it can connect "revenue" to "rose" across a long sentence where an RNN struggles.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · 8 min</div>
+    <h2>A \(3\times3\) self-attention trace</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Sequence: <code class="inline">"risk"</code>, <code class="inline">"increased"</code>,
+      <code class="inline">"materially"</code>. Head dimension \(d_k = 2\). Run the attention formula by hand.</p>
+    <div class="block"><div class="block-title">The matrices</div>
+      \[ Q = \begin{pmatrix} 1 & 0 \\ 1 & 1 \\ 0 & 1 \end{pmatrix},\quad
+         K = \begin{pmatrix} 1 & 0 \\ 1 & 1 \\ 0 & 1 \end{pmatrix},\quad
+         V = \begin{pmatrix} 2 & 0 \\ 0 & 2 \\ 1 & 1 \end{pmatrix} \]
+    </div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Task A.</strong> Compute \(S = QK^\top\), entry \((i,j)=\mathbf{q}_i^\top\mathbf{k}_j\).</li>
+          <li class="frag"><strong>Task B.</strong> Scale: \(\tilde S = S/\sqrt{2}\) (two decimals).</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Task C.</strong> Softmax row-wise \(\to A\).</li>
+          <li class="frag"><strong>Task D.</strong> Output \(O = AV\).</li>
+        </ul>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">discussion</span>
+      Which token does <code class="inline">"risk"</code> attend to most? If we set \(d_k=64\) with the same
+      raw dot products, are the weights <em>sharper</em> or flatter?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case study: dictionary vs. embedding</h2>
+    <div class="secsub">On a handful of SEC-style snippets, where do a word list and a transformer disagree?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the goal</div>
+    <h2>Two scorers, same snippets, find the disagreement</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Compare a Loughran–McDonald-style dictionary score against a transformer-embedding
+      similarity score, and find exactly where they part ways.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The stack</div>
+          <ul>
+            <li><code class="inline">sentence_transformers</code> — contextual embeddings (SBERT)</li>
+            <li>A small finance positive/negative word list — the dictionary baseline</li>
+          </ul>
+        </div>
+        <p class="small">Notebook: <code class="inline">code/notebooks/16-ai-ml-finance-text/demo.ipynb</code></p>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">setup</span>
+          <code class="inline">pip install sentence-transformers</code><br>
+          No API key needed — embeddings run locally on CPU.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code (1/2)</div>
+    <h2>Data and the dictionary baseline</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three snippets — one clearly positive, one legal-heavy negative, one order-sensitive —
+      and a five-word positive/negative list to score them.</p>
+    <pre class="code">from sentence_transformers import SentenceTransformer, util
+
+SNIPPETS = [
+    "Revenue rose 12% and margins expanded.",          # clearly positive
+    "Litigation exposure and uncertainty increased.",  # negative, legal-heavy
+    "Costs fell, revenue fell, outlook unchanged.",    # order-sensitive
+]
+POS = {"rose", "expanded", "growth", "strong", "gain"}
+NEG = {"fell", "litigation", "uncertainty", "loss", "decline"}
+
+def dict_sentiment(text):
+    w = text.lower().replace(",", " ").replace(".", " ").split()
+    return (sum(t in POS for t in w) - sum(t in NEG for t in w)) / len(w)</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code (2/2)</div>
+    <h2>Embedding similarity to a "good news" anchor</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Encode each snippet, encode an explicitly bullish anchor sentence, and measure cosine
+      similarity — the embedding's version of "how positive is this?"</p>
+    <pre class="code">model = SentenceTransformer("all-MiniLM-L6-v2")
+anchor = model.encode("This is good news for shareholders.",
+                      normalize_embeddings=True)
+for s in SNIPPETS:
+    d = dict_sentiment(s)
+    emb = model.encode(s, normalize_embeddings=True)
+    sim = float(util.cos_sim(emb, anchor))
+    print(f"dict={d:+.3f}  embed_sim={sim:+.3f}  | {s}")</pre>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">what to watch for</span>
+      The dictionary reads isolated words; the embedding reads the whole sentence in context.
+      The gap between them is the whole point of the exercise.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>Three questions to run after the code</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Q1.</strong> For each snippet, report the dictionary score and embedding similarity. Where do the two <em>disagree</em> in sign or ranking?</li>
+      <li class="frag"><strong>Q2.</strong> Snippet 3 ("Costs fell, revenue fell…") has the negative word "fell" twice. Does the dictionary call it negative? Is that correct, given <em>costs</em> falling is good? What does this reveal about context-free scoring?</li>
+      <li class="frag"><strong>Q3.</strong> Replace "uncertainty" with "opportunity" in snippet 2. Does the dictionary score flip? Does the embedding similarity move <em>more</em> or <em>less</em> than the dictionary? Why?</li>
+    </ul>
+    <div class="block frag"><div class="block-title">Optional extension</div>
+      Add "positive" once to snippet 2 (recall "positive" is <em>cautious</em> in credit-rating language).
+      Does the dictionary over-credit it? Sketch how you would disambiguate using the document's genre.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion: which tool, when?</h2>
+    <div class="secsub">Dictionary, embedding/encoder, or LLM — judged on cost, auditability, labels, and context.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 10 min</div>
+    <h2>Pick the right tool for each desk</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each scenario, choose <strong>dictionary</strong>, <strong>embedding/encoder</strong>,
+      or <strong>LLM</strong>, and justify it.</p>
+    <ol>
+      <li class="frag"><strong>Auditable rule, 200k filings.</strong> A regulator must <em>reproduce</em> a sentiment score from a published, auditable rule — transparency is mandatory.</li>
+      <li class="frag"><strong>Rank by theme, no labels.</strong> A desk wants to rank 50k earnings-call paragraphs by similarity to a "supply-chain risk" theme, with no labeled training data.</li>
+      <li class="frag"><strong>Summarize and flag.</strong> An analyst asks: "Summarize how this 10-K's risk language changed versus last year, and flag any new litigation exposure."</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">frame your answer around</span>
+      Transparency and reproducibility, context sensitivity, labeled-data needs, generation vs. scoring,
+      cost, and the strategic production of the text.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 — SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Worked answers to the three problems — surface intuition first, the arithmetic one click away.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>The general dictionary gets the sign wrong</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Task A — categories.</strong> "positive" \(\to\) <em>positive</em>; "strong" \(\to\) <em>strong modal</em> (positive-leaning); "litigation" \(\to\) <em>litigious</em>; "uncertainty" \(\to\) <em>uncertainty</em>. Litigious and uncertainty are <em>not</em> polarity-negative per se — they are their own categories.</li>
+      <li class="frag"><strong>Task B.</strong> A general dictionary tags "litigation" as negative, so a naive negative count <strong>systematically over-penalises legal-heavy filings</strong> — exactly the Loughran–McDonald finding (about \(3/4\) of Harvard negatives are neutral/positive in filings).</li>
+    </ul>
+    <aside class="underhood" data-title="Task C — the arithmetic">
+      With only <em>positive</em>/<em>negative</em> counting toward polarity:
+      positives \(=\{\text{positive, strong}\}=2\), negatives \(=0\) (litigious and uncertainty excluded).
+      \[ \text{Net} = \frac{2-0}{10} = \mathbf{+0.20}. \]
+      A general dictionary would instead score this snippet <em>negative</em> — the wrong sign.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>Same words in, same vector out — that's the bug</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Task A.</strong> Mean pooling sums per-word embeddings then divides by \(n\). Addition is commutative, so any permutation of the <em>same</em> words gives the <em>identical</em> mean. \(A\) and \(B\) share the multiset \(\{\text{revenue, rose, costs, fell}\}\Rightarrow \bar\varphi(A)=\bar\varphi(B)\) exactly.</li>
+      <li class="frag"><strong>Task B.</strong> A sentiment-driven long-only signal can't tell "revenue rose" (bullish) from "revenue fell" (bearish): it takes the <em>same</em> position on opposite fundamentals — a sign error no amount of training fixes if the representation discards order.</li>
+      <li class="frag"><strong>Task C.</strong> <strong>Self-attention</strong> (with positional information) restores order sensitivity. It can directly connect "revenue" to "rose" because every position attends to every other in one step — no sequential path to decay, unlike an RNN whose gradient vanishes over long spans.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 3</div>
+    <h2>"Risk" attends to itself and "increased"</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Because \(K=Q\) here, the score matrix is symmetric and the diagonal is the largest entry
+      per row — each token first looks at itself.</p>
+    <aside class="underhood" data-title="the full trace">
+      With \(K=Q\), \(S=QQ^\top\):
+      \[ S = \begin{pmatrix} 1 & 1 & 0 \\ 1 & 2 & 1 \\ 0 & 1 & 1 \end{pmatrix},
+         \qquad \tilde S = S/\sqrt{2} \approx
+         \begin{pmatrix} 0.71 & 0.71 & 0.00 \\ 0.71 & 1.41 & 0.71 \\ 0.00 & 0.71 & 0.71 \end{pmatrix}. \]
+      Row-wise softmax \(\to A\), then output \(O = AV\) with \(V=\big[(2,0),(0,2),(1,1)\big]^\top\):
+      \[ A \approx \begin{pmatrix} 0.422 & 0.422 & 0.156 \\ 0.270 & 0.461 & 0.270 \\ 0.156 & 0.422 & 0.422 \end{pmatrix},
+         \qquad O \approx \begin{pmatrix} 1.00 & 1.00 \\ 0.81 & 1.19 \\ 0.73 & 1.27 \end{pmatrix}. \]
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the discussion answer</span>
+      <code class="inline">"risk"</code> attends most to itself and <code class="inline">"increased"</code>
+      (tied at \(0.422\)). Larger logits make softmax <strong>sharper</strong> — which is exactly why the
+      \(\sqrt{d_k}\) scaling exists: to counter that saturation as \(d_k\) grows.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP-UP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Four takeaways — and where the next practical goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Problem 1.</strong> A <em>domain</em> lexicon avoids the systematic negative bias a general dictionary inflicts on legal-heavy filings — the canonical motivation for finance-specific NLP.</li>
+          <li class="frag"><strong>Problem 2.</strong> Bag-of-words mean pooling is provably order-blind; opposite-meaning sentences collapse to one vector. Self-attention is the fix.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Problem 3.</strong> Attention is a weighted average of value vectors; weights are softmaxed scaled dot products; \(\sqrt{d_k}\) keeps softmax out of its saturated, vanishing-gradient regime.</li>
+          <li class="frag"><strong>Case study.</strong> Dictionary and embedding scores disagree exactly where <em>context</em> matters ("costs fell" is good; "positive" is cautious in ratings) — the case for climbing to encoders and LLMs.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Next practical</div>
+      Building the transformer block end-to-end (LLM foundations): multi-head attention, positional
+      encoding, and a first fine-tuning pass.
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">Two optional extensions: tf-idf by hand, and reflexivity in a backtest. Beyond the core session.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch A</div>
+    <h2>tf-idf by hand</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Three one-sentence "documents"</div>
+      <ul>
+        <li>\(d_1\): "revenue revenue growth"</li>
+        <li>\(d_2\): "revenue decline"</li>
+        <li>\(d_3\): "growth growth growth"</li>
+      </ul>
+    </div>
+    <p class="lead">With \(\mathrm{tf}\) = raw count and \(\mathrm{idf}(w)=\log\frac{N}{df(w)}\) (\(N=3\)),
+      compute the tf-idf weight of "revenue" in \(d_1\) and of "growth" in \(d_3\). Which term is up-weighted,
+      and why does tf-idf <em>down-weight</em> a word appearing in every document?</p>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the point</span>
+      tf-idf rewards rare, document-specific words — the bag-of-words refinement that made 1990s filing
+      analysis workable before embeddings existed.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch B</div>
+    <h2>Reflexivity in a backtest</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A text-based "negative-sentiment \(\Rightarrow\) short" signal backtests with a Sharpe of
+      1.4 over 2015–2019. Will it survive contact with the live market?</p>
+    <ul>
+      <li class="frag"><strong>Task A.</strong> Name two reasons the live Sharpe may be far lower: (i) the signal becomes <em>public</em>; (ii) the strategy's own trades move prices (reflexivity).</li>
+      <li class="frag"><strong>Task B.</strong> LLMs can <em>reconstruct historical series from parametric memory</em>, producing spurious predictability. If your sentiment model was pre-trained on data <em>overlapping</em> the backtest window, what bias contaminates the result, and how would you guard against it?</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">the point</span>
+      AI systems in finance are <em>actors within</em> the market, not observers — look-ahead and reflexivity
+      are first-order design concerns, not footnotes.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

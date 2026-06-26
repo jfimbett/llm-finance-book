@@ -100,7 +100,7 @@
       <li class="frag"><strong>Lexical specificity.</strong> Common words carry precise, sometimes <em>reversed</em> meanings:
         "liability", "short", "haircut". The Loughran–McDonald dictionary catalogues ~350 words whose polarity
         is neutral or inverted in SEC filings vs. general English.</li>
-      <li class="frag"><strong>Numeric density.</strong> "Revenue grew 12.3% YoY to \$4.7B" is fluent English <em>and</em>
+      <li class="frag"><strong>Numeric density.</strong> "Revenue grew 12.3% YoY to \(\$\)4.7B" is fluent English <em>and</em>
         an arithmetic claim. FinQA requires multi-step reasoning over tables from 10-Ks.</li>
       <li class="frag"><strong>Tabular embedding.</strong> Income statements, balance sheets, and loan tapes encode meaning
         in 2-D grids; standard tokenisation flattens them and loses the row/column alignment.</li>
@@ -666,9 +666,9 @@
       companies/year; 3–10 paragraphs each (≈20,000–60,000 paragraphs).</p>
     <table>
       <tr><th>Option</th><th>Accuracy</th><th>Annual cost</th></tr>
-      <tr><td>70B general model via API (all paragraphs)</td><td>93%</td><td>\$200–\$600</td></tr>
-      <tr><td>Fine-tuned FinBERT-base on a T4 GPU</td><td>88%</td><td>~\$400 server</td></tr>
-      <tr><td><strong>Hybrid</strong> (FinBERT + route 12% low-conf. to 70B)</td><td><strong>92%+</strong></td><td>~<strong>\$250</strong></td></tr>
+      <tr><td>70B general model via API (all paragraphs)</td><td>93%</td><td>\(\$\)200–\(\$\)600</td></tr>
+      <tr><td>Fine-tuned FinBERT-base on a T4 GPU</td><td>88%</td><td>~\(\$\)400 server</td></tr>
+      <tr><td><strong>Hybrid</strong> (FinBERT + route 12% low-conf. to 70B)</td><td><strong>92%+</strong></td><td>~<strong>\(\$\)250</strong></td></tr>
     </table>
     <div class="alert callout frag">
       <span class="callout-tag">lesson</span>

@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 13 — Practical: Evaluating LLMs Honestly</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 13 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 13</div>
+    <h1>Evaluating LLMs Honestly</h1>
+    <div class="sub">Calibration, contamination audits, and trading-grade metrics — turning a good-looking model into a number you can defend.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview</div>
+    <h2>One hour to learn when <em>not</em> to trust a model</h2>
+    <div class="title-rule"></div>
+    <p class="lead">50 minutes hands-on, 10 minutes debrief. We pressure-test an LLM the way a risk committee would: does its confidence mean anything, did it cheat, and does the trade survive costs?</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Timed agenda</div>
+          <ol>
+            <li class="frag"><strong>Recap</strong> (5 min) — calibration error, temporal splits, Sharpe, costs</li>
+            <li class="frag"><strong>Problem 1</strong> (12 min) — compute ECE &amp; MCE by hand</li>
+            <li class="frag"><strong>Problem 2</strong> (12 min) — design a contamination-resistant split</li>
+            <li class="frag"><strong>Problem 3</strong> (10 min) — gross vs. net Sharpe under costs</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">…and then</div>
+          <ol start="5">
+            <li class="frag"><strong>Case study</strong> (15 min) — reliability diagram + temperature scaling in Python</li>
+            <li class="frag"><strong>Discussion</strong> (6 min) — would you deploy this model?</li>
+          </ol>
+        </div>
+        <div class="takeaway callout frag">
+          <span class="callout-tag">the through-line</span>
+          Three independent ways a model can look good and still be undeployable — and the check that catches each.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 01 — RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap: the four formulas you need today</h2>
+    <div class="secsub">Calibration error, the temporal split, the Sharpe ratio, and the cost drag — surface ideas first, derivations one click away.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · does its confidence mean anything?</div>
+    <h2>Calibration error: when "90% sure" should be 90% right</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Sort predictions into confidence buckets. In each bucket, compare the model's stated confidence to how often it was actually right. The gap is its dishonesty.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>ECE</strong> — the <em>average</em> gap, weighted by how many predictions fall in each bucket</li>
+          <li class="frag"><strong>MCE</strong> — the <em>worst</em> single bucket's gap</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout frag">
+          <span class="callout-tag">the bigger picture</span>
+          A model can be a great <em>ranker</em> and still a terrible <em>thermometer</em>. Calibration measures the thermometer.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="ECE and MCE, formally">
+      Bin the predictions into \(M\) confidence bins \(B_m\). With \(\text{acc}(B_m)\) the empirical accuracy
+      and \(\overline{p}(B_m)\) the mean predicted probability in bin \(m\),
+      \[ \text{ECE} = \sum_{m=1}^{M}\frac{|B_m|}{n}\bigl|\text{acc}(B_m)-\overline{p}(B_m)\bigr|, \qquad
+         \text{MCE} = \max_m \bigl|\text{acc}(B_m)-\overline{p}(B_m)\bigr|. \]
+      ECE is the size-weighted average gap; MCE is the worst-case gap.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · did it cheat, and does the trade survive?</div>
+    <h2>The temporal split, the Sharpe ratio, and the cost drag</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Test only on the future the model never saw, then judge the strategy by reward-per-unit-risk <em>after</em> paying to trade.</p>
+    <ul>
+      <li class="frag"><strong>Temporal split with a gap</strong> — leave a buffer \(\Delta\) so no label straddles the train/test boundary</li>
+      <li class="frag"><strong>Sharpe ratio</strong> — excess return divided by volatility</li>
+      <li class="frag"><strong>Net return</strong> — gross return minus what trading actually costs</li>
+    </ul>
+    <aside class="underhood" data-title="split, Sharpe, and net-of-cost return">
+      Temporal split with gap \(\Delta \geq h\) (the prediction horizon):
+      \[ \text{train}: t \leq T_1-\Delta,\quad \text{valid}: T_1\leq t \leq T_2-\Delta,\quad \text{test}: t \geq T_2. \]
+      Sharpe and net return:
+      \[ \text{SR} = \frac{\overline{R}_p-R_f}{\sigma_p},\qquad
+         R^{\text{net}}_p = R^{\text{gross}}_p - 2\tau(\text{half-spread}+\text{impact}). \]
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">recall</span>
+      Temperature scaling — dividing the logits by \(T>1\) before softmax — cures overconfidence and <em>preserves ranking</em>, so AUROC is unchanged.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 02 — PROBLEM 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problem 1: compute ECE and MCE</h2>
+    <div class="secsub">A sentiment model's confidence vs. its accuracy, bin by bin — and what that means for a desk that only acts on high-confidence calls.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · the setup</div>
+    <h2>1,000 headlines, four confidence bins</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM labels 1,000 headlines "price-positive". Its confidence is binned into four buckets. Stated confidence is \(\overline{p}\); realised accuracy is acc.</p>
+    <table>
+      <tr><th>Bin</th><th>Interval</th><th>\(|B_m|\)</th><th>\(\overline{p}(B_m)\)</th><th>\(\text{acc}(B_m)\)</th></tr>
+      <tr><td>1</td><td>[0.0, 0.25)</td><td>100</td><td>0.15</td><td>0.18</td></tr>
+      <tr><td>2</td><td>[0.25, 0.5)</td><td>200</td><td>0.40</td><td>0.35</td></tr>
+      <tr><td>3</td><td>[0.5, 0.75)</td><td>300</td><td>0.65</td><td>0.50</td></tr>
+      <tr><td>4</td><td>[0.75, 1.0]</td><td>400</td><td>0.90</td><td>0.66</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Tasks</div>
+      <ol>
+        <li>Compute the per-bin gap \(|\text{acc}-\overline{p}|\).</li>
+        <li>Compute <strong>ECE</strong> (weight by \(|B_m|/n\)) and <strong>MCE</strong>.</li>
+        <li>In which confidence region is the model worst? What does that imply for a desk that only acts on \(&gt;0.75\) signals?</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · solution</div>
+    <h2>The worst gap hides in the most-trusted bin</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The gaps grow as confidence grows: the model is most wrong exactly where it sounds most sure.</p>
+    <div class="statrow frag">
+      <div class="stat"><div class="num">0.154</div><div class="lbl">ECE (15.4%)</div></div>
+      <div class="stat"><div class="num">0.24</div><div class="lbl">MCE (top bin)</div></div>
+      <div class="stat"><div class="num">66%</div><div class="lbl">true accuracy at "90% confident"</div></div>
+    </div>
+    <aside class="underhood" data-title="the arithmetic">
+      Per-bin gaps: \(0.03,\ 0.05,\ 0.15,\ 0.24\). Weights \(|B_m|/n\): \(0.10,\ 0.20,\ 0.30,\ 0.40\).
+      \[ \text{ECE} = 0.10(0.03)+0.20(0.05)+0.30(0.15)+0.40(0.24) \]
+      \[ = 0.003 + 0.010 + 0.045 + 0.096 = \mathbf{0.154}. \]
+      \[ \text{MCE} = \max\{0.03,0.05,0.15,0.24\} = \mathbf{0.24}. \]
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">interpretation</span>
+      Both ECE and MCE peak in the top bin. A desk acting only on \(&gt;0.75\) signals operates in the model's <strong>worst</strong> region: stated 90% confidence is really 66% accuracy. Recalibrate — or abstain — before trusting high-confidence calls.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 03 — PROBLEM 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Problem 2: design a contamination audit</h2>
+    <div class="secsub">If the model was trained on the future you are testing it on, the "edge" is just memory. How to design the test so it can't cheat.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · the setup</div>
+    <h2>An LLM that may have already read the answers</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A team evaluates an LLM (training cutoff <strong>Dec 2023</strong>) on predicting 1-month stock direction from earnings calls. Prediction horizon \(h = 21\) trading days.</p>
+    <div class="block frag"><div class="block-title">Tasks</div>
+      <ol>
+        <li>Give concrete cutoffs \(T_1, T_2\) and gap \(\Delta\) for a temporal split that is safe against this model. Justify \(\Delta\).</li>
+        <li>The team measures accuracy on <em>original</em> (62%) vs. <em>anonymised</em> (54%) transcripts. Quantify the leakage and state what it implies about the true edge.</li>
+        <li>Name two further controls and what each detects.</li>
+      </ol>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why this matters</span>
+      An LLM can "predict" a 2022 stock move because it memorised the news, not because it reasoned. Contamination audits separate skill from recall.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · solution</div>
+    <h2>Eight points of the "edge" were just memory</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">(1) Safe split</div>
+          All test data must post-date the cutoff plus a publication-lag margin. Take \(T_2 = \) <strong>Apr 2024</strong> (Dec 2023 cutoff \(+\geq 3\) months); \(T_1\) in early 2023 for validation. Set \(\Delta = 1\) month so no label window straddles the boundary.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">(2) Leakage</div>
+          \(62\% - 54\% = \mathbf{8}\) pp of accuracy was entity-level memorisation. The residual 54% still beats 50%, but the <em>apparent</em> edge shrank by more than half — likely economically negligible after costs.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="justifying the gap Δ">
+      The gap must cover both the prediction horizon and the publication lag of the label:
+      \[ \Delta \geq h + \text{lag} \approx 21\text{d} + \text{a few weeks} \;\Rightarrow\; \Delta = 1\ \text{month}. \]
+      This guarantees no label window can straddle the train/test boundary, blocking look-ahead leakage.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">(3) two further controls</span>
+      <strong>N-gram dedup</strong> (13-grams, MinHash LSH) detects direct memorisation of document text.
+      <strong>Date-blinding ablation</strong> — a large drop when temporal markers are removed reveals pattern-retrieval, not reasoning.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 04 — PROBLEM 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Problem 3: gross vs. net Sharpe</h2>
+    <div class="secsub">A strategy that looks attractive on paper — until you charge it for the cost of trading every single day.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · the setup</div>
+    <h2>A 0.80-Sharpe strategy that rebalances daily</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A daily news-sentiment LLM strategy reports, <em>before</em> costs, a 12% annual excess return at 15% annual volatility — and it turns over half its book every day.</p>
+    <aside class="underhood" data-title="the reported numbers">
+      \[ \overline{R}^{\text{gross}}_p - R_f = 12\%\ \text{annual},\qquad \sigma_p = 15\%\ \text{annual}. \]
+      Rebalances daily with turnover \(\tau = 0.5\)/day; half-spread \(= 2\) bps, market impact \(= 8\) bps.
+    </aside>
+    <div class="block frag"><div class="block-title">Tasks</div>
+      <ol>
+        <li>Compute the <strong>gross</strong> annual Sharpe ratio.</li>
+        <li>Daily round-trip cost \(= 2\tau(\text{half-spread}+\text{impact})\). Annualise over 252 trading days.</li>
+        <li>Compute the <strong>net</strong> Sharpe (subtract annual cost from excess return; \(\sigma_p\) unchanged). Is the strategy still worth trading?</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · solution</div>
+    <h2>+0.80 gross becomes −0.88 net</h2>
+    <div class="title-rule"></div>
+    <div class="statrow frag">
+      <div class="stat"><div class="num">0.80</div><div class="lbl">gross Sharpe</div></div>
+      <div class="stat"><div class="num">25.2%</div><div class="lbl">annual cost drag</div></div>
+      <div class="stat"><div class="num">−0.88</div><div class="lbl">net Sharpe</div></div>
+    </div>
+    <aside class="underhood" data-title="the arithmetic">
+      <strong>(1) Gross Sharpe:</strong> \(\text{SR}_{\text{gross}} = 12/15 = \mathbf{0.80}\).<br>
+      <strong>(2) Cost:</strong> daily round-trip \(= 2(0.5)(2+8)\ \text{bps} = 10\) bps/day. Over 252 days:
+      \(10\ \text{bps}\times 252 = 2520\ \text{bps} = \mathbf{25.2\%}\)/year.<br>
+      <strong>(3) Net:</strong>
+      \[ \overline{R}^{\text{net}}_p - R_f = 12\% - 25.2\% = -13.2\%,\qquad
+         \text{SR}_{\text{net}} = \frac{-13.2}{15} = \mathbf{-0.88}. \]
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">verdict</span>
+      A respectable-looking gross Sharpe of 0.80 turns <strong>deeply negative</strong> once daily-rebalancing costs are charged. The "edge" was an artefact of ignoring transaction costs. Lower turnover or longer holding periods are mandatory before this signal is tradeable.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 05 — CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Case study: reliability + temperature scaling</h2>
+    <div class="secsub">In Python: draw the reliability diagram for a credit classifier, compute its ECE, then recalibrate and watch the error fall while the ranking stays put.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the goal</div>
+    <h2>Recalibrate without re-training — and prove it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Reproduce the credit-classifier reliability diagram, compute its ECE, then apply temperature scaling and watch ECE fall while AUROC stays unchanged.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Reference code</div>
+          <code class="inline">code/notebooks/13-llm-limitations-evaluation/</code>
+          <ul>
+            <li><code class="inline">gen_reliability_diagram.py</code> — deterministic diagram from fixed bin statistics (ECE \(=0.115\))</li>
+            <li><code class="inline">exercises.ipynb</code> / <code class="inline">demo.ipynb</code> — calibration experiments</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">What you will observe</div>
+          <ol>
+            <li class="frag">High-confidence bins sit <em>below</em> the diagonal — overconfidence</li>
+            <li class="frag">Fitting \(T&gt;1\) spreads the softmax: bins move toward the diagonal, ECE drops</li>
+            <li class="frag">The ROC curve (and AUROC) is <strong>unchanged</strong> — scaling is rank-preserving. Calibration \(\neq\) discrimination</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code (1/2)</div>
+    <h2>Computing ECE from bin statistics</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A size-weighted average of the confidence-minus-accuracy gaps — five bins, a few lines of NumPy.</p>
+<pre class="code">import numpy as np
+
+# Fixed bin stats from the credit example (ex:ch13-ece-credit).
+conf  = np.array([0.08, 0.31, 0.50, 0.71, 0.88])  # mean predicted prob
+acc   = np.array([0.11, 0.28, 0.47, 0.55, 0.62])  # empirical accuracy
+count = np.array([120, 180, 200, 300, 200])
+
+def ece(conf, acc, count):
+    w = count / count.sum()
+    return float(np.sum(w * np.abs(conf - acc)))
+
+print("ECE  =", round(ece(conf, acc, count), 3))   # -&gt; 0.115
+print("MCE  =", round(float(np.max(np.abs(conf - acc))), 3))</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code (2/2)</div>
+    <h2>Temperature scaling in five lines</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Divide the logits by \(T&gt;1\) before softmax. It spreads the probabilities toward the middle, taming overconfidence — and because it's monotone, it never reorders the predictions.</p>
+<pre class="code"># Temperature scaling on raw logits z: p = softmax(z / T).
+# T &gt; 1 spreads the distribution and reduces overconfidence;
+# because it is monotone in z, the ranking (AUROC) is preserved.
+def temperature_scale(logits, T):
+    z = logits / T
+    z = z - z.max(axis=1, keepdims=True)        # numerical stability
+    e = np.exp(z)
+    return e / e.sum(axis=1, keepdims=True)</pre>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why it can't hurt ranking</span>
+      Dividing every logit by the same \(T\) is monotone, so the order of scores — and therefore the ROC curve — is untouched. Only the <em>spacing</em> changes.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>Four questions to answer at the keyboard</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Run <code class="inline">gen_reliability_diagram.py</code>, then work through these.</p>
+    <ol>
+      <li class="frag"><strong>Q1.</strong> Which bins lie <em>below</em> the diagonal, and what does that say about the model's confidence in that region?</li>
+      <li class="frag"><strong>Q2.</strong> The reported ECE is \(0.115\). Recompute it using only bins 4 and 5. Why do these two bins dominate the total?</li>
+      <li class="frag"><strong>Q3.</strong> You fit \(T = 1.6\) and ECE falls to \(\approx 0.04\), but AUROC is unchanged at \(0.78\). Explain in one sentence why calibration improved while discrimination did not.</li>
+      <li class="frag"><strong>Q4.</strong> A colleague proposes raising the action threshold from \(0.5\) to \(0.8\) instead of recalibrating. Does that fix the calibration problem? What does it fix, and what does it not?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 06 — DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Discussion: would you deploy this model?</h2>
+    <div class="secsub">You sit on a model-risk committee under SR 11-7. Three red flags are on the table. Make the call.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · the committee's call</div>
+    <h2>Three red flags, one sign-off decision</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM credit model shows ECE \(=0.115\), 8 pp of its accuracy attributable to entity memorisation, and a news-overlay sleeve with gross Sharpe 0.80 / net Sharpe \(-0.88\). Deploy, fix, or reject?</p>
+    <div class="block"><div class="block-title">Debate, framed around</div>
+      <ul>
+        <li class="frag"><strong>Calibration</strong> — deploy with recalibration + conformal sets, or not?</li>
+        <li class="frag"><strong>Contamination</strong> — is the residual 54% edge real or an artefact?</li>
+        <li class="frag"><strong>Economics</strong> — can lower turnover rescue the trading sleeve?</li>
+        <li class="frag"><strong>Governance</strong> — what monitoring cadence (quarterly recalibration?) and human-in-the-loop controls would you require before sign-off?</li>
+      </ul>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">takeaway</span>
+      LLM outputs are <em>inputs to a decision process</em>, not end products. The committee's job is the surrounding evaluation discipline.
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">Two optional extensions: the breadth–depth law of active management, and walk-forward backtesting with a purge period.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Stretch · breadth vs. depth</div>
+    <h2>Information ratio: many small bets beat one big one</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A long-short LLM signal covers \(N = 100\) independent monthly bets with information coefficient \(\text{IC} = 0.04\). How good is that — and how would you make it better?</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Tasks</div>
+          <ol>
+            <li>Estimate the Information Ratio via \(\text{IR} \approx \text{IC}\sqrt{N}\).</li>
+            <li>Is this "strong" (IR \(&gt;0.5\)) or "exceptional" (IR \(&gt;1.0\))?</li>
+            <li>To reach IR \(=0.8\) at the same IC, how many bets \(N\)? What practical cost does increasing \(N\) introduce?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="solution sketch">
+          \[ \text{IR} \approx 0.04\sqrt{100} = 0.40 \quad(\text{below "strong"}). \]
+          For IR \(=0.8\): \(\sqrt{N} = 0.8/0.04 = 20 \Rightarrow N = 400\) bets/year.
+          More bets means higher turnover \(\Rightarrow\) higher transaction costs, which can erase the gain (see Problem 3).
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Stretch · honest backtesting</div>
+    <h2>Walk-forward with a purge period</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You backtest a monthly-rebalanced LLM signal (\(h = 1\) month) over 2019–2024. The trick is leaving a purge gap so training never peeks across the evaluation boundary.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Tasks</div>
+          <ol>
+            <li>Sketch the train/eval windows for the first three walk-forward iterations with purge \(\Delta_{\text{purge}} = 1\) month.</li>
+            <li>Why must \(\Delta_{\text{purge}} \geq h\)? What leaks if it is zero?</li>
+            <li>For full LLM fine-tuning (expensive to re-estimate), what is the cost of widening \(h\) to amortise re-training?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="solution sketch">
+          Iteration \(k\): train \(t \leq kh - \Delta_{\text{purge}}\), eval \(kh \leq t \leq (k{+}1)h-1\).
+          With \(\Delta_{\text{purge}} &lt; h\), a label window overlapping the boundary appears in both sets \(\Rightarrow\) look-ahead leakage.
+          Widening \(h\) amortises re-fitting cost but evaluates an increasingly <em>stale</em> model late in each window.
+        </aside>
+      </div>
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

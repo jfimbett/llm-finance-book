@@ -125,19 +125,19 @@
       </div>
       <div class="col">
         <ul>
-          <li class="frag"><strong>Monetary figures &amp; metrics</strong> — $ amounts, %, EPS, EBITDA margin, D/E. Resolve units (M vs. B), parenthesised negatives, and which entity/period each figure describes.</li>
+          <li class="frag"><strong>Monetary figures &amp; metrics</strong> — \(\$\) amounts, %, EPS, EBITDA margin, D/E. Resolve units (M vs. B), parenthesised negatives, and which entity/period each figure describes.</li>
           <li class="frag"><strong>Legal / contractual</strong> — covenants in loan agreements and bond indentures that can trigger default; classify and extract threshold values.</li>
         </ul>
       </div>
     </div>
     <div class="block frag"><div class="block-title">Earnings-call excerpt → extracted records</div>
-      "In Q3 2023, <strong>Microsoft</strong> reported revenue of <strong>$56.5 billion</strong>, up
+      "In Q3 2023, <strong>Microsoft</strong> reported revenue of <strong>\(\$\)56.5 billion</strong>, up
       <strong>13%</strong> YoY. CEO <strong>Satya Nadella</strong> noted <strong>Azure</strong> grew <strong>29%</strong>…"
       <div class="small" style="margin-top:6px">
         <span class="pill o">ORG</span> Microsoft (CIK 789019) ·
         <span class="pill o">PERSON</span> Nadella/CEO ·
         <span class="pill b">DATE</span> Q3'23 → 2023-07-01..09-30 ·
-        <span class="pill g">MONEY</span> $56.5B (total rev) ·
+        <span class="pill g">MONEY</span> \(\$\)56.5B (total rev) ·
         <span class="pill g">METRIC</span> +13% rev, +29% Azure
       </div>
     </div>
@@ -317,7 +317,7 @@
     </div>
     <div class="alert callout frag">
       <span class="callout-tag">why hallucination is consequential in finance</span>
-      Summarising "revenue of $57B" when the truth was $56.5B is small in % but can be <em>material
+      Summarising "revenue of \(\$\)57B" when the truth was \(\$\)56.5B is small in % but can be <em>material
       misinformation</em> in a decision. SOTA abstractive models hallucinate factual errors in
       <strong>25–30%</strong> of CNN/DailyMail summaries; untuned financial models fare no better.
     </div>
@@ -494,7 +494,7 @@ Quote all numbers exactly as stated.
     <div class="block"><div class="block-title">Three-step procedure</div>
       <ol>
         <li><strong>Multi-source extraction</strong> — pull every occurrence of each metric (revenue, op. income, EPS) from tables, press release, MD&amp;A, footnotes</li>
-        <li><strong>Normalisation</strong> — common unit &amp; sign; "$56.5B" → $56,500M; all sources should agree</li>
+        <li><strong>Normalisation</strong> — common unit &amp; sign; "\(\$\)56.5B" → \(\$\)56,500M; all sources should agree</li>
         <li><strong>Cross-reference</strong> — flag any pair disagreeing beyond tolerance (e.g. 0.1% for rounding); report with source attribution</li>
       </ol>
     </div>

@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practical 3 — LoRA, Scaling, and Fine-Tuning</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 3 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 3</div>
+    <h1>LoRA, Scaling, and Fine-Tuning</h1>
+    <div class="sub">Hands-on: parameter counting, Chinchilla budgeting, and FinBERT sentiment with PEFT.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview · 1 hour</div>
+    <h2>What we'll do in the next hour</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three skills, end to end: read a scaling law as a budget, size a LoRA adapter, and run a real fine-tune on a finance task.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="statrow">
+          <div class="stat"><div class="num">5'</div><div class="lbl">Recap — LoRA · Chinchilla · CLM/MLM</div></div>
+          <div class="stat"><div class="num">15'</div><div class="lbl">Problem 1 — LoRA param counting (7B LLaMA)</div></div>
+          <div class="stat"><div class="num">10'</div><div class="lbl">Problem 2 — Chinchilla compute budgeting</div></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="statrow">
+          <div class="stat"><div class="num">20'</div><div class="lbl">Case study — FinBERT + LoRA fine-tune</div></div>
+          <div class="stat"><div class="num">5'</div><div class="lbl">Discussion — which strategy when?</div></div>
+          <div class="stat"><div class="num">5'</div><div class="lbl">Solutions — Problems 1 &amp; 2 walkthrough</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout">
+      <span class="callout-tag">what you will practise</span>
+      Turning scaling-law arithmetic into hardware decisions, choosing LoRA settings, and running a real fine-tuning loop on a finance task.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the three formulas you'll lean on</h2>
+    <div class="secsub">LoRA's parameter count, Chinchilla's budget rule, and what CLM vs. MLM are for.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · adapt without retraining</div>
+    <h2>LoRA: train a tiny patch, not the whole model</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Instead of editing billions of frozen weights, LoRA bolts on two small matrices and only trains those — a cheap, removable "patch."</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag">The base weights stay frozen; only the patch learns</li>
+          <li class="frag">Start the patch at zero, so day-one behaviour is unchanged</li>
+          <li class="frag">At inference you can <em>merge</em> the patch in — zero extra cost</li>
+          <li class="frag">Rank \(r\) is the dial: typical 4, 8, 16, 32</li>
+        </ul>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="the LoRA decomposition">
+          For a frozen pre-trained weight \(W_0 \in \mathbb{R}^{d \times k}\):
+          \[ W = W_0 + BA,\quad B \in \mathbb{R}^{d \times r},\; A \in \mathbb{R}^{r \times k},\; r \ll \min(d,k). \]
+          Trainable parameters per adapted layer:
+          \[ \Delta\theta = r(d + k). \]
+          Initialise \(A \sim \mathcal{N}(0,\sigma^2)\), \(B = 0\) so \(BA = 0\) at step 0.
+          At inference merge \(W \leftarrow W_0 + BA\): identical structure to the base model.
+        </aside>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">you'll need this for Problem 1</span>
+      Summing \(r(d+k)\) over every adapted layer gives the total trainable parameter count.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · how big, on how much data</div>
+    <h2>Chinchilla: model size and data should grow together</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For a fixed compute budget there's a sweet spot — roughly 20 tokens of training data per model parameter. Too big a model on too little data wastes the budget.</p>
+    <aside class="underhood" data-title="compute-optimal allocation">
+      Compute scales as \(C \approx 6ND\) (params \(N\), tokens \(D\)), with optimal ratio \(D^*/N^* \approx 20\).
+      Given budget \(C\): solve \(6N(20N) = 120N^2 = C\), so
+      \[ N^* = \sqrt{\frac{C}{120}}, \qquad D^* = 20\,N^*. \]
+    </aside>
+    <div class="block">
+      <div class="block-title">Pre-training objectives at a glance</div>
+      <table>
+        <tr><th>Objective</th><th>Architecture</th><th>Finance use</th></tr>
+        <tr><td>CLM (causal)</td><td>Decoder-only</td><td>Generation, chat</td></tr>
+        <tr><td>MLM (masked)</td><td>Encoder-only</td><td>Classification, NER</td></tr>
+        <tr><td>Span corruption</td><td>Encoder-decoder</td><td>QA, summarisation</td></tr>
+      </table>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">you'll need this for Problem 2</span>
+      \(N^* = \sqrt{C/120}\) is your main tool for Chinchilla budgeting.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problems — do the arithmetic yourself</h2>
+    <div class="secsub">Count LoRA parameters on a 7B model, then size a model to a compute budget.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · setup</div>
+    <h2>How many parameters does a LoRA patch actually train?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Model: LLaMA-7B, 32 transformer layers, hidden dimension \(d = 4096\). Each layer has four square projection matrices.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The four projections (each \(4096 \times 4096\))</div>
+          <ul>
+            <li>Query \(W_Q\), Key \(W_K\)</li>
+            <li>Value \(W_V\), Output \(W_O\)</li>
+          </ul>
+        </div>
+        <p class="small"><strong>Task:</strong> apply LoRA with rank \(r = 4\) to the <em>Q and V projections only</em>.</p>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Fill in (one layer)</div>
+          <table>
+            <tr><th>Matrix</th><th>\(d\)</th><th>\(k\)</th><th>\(r\)</th></tr>
+            <tr><td>\(W_Q\)</td><td>?</td><td>?</td><td>?</td></tr>
+            <tr><td>\(W_V\)</td><td>?</td><td>?</td><td>?</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout">
+      <span class="callout-tag">hint</span>
+      Per adapted matrix the trainable count is \(r(d+k)\). Sum over both matrices and all 32 layers.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · tasks · 15 min</div>
+    <h2>Four questions on the LoRA patch</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Using the setup (\(r=4\), Q and V only, 32 layers, \(d=k=4096\)) — work individually or in pairs.</p>
+    <ol>
+      <li class="frag"><strong>A.</strong> Compute the total trainable LoRA parameters. Show the step-by-step arithmetic.</li>
+      <li class="frag"><strong>B.</strong> Express this as a fraction of the 7B total. Is it above or below 0.1%?</li>
+      <li class="frag"><strong>C.</strong> Double the rank to \(r = 8\). By what factor does the count change — linear, quadratic, or something else? Justify.</li>
+      <li class="frag"><strong>D.</strong> A colleague prefers older adapter modules. Give one concrete reason LoRA wins for <em>inference-time deployment</em> on a high-throughput trading floor where latency is in milliseconds.</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · setup</div>
+    <h2>Given a compute budget, how big should the model be?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Scenario: an investment bank's AI team has a compute budget of \(C = 10^{22}\) FLOPs to train a financial language model.</p>
+    <div class="block">
+      <div class="block-title">Tools</div>
+      Use \(C \approx 6ND\), \(D^* \approx 20 N^*\), and therefore \(N^* = \sqrt{C/120}\).
+    </div>
+    <div class="block frag">
+      <div class="block-title">Task A</div>
+      <ol>
+        <li>Compute \(N^*\) and \(D^*\).</li>
+        <li>The team has a 50B-token financial corpus. Are they data-constrained or compute-constrained? (Compare \(D^*\) to 50B.)</li>
+        <li>What should they do given that diagnosis?</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · continued · 10 min</div>
+    <h2>Pushing the budget further</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>B.</strong> The team instead trains a 1B-parameter model. By the Chinchilla rule, how many tokens for a compute-optimal run? What is the implied FLOP cost?</li>
+      <li class="frag"><strong>C.</strong> A senior researcher argues "train the biggest model possible to maximise accuracy." When is this valid? When is it wrong?</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">frame your answer around</span>
+      Held-out loss, inference serving cost, and whether a bigger model would end up <em>under-trained</em> for the budget.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case study — fine-tune FinBERT with LoRA</h2>
+    <div class="secsub">Load a pre-trained finance model, attach a LoRA adapter, train, and read the diagnostics.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the goal</div>
+    <h2>Teach a finance model with a tiny removable patch</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Load pre-trained FinBERT and apply LoRA fine-tuning on a handful of labelled financial sentences using HuggingFace PEFT.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The stack</div>
+          <ul>
+            <li><code class="inline">transformers</code> — load <code class="inline">ProsusAI/finbert</code></li>
+            <li><code class="inline">peft</code> — <code class="inline">LoraConfig</code>, then <code class="inline">get_peft_model</code></li>
+            <li><code class="inline">torch</code> — a hand-written training loop (no Trainer, for transparency)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          The dataset is intentionally tiny — 5 sentences. The point is to <em>see the mechanics</em> (how few parameters move), not to maximise accuracy.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · what you'll do</div>
+    <h2>Three steps, then three questions</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">What you will do</div>
+      <ol>
+        <li>Run the code on the next frames</li>
+        <li>Observe how many parameters are trainable vs. frozen</li>
+        <li>Answer the diagnostic questions that follow</li>
+      </ol>
+    </div>
+    <div class="alert callout">
+      <span class="callout-tag">prerequisites</span>
+      <code class="inline">pip install transformers peft torch</code> — no API key required for this case study.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · code 1a — imports + data</div>
+    <h2>Five labelled sentences (positive / negative / neutral)</h2>
+    <div class="title-rule"></div>
+<pre class="code">import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from peft import LoraConfig, get_peft_model, TaskType
+
+MODEL = "ProsusAI/finbert"
+SENTENCES = [
+    ("Revenue increased 15% year-over-year.", 0),         # positive
+    ("The firm reported a net loss of $200M.", 1),        # negative
+    ("Operating margins remained broadly stable.", 2),    # neutral
+    ("Strong demand drove record quarterly earnings.", 0),# positive
+    ("Guidance was withdrawn amid macro uncertainty.", 1),# negative
+]</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · code 1b — load + LoRA config</div>
+    <h2>Attach the adapter to query and value only</h2>
+    <div class="title-rule"></div>
+<pre class="code">tokenizer = AutoTokenizer.from_pretrained(MODEL)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL, num_labels=3)
+
+lora_cfg = LoraConfig(
+    task_type=TaskType.SEQ_CLS,
+    r=8,
+    lora_alpha=16,
+    target_modules=["query", "value"],
+    lora_dropout=0.05,
+    bias="none",
+)
+model = get_peft_model(model, lora_cfg)
+model.print_trainable_parameters()  # observe trainable % here</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">watch this line</span>
+      <code class="inline">print_trainable_parameters()</code> is the whole lesson: a sub-1% slice of the model is learning.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · code 2 — train + eval</div>
+    <h2>Three epochs, then read the predictions</h2>
+    <div class="title-rule"></div>
+<pre class="code">texts, labels = zip(*SENTENCES)
+enc = tokenizer(list(texts), padding=True, truncation=True, return_tensors="pt")
+label_tensor = torch.tensor(labels)
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
+model.train()
+for epoch in range(3):
+    out = model(**enc, labels=label_tensor)
+    out.loss.backward(); optimizer.step(); optimizer.zero_grad()
+    print(f"Epoch {epoch+1}: loss={out.loss.item():.4f}")
+
+model.eval()
+with torch.no_grad():
+    logits = model(**enc).logits
+    preds = logits.argmax(-1)
+    id2label = {0: "positive", 1: "negative", 2: "neutral"}
+    for sent, pred in zip(texts, preds):
+        print(f"[{id2label[pred.item()]}] {sent}")</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics 1 &amp; 2</div>
+    <h2>Does the math match what the code reports?</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Q1 — trainable fraction.</strong> Compare the reported trainable count to total FinBERT size (\(\approx 110\)M). How does it line up with the theoretical value for LoRA \(r=8\) on query and value across all 12 BERT layers?</li>
+      <li class="frag"><strong>Q2 — rank sweep.</strong> Change <code class="inline">r=8</code> to <code class="inline">r=4</code> then <code class="inline">r=16</code>; rerun the loop each time. Do predictions change? Does loss fall faster at higher rank? What does that say about rank vs. expressiveness on a tiny dataset?</li>
+    </ol>
+    <aside class="underhood" data-title="the expected count for Q1">
+      LoRA on query and value, rank \(r\), over \(L\) layers with hidden size \(d\):
+      \[ \Delta\theta = L \times 2 \times r(d + k) = 12 \times 2 \times 8 \times (768 + 768). \]
+      Divide by \(\approx 110\)M to get the trainable fraction — well under 1%.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostic 3</div>
+    <h2>Is patching all four projections worth the extra cost?</h2>
+    <div class="title-rule"></div>
+    <p class="lead frag"><strong>Q3.</strong> Change <code class="inline">target_modules</code> to all four projections: <code class="inline">["query", "key", "value", "dense"]</code>. How does the trainable count change? Do the predictions improve? Is the extra compute justified?</p>
+    <div class="block frag">
+      <div class="block-title">Optional extension</div>
+      Swap the 5 sentences for 50 examples from the Financial PhraseBank (HuggingFace <code class="inline">takala/financial_phrasebank</code>). Evaluate accuracy on a held-out 20% split at \(r = 4, 8, 16\), and plot accuracy vs. trainable parameter count.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion — which adaptation strategy, and why?</h2>
+    <div class="secsub">Match the tool to the constraints: data, compute, latency, privacy, cost, explainability.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 5 min</div>
+    <h2>Pick the right tool for each desk</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each scenario, choose: zero-shot / few-shot ICL / LoRA fine-tune / full fine-tune — and say why.</p>
+    <ol>
+      <li class="frag"><strong>Hedge fund.</strong> Classify 10-K risk-factor sections "material" vs. "immaterial" for one covenant type. 50 labelled examples, 2-hour deadline, using GPT-4o via API.</li>
+      <li class="frag"><strong>Tier-1 bank.</strong> On-premise earnings-call sentiment (no external API), 200,000 docs/month, GDPR data-residency, 20,000 labelled examples.</li>
+      <li class="frag"><strong>Fintech startup.</strong> General-purpose financial chatbot; no task-specific labelled data, but access to a pre-trained instruction-tuned LLM.</li>
+      <li class="frag"><strong>Quant research.</strong> Test whether a 70B model can replicate an expert's reasoning on novel bond-structuring questions. No labelled data exists.</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">frame your answer around</span>
+      Labelled-data volume, compute budget, latency, data-privacy constraints, inference cost, and desired explainability.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions — the worked answers</h2>
+    <div class="secsub">Problem 1 parameter count and Problem 2 budget, step by step.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>A 7B model fine-tuned by moving ~2 million parameters</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Filled table (one layer, \(r=4\), Q and V, \(d=k=4096\))</div>
+      <table>
+        <tr><th>Matrix</th><th>\(d\)</th><th>\(k\)</th><th>\(r\)</th></tr>
+        <tr><td>\(W_Q\)</td><td>4096</td><td>4096</td><td>4</td></tr>
+        <tr><td>\(W_V\)</td><td>4096</td><td>4096</td><td>4</td></tr>
+      </table>
+    </div>
+    <aside class="underhood" data-title="Tasks A–C arithmetic">
+      <strong>A.</strong> \[ 32 \times 2 \times r \times (d+k) = 32 \times 2 \times 4 \times 8192 = 2{,}097{,}152 \approx 2.1\text{M}. \]
+      <strong>B.</strong> \(2.1\text{M} / 7000\text{M} \approx 0.030\%\) — well below 0.1%.
+      <strong>C.</strong> Doubling \(r\): \(32 \times 2 \times 8 \times 8192 = 4{,}194{,}304 \approx 4.2\text{M}\). The count <em>doubles</em> — linear in \(r\), since \(r(d+k)\) is linear in \(r\).
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">Task D — why LoRA for the trading floor</span>
+      LoRA merges \(W_0 + BA\) into one weight before deployment, so the served model has the base model's exact structure. Classic adapters add a sequential bottleneck that can't be merged away — extra latency per token, unacceptable in millisecond-sensitive trading.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2 + wrap-up</div>
+    <h2>The budget says: build small, train fully</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="Task A — sizing to C = 10^22">
+      \[ N^* = \sqrt{\frac{C}{120}} = \sqrt{\frac{10^{22}}{120}} = \sqrt{8.33 \times 10^{19}} \approx 2.89 \times 10^8 \approx 288\text{M}. \]
+      \[ D^* = 20 \times N^* \approx 5.76\text{B tokens}. \]
+      They have 50B tokens but only need \(\approx 5.76\)B: \(50\text{B} \gg 5.76\text{B}\) → <em>compute-constrained, not data-constrained</em>. Train a \(\approx 288\)M model on 5.76B tokens; the spare 44B tokens support a larger model if compute permits.
+    </aside>
+    <aside class="underhood" data-title="Tasks B &amp; C">
+      <strong>B.</strong> 1B model: \(D^* = 20 \times 1\text{B} = 20\text{B tokens}\); \(C = 6 \times 1\text{B} \times 20\text{B} = 1.2 \times 10^{23}\) FLOPs.
+      <strong>C.</strong> "Biggest model wins" holds only when inference cost is negligible and compute is unlimited. In practice a 50B model costs far more to serve than a Chinchilla-optimal 288M one, and may <em>score worse</em> on held-out loss if under-trained.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">session summary</span>
+      LoRA's parameter count is linear in \(r\), and merging removes inference overhead. Chinchilla: \(D^*/N^* \approx 20\), and most realistic settings are compute-constrained. Next practical: fine-tuning a generative model for financial QA with LoRA.
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problem (optional)</h2>
+    <div class="secsub">From LoRA fine-tuning to aligning a generative model with Direct Preference Optimisation.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch · 15 min (take-home)</div>
+    <h2>DPO: aligning a model from preference pairs</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You have the LoRA-fine-tuned FinBERT sentiment model from the case study. Now align a small <em>generative</em> finance model with Direct Preference Optimisation on preference pairs \((x, y_w, y_l)\) — a winner \(y_w\) and a loser \(y_l\).</p>
+    <aside class="underhood" data-title="the DPO objective">
+      \[ \mathcal{L}_{\text{DPO}}(\theta) = -\mathbb{E}_{(x,y_w,y_l)}\!\left[ \log \sigma\!\left( \beta \log \tfrac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} - \beta \log \tfrac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)} \right)\right]. \]
+    </aside>
+    <ol>
+      <li class="frag"><strong>A.</strong> In one sentence: what does raising \(\beta\) do to how far \(\pi_\theta\) may drift from \(\pi_{\text{ref}}\)?</li>
+      <li class="frag"><strong>B.</strong> Why does DPO need a frozen reference policy \(\pi_{\text{ref}}\) at all? What failure occurs if you drop it?</li>
+      <li class="frag"><strong>C.</strong> Construct three plausible \((y_w \succ y_l)\) preference pairs for a financial-advice prompt where "plausible vs. accurate" is the distinguishing axis.</li>
+    </ol>
+  </section>
+
+</div></div>
+</body>
+</html>

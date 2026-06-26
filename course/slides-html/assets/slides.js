@@ -27,7 +27,7 @@
   const meta = window.DECK_META || {};
   const hud = el("div", "hud");
   hud.innerHTML = `
-    <div class="brand"><span class="dot"></span><span class="full">${meta.course || "LLM in Finance"}</span></div>
+    <a class="brand" href="../index.html" title="All lectures"><span class="dot"></span><span class="full">${meta.course || "LLM in Finance"}</span></a>
     <button class="navbtn" id="prev" title="Previous (←)">‹</button>
     <button class="navbtn" id="next" title="Next (→)">›</button>
     <span class="counter" id="counter">1 / ${slides.length}</span>

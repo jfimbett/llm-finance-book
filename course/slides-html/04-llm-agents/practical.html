@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 4 — Practical Session: LLM Agents and RAG in Finance</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 4 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 4</div>
+    <h1>Agents and RAG in Finance — Hands On</h1>
+    <div class="sub">Tracing a ReAct agent, designing a tool schema, and building &amp; grading a RAG pipeline.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview · 1 hour</div>
+    <h2>What we'll actually do today</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A working hour: less lecture, more building. You leave having traced a real agent,
+      written a tool the model can call, and scored a retrieval pipeline by hand.</p>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — the agent loop, ReAct, memory, RAG metrics</li>
+          <li class="frag"><strong>Problem 1</strong> (15 min) — trace a ReAct agent on a filing Q&amp;A task</li>
+          <li class="frag"><strong>Problem 2</strong> (10 min) — design a tool schema for a bond calculator</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="4">
+          <li class="frag"><strong>Case Study</strong> (20 min) — build &amp; evaluate a RAG pipeline over earnings calls</li>
+          <li class="frag"><strong>Discussion</strong> (5 min) — when to add a second agent? a hook?</li>
+          <li class="frag"><strong>Solutions</strong> (5 min) — walkthrough of Problems 1 and 2</li>
+        </ol>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">what you'll practise</span>
+      Tracing agent reasoning steps; writing Pydantic tool schemas; building and evaluating a RAG
+      pipeline; thinking through governance checkpoints.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 01 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the moving parts</h2>
+    <div class="secsub">The agent loop, the ReAct format, where memory lives, and how we grade RAG.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · how an agent thinks and acts</div>
+    <h2>An agent is a loop: think, act, observe, repeat</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Plain version: the model writes a thought, calls a tool, reads what comes back, and
+      updates what it knows — looping until it can answer. The thoughts are the audit trail.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">ReAct, in one line</div>
+          A trajectory alternates <strong>Thought → Action → Observation</strong> until a
+          <strong>Finish</strong>. Each thought says <em>why</em> the next tool is called; each
+          observation grounds the next step in real data.
+        </div>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">why it matters for finance</span>
+          A model guessing Apple's revenue can be wrong. A model that <em>calls the API</em> returns
+          the exact figure. Actions trade guesses for evidence.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the PRA loop and the ReAct trajectory">
+      The agent is a triple \((\pi,\mu,\phi)\): a memory update \(\phi:\text{obs}\times\text{mem}\to\text{mem}\),
+      a policy \(\pi:\text{mem}\to\Delta(\text{actions})\) implemented by the LLM, and an environment
+      transition \(\mu:\text{action}\times\text{env}\to\text{obs}\). A ReAct trajectory is
+      \[ \tau = (T_1, A_1, O_1,\; T_2, A_2, O_2,\; \ldots,\; T_n, \textsc{Finish}). \]
+      Each \(T_i\) is a natural-language thought, each \(A_i\) a tool call, each \(O_i\) the tool's return.
+      The grounding principle: the model's internal estimate \(\hat f(t)\neq f(t)\) in general, but calling
+      the API returns the exact \(f(t)\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · memory and how we grade RAG</div>
+    <h2>Where memory lives, and the four numbers that grade retrieval</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Three places memory lives</h3>
+        <table>
+          <tr><th>Type</th><th>Size</th><th>Persistence</th></tr>
+          <tr><td>In-context</td><td>Context window</td><td>Session only</td></tr>
+          <tr><td>Retrieval (vector DB)</td><td>Unbounded</td><td>Persistent</td></tr>
+          <tr><td>Long-term (structured DB)</td><td>Unbounded</td><td>Persistent</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <h3>RAGAS metrics</h3>
+        <ul>
+          <li class="frag"><strong>Faithfulness</strong> — answer's claims are backed by retrieved context</li>
+          <li class="frag"><strong>Answer Relevance</strong> — answer addresses the query</li>
+          <li class="frag"><strong>Context Precision</strong> — retrieved chunks are relevant</li>
+          <li class="frag"><strong>Context Recall</strong> — context covers the ground-truth claims</li>
+        </ul>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">finance priority</span>
+      <strong>Faithfulness first.</strong> An unfaithful answer is a hallucinated claim, which is a
+      compliance risk. Rule of thumb: faithfulness \(&lt; 0.85\) → block automated publication.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 02 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problems — your turn</h2>
+    <div class="secsub">Trace an agent's reasoning, then design a tool it can safely call.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 15 min</div>
+    <h2>Trace a ReAct agent on a 10-K comparison</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A compliance analyst asks an agent:</p>
+    <div class="block">
+      <div class="block-title">The question</div>
+      <em>"What credit risks does Microsoft disclose in its most recent 10-K, and how do they compare
+      to the risks it disclosed in the 2022 10-K?"</em>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <h3>Available tools</h3>
+        <ul>
+          <li><code class="inline">edgar_search(ticker, form, limit)</code> — accession numbers and dates</li>
+          <li><code class="inline">edgar_section(accession, section)</code> — text of a named section</li>
+          <li><code class="inline">summarise_risks(text, focus)</code> — structured risk list</li>
+          <li><code class="inline">compare_lists(list_a, list_b)</code> — added, removed, changed items</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">your task</span>
+          Write the full trajectory \((T_1, A_1, O_1, \ldots, \textsc{Finish})\):
+          at least 4 steps before Finish; each thought justifies <em>why</em> the next action;
+          make up plausible (but fictional) observation values.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 10 min</div>
+    <h2>Design a tool schema for a bond calculator</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You're building an agent for a fixed-income desk. The tool
+      <code class="inline">compute_bond_price</code> returns the present value of a bond from its
+      cash flows and yield, supporting annual and semi-annual coupons.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Fields the schema must include</div>
+          <ul>
+            <li>Face value (USD, any positive value)</li>
+            <li>Annual coupon rate (decimal)</li>
+            <li>Years to maturity (positive integer)</li>
+            <li>Yield to maturity (decimal; annual, not semi-annual)</li>
+            <li>Coupon frequency (annual or semi-annual)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">for each field</span>
+          Write a <code class="inline">Field(description=...)</code> with units, a valid range, and at
+          least one example. Use <code class="inline">ge</code>, <code class="inline">le</code>, or
+          <code class="inline">gt</code> constraints.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="bonus — the bond-price formula (put it in the docstring)">
+      The present value of a bond with period coupon \(C\), period yield \(y\), \(n\) periods and face
+      value \(F\) is
+      \[ P = \sum_{t=1}^{n}\frac{C}{(1+y)^{t}} + \frac{F}{(1+y)^{n}}. \]
+      For semi-annual coupons, halve the annual rate and yield and double the number of periods.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 03 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case Study — build a RAG pipeline</h2>
+    <div class="secsub">Chunk, embed, retrieve, generate, and grade — over a mock earnings-call corpus.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the setup · 20 min</div>
+    <h2>A mini-corpus of five earnings calls, three questions to answer</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You get five short, fictional earnings-call excerpts. Build a minimal RAG pipeline,
+      then evaluate it with RAGAS-style metrics.</p>
+    <div class="cols">
+      <div class="col">
+        <h3>The corpus (3 paragraphs each)</h3>
+        <ul>
+          <li><code class="inline">apple_q4_2023.txt</code> — CFO guidance + China exposure</li>
+          <li><code class="inline">microsoft_q2_2024.txt</code> — Azure growth + AI capex</li>
+          <li><code class="inline">jpmorgan_q1_2024.txt</code> — NIM guidance + credit losses</li>
+          <li><code class="inline">nvidia_q3_2023.txt</code> — data-centre demand + export controls</li>
+          <li><code class="inline">berkshire_2023.txt</code> — insurance float + equity portfolio</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Queries to evaluate</h3>
+        <ol>
+          <li><em>"What revenue guidance did Apple give for Q1 2024?"</em></li>
+          <li><em>"What did JPMorgan say about credit loss provisions?"</em></li>
+          <li><em>"Which company mentioned export controls?"</em> <span class="pill o">cross-doc</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · step 1</div>
+    <h2>Chunk the documents, then embed every chunk</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Split each call into sentences, then turn each sentence into a vector — a point in
+      space where similar meanings sit close together.</p>
+    <pre class="code">from sentence_transformers import SentenceTransformer
+import numpy as np
+
+# --- Sample corpus (use provided strings in the lab notebook) ---
+docs = {
+    "apple_q4_2023": "Revenue guidance for Q1 2024 is $89-90B ...",
+    # ... add remaining documents
+}
+
+# --- Chunk each document into sentences ---
+def sentence_chunk(text):
+    return [s.strip() for s in text.split('.') if len(s.strip()) > 20]
+
+chunks = []
+for doc_id, text in docs.items():
+    for sent in sentence_chunk(text):
+        chunks.append({"doc_id": doc_id, "text": sent})
+
+# --- Embed all chunks ---
+model = SentenceTransformer("all-MiniLM-L6-v2")
+embeddings = model.encode([c["text"] for c in chunks])</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">Question A</span>
+      How many chunks does your corpus produce? What is the mean chunk length in tokens?
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · step 2</div>
+    <h2>Retrieve the closest chunks, then generate a grounded answer</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For a query, find the nearest chunks by cosine similarity, paste them into the prompt,
+      and force the model to answer <em>only</em> from that context.</p>
+    <pre class="code">from sklearn.metrics.pairwise import cosine_similarity
+
+def retrieve(query, k=3):
+    q_emb = model.encode([query])
+    sims = cosine_similarity(q_emb, embeddings)[0]
+    top_k = np.argsort(sims)[::-1][:k]
+    return [chunks[i] for i in top_k]
+
+def generate_answer(query, context_chunks, llm_fn):
+    context = "\n".join(c["text"] for c in context_chunks)
+    prompt = f"""Answer based ONLY on the context below.
+If the answer is not in the context, say "Not found in context."
+
+Context:
+{context}
+
+Question: {query}
+Answer:"""
+    return llm_fn(prompt)</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">Question B</span>
+      For query 1 (Apple guidance), which chunks are retrieved (\(k=3\))? Are they all from
+      <code class="inline">apple_q4_2023</code>? What does that tell you about metadata filtering?
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · step 3</div>
+    <h2>Grade the pipeline by hand with RAGAS metrics</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Score each query 0–1 on the four metrics yourself, using the plain-language
+      definitions — no library, just judgment.</p>
+    <table>
+      <tr><th>Query</th><th>Faith.</th><th>Ans.Rel.</th><th>Ctx.Prec.</th><th>Ctx.Rec.</th></tr>
+      <tr><td>Apple guidance</td><td>?</td><td>?</td><td>?</td><td>?</td></tr>
+      <tr><td>JPM credit losses</td><td>?</td><td>?</td><td>?</td><td>?</td></tr>
+      <tr><td>Export controls</td><td>?</td><td>?</td><td>?</td><td>?</td></tr>
+    </table>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li><strong>Faithfulness</strong> — does each sentence in the answer appear in the context?</li>
+          <li><strong>Answer Relevance</strong> — does the answer address the question?</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><strong>Context Precision</strong> — are the retrieved chunks actually useful?</li>
+          <li><strong>Context Recall</strong> — does the context contain everything needed?</li>
+        </ul>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">Question C</span>
+      Which query has the lowest faithfulness? Why? What would you change in the pipeline to improve it?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 04 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion — design decisions</h2>
+    <div class="secsub">When does one agent become two? When does a concern become a hook?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 5 min · in pairs</div>
+    <h2>When would you add a second agent — or a hook?</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Add a second agent when…</div>
+          <ul>
+            <li class="frag">the task splits into sub-tasks with different tool needs</li>
+            <li class="frag">you need a critic / compliance checker separate from the generator</li>
+            <li class="frag">parallelism can cut latency</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Add a hook when…</div>
+          <ul>
+            <li class="frag">a cross-cutting concern (audit, cost) must touch every action</li>
+            <li class="frag">the concern is owned by a different team than the agent developer</li>
+            <li class="frag">you must enforce a policy without editing the agent's core logic</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">governance question</span>
+      Your earnings-call agent produces a structured summary that a junior analyst uses to write a
+      client note. What human-in-the-loop pattern would you impose, and why?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 05 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions</h2>
+    <div class="secsub">A worked trajectory for Problem 1 and a reference schema for Problem 2.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 1</div>
+    <h2>One valid ReAct trajectory for the 10-K comparison</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Read top to bottom: each thought picks the next tool, each observation feeds the next
+      thought. Search both filings, pull risk factors, summarise, then compare.</p>
+    <table>
+      <tr><th>Step</th><th>Content</th></tr>
+      <tr class="frag"><td><strong>T1</strong></td><td>Need MSFT's most recent 10-K and the 2022 10-K. Search EDGAR for both.</td></tr>
+      <tr class="frag"><td><strong>A1 / O1</strong></td><td><code class="inline">edgar_search("MSFT","10-K",2)</code> → <code class="inline">[{acc:"...-24-...",year:2024},{acc:"...-22-...",year:2022}]</code></td></tr>
+      <tr class="frag"><td><strong>T2 / A2 / O2</strong></td><td>Have both accessions. Pull 2024 risk factors → <code class="inline">edgar_section("...-24-...","Risk Factors")</code> → ~8,000 words.</td></tr>
+      <tr class="frag"><td><strong>T3 / A3 / O3</strong></td><td>Now pull 2022 risk factors → <code class="inline">edgar_section("...-22-...","Risk Factors")</code> → ~7,500 words.</td></tr>
+      <tr class="frag"><td><strong>T4 / A4 / O4</strong></td><td>Summarise credit risks from each → <code class="inline">summarise_risks(O2,"credit")</code> + <code class="inline">summarise_risks(O3,"credit")</code> → two structured lists.</td></tr>
+      <tr class="frag"><td><strong>T5 / A5 / O5</strong></td><td>Compare the lists → <code class="inline">compare_lists(2024,2022)</code> → Added: {AI model supply concentration}; Removed: {pandemic supply disruption}.</td></tr>
+      <tr class="frag"><td><strong>Finish</strong></td><td>Finish(structured comparison with citations).</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 2</div>
+    <h2>A reference Pydantic schema for the bond tool</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The docstring carries the formula into the model's context; the
+      <code class="inline">Field</code> descriptions and constraints shrink the error surface.</p>
+    <pre class="code">from pydantic import BaseModel, Field
+from typing import Literal
+
+class BondPriceInput(BaseModel):
+    """
+    Bond price = sum_{t=1}^{n} C/(1+y)^t + F/(1+y)^n
+    where C = coupon payment, y = period yield,
+          n = total periods, F = face value.
+    """
+    face_value: float = Field(
+        description="Face value in USD (e.g. 1000.0)", gt=0.0
+    )
+    annual_coupon_rate: float = Field(
+        description="Annual coupon rate as a decimal (e.g. 0.05 for 5%)",
+        ge=0.0, le=1.0
+    )</pre>
+    <div class="takeaway callout">
+      <span class="callout-tag">the move</span>
+      Treat the schema as a first-class artifact: descriptions and constraints are part of the prompt.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 2 (continued)</div>
+    <h2>The remaining fields: maturity, yield, and frequency</h2>
+    <div class="title-rule"></div>
+    <pre class="code">    # ... continued from BondPriceInput ...
+    years_to_maturity: int = Field(
+        description="Years to maturity (e.g. 10)", gt=0
+    )
+    yield_to_maturity: float = Field(
+        description="Annual YTM as a decimal (e.g. 0.06 for 6%)",
+        ge=0.0, le=1.0
+    )
+    frequency: Literal["annual", "semiannual"] = Field(
+        description="Coupon frequency: 'annual' or 'semiannual'",
+        default="semiannual"
+    )</pre>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the pattern</span>
+      A <code class="inline">Literal</code> with a default turns an open free-text argument into a
+      closed, validated choice — the model can't pass an unsupported convention.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Five takeaways to carry out of the lab</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>ReAct grounds reasoning in evidence.</strong> Each observation replaces a
+        possibly-hallucinated guess; the thought steps explain <em>why</em> each action is chosen.</li>
+      <li class="frag"><strong>Tool schemas are a design artifact.</strong> Field descriptions propagate
+        into the model's context; Pydantic constraints reduce the error surface.</li>
+      <li class="frag"><strong>RAG evaluation must be decomposed.</strong> Faithfulness (generation) and
+        context recall (retrieval) fail for different reasons and need different fixes.</li>
+      <li class="frag"><strong>Metadata filtering is not optional.</strong> Unconstrained semantic search
+        is noisy for named-entity queries — add document metadata at ingestion time.</li>
+      <li class="frag"><strong>Governance matches reversibility.</strong> Pre-execution approval for
+        irreversible actions; post-hoc audit for high-volume, low-stakes tasks.</li>
+    </ol>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problem</h2>
+    <div class="secsub">Harden the case-study pipeline for a compliance-sensitive deployment.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem</div>
+    <h2>Add hybrid search and a compliance hook</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Take the dense-retrieval RAG you built and make it both sharper on keywords and safer
+      before it publishes.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Part 1 — hybrid retrieval</div>
+          <ul>
+            <li>Add a BM25 sparse scorer alongside the cosine retriever</li>
+            <li>Combine the two scores after min-max normalisation</li>
+            <li>For query 3 ("export controls"), does lowering \(\alpha\) toward \(0.3\) improve which
+              document is retrieved? Explain why.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Part 2 — compliance hook</div>
+          <ul>
+            <li>Write a hook \(h(\mathcal{E},\mathcal{M})\) that runs before every
+              <strong>Finish</strong> and blocks publication when faithfulness \(&lt; 0.85\)</li>
+            <li>What observation does the agent receive when the hook fires, and what recovery action
+              should the policy take?</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the hybrid score">
+      With min-max-normalised scores \(\widetilde{\text{cosine}}\) and \(\widetilde{\text{BM25}}\),
+      \[ \text{score} = \alpha\,\widetilde{\text{cosine}} + (1-\alpha)\,\widetilde{\text{BM25}}. \]
+      Lowering \(\alpha\) tilts toward exact keyword matching — which helps a rare, literal phrase like
+      "export controls" that dense embeddings may smear into nearby topics.
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">deliverable</span>
+      The modified <code class="inline">retrieve</code> function plus a 3–4 line description of the
+      hook's event, condition, and handler.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

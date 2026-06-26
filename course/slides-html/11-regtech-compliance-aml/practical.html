@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 11 — Practical: RegTech, Compliance &amp; AML</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 11 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 11</div>
+    <h1>RegTech, Compliance &amp; AML — Hands-On</h1>
+    <div class="sub">Reciprocal Rank Fusion, the Adverse Media Index, and a governance clinic.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview</div>
+    <h2>One hour: build two compliance scores by hand, then in code</h2>
+    <div class="title-rule"></div>
+    <p class="lead">50 minutes of hands-on work, 10 minutes of debrief. You will compute the two numbers
+      that an AML screening agent produces — first with a pencil, then in Python.</p>
+    <table>
+      <tr><th>Block</th><th>Activity</th><th>Time</th></tr>
+      <tr><td>Recap</td><td>RRF + Adverse Media Index formulas</td><td>8 min</td></tr>
+      <tr><td>Problem 1</td><td>Reciprocal rank fusion by hand</td><td>12 min</td></tr>
+      <tr><td>Problem 2</td><td>Compute an Adverse Media Index</td><td>12 min</td></tr>
+      <tr><td>Case study</td><td>AMI + RRF in Python (notebook 11)</td><td>18 min</td></tr>
+      <tr><td>Discussion</td><td>High-risk classification &amp; HITL design</td><td>10 min</td></tr>
+    </table>
+    <div class="block">
+      <div class="block-title">Code</div>
+      All code lives in <code class="inline">code/notebooks/11-regtech-compliance-aml/</code>
+      (<code class="inline">demo.ipynb</code>, <code class="inline">gen_rrf_fusion.py</code>,
+      <code class="inline">exercises.ipynb</code>). Deterministic — no network, no API key needed for the core exercises.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION: RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap: the two formulas you need</h2>
+    <div class="secsub">How two ranked lists become one, and how a stack of news articles becomes a single risk score.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Formula 1 · merging two search engines</div>
+    <h2>Reciprocal rank fusion: trust what both retrievers agree on</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Hybrid search runs two retrievers — a "dense" semantic one and a "sparse" keyword one.
+      Each returns its own ranked list. RRF blends them: a document scores high when it sits near the top of
+      <em>both</em> lists, not just one.</p>
+    <aside class="underhood" data-title="reciprocal rank fusion">
+      \[ \mathrm{RRF}(d) = \sum_{r \in R} \frac{1}{\kappa + \mathrm{rank}_r(d)},
+         \qquad \kappa = 60. \]
+      \(R = \{\text{dense}, \text{sparse}\}\); a document missing from a list gets rank \(\infty\)
+      (that term contributes \(0\)). The constant \(\kappa\) damps the influence of the very top ranks
+      so no single list can dominate.
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">the move</span>
+      No training, no learned weights — just reciprocal ranks added together. It rewards cross-signal agreement for free.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Formula 2 · text becomes a calibrated risk</div>
+    <h2>The Adverse Media Index: one number for "how risky is this subject?"</h2>
+    <div class="title-rule"></div>
+    <p class="lead">After retrieval, the agent reads each article and rates it on relevance, source credibility,
+      and how recent it is — then squashes the total into a probability between 0 and 1.</p>
+    <aside class="underhood" data-title="adverse media index">
+      \[ \mathrm{AMI}(s) = \sigma\!\left(\alpha + \sum_{i=1}^{n} r_i\, c_i\, t_i\,
+         \mathbf{w}^{\top}\mathbf{e}_i\right), \qquad \sigma(x) = \frac{1}{1+e^{-x}}. \]
+      Per document \(i\): relevance \(r_i\), credibility \(c_i\), recency \(t_i\), and content score
+      \(\mathbf{w}^{\top}\mathbf{e}_i\); \(\alpha\) is the baseline intercept (the prior on a random subject).
+      The factors <em>multiply</em>, so any weak component drags the whole term toward zero.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      A continuous score, not a binary flag — so risk can be compared across subjects, tracked over time,
+      and fed into a quantitative customer-risk model.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where the two scores live</div>
+    <h2>RRF and AMI sit at different stages of the same pipeline</h2>
+    <div class="title-rule"></div>
+    <p class="lead">RRF fuses the <em>retriever's</em> two ranked lists; the AMI is computed by the
+      <em>output formatter</em> from the reader's per-document evidence scores.</p>
+    <table>
+      <tr><th>Stage</th><th>Produces</th></tr>
+      <tr><td>Hybrid retriever</td><td>dense rank, sparse rank per doc</td></tr>
+      <tr><td>→ RRF</td><td>fused ranking → top-\(k\) passages</td></tr>
+      <tr><td>Reader / ranker</td><td>\(r_i, c_i, t_i, \mathbf{e}_i\) per doc</td></tr>
+      <tr><td>→ AMI</td><td>scalar risk \(\in [0,1]\)</td></tr>
+    </table>
+    <div class="takeaway callout">
+      <span class="callout-tag">why continuous</span>
+      A binary low/high label cannot be compared across subjects, tracked over time, or fed into a
+      quantitative customer-risk model.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION: PROBLEMS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problems: work them by hand</h2>
+    <div class="secsub">Two pencil-and-paper exercises before you touch the keyboard.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · reciprocal rank fusion</div>
+    <h2>Five passages, two retrievers — which wins after fusion?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each candidate passage has a rank under a dense and a sparse retriever (\(\kappa = 60\)).</p>
+    <table>
+      <tr><th>Passage</th><th>Dense rank</th><th>Sparse rank</th></tr>
+      <tr><td>court filing</td><td>1</td><td>2</td></tr>
+      <tr><td>news article</td><td>3</td><td>1</td></tr>
+      <tr><td>press release</td><td>2</td><td>4</td></tr>
+      <tr><td>blog post</td><td>5</td><td>3</td></tr>
+      <tr><td>registry record</td><td>4</td><td>5</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>Task A.</strong> Compute \(\mathrm{RRF}(d) = \frac{1}{60+\text{dense}} + \frac{1}{60+\text{sparse}}\) for each passage.</li>
+      <li class="frag"><strong>Task B.</strong> Rank the passages by fused score.</li>
+      <li class="frag"><strong>Task C (discussion).</strong> Neither "court filing" nor "news article" is ranked #1 by <em>both</em>
+        retrievers. Which one wins after fusion, and why does RRF reward cross-signal agreement?</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · adverse media index</div>
+    <h2>Three articles on a subject — what is the overall risk?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A screening agent retrieves three articles on subject \(s\), each scored
+      \((r_i, c_i, t_i, \mathbf{w}^{\top}\mathbf{e}_i)\). Baseline intercept \(\alpha = -2.0\).</p>
+    <table>
+      <tr><th>Article</th><th>\(r_i\)</th><th>\(c_i\)</th><th>\(t_i\)</th><th>\(\mathbf{w}^{\top}\mathbf{e}_i\)</th></tr>
+      <tr><td>1 (court doc, recent)</td><td>0.9</td><td>0.8</td><td>1.0</td><td>2.0</td></tr>
+      <tr><td>2 (news, older)</td><td>0.6</td><td>0.5</td><td>0.7</td><td>1.2</td></tr>
+      <tr><td>3 (blog, stale)</td><td>0.3</td><td>0.9</td><td>0.4</td><td>0.5</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>Task A.</strong> Compute each article's contribution \(r_i c_i t_i (\mathbf{w}^{\top}\mathbf{e}_i)\).</li>
+      <li class="frag"><strong>Task B.</strong> Sum, add \(\alpha\), apply \(\sigma\). Report \(\mathrm{AMI}(s)\) to 3 d.p.</li>
+      <li class="frag"><strong>Task C.</strong> Article 3 has the <em>highest</em> credibility (\(c_3=0.9\)) yet contributes least. Why? Which factor dominates its low contribution?</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION: CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case study: the same two scores in Python</h2>
+    <div class="secsub">Notebook 11 — deterministic, no network. Confirm your hand calculations, then stress-test them.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · Part 1</div>
+    <h2>RRF fusion in Python</h2>
+    <div class="title-rule"></div>
+    <p class="lead">From <code class="inline">code/notebooks/11-regtech-compliance-aml/demo.ipynb</code> —
+      hybrid retrieval fusion, deterministic and offline.</p>
+    <pre class="code">import math
+KAPPA = 60
+docs        = ['court filing','news article','press release','blog post','registry record']
+dense_rank  = [1, 3, 2, 5, 4]
+sparse_rank = [2, 1, 4, 3, 5]
+
+def rrf(ranks):
+    return sum(1.0 / (KAPPA + r) for r in ranks)
+
+fused = {d: rrf([dr, sr]) for d, dr, sr in zip(docs, dense_rank, sparse_rank)}
+for d, s in sorted(fused.items(), key=lambda kv: -kv[1]):
+    print(f'{d:16s} RRF={s:.5f}')</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · Part 2</div>
+    <h2>AMI scoring in Python</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The calibrated Adverse Media Index, same notebook — a sigmoid over the multiplicative per-article terms.</p>
+    <pre class="code">import math
+def sigmoid(x): return 1.0 / (1.0 + math.exp(-x))
+alpha = -2.0
+# (relevance, credibility, recency, content_score) per retrieved article
+articles = [(0.9,0.8,1.0,2.0), (0.6,0.5,0.7,1.2), (0.3,0.9,0.4,0.5)]
+ami = sigmoid(alpha + sum(r*c*t*e for (r,c,t,e) in articles))
+print(f'AMI = {ami:.3f}  (probability of genuine AML risk in [0,1])')</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>Run the notebook, then probe what the numbers mean</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Q1.</strong> The fused RRF order puts <em>court filing</em> first. Confirm against your
+        Problem 1 hand calculation. Do they match?</li>
+      <li class="frag"><strong>Q2.</strong> Set <code class="inline">dense_rank</code> and <code class="inline">sparse_rank</code>
+        to identical lists (perfect agreement). What happens to the spread of fused scores? What does this say about RRF when both signals agree?</li>
+      <li class="frag"><strong>Q3.</strong> In the AMI block, raise \(\alpha\) from \(-2.0\) to \(0.0\). How does the score change,
+        and what does \(\alpha\) represent operationally (the prior on a random subject being high-risk)?</li>
+      <li class="frag"><strong>Q4.</strong> Add a <em>fourth</em> article with high relevance, high credibility, high recency, and a
+        terrorism-financing content score of \(3.0\). Recompute the AMI. Why does a single high-severity article move the score
+        so much — and what design risk does that create for calibration of \(\mathbf{w}\)?</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION: DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion: governance clinic</h2>
+    <div class="secsub">When is a compliance LLM "high-risk", and how do you keep a tired reviewer genuinely in the loop?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · Part 1</div>
+    <h2>High-risk or not? Place each system on the EU AI Act tier</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each system, decide the EU AI Act tier (Annex III) and justify it. The dividing line is the
+      <em>degree of automation</em> — does the model assist, or does it decide?</p>
+    <ol>
+      <li class="frag">An LLM that <em>summarises</em> a news article for a human analyst, no automated decision.</li>
+      <li class="frag">An LLM that <em>auto-declines</em> onboarding when \(\mathrm{AMI} > 0.85\).</li>
+      <li class="frag">An LLM that <em>files</em> a SAR with FinCEN with no human review.</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">frame your answer around</span>
+      Degree of automation, individual impact, GDPR Art. 22 review rights, and where a human genuinely outperforms the model.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · Part 2</div>
+    <h2>Your reviewers rubber-stamp 95% of alerts — fix it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Your bank's reviewers clear 95% of alerts in under 30 seconds — classic <em>automation bias</em>.
+      Propose two concrete changes to the queue or interface that would restore substantive review.</p>
+    <div class="block">
+      <div class="block-title">Levers to pull</div>
+      <ul>
+        <li>Task decomposition — break the decision into checkable sub-judgments</li>
+        <li>Uncertainty communication — surface the model's confidence, not just its verdict</li>
+        <li>Override feedback — close the loop so disagreement teaches the system</li>
+        <li>Queue ordering — front-load the genuinely hard cases</li>
+      </ul>
+    </div>
+    <div class="alert callout">
+      <span class="callout-tag">the catch</span>
+      A human who clears an alert in 30 seconds is not reviewing it. Good HITL design gives the human a task they
+      genuinely do better than the model.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION: SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Worked answers to Problems 1 and 2.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>RRF by hand: consistency beats a single-signal #1</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Task A.</strong> \(\mathrm{RRF}(d) = \frac{1}{60+\text{dense}} + \frac{1}{60+\text{sparse}}\):</p>
+    <table>
+      <tr><th>Passage</th><th>Dense</th><th>Sparse</th><th>RRF</th></tr>
+      <tr><td>court filing</td><td>1</td><td>2</td><td>\(\tfrac{1}{61}+\tfrac{1}{62}=0.03252\)</td></tr>
+      <tr><td>news article</td><td>3</td><td>1</td><td>\(\tfrac{1}{63}+\tfrac{1}{61}=0.03227\)</td></tr>
+      <tr><td>press release</td><td>2</td><td>4</td><td>\(\tfrac{1}{62}+\tfrac{1}{64}=0.03175\)</td></tr>
+      <tr><td>blog post</td><td>5</td><td>3</td><td>\(\tfrac{1}{65}+\tfrac{1}{63}=0.03126\)</td></tr>
+      <tr><td>registry record</td><td>4</td><td>5</td><td>\(\tfrac{1}{64}+\tfrac{1}{65}=0.03101\)</td></tr>
+    </table>
+    <div class="takeaway callout">
+      <span class="callout-tag">Task B &amp; C</span>
+      Order: court filing ≻ news article ≻ press release ≻ blog ≻ registry. <em>News article</em> is #1 by sparse
+      but only 3rd by dense; <em>court filing</em> is #1 dense and #2 sparse — its consistency across <em>both</em>
+      signals lifts it above the single-signal winner. That is exactly the robustness property RRF buys.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>AMI by hand: one weak factor sinks the whole term</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Task A.</strong> Contributions \(r_i c_i t_i (\mathbf{w}^{\top}\mathbf{e}_i)\):</p>
+    <aside class="underhood" data-title="the arithmetic">
+      \[ \begin{aligned}
+        \text{Art. 1} &= 0.9 \times 0.8 \times 1.0 \times 2.0 = 1.440 \\
+        \text{Art. 2} &= 0.6 \times 0.5 \times 0.7 \times 1.2 = 0.252 \\
+        \text{Art. 3} &= 0.3 \times 0.9 \times 0.4 \times 0.5 = 0.054
+      \end{aligned} \]
+      <strong>Task B.</strong> Sum \(= 1.746\); add \(\alpha = -2.0 \Rightarrow -0.254\):
+      \[ \mathrm{AMI}(s) = \sigma(-0.254) = \frac{1}{1+e^{0.254}} \approx \mathbf{0.437}. \]
+    </aside>
+    <div class="block">
+      <div class="block-title">Task C — why the most credible article contributes least</div>
+      Despite the highest credibility (\(c_3 = 0.9\)), Article 3 is crushed by <em>low relevance</em> (0.3) and
+      <em>stale recency</em> (0.4) — the factors multiply, so any single weak factor drags the whole term down.
+      Credibility cannot rescue a doc that is barely about the subject or years old.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP-UP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Key takeaways — and where Lecture 12 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Problem 1 — RRF</div>
+          <ul>
+            <li>Fusion rewards cross-signal agreement — a doc strong on <em>both</em> retrievers beats a single-signal #1</li>
+            <li>\(\kappa = 60\) compresses rank differences; no learned weighting needed</li>
+          </ul>
+        </div>
+        <div class="block"><div class="block-title">Problem 2 — AMI</div>
+          <ul>
+            <li>Multiplicative factors mean one weak component (relevance, recency) dominates — credibility alone cannot save a stale, off-target doc</li>
+            <li>\(\alpha\) sets the prior; \(\mathbf{w}\) encodes offence severity and must be calibrated on enforcement outcomes</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Discussion</div>
+          <ul>
+            <li>Degree of automation decides the Annex III tier — <em>assist</em> vs. <em>decide / file</em></li>
+            <li>Good HITL gives the human a task they do better than the model</li>
+          </ul>
+        </div>
+        <div class="takeaway callout">
+          <span class="callout-tag">next</span>
+          Lecture 12 — Explainable AI: SHAP, attention attribution, and interpretability methods for the
+          compliance decisions we scored here.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">Two optional extensions: entity-resolution thresholds and AMI temporal decay.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem 1</div>
+    <h2>Entity resolution: how high should the match threshold sit?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A sanctions screener outputs a calibrated match probability \(P(\hat y = 1 \mid x_1, x_2)\).
+      You onboard 1,000,000 customers/year; the prevalence of true sanctions hits is \(\approx 1\) in 50,000.</p>
+    <ol>
+      <li class="frag">At a threshold giving recall \(0.999\) and FPR \(0.02\), how many false positives must analysts
+        review per year? (Hint: \(\approx 0.02 \times 10^6\).)</li>
+      <li class="frag">Lowering the threshold raises recall toward \(1.0\) but inflates FPR. Argue, using the cost
+        asymmetry, why sanctions screening still favours the higher recall despite the review burden.</li>
+      <li class="frag">How would a two-stage (ANN blocking → cross-encoder) pipeline change the operating point versus
+        a single fuzzy-match stage?</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem 2</div>
+    <h2>AMI temporal decay: how fast should old coverage fade?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Make recency explicit: the recency weight is \(t_i = e^{-\lambda (T - T_i)}\) with \(T - T_i\) in days.</p>
+    <ol>
+      <li class="frag">For \(\lambda = 0.01\)/day, compute \(t_i\) for an article 30, 180, and 365 days old. Confirm \(t \to 0\) slowly.</li>
+      <li class="frag">Re-run Problem 2's Article 1, now dated 365 days ago instead of today. Recompute its contribution and the resulting AMI.</li>
+      <li class="frag">A subject was <em>acquitted</em> 4 years ago but old coverage still surfaces. Argue for an aggressive
+        (large \(\lambda\)) vs. conservative (small \(\lambda\)) decay, and the fairness implications of each.</li>
+    </ol>
+    <div class="alert callout">
+      <span class="callout-tag">the fairness stakes</span>
+      Decay choice is not just engineering — it decides how long a person carries the weight of stale or overturned allegations.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

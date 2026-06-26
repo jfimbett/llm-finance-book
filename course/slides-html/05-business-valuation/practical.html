@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 5 — Practical: LLM-Assisted Business Valuation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 5 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Practical Session 5</div>
+    <h1>LLM-Assisted Business Valuation</h1>
+    <div class="sub">Hands-on: auditing an LLM's 10-K extraction, chain-of-thought forecasting, and a Monte Carlo DCF.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
+    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview · 1 hour</div>
+    <h2>What this hour looks like</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A working session: you audit machine-read financials, design a forecasting prompt, and run a valuation simulation — then we walk the solutions.</p>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — FCFF, the DCF equation, error propagation, evaluation metrics</li>
+          <li class="frag"><strong>Problem 1</strong> (15 min) — audit an LLM's 10-K extraction; propagate the error into the DCF</li>
+          <li class="frag"><strong>Problem 2</strong> (10 min) — design a chain-of-thought forecasting prompt</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="4">
+          <li class="frag"><strong>Case study</strong> (20 min) — run a Monte Carlo DCF; test sensitivity to WACC and \(g\)</li>
+          <li class="frag"><strong>Discussion</strong> (5 min) — when is the DCF unreliable, and how do you report uncertainty?</li>
+          <li class="frag"><strong>Solutions</strong> (5 min) — walkthrough of Problems 1 and 2</li>
+        </ol>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">what you will practise</span>
+      Auditing LLM-extracted financials and propagating extraction error; structuring a CoT forecasting prompt;
+      parameterising and reading a Monte Carlo DCF — reasoning about how <em>model error</em>, not the formula, drives valuation uncertainty.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 01 — RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap: the machinery you will use</h2>
+    <div class="secsub">Free cash flow, discounting, why a small growth error becomes a big valuation error.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · the valuation engine</div>
+    <h2>From cash flow to firm value, in two steps</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A valuation is just two ideas: figure out the cash the business throws off each year, then add up that cash in today's money.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Free cash flow to the firm</div>
+          Operating profit after tax, plus the non-cash depreciation charge, minus what you reinvest in equipment and working capital.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Enterprise value</div>
+          Each future year's cash, shrunk back to today by the cost of capital, plus a "terminal value" for everything past the forecast horizon.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="FCFF, the DCF, and the FCFF→FCFE bridge">
+      Free cash flow to the firm:
+      \[ \text{FCFF}_t = \text{EBIT}_t(1-\tau) + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t \]
+      DCF enterprise value (explicit horizon \(n\) plus a Gordon terminal value):
+      \[ V = \sum_{t=1}^{n} \frac{\text{FCF}_t}{(1+\text{WACC})^t}
+          + \frac{\text{FCF}_{n+1}}{(\text{WACC}-g)(1+\text{WACC})^n} \]
+      Equity-holder cash flow adjusts for after-tax interest and net new borrowing:
+      \[ \text{FCFE}_t = \text{FCFF}_t - \text{InterestExp}_t(1-\tau) + \text{NB}_t \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · the dangerous knob</div>
+    <h2>A tiny growth error is a huge valuation error</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The terminal value divides by the gap between the discount rate and the growth rate. When that gap is small, nudging the growth rate even slightly swings the whole valuation.</p>
+    <aside class="underhood" data-title="sensitivity of value to terminal growth">
+      Differentiating the Gordon terminal term in \(g\):
+      \[ \frac{\partial V}{\partial g} = \frac{\text{FCF}_n(1+\text{WACC})}{(\text{WACC}-g)^2} \]
+      The denominator is <em>squared</em>: as \(g\) approaches WACC, sensitivity explodes.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">the number to remember</span>
+      At WACC = 9% and \(g\) = 3%, a 100-basis-point error in \(g\) produces a <strong>15–18% error in enterprise value</strong>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · how to forecast and how to grade it</div>
+    <h2>Make the model narrate before it numbers</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A good forecasting prompt forces four stages of reasoning <em>before</em> any number appears — so the logic is visible and checkable.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">CoT four-stage structure</div>
+          <ol>
+            <li><strong>Macro</strong> — rates, GDP, inflation</li>
+            <li><strong>Industry</strong> — drivers, headwinds, competition</li>
+            <li><strong>Firm</strong> — position, CapEx plans, margins from MD&amp;A</li>
+            <li><strong>Synthesis</strong> — point estimate + P10 downside + P90 upside per year</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>Metric</th><th>Measures</th></tr>
+          <tr><td>MAPE</td><td>Magnitude accuracy</td></tr>
+          <tr><td>RMSE</td><td>Sensitivity to outliers</td></tr>
+          <tr><td>DA</td><td>Direction for decisions</td></tr>
+        </table>
+        <p class="small">Always compare against a random-walk baseline and analyst consensus.</p>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the three forecast-evaluation metrics">
+      \[ \text{MAPE}=\frac{1}{n}\sum \frac{|y_t-\hat{y}_t|}{|y_t|}, \qquad
+         \text{RMSE}=\sqrt{\frac{1}{n}\sum (y_t-\hat{y}_t)^2}, \qquad
+         \text{DA}=\frac{1}{n}\sum \mathbf{1}[\text{sign match}] \]
+      MAPE rewards magnitude accuracy; RMSE punishes large misses; directional accuracy (DA) is what an investment decision actually trades on.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 02 — PROBLEM 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problem 1: audit the machine's extraction</h2>
+    <div class="secsub">One field is wrong. Find it, fix it, and watch the valuation break.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 15 min</div>
+    <h2>The LLM read a 10-K — but one field is mis-extracted</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You pointed an extraction model at a mid-cap industrial's FY2023 10-K. It returned this JSON (USD millions). A classic failure hides inside: it copied CapEx from the cash-flow statement <em>without</em> the parenthesis that marks an outflow, and flattened a footnote.</p>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>Field</th><th>Value</th></tr>
+          <tr><td>Revenue</td><td>2,850</td></tr>
+          <tr><td>EBIT</td><td>428</td></tr>
+          <tr><td>Depreciation &amp; Amortisation</td><td>195</td></tr>
+          <tr><td>Capital Expenditure</td><td>240</td></tr>
+          <tr><td>NWC (FY2023)</td><td>380</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>Field</th><th>Value</th></tr>
+          <tr><td>NWC (FY2022)</td><td>315</td></tr>
+          <tr><td>Income Tax Expense</td><td>85</td></tr>
+          <tr><td>EBT (Earnings Before Tax)</td><td>368</td></tr>
+          <tr><td>Interest Expense</td><td>60</td></tr>
+          <tr><td>Net New Borrowing</td><td>+40</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the point</span>
+      This exercise is about the <em>extraction</em>, not the arithmetic. Your tasks are on the next slide.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · your tasks</div>
+    <h2>Catch the bad field, then price the damage</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The extraction figures are on the previous slide. Work through four tasks:</p>
+    <ol>
+      <li class="frag"><strong>Audit the extraction.</strong> Which textual features of a 10-K make CapEx, parenthesised negatives, or footnoted figures error-prone for an LLM? Name the automated check (e.g. a sign/units cross-check against the cash-flow statement) you would add to catch it.</li>
+      <li class="frag"><strong>Compute FCFF.</strong> Using the audited figures, compute FCFF with the effective tax rate (infer it from income tax / EBT). This \(\text{FCFF}_0\) feeds the case study.</li>
+      <li class="frag"><strong>Propagate the error.</strong> Recompute the DCF enterprise value (WACC = 10%, 5-yr growth = 6%, terminal growth = 2.5%) <em>with</em> the mis-extracted CapEx vs. the corrected value. How big a valuation error does one bad field cause?</li>
+      <li class="frag"><strong>State a rule.</strong> At what extraction-confidence level would you block an automated valuation from reaching a portfolio manager without human review?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 03 — PROBLEM 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Problem 2: design the forecasting prompt</h2>
+    <div class="secsub">Turn a paragraph of MD&amp;A guidance into structured, checkable reasoning.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 10 min</div>
+    <h2>Build a CoT forecasting prompt from MD&amp;A guidance</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You are building a valuation agent for the same industrial company. Its MD&amp;A states:</p>
+    <div class="block">
+      <div class="block-title">From the MD&amp;A</div>
+      <em>"We expect continued demand in our infrastructure segment driven by public investment in grid
+      modernisation. However, supply chain bottlenecks in copper and steel may compress margins in the near
+      term. We are targeting a 200-basis-point EBIT margin improvement over three years through operational
+      efficiency programs. CapEx will remain elevated at 8–9% of revenue as we expand two manufacturing facilities."</em>
+    </div>
+    <p class="lead frag"><strong>Your tasks:</strong></p>
+    <ol>
+      <li class="frag">Write the four-stage CoT reasoning (macro → industry → firm → synthesis) a well-designed prompt should elicit.</li>
+      <li class="frag">Identify at least one potential internal inconsistency in the guidance that a consistency-checking step should flag.</li>
+      <li class="frag">Specify the JSON output format for Year 1–3 FCF forecasts (base, upside, downside, justification).</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 04 — CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Case study: the Monte Carlo DCF</h2>
+    <div class="secsub">Don't pick one growth rate — draw thousands, and read the spread.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · 20 min · setup</div>
+    <h2>Replace point estimates with a distribution</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Instead of guessing a single WACC and growth rate, you draw thousands of plausible combinations and watch the whole range of enterprise values that results. The base cash flow is your \(\text{FCFF}_0\) from Problem 1.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Parameters (mean ± std dev)</div>
+          <table>
+            <tr><th>Parameter</th><th>Mean</th><th>Std</th></tr>
+            <tr><td>WACC</td><td>10%</td><td>1.5%</td></tr>
+            <tr><td>Explicit growth / yr</td><td>6%</td><td>3%</td></tr>
+            <tr><td>Terminal growth</td><td>2.5%</td><td>1%</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Simulation spec</div>
+          <ul>
+            <li>\(M = 5{,}000\) draws; 5-year explicit horizon; <code class="inline">seed = 42</code></li>
+            <li>Clip terminal growth so \(g_{\text{terminal}} &lt; \text{WACC} - 0.5\%\)</li>
+            <li>Report mean, median, std, P10, P25, P75, P90 of the EV distribution</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout">
+      <span class="callout-tag">why clip the growth rate</span>
+      If a draw lets growth meet or exceed WACC, the terminal value blows up to infinity. Clipping keeps every simulated valuation finite and economically sane.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · step 1 (1/2)</div>
+    <h2>Draw the parameters</h2>
+    <div class="title-rule"></div>
+    <p class="lead">First, sample the uncertain inputs and clip terminal growth safely below the discount rate.</p>
+    <pre class="code">import numpy as np
+
+def monte_carlo_dcf(fcff0, g_exp_mean, g_exp_std, wacc_mean, wacc_std,
+                    g_term_mean, g_term_std, n=5, M=5000, seed=42):
+    rng = np.random.default_rng(seed)
+    wacc   = rng.normal(wacc_mean,   wacc_std,   M)
+    g_term = rng.normal(g_term_mean, g_term_std, M)
+    g_exp  = rng.normal(g_exp_mean,  g_exp_std,  (M, n))
+
+    # Clip terminal growth below WACC -> finite Gordon value
+    g_term = np.minimum(g_term, wacc - 0.005)</pre>
+    <p class="small">Each draw is one possible future. The valuation loop follows on the next slide.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · step 1 (2/2)</div>
+    <h2>Value each draw, collect the distribution</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For every draw, grow the cash flows, discount them, add a terminal value, and store the enterprise value.</p>
+    <pre class="code">    ev = np.zeros(M)
+    for m in range(M):
+        fcfs = [fcff0]
+        for t in range(n):
+            fcfs.append(fcfs[-1] * (1 + g_exp[m, t]))
+        pv_fcf = sum(fcfs[t]/(1+wacc[m])**t for t in range(1, n+1))
+        tv = fcfs[n]*(1+g_term[m])/(wacc[m]-g_term[m])
+        ev[m] = pv_fcf + tv/(1+wacc[m])**n
+    return ev
+
+# Use FCFF0 from Problem 1
+ev_sim = monte_carlo_dcf(fcff0=???, ...)</pre>
+    <div class="alert callout">
+      <span class="callout-tag">do this first</span>
+      Fill in <code class="inline">fcff0</code> with your audited \(\text{FCFF}_0\) from Problem 1 — a wrong extraction here poisons all 5,000 valuations.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>Three questions to interrogate your output</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Question A — where does the uncertainty come from?</strong> Compare the P10 and P90 enterprise values. What fraction of total EV uncertainty is terminal-value uncertainty vs. explicit-period FCF uncertainty? <span class="small">(Hint: re-run with \(\sigma_g = 0\) to isolate the explicit period.)</span></li>
+      <li class="frag"><strong>Question B — how sensitive is the headline number?</strong> At what terminal growth rate \(g\) does the median EV roughly double relative to the Problem 1 base case? <span class="small">(Hint: solve \(TV \propto 1/(\text{WACC}-g)\) for the target \(g\).)</span></li>
+      <li class="frag"><strong>Question C — does the market agree?</strong> A competitor is acquired at 12× EV/EBITDA. With EBITDA = EBIT + DA = \(\$\)623M, does the comparables EV fall inside the Monte Carlo P10–P90 range? What does the gap (or its absence) say about pricing?</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · record your results</div>
+    <h2>Fill in this table</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>Statistic</th><th>Value (USD M)</th></tr>
+          <tr><td>Mean EV</td><td>?</td></tr>
+          <tr><td>Median EV</td><td>?</td></tr>
+          <tr><td>Std Dev</td><td>?</td></tr>
+          <tr><td>P10 (bear)</td><td>?</td></tr>
+          <tr><td>P25</td><td>?</td></tr>
+          <tr><td>P75</td><td>?</td></tr>
+          <tr><td>P90 (bull)</td><td>?</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <table>
+          <tr><th>Derived</th><th>Value</th></tr>
+          <tr><td>P90 − P10 range</td><td>?</td></tr>
+          <tr><td>P90 / P10 ratio</td><td>?</td></tr>
+          <tr><td>Comparables EV (12× EBITDA)</td><td>?</td></tr>
+        </table>
+        <div class="takeaway callout">
+          <span class="callout-tag">interpret</span>
+          Is the DCF estimate consistent with the comparables estimate? What does a P90/P10 ratio &gt; 2 suggest about this valuation?
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 05 — DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Discussion: communicating uncertainty</h2>
+    <div class="secsub">When the number is fragile, how do you say so honestly?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 5 min · in pairs</div>
+    <h2>When is the DCF unreliable, and how do you report it?</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">When is the estimate unreliable?</div>
+          <ul>
+            <li class="frag">When \(g \approx \text{WACC}\) — the terminal denominator approaches zero</li>
+            <li class="frag">When FCF is negative or volatile (e.g. early-stage biotech)</li>
+            <li class="frag">When the horizon is short, so terminal value dominates</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">How to report it to a client</div>
+          <ul>
+            <li class="frag">Point estimate only? <em>Never — why not?</em></li>
+            <li class="frag">Point estimate + range (P10–P90)?</li>
+            <li class="frag">Full distribution histogram?</li>
+            <li class="frag">Bull/base/bear narrative + Monte Carlo range?</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">governance question</span>
+      You run this pipeline on 200 companies daily. What human-in-the-loop checkpoint(s) would you add, and at what threshold?
+      <span class="small">(Consider P90/P10 ratio, FCFF extraction confidence, and number of non-recurring items flagged.)</span>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 06 — SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Walkthrough of Problems 1 and 2 — including the number that breaks.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 1</div>
+    <h2>One dropped sign, a 3.2× overstatement</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>The audit.</strong> CapEx, parenthesised negatives, and footnoted figures are the classic LLM extraction traps — the model drops the sign/parenthesis or flattens a note. Fix: a verification sub-agent that cross-checks each figure's <em>sign and units</em> against the cash-flow statement and flags disagreements.</li>
+      <li class="frag"><strong>FCFF (corrected, CapEx as outflow).</strong> Effective tax rate \(\tau = 85/368 = 23.1\%\); \(\Delta\text{NWC}=65\), giving \(\text{FCFF}_0 = \mathbf{219.3}\) M.</li>
+      <li class="frag"><strong>Propagated error.</strong> If the LLM treats CapEx as \(+240\) (sign dropped), FCFF jumps to 699.3 M — a <strong>3.2× overstatement</strong> that flows straight into the DCF (corrected EV ≈ 3,672 M vs. a grossly inflated figure). A single mis-extracted field, not the discounting, breaks the valuation.</li>
+      <li class="frag"><strong>The rule.</strong> Block any automated valuation whose extraction confidence is below threshold (or whose sign-check fails) from reaching a PM without human review.</li>
+    </ol>
+    <aside class="underhood" data-title="the FCFF arithmetic">
+      \[ \text{FCFF}_0 = 428\,(1-0.231) + 195 - 240 - 65 = 428(0.769) + 195 - 240 - 65 = \mathbf{219.3}\text{ M} \]
+      With the sign dropped, the \(-240\) becomes \(+240\): \(\text{FCFF}\to 699.3\) M, a factor of \(699.3/219.3 \approx 3.2\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 2</div>
+    <h2>The firm-stage reasoning — and the tension to flag</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Stage 3 (firm-specific) key points</div>
+          <ul>
+            <li><span class="pill g">+</span> grid modernisation tailwind supports infrastructure revenue</li>
+            <li><span class="pill r">−</span> copper/steel bottlenecks compress near-term margins</li>
+            <li><span class="pill g">+</span> 200-bps margin improvement target over 3 years</li>
+            <li><span class="pill r">−</span> CapEx at 8–9% of revenue is elevated, limiting FCF conversion</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">inconsistency to flag</span>
+          A "200-bps EBIT margin improvement" promised <em>while</em> "CapEx stays elevated at 8–9% to expand facilities." Margin gains are more plausible once the expansion phase ends. If the improvement is claimed <em>during</em> the high-CapEx period, a consistency-checking agent should flag the tension for clarification.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="JSON output schema">
+      Each forecast year emits a structured record the agent can validate:
+      <pre class="code">{"year": 1, "base": &lt;float&gt;, "upside": &lt;float&gt;,
+ "downside": &lt;float&gt;, "justification": "&lt;2 sentences&gt;"}</pre>
+    </aside>
+  </section>
+
+  <!-- ============================ WRAP — TAKEAWAYS ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Five things to carry out of this session</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>FCFF is not a field in any filing.</strong> It is derived from EBIT, DA, CapEx, \(\Delta\)NWC, and the effective tax rate. Each input can carry LLM extraction error, and errors propagate multiplicatively.</li>
+      <li class="frag"><strong>CoT separates narrative from number.</strong> Force the model to commit to a macro/industry/firm story <em>before</em> generating numbers — inconsistencies become detectable.</li>
+      <li class="frag"><strong>Terminal growth dominates the uncertainty.</strong> A 100-bps error in \(g\) yields a 15–18% EV error. Report Monte Carlo percentile ranges, not just point estimates.</li>
+      <li class="frag"><strong>Comparables and DCF are complements.</strong> A large gap signals either mispricing or a flawed assumption — investigate, don't average.</li>
+      <li class="frag"><strong>Production pipelines need hallucination guards.</strong> Validate every ticker; trace every figure to a specific accession number. One hallucinated comparable can distort the whole multiple analysis.</li>
+    </ol>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problem</h2>
+    <div class="secsub">For students who finish early: decompose where the valuation variance actually comes from.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem</div>
+    <h2>Decompose the EV variance, then check the theory</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The LLM forecasts the explicit growth path (Problem 2's CoT step), so its forecast error <em>is</em> the uncertainty the model injects. How much of the valuation spread does that error explain?</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Tasks</div>
+          <ol>
+            <li>Re-run the simulation three times, each freezing two of the three inputs (WACC, explicit growth, terminal growth) at their mean and letting one vary.</li>
+            <li>Record \(\mathrm{Var}(EV)\) for each single-input run; express each as a fraction of the all-inputs-varying variance.</li>
+            <li><strong>Predict, then check:</strong> which input dominates?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">expected finding</span>
+          Terminal-growth uncertainty should dominate, consistent with the 15–18% EV error per 100-bps \(g\) shock. The decomposition makes the analytic sensitivity tangible.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="reconcile with the analytic sensitivity">
+      The single-input variance shares should track the partial derivative that governs terminal value:
+      \[ \frac{\partial V}{\partial g} = \frac{\text{FCF}_n(1+\text{WACC})}{(\text{WACC}-g)^2} \]
+      The squared denominator is why the \(g\)-only run should carry the largest share of \(\mathrm{Var}(EV)\).
+    </aside>
+  </section>
+
+</div></div>
+</body>
+</html>

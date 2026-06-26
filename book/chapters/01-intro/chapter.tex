@@ -1648,6 +1648,10 @@ be the model probability; the training objective is
   -\sum_{t=1}^{T} \log p_\theta(w_t \mid w_1, \ldots, w_{t-1}).
   \label{eq:ar-objective}
 \end{equation}
+This negative log-likelihood is the \emph{cross-entropy} loss between the model's
+predicted next-token distribution and the one-hot distribution of the observed token;
+the masked objective below and essentially every language-model loss in later chapters
+are the same cross-entropy, summed over different positions.
 GPT-1 \cite{radford2018gpt}
 % [CITE: Radford, A. et al. (2018). Improving Language Understanding by Generative Pre-Training. OpenAI blog.]
 used a 12-layer Transformer decoder trained on the Books corpus

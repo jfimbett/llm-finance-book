@@ -597,6 +597,103 @@ hook need not understand the agent's task; it only needs to inspect the proposed
 against predefined rules. This separation of concerns is essential for regulated
 environments where compliance monitoring must be auditable and reproducible.
 
+% --- Subsection: File-based pattern ---
+
+\subsection{The File-Based Pattern: Agents, Skills, and Hooks as Markdown Artifacts}
+\label{subsec:file-based-pattern}
+
+The definitions above are framework-agnostic: a skill is a parameterised sub-workflow
+(\Cref{def:skill}), a hook is an event--handler pair (\Cref{def:agent-hook}), and an
+agent is a model with a role inside a loop. Programmatic frameworks realise these as
+Python objects. A second, increasingly common realisation is worth introducing now,
+because the rest of this book is itself built with it and because it is the form a
+practitioner is most likely to touch first: the \emph{file-based} pattern used by
+agentic coding assistants such as Claude Code. Here agents, skills, and hooks are not
+classes buried in a library but \emph{plain-text files} kept under version control,
+which makes them readable, diffable, and auditable---properties that matter as much in a
+regulated workflow as in a software project.
+
+The conventions are simple. An \textbf{agent} is a Markdown file (one per role, e.g.\
+under \texttt{.claude/agents/}) that states a persona, the inputs it may read, the task
+it performs, and---most importantly---the single artifact it is accountable for writing.
+A \textbf{skill} is a Markdown file (e.g.\ under \texttt{.claude/skills/}) that names an
+invocable procedure (\texttt{/draft-chapter}) and lists its ordered steps, which may
+invoke agents or other skills. A \textbf{hook} is a small script wired to a lifecycle
+event through a configuration file, so it fires automatically rather than on request.
+Many such files carry a short YAML \emph{frontmatter} block (delimited by \texttt{-{}-{}-})
+holding metadata---a name and a one-line description---followed by a free-text body.
+
+A minimal agent definition records who the agent is and what it must leave behind:
+
+\begin{minted}{markdown}
+---
+name: filing-risk-extractor
+description: Extracts the risk-factors section from a 10-K into structured JSON.
+---
+
+# Filing-Risk-Extractor Agent
+
+## Persona
+You extract risk factors from SEC filings. You do not editorialise.
+
+## Inputs
+- A 10-K filing (local path or EDGAR accession number)
+
+## What to Do
+1. Locate Item 1A (Risk Factors).
+2. Segment it into individual, atomic risks.
+
+## State Change (the only thing that counts)
+- Write `output/<ticker>-risks.json` as a list of
+  {risk_id, category, text, severity_estimate}.
+
+## Scope Limits
+- Do NOT summarise away detail. Do NOT add risks not in the filing.
+\end{minted}
+
+A skill records an invocable, repeatable procedure---and may call other skills, which is
+how a workflow library is composed rather than copy-pasted:
+
+\begin{minted}{markdown}
+---
+name: screen-filing
+description: Screen a new filing for material risk and draft an analyst note.
+---
+
+# /screen-filing
+
+## Steps
+1. Invoke filing-risk-extractor on the filing.        # calls an agent
+2. Rank risks by severity_estimate; keep the top five.
+3. Draft a one-page note from the ranked risks.
+4. Call /compliance-check on the draft note.          # skill calls skill
+5. If the check fails, revise and repeat from step 3.
+\end{minted}
+
+A hook is wired declaratively to an event and runs a script with no agent in the loop.
+The configuration below fires a compliance script after any file is written, turning a
+convention (``notes must clear compliance'') into an enforced step:
+
+\begin{minted}{json}
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "Write|Edit",
+        "command": "bash .hooks/compliance-check.sh" }
+    ]
+  }
+}
+\end{minted}
+
+The three artifacts divide the labour cleanly: agents are the \emph{who}, skills are the
+\emph{how}, and hooks are the \emph{automatic guardrails} that run whether or not anyone
+remembers to ask. This file-based form is what makes an agentic system inspectable: every
+capability and every control is a tracked file, so a reviewer can read exactly what the
+system is allowed to do and what it is forced to check. We use these artifacts lightly in
+the remainder of this chapter and develop them fully---composed into goal-directed
+iteration loops, with worked finance examples---in
+\Cref{ch:loops-goals-iterations}.
+
 % --- Subsection: Frameworks ---
 
 \subsection{Orchestration Frameworks: LangChain, LlamaIndex, and AutoGen}

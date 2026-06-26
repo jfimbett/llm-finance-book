@@ -39,7 +39,32 @@ This book opened with a question that felt speculative to many readers when the 
 
 Before moving to the applications we have not yet covered, it is worth pausing to consolidate what the preceding chapters have established, because the full scope only becomes visible in retrospect.
 
-The book has developed its argument across six interconnected themes. \Cref{ch:intro} introduced the theoretical and empirical basis for using language models in finance: the information density of financial text, the limitations of classical NLP pipelines, and the emergent capabilities of large pre-trained models. \Cref{ch:llm-foundations} grounded that motivation in the technical machinery of transformers, attention, and autoregressive generation---the substrate on which every subsequent application rests. \Cref{ch:llm-training} addressed the gap between a general-purpose foundation model and a finance-specific tool, covering instruction tuning, parameter-efficient fine-tuning, and the design of training data pipelines for financial corpora. \Cref{ch:llm-agents} elevated the unit of analysis from a single model call to a multi-step reasoning agent, introducing the ReAct framework \cite{yao2022react}, tool use, chain-of-thought decomposition \cite{wei2022chain}, and orchestrator-worker architectures. \Cref{ch:business-valuation} applied that agent infrastructure to the full pipeline of business valuation: EDGAR extraction, free-cash-flow computation, scenario analysis, and comparable-company selection \cite{damodaran2012investment}. \Cref{ch:credit-risk} turned to the credit domain, where the stakes of automated decision-making are most acute and where fairness and regulatory constraints are most binding.
+The book has developed its argument across six parts that climb from
+foundations to deployment. \emph{Part~I} built the technical base:
+\Cref{ch:intro} introduced the empirical case for language models in finance;
+\Cref{ch:ai-ml-finance-text} situated LLMs within the broader AI/ML hierarchy
+and financial text analysis; \Cref{ch:llm-foundations} grounded the motivation
+in transformers, attention, and autoregressive generation; \Cref{ch:llm-training}
+covered instruction tuning, parameter-efficient fine-tuning, and training-data
+design; and \Cref{ch:domain-specific-llms} specialised these models to finance.
+\emph{Part~II} (\Cref{ch:llm-agents}) elevated the unit of analysis from a single
+model call to a multi-step agent---ReAct \cite{yao2022react}, tool use,
+chain-of-thought decomposition \cite{wei2022chain}, orchestrator--worker
+architectures---and introduced agents, skills, and hooks as version-controlled
+artifacts. \emph{Part~III} applied this to reading financial text: sentiment
+(\Cref{ch:financial-nlp-sentiment}) and extraction/summarisation
+(\Cref{ch:financial-text-summarization}). \emph{Part~IV} covered the
+quantitative workhorses: valuation (\Cref{ch:business-valuation}; EDGAR
+extraction, free-cash-flow computation, comparable-company selection
+\cite{damodaran2012investment}), credit risk (\Cref{ch:credit-risk}), and
+portfolio construction and trading (\Cref{ch:portfolio-quant-trading}).
+\emph{Part~V} addressed the controls that make these deployable---compliance and
+AML (\Cref{ch:regtech-compliance-aml}), explainability
+(\Cref{ch:xai-explainability}), evaluation (\Cref{ch:llm-limitations-evaluation}),
+and privacy (\Cref{ch:privacy-local-models}). Finally, \emph{Part~VI} turned
+the agents, skills, and hooks of Part~II into engineered, goal-directed
+iteration loops (\Cref{ch:loops-goals-iterations}), of which the present chapter
+is the closing synthesis.
 
 Each chapter has also been a case study in a recurring design challenge: bridging the gap between what a language model can do in a research prototype and what a production finance system must do. That design challenge---reliable, auditable, compliant, and economically rational deployment of LLMs---is the organising thread of this final chapter.
 
@@ -99,12 +124,15 @@ Each chapter has also been a case study in a recurring design challenge: bridgin
 \ref{ch:llm-limitations-evaluation} & LLM Limitations \& Evaluation
   & Calibration, hallucination evaluation, benchmarking
   & Model validation and reliability \\[3pt]
-\ref{ch:applications-future} & Applications \& Future Directions
-  & Workflow automation, multimodal, agents
-  & Full-stack deployment, governance \\[3pt]
 \ref{ch:privacy-local-models} & Privacy \& Local Models
   & Open-weight models, quantisation, DP, federated learning
-  & On-premises private deployment \\
+  & On-premises private deployment \\[3pt]
+\ref{ch:loops-goals-iterations} & Loops, Goals \& Iterations
+  & Goal-directed loops, agents/skills/hooks, multi-agent critique
+  & Credit-risk stress testing, reproducible audit trails \\[3pt]
+\ref{ch:applications-future} & Applications \& Future Directions
+  & Workflow automation, multimodal, agents
+  & Full-stack deployment, governance \\
 \bottomrule
 \end{tabular}
 \end{table}

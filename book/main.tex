@@ -45,23 +45,41 @@ permission in writing from the author.\\[12pt]
 \include{frontmatter/about-this-book}
 
 \mainmatter
+
+% Reading order is defined here and ONLY here (chapter directory numbers are internal
+% IDs, not reading positions). The \part divisions encode the intended simple -> advanced
+% progression: foundations -> agentic tooling -> reading text -> quantitative apps ->
+% governance -> advanced agentic engineering and outlook. Every concept is introduced
+% before it is used in this order; see docs/quality/book-quality/CONCEPT_DEPENDENCY_MAP.md.
+
+\part{Foundations of Large Language Models}
 \include{chapters/01-intro/chapter}
 \include{chapters/16-ai-ml-finance-text/chapter}
 \include{chapters/02-llm-foundations/chapter}
 \include{chapters/03-llm-training-finetuning/chapter}
 \include{chapters/08-domain-specific-llms/chapter}
+
+\part{Agents, Tools, and Skills}
 \include{chapters/04-llm-agents/chapter}
+
+\part{Understanding Financial Text}
 \include{chapters/09-financial-nlp-sentiment/chapter}
 \include{chapters/14-financial-text-summarization/chapter}
+
+\part{Quantitative Finance Applications}
 \include{chapters/05-business-valuation/chapter}
 \include{chapters/06-credit-risk/chapter}
 \include{chapters/10-portfolio-quant-trading/chapter}
+
+\part{Trust, Governance, and Deployment}
 \include{chapters/11-regtech-compliance-aml/chapter}
 \include{chapters/12-xai-explainability/chapter}
 \include{chapters/13-llm-limitations-evaluation/chapter}
-\include{chapters/07-applications-future/chapter}
 \include{chapters/15-privacy-local-models/chapter}
+
+\part{Engineering Agentic Workflows and Outlook}
 \include{chapters/17-loops-goals-iterations/chapter}
+\include{chapters/07-applications-future/chapter}
 % Add new chapters here
 
 % NOTE: The appendices are compiled as a separate companion volume.

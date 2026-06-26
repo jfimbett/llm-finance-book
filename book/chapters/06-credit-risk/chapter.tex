@@ -797,20 +797,22 @@ The Platt scaling calibration described in \Cref{subsec:calibration} can be appl
 \subsection{Interpretability: SHAP for LLM-Based Credit Decisions}
 \label{subsec:shap-credit}
 
-SHAP (SHapley Additive exPlanations) \cite{lundberg2017unified} provides a theoretically grounded attribution method rooted in cooperative game theory. The SHAP value for feature $j$ in an input $x$ is the expected marginal contribution of feature $j$ to the model output across all possible subsets of features:
+SHAP (SHapley Additive exPlanations) \cite{lundberg2017unified} attributes a model's
+prediction to its input features by assigning each feature its average marginal
+contribution across all orderings in which features can enter the model---the Shapley
+value of cooperative game theory. We invoke SHAP here for the one property that makes it
+decisive in a credit setting, \emph{efficiency}: the per-feature attributions
+$\phi_j(x)$ sum exactly to the gap between the prediction and the population baseline,
 \begin{equation}
-  \phi_j(x) = \sum_{S \subseteq \mathcal{F} \setminus \{j\}} \frac{|S|! \, (|\mathcal{F}| - |S| - 1)!}{|\mathcal{F}|!} \left[ f(S \cup \{j\}) - f(S) \right],
-  \label{eq:shap}
+  \sum_{j \in \mathcal{F}} \phi_j(x) = f(x) - \mathbb{E}[f(x)],
+  \label{eq:shap-efficiency}
 \end{equation}
-where $\mathcal{F}$ is the full feature set, $S$ ranges over all subsets not containing $j$, and $f(S)$ denotes the model output when only features in $S$ are observed (remaining features are marginalised out according to their empirical distribution).
-
-SHAP values satisfy three axioms that make them particularly suitable for regulatory explanations:
-
-\begin{enumerate}
-  \item \textbf{Efficiency}: $\sum_{j \in \mathcal{F}} \phi_j(x) = f(x) - \mathbb{E}[f(x)]$. The SHAP values sum to the model's deviation from baseline.
-  \item \textbf{Symmetry}: if two features contribute identically to every coalition, they receive equal SHAP values.
-  \item \textbf{Dummy}: a feature that contributes nothing to any coalition receives a SHAP value of zero.
-\end{enumerate}
+which is precisely what lets a predicted default probability be decomposed into a
+complete, auditable list of reason codes with nothing left unexplained. The full
+game-theoretic derivation of $\phi_j$, the remaining axioms (symmetry and dummy), and
+the extension from tabular models to language-model predictions are developed in the
+dedicated explainability chapter (\Cref{def:shapley-value} and \Cref{eq:shapley-value}
+in \Cref{ch:xai-explainability}); here we simply apply the method to a credit decision.
 
 \subsubsection*{SHAP for an LLM-Based Credit Decision}
 

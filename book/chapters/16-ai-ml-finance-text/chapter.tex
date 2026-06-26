@@ -662,40 +662,60 @@ invest seriously in evaluation, monitoring, and human oversight.
 \section{Roadmap: What This Book Covers and How to Read It}
 \label{sec:book-roadmap}
 
-The remainder of this book is organized in three parts, each building on
-the conceptual scaffolding erected in the present chapter.
+The remainder of this book is organized in six parts, each building on
+the conceptual scaffolding erected in the present chapter.  The parts move
+deliberately from simpler foundations to more advanced engineering: no
+concept is used before an earlier chapter has introduced it.
 
-The first part builds the technical foundations.  The next chapter
-develops the architecture of transformer-based language models from the
-ground up, deriving the attention mechanism, the pre-training objectives,
-and the tokenization schemes that underlie all modern LLMs.  The chapters
-that follow cover training and fine-tuning --- how language models are
-adapted to specific tasks and domains using supervised fine-tuning,
-reinforcement learning from human feedback, and parameter-efficient
-methods such as LoRA --- and extend the single-model view to multi-agent
-systems, examining how LLMs can be composed into pipelines that plan,
-use tools, and interact with external data sources.  The final chapter
-of the first part applies these foundations to business valuation,
-showing how LLMs can assist in extracting and synthesizing the inputs to
-discounted-cash-flow and comparable-company analyses.
+\textbf{Part~I, Foundations of Large Language Models}, builds the technical
+base.  \Cref{ch:llm-foundations} develops the architecture of
+transformer-based language models from the ground up, deriving the attention
+mechanism, the pre-training objectives, and the tokenization schemes that
+underlie all modern LLMs.  \Cref{ch:llm-training} covers training and
+fine-tuning --- supervised fine-tuning, reinforcement learning from human
+feedback, and parameter-efficient methods such as LoRA ---
+and \Cref{ch:domain-specific-llms} turns to language models trained or
+adapted specifically for finance (FinBERT, BloombergGPT, and the
+domain-adaptation recipes behind them).
 
-The second part covers the primary application domains in finance.
-Successive chapters treat credit risk, emerging and frontier applications,
-domain-specific language models trained or adapted for finance, financial
-NLP and sentiment analysis, portfolio construction and quantitative
-trading, regulatory technology and anti-money laundering, and
-explainability.  The application chapters are designed to be read
-independently once the technical foundations are in place; a reader
-with a specific use case --- say, compliance automation or sentiment
-analysis --- can proceed directly to the relevant chapter after
-completing the foundational part.
+\textbf{Part~II, Agents, Tools, and Skills} (\Cref{ch:llm-agents}), extends
+the single-model view to systems that plan, call tools, retrieve external
+data, and coordinate as multiple agents.  It also introduces the file-based
+form of the agentic primitives --- agents, skills, and hooks as
+version-controlled Markdown and configuration artifacts
+(\Cref{subsec:file-based-pattern}) --- that the engineering chapter in
+Part~VI later composes into full iteration loops.
 
-The third part turns to evaluation, deployment, and operational concerns.
-It provides a systematic treatment of LLM limitations and evaluation
-methodology, covers financial text summarization, and examines
-privacy-preserving and locally deployed models, addressing the
-data-residency and confidentiality concerns that constrain the use of
-cloud-hosted models in financial institutions.
+\textbf{Part~III, Understanding Financial Text}, applies these foundations to
+reading: \Cref{ch:financial-nlp-sentiment} treats financial NLP and sentiment
+analysis, and \Cref{ch:financial-text-summarization} treats summarization,
+named-entity recognition, relation extraction, and table extraction from
+filings and reports.
+
+\textbf{Part~IV, Quantitative Finance Applications}, covers the numerical
+workhorses: business valuation (\Cref{ch:business-valuation}; discounted-cash-flow
+and comparable-company analysis), credit-risk analysis
+(\Cref{ch:credit-risk}; scoring, fairness, and calibration), and portfolio
+optimization and quantitative trading (\Cref{ch:portfolio-quant-trading}).
+These chapters can be read independently once Parts~I--II are in place; a
+reader with a specific use case can proceed directly to the relevant chapter.
+
+\textbf{Part~V, Trust, Governance, and Deployment}, turns to the controls that
+make the applications deployable: regulatory technology, compliance, and
+anti-money-laundering (\Cref{ch:regtech-compliance-aml}); explainability and
+interpretability (\Cref{ch:xai-explainability}); a systematic treatment of
+LLM limitations and evaluation methodology
+(\Cref{ch:llm-limitations-evaluation}); and privacy-preserving, locally
+deployed models (\Cref{ch:privacy-local-models}), addressing the
+data-residency and confidentiality concerns that constrain cloud-hosted
+models in financial institutions.
+
+\textbf{Part~VI, Engineering Agentic Workflows and Outlook}, is the
+methodology capstone.  \Cref{ch:loops-goals-iterations} shows how the agents,
+skills, and hooks of Part~II are composed into goal-directed iteration loops
+--- with worked examples that build on the credit-risk and governance material
+of Parts~IV--V --- and \Cref{ch:applications-future} closes with emerging
+applications, deployment patterns, and future directions.
 
 Throughout the book, formal definitions and examples are set off from
 the main text in the environments the reader has already encountered in

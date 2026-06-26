@@ -29,6 +29,22 @@ treats the \emph{design of iterative agentic systems} rather than any single
 tool.)
 \end{remark}
 
+\begin{context}
+This chapter builds directly on the agentic primitives of
+\Cref{ch:llm-agents}. There we defined an agent, a skill (\Cref{def:skill}), and a
+hook (\Cref{def:agent-hook}), and introduced the file-based form in which each is a
+plain-text, version-controlled artifact (\Cref{subsec:file-based-pattern}): an agent
+Markdown file with a persona and an accountable output, a skill Markdown file with an
+ordered, composable procedure, and a hook script wired to a lifecycle event. We do not
+re-derive those definitions here. Instead we ask the next question: how are these parts
+\emph{composed into a feedback loop} that pursues a goal, measures its own progress, and
+knows when to stop? The placement of this chapter is deliberate---it comes after the
+finance domains it draws on (notably credit risk, \Cref{ch:credit-risk}, whose stress
+test is the running example of \Cref{sec:example-credit-risk}) and after the governance
+and evaluation material (Part~V) that the loop's validators and audit trails depend on,
+so that every ingredient of an engineered loop is already on the table.
+\end{context}
+
 
 % --- Section: From Linear Prompts to Iterative Systems ---
 \section{From Linear Prompts to Iterative Systems}\label{sec:from-linear-to-iterative}

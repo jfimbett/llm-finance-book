@@ -211,3 +211,4 @@
 | 2026-06-26 | 14 files | revise(ch02): redraw Figure 3.1 as canonical Transformer encoder-decoder and add encoder/decoder explanation;chore: session log 2026-06-26;chore: session log 2026-06-26; | — |
 | 2026-06-26 | 14 files | chore: session log 2026-06-26;revise(ch02): redraw Figure 3.1 as canonical Transformer encoder-decoder and add encoder/decoder explanation;chore: session log 2026-06-26; | — |
 | 2026-06-26 | 4 files | revise(ch02): add tiny-GPT numerical forward-pass walk-through with FFN network figure;chore: session log 2026-06-26;chore: session log 2026-06-26; | — |
+| 2026-06-26 | 4 files | revise(ch02): show one-hot lookup, add special-tokens section, highlight matrix rows/cols;chore: session log 2026-06-26;revise(ch02): add tiny-GPT numerical forward-pass walk-through with FFN network figure; | — |

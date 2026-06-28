@@ -217,3 +217,4 @@
 | 2026-06-28 | 39 files | docs(slides): HTML slides overhaul design spec;chore: session log 2026-06-28;chore: session log 2026-06-26; | — |
 | 2026-06-28 | 3 files | docs(slides): HTML slides overhaul implementation plan;chore: session log 2026-06-28;docs(slides): HTML slides overhaul design spec; | — |
 | 2026-06-28 | 86 files | fix(slides): align ch10 practical badge to summer-school wording;chore(slides): delete legacy Beamer slide artifacts; HTML is the single source of truth;fix(slides): 17-loops — fix Park 2023 misattribution, align diagram caption; | — |
+| 2026-06-28 | 158 files | Merge feat/html-slides-overhaul: complete + de-MBA HTML decks, figures, delete Beamer;chore: session log 2026-06-28;fix(slides): align ch10 practical badge to summer-school wording; | — |

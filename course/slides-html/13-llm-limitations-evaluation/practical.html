@@ -20,7 +20,7 @@
     <h1>Evaluating LLMs Honestly</h1>
     <div class="sub">Calibration, contamination audits, and trading-grade metrics — turning a good-looking model into a number you can defend.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -276,6 +276,11 @@
     <h2>Recalibrate without re-training — and prove it</h2>
     <div class="title-rule"></div>
     <p class="lead">Reproduce the credit-classifier reliability diagram, compute its ECE, then apply temperature scaling and watch ECE fall while AUROC stays unchanged.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/13-llm-limitations-evaluation/fig_reliability.png" alt="Reliability diagram for LLM credit-risk classifier: bars below diagonal in high-confidence bins reveal overconfidence, ECE = 0.115">
+      <figcaption><b>Figure.</b> Target output for this case study. High-confidence bins (right side) sit well below the perfect-calibration diagonal — the model reports 88% confidence where it is only 62% accurate. Temperature scaling \(T > 1\) will shift these bars upward toward the diagonal while leaving the ROC curve unchanged.
+        <span class="src">Source: <code class="inline">gen_reliability_diagram.py</code>; bin statistics from Example 13.1 (chapter.tex §13.1).</span></figcaption>
+    </figure>
     <div class="cols">
       <div class="col">
         <div class="block"><div class="block-title">Reference code</div>

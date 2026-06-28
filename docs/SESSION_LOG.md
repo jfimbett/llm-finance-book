@@ -220,3 +220,4 @@
 | 2026-06-28 | 158 files | Merge feat/html-slides-overhaul: complete + de-MBA HTML decks, figures, delete Beamer;chore: session log 2026-06-28;fix(slides): align ch10 practical badge to summer-school wording; | — |
 | 2026-06-28 | 157 files | feat(slides): always-visible fullscreen button in the shared HUD;chore: session log 2026-06-28;Merge feat/html-slides-overhaul: complete + de-MBA HTML decks, figures, delete Beamer; | — |
 | 2026-06-28 | 156 files | chore: session log 2026-06-28;feat(slides): always-visible fullscreen button in the shared HUD;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 156 files | chore: session log 2026-06-28;chore: session log 2026-06-28;feat(slides): always-visible fullscreen button in the shared HUD; | — |

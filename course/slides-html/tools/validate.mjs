@@ -14,8 +14,9 @@ if (current !== 1) fails.push(`expected exactly 1 current slide, found ${current
 // at least one figure
 if (!/<figure|<img|<svg/i.test(html)) fails.push('no figure/img/svg present');
 
-// zero MBA
-if (/mba/i.test(html)) fails.push('contains "MBA"');
+// zero MBA — match the acronym as a whole word only (not substrings like
+// "imbalance", "embarrassment", "ambassador")
+if (/\bmba\b/i.test(html)) fails.push('contains "MBA"');
 
 // every img src resolves (skip remote URLs and data URIs)
 for (const m of html.matchAll(/<img[^>]*\ssrc="([^"]+)"/g)) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lecture 2 — Practical Session: Transformers, APIs, and RAG</title>
+<title>Lecture 2 (Practical) — LLM Architecture: Hands-On</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -16,497 +16,396 @@
 
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
-    <div class="kicker">Large Language Models in Finance · Practical Session 2</div>
-    <h1>Transformers, APIs, and RAG</h1>
-    <div class="sub">Hands-on: attention by hand, what an API run actually costs, and a minimal retrieval pipeline you can run.</div>
+    <div class="kicker">Large Language Models in Finance · Lecture 2 — Practical</div>
+    <h1>LLM Architecture: Hands-On</h1>
+    <div class="sub">Tokenise a filing, probe attention, extract earnings figures with structured generation, and deploy a compressed model — step by step.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
-  <!-- ============================ OVERVIEW ============================ -->
+  <!-- ============================ ROADMAP ============================ -->
   <section class="slide">
-    <div class="eyebrow">Session overview</div>
-    <h2>One hour, three things you'll do with your own hands</h2>
+    <div class="eyebrow">Session plan</div>
+    <h2>Four guided problems + one capstone</h2>
     <div class="title-rule"></div>
-    <p class="lead">Fifty minutes of problems, ten minutes of debrief. You attempt each piece before we reveal the answer.</p>
-    <div class="statrow">
-      <div class="stat"><div class="num">15'</div><div class="lbl">Problem 1 · attention by hand</div></div>
-      <div class="stat"><div class="num">15'</div><div class="lbl">Problem 2 · API cost estimation</div></div>
-      <div class="stat"><div class="num">20'</div><div class="lbl">Case study · run a RAG pipeline</div></div>
-      <div class="stat"><div class="num">10'</div><div class="lbl">Discussion · BERT vs GPT vs RAG</div></div>
-    </div>
-    <div class="cols">
-      <div class="col">
-        <ul>
-          <li class="frag"><strong>Problem 1.</strong> Trace scaled dot-product attention on a 3-token financial sequence: compute \(QK^\top\), scale, softmax, multiply by \(V\).</li>
-          <li class="frag"><strong>Problem 2.</strong> Cost a realistic compliance workload across GPT-4o, Claude 3 Haiku, and self-hosted Llama 3.</li>
-        </ul>
-      </div>
-      <div class="col">
-        <ul>
-          <li class="frag"><strong>Case study.</strong> Run a minimal RAG pipeline in Python with <code class="inline">sentence_transformers</code>, <code class="inline">faiss</code>, and <code class="inline">anthropic</code>; answer four diagnostic questions.</li>
-        </ul>
-        <div class="takeaway callout frag">
-          <span class="callout-tag">closing discussion</span>
-          When would you reach for BERT vs GPT vs RAG on a financial NLP task? Bring one concrete scenario for each.
-        </div>
-      </div>
+    <ol>
+      <li class="frag"><strong>Tokenisation clinic</strong> — count tokens, compute cost, hit the context wall</li>
+      <li class="frag"><strong>Attention probe</strong> — read the positional-encoding heatmap and visualise an attention head</li>
+      <li class="frag"><strong>Structured extraction</strong> — pull earnings figures reliably with Pydantic schemas</li>
+      <li class="frag"><strong>RAG on a 10-K</strong> — retrieve relevant passages and ground your answers</li>
+      <li class="frag"><strong>Capstone</strong> — end-to-end pipeline: tokenise → retrieve → extract → validate</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why these problems</span>
+      Each problem isolates exactly one failure mode introduced in the lecture — so you know which technique fixes which symptom in production.
     </div>
   </section>
 
-  <!-- ============================ SECTION 1 — RECAP ============================ -->
+  <!-- ============================ PROBLEM 1 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">01</div>
-    <h2>Recap — the two formulas you'll need</h2>
-    <div class="secsub">Scaled dot-product attention, and the back-of-envelope cost model for API calls.</div>
+    <h2>Tokenisation clinic</h2>
+    <div class="secsub">Count tokens, estimate cost, and discover where long-context models earn their price tag.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Recap · for Problem 1</div>
-    <h2>Attention is a weighted average — the weights are learned</h2>
+    <div class="eyebrow">Guided problem 1 · setup</div>
+    <h2>How much does it cost to read a 10-K?</h2>
     <div class="title-rule"></div>
-    <p class="lead">Each token looks at every other token, decides how much each one matters, and blends their value vectors in those proportions. The blending weights are what "attention" computes.</p>
-    <div class="block">
-      <div class="block-title">The formula, on the surface</div>
-      \[ \text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V \]
-      \(Q\) = queries, \(K\) = keys, \(V\) = values, \(d_k\) = head dimension.
+    <p class="lead">Before writing any NLP code, count what you're paying for. One 10-K can wipe your monthly budget if you send it naively.</p>
+    <pre class="code">import tiktoken
+from pathlib import Path
+
+# Load a 10-K text (SEC EDGAR full-text submission)
+text_10k = Path("data/AAPL_10K_2023.txt").read_text()
+
+enc = tiktoken.encoding_for_model("gpt-4o")
+tokens = enc.encode(text_10k)
+print(f"Tokens: {len(tokens):,}")
+print(f"Characters: {len(text_10k):,}")
+print(f"Ratio: {len(text_10k)/len(tokens):.2f} chars/token")
+
+# Estimate cost
+INPUT_PRICE  = 5.00 / 1_000_000   # USD / token (GPT-4o)
+OUTPUT_PRICE = 15.00 / 1_000_000
+n_questions  = 10
+avg_out      = 200
+total = len(tokens) * INPUT_PRICE + n_questions * avg_out * OUTPUT_PRICE
+print(f"Estimated cost for {n_questions} Q&A: ${total:.4f}")</pre>
+    <div class="alert callout frag">
+      <span class="callout-tag">the surprise</span>
+      Apple's 2023 10-K runs ~80,000 words and approximately 110,000 tokens — about \(\$\)0.55 of input cost per call.
+      A loop over 1,000 filings without caching: ~\(\$\)550. Cache a shared system prompt to cut 70–90%.
     </div>
-    <aside class="underhood" data-title="the four steps, spelled out">
-      Given query matrix \(Q\), key matrix \(K\), value matrix \(V\), head dimension \(d_k\):
-      <ol>
-        <li>Raw scores \(S = QK^\top\) — shape \(n\times n\); entry \((i,j)=\mathbf{q}_i^\top\mathbf{k}_j\).</li>
-        <li>Scale \(\tilde S = S/\sqrt{d_k}\) — keeps magnitudes from blowing up as \(d_k\) grows.</li>
-        <li>Softmax each row of \(\tilde S\) to get attention weights \(A\) (each row sums to 1).</li>
-        <li>Output \(O = AV\) — each row is the attention-weighted sum of value vectors.</li>
-      </ol>
-      Softmax: \(\;\text{softmax}(\mathbf{x})_i = \dfrac{e^{x_i}}{\sum_j e^{x_j}}\). Numerical-stability tip: subtract \(\max(\mathbf{x})\) before exponentiating.
+    <aside class="underhood" data-title="cost formula and BPE tokenisation">
+      \[\text{cost} = N_\text{in}\cdot c_\text{in} + N_\text{out}\cdot c_\text{out}.\]
+      BPE splits unknown tokens at character level. "EBITDA" → ["EB","IT","DA"]; "CUSIP" → ["C","US","IP"]. Rare financial tickers fragment to more tokens than ordinary English words, inflating cost beyond the 1.3 chars/token heuristic.
     </aside>
-    <div class="bigpicture callout">
-      <span class="callout-tag">why the \(\sqrt{d_k}\)</span>
-      Without it, larger heads produce larger dot products, the softmax saturates, and gradients vanish. Dividing by \(\sqrt{d_k}\) keeps the scores in a sane range.
-    </div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Recap · for Problem 2</div>
-    <h2>What an API call costs is just arithmetic on tokens</h2>
+    <div class="eyebrow">Guided problem 1 · exercise</div>
+    <h2>Find the context wall — and three ways to break through it</h2>
     <div class="title-rule"></div>
-    <p class="lead">Providers bill per token, separately for what you send in and what comes back out. Words convert to tokens at a rough fixed rate, so a cost estimate is a one-line calculation.</p>
+    <p class="lead">GPT-4o supports 128K tokens. A 10-K plus a detailed prompt can exceed that. Try the three standard mitigations and measure how much content you retain.</p>
+    <pre class="code">def truncate(tokens, limit=127_000):
+    """Keep only the first `limit` tokens — simple but loses the end."""
+    return tokens[:limit]
+
+def chunk(tokens, size=500, overlap=50):
+    """Overlapping windows — nothing lost, but needs multi-call aggregation."""
+    return [tokens[i:i+size] for i in range(0, len(tokens), size-overlap)]
+
+def section_extract(text, keywords=("Risk Factors","MD&A","Results")):
+    """Pull only high-value sections — smart but requires a section parser."""
+    ...
+
+print(f"Truncated tokens:   {len(truncate(tokens)):,}")
+chunks = chunk(tokens)
+print(f"Chunks (500-50):    {len(chunks)} windows")</pre>
     <div class="cols">
       <div class="col">
-        <div class="block"><div class="block-title">Rules of thumb</div>
-          \[ \text{tokens} \approx 1.3 \times \text{words} \]
-          \[ \text{cost} = N_{\text{in}}\cdot c_{\text{in}} + N_{\text{out}}\cdot c_{\text{out}} \]
-          \(N\) = token counts; \(c\) = price per token (quoted per million tokens, MTok).
+        <div class="block">
+          <div class="block-title">Exercise</div>
+          Compare: (a) mean F1 on 10 FinanceBench questions using truncation vs. (b) chunking with max-pool aggregation. Which strategy preserves more relevant passages for questions whose answers appear near the end of the filing?
         </div>
       </div>
       <div class="col">
-        <table>
-          <tr><th>Model</th><th>Input (\(\$\)/MTok)</th><th>Output (\(\$\)/MTok)</th></tr>
-          <tr><td>GPT-4o</td><td>\(\$\)5.00</td><td>\(\$\)15.00</td></tr>
-          <tr><td>Claude 3 Haiku</td><td>\(\$\)0.25</td><td>\(\$\)1.25</td></tr>
-          <tr><td>Llama 3 (A100)</td><td>\(\$\)0 (compute only)</td><td>\(\$\)0</td></tr>
-        </table>
-        <p class="small"><strong>Self-hosted:</strong> an A100 GPU runs about \(\$\)3/hr on cloud spot markets — you pay for time, not tokens.</p>
+        <div class="takeaway callout">
+          <span class="callout-tag">expected finding</span>
+          Truncation loses the full risk-factors section (last 30% of most 10-Ks). Chunking + retrieval recovers it; hierarchical encoding recovers structure but requires 2× compute.
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ============================ SECTION 2 — PROBLEM 1 ============================ -->
+  <!-- ============================ PROBLEM 2 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">02</div>
-    <h2>Problem 1 — attention by hand (15 min)</h2>
-    <div class="secsub">Run the full attention computation on a tiny financial sequence, by hand, on paper.</div>
+    <h2>Attention probe</h2>
+    <div class="secsub">Read positional encodings from the figure, then visualise an attention head on a real earnings sentence.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Problem 1 · setup</div>
-    <h2>Three tokens, two dimensions, small integers</h2>
+    <div class="eyebrow">Guided problem 2 · the PE heatmap</div>
+    <h2>What does positional encoding look like? Read the heatmap.</h2>
     <div class="title-rule"></div>
-    <p class="lead">Our sequence is three tokens of a financial sentence: <code class="inline">revenue</code>, <code class="inline">increased</code>, <code class="inline">significantly</code>. We use head dimension \(d_k=2\) so the arithmetic stays on one page.</p>
-    <div class="block">
-      <div class="block-title">Given matrices (row \(i\) = token \(i\))</div>
-      \[
-      Q = \begin{pmatrix} 1 & 0 \\ 2 & 1 \\ 0 & 1 \end{pmatrix},\quad
-      K = \begin{pmatrix} 1 & 1 \\ 0 & 2 \\ 1 & 0 \end{pmatrix},\quad
-      V = \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \end{pmatrix}
-      \]
-      Row 1 = <code class="inline">revenue</code>, row 2 = <code class="inline">increased</code>, row 3 = <code class="inline">significantly</code>.
+    <figure class="deckfig">
+      <img src="../assets/figures/02-llm-foundations/fig_illustration.png" alt="Sinusoidal positional-encoding heatmap: 50 positions (rows) by 64 dimensions (columns)">
+      <figcaption><b>Figure.</b> Sinusoidal positional-encoding matrix for \(d_{\text{model}}=64\), sequence length 50.
+        Row = token position; column = encoding dimension. Low-indexed dimensions oscillate rapidly (short period, fine position); high-indexed dimensions change slowly (long period, coarse position).
+        <span class="src">Source: generated by <code>gen_positional_encoding.py</code> (deterministic).</span></figcaption>
+    </figure>
+    <div class="block frag">
+      <div class="block-title">Reading exercise — three questions</div>
+      <ol>
+        <li>At dimension 0 (leftmost column), estimate the wave period in tokens.</li>
+        <li>At dimension 62 (rightmost), does one full period fit in 50 positions?</li>
+        <li>Two sentences are 32 tokens apart — which dimension range encodes this gap most faithfully?</li>
+      </ol>
     </div>
-    <div class="takeaway callout">
-      <span class="callout-tag">why this is fair game</span>
-      \(d_k=2\) is unrealistically small — GPT-3 uses \(d_k=64\), GPT-4 about \(128\). The algebra is identical; we just keep the numbers manageable.
-    </div>
+    <aside class="underhood" data-title="exact period formula">
+      The period of dimension \(2i\) is \(T_{2i} = 2\pi \cdot 10000^{2i/d}\).
+      At \(d=64, i=0\): \(T_0 = 2\pi \approx 6.28\) tokens — rapid.
+      At \(i=31\): \(T_{62} = 2\pi \cdot 10000 \approx 62{,}832\) tokens — almost flat over 50 positions.
+      The 32-token gap: dimensions with \(T \approx 32\) encode it most faithfully, specifically \(i \approx 11\).
+    </aside>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Problem 1 · tasks</div>
-    <h2>Compute it step by step — show your working</h2>
+    <div class="eyebrow">Guided problem 2 · attention head</div>
+    <h2>Extract and plot an attention head on an earnings sentence</h2>
     <div class="title-rule"></div>
-    <div class="cols">
-      <div class="col">
-        <ul>
-          <li><strong>Task A.</strong> Compute \(S = QK^\top\) (a \(3\times 3\) matrix). Recall entry \((i,j)=\mathbf{q}_i^\top\mathbf{k}_j\).</li>
-          <li><strong>Task B.</strong> Scale by \(\sqrt{d_k}=\sqrt 2\approx 1.414\); report \(\tilde S = S/\sqrt 2\) to two decimals.</li>
-          <li><strong>Task C.</strong> Apply softmax row-wise to \(\tilde S\) to get the attention matrix \(A\) (rows sum to 1); round to three decimals.</li>
-          <li><strong>Task D.</strong> Compute the output \(O = AV\) — each row is the attention-weighted sum of value vectors.</li>
-        </ul>
-      </div>
-      <div class="col">
-        <div class="block"><div class="block-title">Then discuss</div>
-          <ul>
-            <li>Which value vector does token <code class="inline">revenue</code> attend to most heavily?</li>
-            <li>If \(d_k=64\) instead of 2 with the <em>same</em> raw dot products, would the weights be sharper or flatter?</li>
-          </ul>
-        </div>
-        <div class="alert callout">
-          <span class="callout-tag">attempt before revealing</span>
-          Solutions are in Section 06. Try all four tasks on paper first.
-        </div>
-      </div>
+    <p class="lead">Visualise which tokens a model pays attention to — on a real financial sentence — to build intuition for multi-head attention.</p>
+    <pre class="code">from transformers import BertTokenizer, BertModel
+import torch, matplotlib.pyplot as plt
+
+tok   = BertTokenizer.from_pretrained("bert-base-uncased")
+model = BertModel.from_pretrained("bert-base-uncased",
+                                   output_attentions=True)
+sentence = ("Revenue increased 12% year-over-year to $4.2 billion, "
+            "driven by strong demand in cloud services.")
+inp = tok(sentence, return_tensors="pt")
+with torch.no_grad():
+    out = model(**inp)
+
+attn   = out.attentions[-1][0]   # (heads, seq, seq)
+tokens = tok.convert_ids_to_tokens(inp["input_ids"][0])
+
+for head in range(12):
+    plt.figure(figsize=(8,6))
+    plt.imshow(attn[head].numpy(), cmap="Blues")
+    plt.xticks(range(len(tokens)), tokens, rotation=90, fontsize=7)
+    plt.yticks(range(len(tokens)), tokens, fontsize=7)
+    plt.title(f"Layer 12, Head {head}")
+    plt.tight_layout()
+    plt.savefig(f"attn_head_{head}.png")</pre>
+    <div class="alert callout frag">
+      <span class="callout-tag">what to look for</span>
+      Does "12%" attend strongly to "\(\$\)4.2"? Does "billion" attend back to "revenue"? Which heads specialise in numeric co-reference vs. subject–verb agreement?
     </div>
   </section>
 
-  <!-- ============================ SECTION 3 — PROBLEM 2 ============================ -->
+  <!-- ============================ PROBLEM 3 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">03</div>
-    <h2>Problem 2 — API cost estimation (15 min)</h2>
-    <div class="secsub">Price out a real compliance workload and decide when self-hosting pays off.</div>
+    <h2>Structured extraction</h2>
+    <div class="secsub">Pull earnings figures reliably with Pydantic + tool use — and diagnose the three failure modes.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Problem 2 · scenario</div>
-    <h2>A bank wants to read 5,000 annual filings — what's the bill?</h2>
+    <div class="eyebrow">Guided problem 3 · schema design</div>
+    <h2>Define the schema — then force the model to respect it</h2>
     <div class="title-rule"></div>
-    <p class="lead">A compliance team at a large European bank must process \(N=5{,}000\) annual report filings (10-K equivalents), each roughly 80,000 words, through an LLM pipeline.</p>
-    <div class="cols">
-      <div class="col">
-        <div class="block"><div class="block-title">The pipeline per filing</div>
-          <ul>
-            <li>System prompt: 1,000 tokens (fixed instructions)</li>
-            <li>Full filing text as input (converted to tokens)</li>
-            <li>600 output tokens (a structured compliance summary)</li>
-          </ul>
-        </div>
-      </div>
-      <div class="col">
-        <ul>
-          <li><strong>Task A.</strong> Total cost on <strong>GPT-4o</strong> (\(\$\)5/MTok in, \(\$\)15/MTok out).</li>
-          <li><strong>Task B.</strong> Same on <strong>Claude 3 Haiku</strong> (\(\$\)0.25/MTok in, \(\$\)1.25/MTok out).</li>
-          <li><strong>Task C.</strong> Self-host <strong>Llama 3</strong> on an A100 at \(\$\)3/hr, processing 200 filings/hr. Total compute cost? When is self-hosting preferred?</li>
-          <li><strong>Bonus.</strong> If the system prompt is cacheable at a 90% discount on cached input, recompute the Claude Haiku cost.</li>
-        </ul>
-      </div>
+    <p class="lead">Without constrained output, a model might write "Revenue was approximately USD 4.2B" — unparseable by a database. A Pydantic schema and tool use forces it to emit a machine-readable object every time.</p>
+    <pre class="code">from pydantic import BaseModel
+from typing import Optional
+import anthropic
+
+class EarningsReport(BaseModel):
+    company: str
+    period: str                           # e.g. "Q3 2023"
+    revenue_bn: Optional[float] = None    # USD billions
+    net_income_bn: Optional[float] = None
+    eps: Optional[float] = None           # diluted
+    guidance_revenue_bn: Optional[float] = None
+    sentiment: Optional[str] = None       # "beat" | "miss" | "in-line"
+
+client = anthropic.Anthropic()
+response = client.messages.create(
+    model="claude-3-5-haiku-latest",
+    max_tokens=512,
+    tools=[{"name": "record_earnings",
+            "description": "Record structured earnings data",
+            "input_schema": EarningsReport.model_json_schema()}],
+    tool_choice={"type": "tool", "name": "record_earnings"},
+    messages=[{"role": "user", "content": TRANSCRIPT_SNIPPET}]
+)
+result = EarningsReport(**response.content[0].input)
+print(result.model_dump())</pre>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">tool_choice enforces the schema</span>
+      Without <code class="inline">tool_choice</code>, the model may respond in free text when uncertain.
+      With it, the response must be the named tool call — always parseable.
     </div>
   </section>
 
-  <!-- ============================ SECTION 4 — CASE STUDY ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Guided problem 3 · failure mode triage</div>
+    <h2>Valid JSON does not mean correct data — three failure modes to catch</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Run these validation checks after every extraction call — constrained decoding guarantees shape, not values.</p>
+    <pre class="code">def validate_extraction(result, source_text: str) -> list[str]:
+    import re
+    issues = []
+    nums = [float(n) for n in re.findall(r"\d+\.\d+", source_text)]
+
+    # 1. Numerically wrong-but-valid
+    if result.revenue_bn and not any(abs(n - result.revenue_bn) < 0.1
+                                     for n in nums):
+        issues.append("revenue_bn not found in source text")
+
+    # 2. Silent field omission
+    for field in ("revenue_bn", "net_income_bn", "eps"):
+        if getattr(result, field) is None:
+            issues.append(f"missing field: {field}")
+
+    # 3. Unit confusion — revenue should be 0.01–10,000 B range
+    if result.revenue_bn and not (0.01 <= result.revenue_bn <= 10_000):
+        issues.append(f"suspicious revenue: {result.revenue_bn}B")
+
+    return issues</pre>
+    <div class="alert callout frag">
+      <span class="callout-tag">exercise</span>
+      Run the extractor on five FinanceBench snippets. Which failure mode appears most? Does switching from Haiku to Sonnet reduce the miss rate — and by how much?
+    </div>
+  </section>
+
+  <!-- ============================ PROBLEM 4 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">04</div>
-    <h2>Case study — a minimal RAG pipeline (20 min)</h2>
-    <div class="secsub">Retrieve relevant SEC-filing passages and let Claude answer, grounded only in what was retrieved.</div>
+    <h2>RAG on a 10-K</h2>
+    <div class="secsub">Index an SEC filing, retrieve relevant passages, and ground your answers — then measure what naive RAG misses.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Case study · introduction</div>
-    <h2>Retrieval-augmented generation, end to end</h2>
+    <div class="eyebrow">Guided problem 4 · indexing</div>
+    <h2>Split → embed → index in five lines</h2>
     <div class="title-rule"></div>
-    <p class="lead">Goal: build a working RAG pipeline that pulls relevant passages from a small corpus of SEC-filing excerpts and uses Claude to answer a question grounded in them.</p>
-    <div class="cols">
-      <div class="col">
-        <div class="block"><div class="block-title">The stack</div>
-          <ul>
-            <li><code class="inline">sentence_transformers</code> — bi-encoder embeddings (SBERT)</li>
-            <li><code class="inline">faiss</code> — approximate nearest-neighbour index</li>
-            <li><code class="inline">anthropic</code> — generation with the Claude API</li>
-          </ul>
-        </div>
-        <p class="small"><strong>Corpus:</strong> 5 SEC filing passages, pre-loaded in the code.</p>
-      </div>
-      <div class="col">
-        <div class="block"><div class="block-title">What you'll do</div>
-          <ol>
-            <li>Run the provided Python code</li>
-            <li>Observe which passage is retrieved for a query</li>
-            <li>Answer four diagnostic questions about retrieval behaviour</li>
-          </ol>
-        </div>
-        <div class="alert callout">
-          <span class="callout-tag">prerequisites</span>
-          Set an <code class="inline">ANTHROPIC_API_KEY</code> environment variable.<br>
-          Install: <code class="inline">pip install sentence-transformers faiss-cpu anthropic</code>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Case study · the code (1 of 2)</div>
-    <h2>Build the corpus and the index</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Embed five passages into vectors, normalise them, and load them into a FAISS inner-product index.</p>
+    <p class="lead">The RAG pipeline is three stages: retrieve relevant chunks, augment the prompt with them, then generate. Start with the retrieval stage.</p>
     <pre class="code">from sentence_transformers import SentenceTransformer
-import faiss, numpy as np, anthropic
+import faiss, numpy as np
 
-PASSAGES = [
-    "Revenue for FY2023 was $4.2 billion, up 12% year-over-year.",
-    "Operating expenses increased to $1.8 billion due to R&amp;D investment.",
-    "Net income declined 5% to $820 million, impacted by higher interest expense.",
-    "The company holds $2.1 billion in cash and equivalents.",
-    "Guidance for FY2024 projects revenue growth of 8-10%.",
-]
+# 1. Chunk — overlapping 500-word windows
+paragraphs = text_10k.split("\n\n")
+chunks = []
+for p in paragraphs:
+    words = p.split()
+    for i in range(0, len(words), 450):
+        chunks.append(" ".join(words[i:i+500]))
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
-embs = model.encode(PASSAGES, normalize_embeddings=True).astype("float32")
-index = faiss.IndexFlatIP(embs.shape[1])
-index.add(embs)</pre>
-  </section>
+# 2. Embed
+model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+emb   = np.array(model.encode(chunks, batch_size=64)).astype("float32")
 
-  <section class="slide">
-    <div class="eyebrow">Case study · the code (2 of 2)</div>
-    <h2>Retrieve, then generate a grounded answer</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Embed the query, pull the top-\(k\) passages, and pass them to Claude with an instruction to answer only from those passages.</p>
-    <pre class="code">def rag_query(query: str, k: int = 2) -> str:
-    q_emb = model.encode([query], normalize_embeddings=True).astype("float32")
-    _, ids = index.search(q_emb, k)
-    context = "\n".join(f"[{i+1}] {PASSAGES[ids[0][i]]}" for i in range(k))
-    client = anthropic.Anthropic()
-    msg = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=256,
-        system="Answer using only the provided passages. Cite passage numbers as [N].",
-        messages=[{"role": "user",
-                   "content": f"{context}\n\nQuestion: {query}"}],
-        temperature=0.0,
-    )
-    return msg.content[0].text
+# 3. Index (cosine via normalised inner product)
+faiss.normalize_L2(emb)
+index = faiss.IndexFlatIP(emb.shape[1])
+index.add(emb)
 
-print(rag_query("What was the net income?"))</pre>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Case study · diagnostics (1 of 2)</div>
-    <h2>What did retrieval actually do?</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Run the code for the query <code class="inline">"What was the net income?"</code>, then answer.</p>
-    <ul>
-      <li class="frag"><strong>Q1.</strong> Which passage(s) did FAISS return (which indices \(i\))? Does Claude correctly cite those passage numbers? Why or why not?</li>
-      <li class="frag"><strong>Q2.</strong> Change \(k=2\) to \(k=1\). Does the answer change? Now set \(k=5\) (all passages). How does more context affect the quality and length of the answer?</li>
-    </ul>
+# 4. Query
+q_emb  = model.encode(["What are the main liquidity risks?"],
+                       normalize_embeddings=True)
+D, I   = index.search(np.array(q_emb).astype("float32"), k=3)
+passages = [chunks[i] for i in I[0]]</pre>
     <div class="bigpicture callout frag">
-      <span class="callout-tag">what to watch for</span>
-      More context is not automatically better: it can dilute the signal, raise cost, and invite the model to cite passages that aren't actually relevant.
+      <span class="callout-tag">why FAISS</span>
+      Dense retrieval over 500 chunks with a flat index takes under 10 ms. At 1M chunks HNSW reduces this to \(O(\log n)\). For local development the flat index suffices.
     </div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Case study · diagnostics (2 of 2)</div>
-    <h2>Temperature, and what happens without retrieval</h2>
+    <div class="eyebrow">Guided problem 4 · generation + triage</div>
+    <h2>Inject retrieved passages — then measure what naive RAG gets wrong</h2>
     <div class="title-rule"></div>
-    <ul>
-      <li class="frag"><strong>Q3.</strong> Change <code class="inline">temperature=0.0</code> to <code class="inline">0.7</code> and run the same query three times. Do you see variation? Is that desirable here? What does it imply about the right temperature for structured financial extraction?</li>
-      <li class="frag"><strong>Q4 (hallucination).</strong> Modify the code to skip retrieval and send only the raw question to Claude with no context. Does the model still answer?
-        <ul>
-          <li>Is this intrinsic or extrinsic hallucination?</li>
-          <li>Restore retrieval: which mitigation technique from the lecture does RAG implement?</li>
-          <li>Name one additional mitigation for a production compliance pipeline.</li>
-        </ul>
-      </li>
-    </ul>
+    <p class="lead">FinanceBench shows naive RAG fails approximately 81% of questions. Run the triage checklist on your pipeline.</p>
+    <pre class="code">def rag_answer(query, passages, client):
+    context = "\n\n---\n\n".join(passages)
+    system  = ("Answer using ONLY the provided context. "
+               "If the answer is not present, say 'Not found in filing'.")
+    resp = client.messages.create(
+        model="claude-3-5-haiku-latest", max_tokens=512,
+        system=system,
+        messages=[{"role": "user",
+                   "content": f"Context:\n{context}\n\nQ: {query}"}]
+    )
+    return resp.content[0].text</pre>
+    <div class="block frag">
+      <div class="block-title">Triage checklist</div>
+      <ol>
+        <li>Is the claim directly supported by a retrieved passage? Highlight it.</li>
+        <li>Does the model add information absent from all 3 passages? (extrinsic hallucination)</li>
+        <li>Were the correct passages retrieved? Swap to BM25 — does precision improve?</li>
+        <li>Is the answer at wrong granularity? If yes, add a cross-encoder re-ranker.</li>
+      </ol>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">FinanceBench lesson</span>
+      The #1 failure: the answer exists in the filing but was not retrieved. Increase \(k\), use hybrid BM25+dense, or section-targeted retrieval (Zhang et al., 2024).
+    </div>
   </section>
 
-  <!-- ============================ SECTION 5 — DISCUSSION ============================ -->
+  <!-- ============================ CAPSTONE ============================ -->
   <section class="slide section-slide">
     <div class="secnum">05</div>
-    <h2>Discussion — BERT vs GPT vs RAG (10 min)</h2>
-    <div class="secsub">Three scenarios. For each, pick an approach and defend it.</div>
+    <h2>Capstone: end-to-end pipeline</h2>
+    <div class="secsub">Tokenise → retrieve → extract → validate — all four problems wired together.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Discussion</div>
-    <h2>Which tool fits which job?</h2>
+    <div class="eyebrow">Capstone</div>
+    <h2>Wire the four problems into one production-grade pipeline</h2>
     <div class="title-rule"></div>
-    <p class="lead">For each scenario, identify which approach you would use and why.</p>
-    <ol>
-      <li class="frag"><strong>Headline triage.</strong> A compliance officer must classify 50,000 news headlines/day as <em>material</em> or <em>non-material</em> for insider-trading monitoring. Latency target: under 50 ms per headline. Training data: 10,000 labelled examples.</li>
-      <li class="frag"><strong>Live 10-K Q&amp;A.</strong> A portfolio manager wants real-time answers about any 10-K in the portfolio, using the most recent filing — documents that were never in any model's training data.</li>
-      <li class="frag"><strong>Prospectus drafting.</strong> An investment bank must draft the "Risk Factors" section of a new bond prospectus from a structured data dump plus five precedent transactions.</li>
-    </ol>
-    <div class="takeaway callout frag">
-      <span class="callout-tag">frame your answer around</span>
-      Latency, available labelled data, classification vs generation, need for up-to-date information, cost, and auditability.
+    <p class="lead">Given a list of 10-K filings, automatically extract a structured earnings summary for each company, validate every field, and flag questions where RAG retrieval failed.</p>
+    <pre class="code">def pipeline(filing_path: str, questions: list[str]) -> dict:
+    text   = Path(filing_path).read_text()
+    tokens = enc.encode(text)
+    cost   = len(tokens) * INPUT_PRICE * len(questions)
+
+    chunks = chunk_text(text)               # Problem 1
+    index  = build_faiss_index(chunks)      # Problem 4
+
+    results = {}
+    for q in questions:
+        passages = retrieve(index, chunks, q, k=5)
+        answer   = rag_answer(q, passages, client)
+
+        if any(kw in q.lower() for kw in ("revenue","earnings","eps")):
+            report = extract_earnings(answer, client)  # Problem 3
+            issues = validate_extraction(report, answer)
+            results[q] = {"answer": answer,
+                          "structured": report.model_dump(),
+                          "issues": issues}
+        else:
+            results[q] = {"answer": answer}
+
+    return {"cost_estimate_usd": cost, "results": results}</pre>
+    <div class="block frag">
+      <div class="block-title">Extension challenge — compression (optional)</div>
+      Swap <code class="inline">claude-3-5-haiku-latest</code> for a locally served 7B Llama-3 quantised
+      to INT4 with AWQ. Measure: (a) extraction accuracy on 10 FinanceBench questions,
+      (b) latency per call, (c) cost per 1,000 filings. Does QLoRA fine-tuning on a
+      proprietary 10-K corpus close the gap to Haiku?
     </div>
   </section>
 
-  <!-- ============================ SECTION 6 — SOLUTIONS ============================ -->
-  <section class="slide section-slide">
-    <div class="secnum">06</div>
-    <h2>Solutions</h2>
-    <div class="secsub">Worked answers to Problems 1 and 2 — check these only after you've attempted them.</div>
-  </section>
-
+  <!-- ============================ WRAP ============================ -->
   <section class="slide">
-    <div class="eyebrow">Solution · Problem 1 (1 of 2)</div>
-    <h2>Attention by hand — scores and scaling</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Tasks A and B: the raw score matrix, then the scaled version.</p>
-    <div class="cols">
-      <div class="col">
-        <div class="block"><div class="block-title">Task A — \(S = QK^\top\)</div>
-          \[ S = \begin{pmatrix}1&0\\2&1\\0&1\end{pmatrix}\begin{pmatrix}1&0&1\\1&2&0\end{pmatrix}
-             = \begin{pmatrix}1&0&1\\3&2&2\\1&2&0\end{pmatrix} \]
-        </div>
-      </div>
-      <div class="col">
-        <div class="block"><div class="block-title">Task B — \(\tilde S = S/\sqrt 2\)</div>
-          \[ \tilde S \approx \begin{pmatrix}0.71&0.00&0.71\\2.12&1.41&1.41\\0.71&1.41&0.00\end{pmatrix} \]
-        </div>
-      </div>
-    </div>
-    <aside class="underhood" data-title="how an entry of S is formed">
-      Entry \((i,j)=\mathbf{q}_i^\top\mathbf{k}_j\). For example row 2, col 1: \(\mathbf{q}_2=(2,1)\), \(\mathbf{k}_1=(1,1)\), so \(S_{21}=2\cdot 1+1\cdot 1=3\). Dividing every entry by \(\sqrt 2\approx 1.414\) gives \(\tilde S\).
-    </aside>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Solution · Problem 1 (2 of 2)</div>
-    <h2>Attention by hand — weights and output</h2>
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What you should be able to do now</h2>
     <div class="title-rule"></div>
     <div class="cols">
       <div class="col">
-        <div class="block"><div class="block-title">Task C — softmax row-wise → \(A\)</div>
-          \[ A \approx \begin{pmatrix}0.400&0.200&0.400\\0.561&0.220&0.220\\0.260&0.529&0.211\end{pmatrix} \]
+        <div class="block">
+          <div class="block-title">Skills practised</div>
+          <ul>
+            <li>Count tokens, estimate cost, choose chunking strategy</li>
+            <li>Read a positional-encoding heatmap; extract and plot attention weights</li>
+            <li>Design a Pydantic schema, call with tool use, validate structured output</li>
+            <li>Build a FAISS index, run hybrid BM25+dense retrieval, triage RAG failures</li>
+          </ul>
         </div>
       </div>
       <div class="col">
-        <div class="block"><div class="block-title">Task D — \(O = AV\)</div>
-          \[ O \approx \begin{pmatrix}0.800&0.800\\0.781&0.439\\0.740&0.740\end{pmatrix} \]
+        <div class="takeaway callout">
+          <span class="callout-tag">production checklist</span>
+          Before deploying any LLM-in-finance pipeline: (1) token budget + cost cap; (2) correct chunking for document length; (3) constrained decoding + schema validation; (4) hybrid RAG; (5) hallucination triage on a held-out set; (6) EU AI Act compliance assessment if output drives automated decisions.
+        </div>
+        <div class="alert callout frag">
+          <span class="callout-tag">next session</span>
+          Lecture 3 Practical — fine-tuning FinBERT on a proprietary sentiment dataset, and running LopezLira &amp; Tang (2023) signals on your own news feed.
         </div>
       </div>
-    </div>
-    <aside class="underhood" data-title="row 1 softmax worked out">
-      Row 1 of \(\tilde S\) is \((0.71,\,0,\,0.71)\). Exponentials: \(e^{0.71}+e^{0}+e^{0.71}=2.034+1+2.034=5.068\), giving weights \((0.400,\,0.200,\,0.400)\). Multiplying by \(V\) blends value vectors 1 and 3 most heavily.
-    </aside>
-    <div class="bigpicture callout">
-      <span class="callout-tag">reading the answer</span>
-      Token <code class="inline">revenue</code> splits its attention evenly between itself and <code class="inline">significantly</code>. A larger \(d_k\) with the same dot products makes the softmax <em>sharper</em> — pre-softmax magnitudes are bigger, so the weights concentrate.
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Solution · Problem 2 (1 of 2)</div>
-    <h2>API costs — GPT-4o vs Claude 3 Haiku</h2>
-    <div class="title-rule"></div>
-    <div class="block"><div class="block-title">Token counts per filing</div>
-      <ul>
-        <li>Input: \(80{,}000 \times 1.3 = 104{,}000\) tokens of filing text</li>
-        <li>\(+\,1{,}000\) system prompt \(=105{,}000\) input tokens per filing</li>
-        <li>Output: \(600\) tokens per filing</li>
-      </ul>
-    </div>
-    <div class="cols">
-      <div class="col">
-        <div class="block"><div class="block-title">Task A — GPT-4o</div>
-          \[ 5{,}000 \times\!\left(\tfrac{105{,}000}{10^6}\,5.00 + \tfrac{600}{10^6}\,15.00\right) \]
-          \[ = 5{,}000 \times (0.525 + 0.009) = \$2{,}670 \]
-        </div>
-      </div>
-      <div class="col">
-        <div class="block"><div class="block-title">Task B — Claude 3 Haiku</div>
-          \[ 5{,}000 \times\!\left(\tfrac{105{,}000}{10^6}\,0.25 + \tfrac{600}{10^6}\,1.25\right) \]
-          \[ = 5{,}000 \times (0.02625 + 0.00075) = \$135 \]
-        </div>
-      </div>
-    </div>
-    <div class="takeaway callout">
-      <span class="callout-tag">the headline number</span>
-      Same workload, same task — Haiku is roughly \(20\times\) cheaper than GPT-4o here (\(\$\)135 vs \(\$\)2,670).
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Solution · Problem 2 (2 of 2)</div>
-    <h2>Self-hosting and prompt caching</h2>
-    <div class="title-rule"></div>
-    <div class="cols">
-      <div class="col">
-        <div class="block"><div class="block-title">Task C — self-hosted Llama 3 (A100 at \(\$\)3/hr, 200 filings/hr)</div>
-          \[ \text{time} = 5{,}000/200 = 25\ \text{hr} \]
-          \[ \text{cost} = 25 \times 3 = \$75 \]
-        </div>
-      </div>
-      <div class="col">
-        <div class="block"><div class="block-title">Bonus — prompt caching (90% off the system prompt, Haiku)</div>
-          \[ 5{,}000\!\left(\tfrac{104{,}000}{10^6}0.25 + \tfrac{1{,}000}{10^6}0.025 + \tfrac{600}{10^6}1.25\right) \]
-          \[ \approx \$133 \]
-        </div>
-      </div>
-    </div>
-    <div class="alert callout">
-      <span class="callout-tag">when to self-host</span>
-      Data-privacy requirements, more than ~\(\$\)3k/yr equivalent spend, or latency that isn't critical. Caching only helps when a large prompt prefix is genuinely fixed across calls.
-    </div>
-  </section>
-
-  <!-- ============================ WRAP-UP ============================ -->
-  <section class="slide">
-    <div class="eyebrow">Wrap-up (1 of 2)</div>
-    <h2>What Problems 1 and 2 actually taught</h2>
-    <div class="title-rule"></div>
-    <div class="cols">
-      <div class="col">
-        <h3>From Problem 1</h3>
-        <ul>
-          <li>Attention is a weighted average of value vectors; weights come from softmaxed, scaled query–key dot products</li>
-          <li>Larger \(d_k\) sharpens the softmax — which is exactly why we divide by \(\sqrt{d_k}\)</li>
-          <li>The whole mechanism is differentiable and can be traced by hand</li>
-        </ul>
-      </div>
-      <div class="col">
-        <h3>From Problem 2</h3>
-        <ul>
-          <li>Cost between providers can differ \(20\text{–}35\times\) for the same workload</li>
-          <li>Self-hosting wins when the workload is large and latency is flexible</li>
-          <li>Prompt caching on fixed system prompts yields real savings</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Wrap-up (2 of 2)</div>
-    <h2>What the case study taught — and what's next</h2>
-    <div class="title-rule"></div>
-    <ul>
-      <li>RAG reliably retrieves semantically relevant passages, even from a tiny corpus</li>
-      <li>\(k\) and temperature are meaningful hyperparameters with measurable effects on the output</li>
-      <li>For structured financial extraction: \(\tau=0\), small \(k\), and a grounded system prompt</li>
-    </ul>
-    <div class="takeaway callout">
-      <span class="callout-tag">next practical</span>
-      Session 3: fine-tuning FinBERT on FinancialPhraseBank, and comparing zero-shot GPT-4o against a fine-tuned encoder on the all-agree split.
-    </div>
-  </section>
-
-  <!-- ============================ APPENDIX ============================ -->
-  <section class="slide section-slide">
-    <div class="secnum">A</div>
-    <h2>Appendix — stretch problem</h2>
-    <div class="secsub">Optional extension for those who finish early. Beyond the core session.</div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Appendix · stretch problem</div>
-    <h2>Targeting a single passage in dense retrieval</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Add a sixth passage: <code class="inline">"The company's debt-to-equity ratio is 1.8 as of year-end."</code> Formulate a query that retrieves <em>only</em> this passage. What makes a query specific enough to single out one passage in a dense retrieval system?</p>
-    <div class="block"><div class="block-title">Things to consider</div>
-      <ul>
-        <li>How distinctive is this passage's vocabulary ("debt-to-equity", "ratio") relative to the other five?</li>
-        <li>Do numeric or lexical anchors (e.g. "1.8", "year-end") sharpen the dense similarity score for this passage?</li>
-        <li>Where would BM25 (sparse) help target an exact term that SBERT blurs?</li>
-      </ul>
     </div>
   </section>
 

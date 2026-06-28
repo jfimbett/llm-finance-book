@@ -1,6 +1,11 @@
 # Slides Coverage Audit — Chapter 2: Large Language Models: Architecture and Practice
 
-**Verdict:** GAPS FOUND (0 critical, 2 minor)
+> **✅ RESOLVED (commit `e83346f`).** Both minor gaps below were closed in the lesson
+> deck: *prompted self-critique* added as the 6th hallucination defense, and a
+> *US / SEC fiduciary duty* bullet added to the responsible-use slide. Report retained
+> as the historical audit record.
+
+**Verdict:** GAPS FOUND (0 critical, 2 minor) — *both resolved*
 **Slides-only student:** Can follow the entire chapter end to end — every load-bearing concept (architecture arc, self-attention math, sampling, RAG, compression, hallucination) is on the slides, often with the full formula in an under-the-hood panel; only two secondary governance/mitigation items are thinner than the book.
 
 ---
@@ -13,12 +18,12 @@ None. The lesson and practical decks together cover all core, load-bearing units
 
 ## MINOR — present but under-explained
 
-### Finding 1 — Self-critique / Constitutional-AI mitigation
+### Finding 1 — Self-critique / Constitutional-AI mitigation — ✅ RESOLVED (`e83346f`)
 - **On the slides:** The lesson "stack five defenses" slide (§05) lists RAG, self-consistency, chain-of-thought, claim decomposition (FActScore), and confidence elicitation + abstention. The book lists a sixth — Constitutional AI / its inference-time analogue **prompted self-critique** (Sec `sec:hallucinations-mitigation`), where a second pass instructs the model to verify each claim against the source and retract unlocatable assertions.
 - **What is thin:** Prompted self-critique is the one mitigation a closed-API practitioner can actually deploy without weights, and it is absent from the deck. The "layer complementary defenses" principle survives, but a slides-only student misses a practical, named technique.
 - **Suggested slide treatment:** Add one fragment bullet to the defenses slide: "Prompted self-critique — a second pass that re-checks every claim against the source and retracts unsupported ones (inference-time analogue of Constitutional AI, Bai et al. 2022)."
 
-### Finding 2 — Fiduciary responsibility / US (SEC) regulatory exposure
+### Finding 2 — Fiduciary responsibility / US (SEC) regulatory exposure — ✅ RESOLVED (`e83346f`)
 - **On the slides:** The responsible-use slide (§05) covers EU AI Act, look-ahead bias (Didisheim et al.), GDPR, and geographic bias well. The book's `sec:limitations-ethics` additionally develops the **fiduciary-duty** theme: SEC staff guidance, the unresolved question of whether an LLM output is a "recommendation," and the consensus that the human adviser/firm retains full responsibility for AI outputs — a thread the chapter flags as recurring (into the agents chapter).
 - **What is thin:** For the industry/North-American half of the audience this is a load-bearing governance takeaway (who is liable), and it is missing; the deck's regulatory framing is EU-only.
 - **Suggested slide treatment:** Add a bullet to the responsible-use slide: "US / fiduciary duty — SEC posture holds the human adviser fully responsible for AI-generated outputs; 'the model said so' is not a defense."
@@ -53,6 +58,6 @@ None. The lesson and practical decks together cover all core, load-bearing units
 | RAG pipeline, dense/BM25/hybrid-RRF/re-rank/ColBERT, FinanceBench | COVERED | — |
 | KD (+KL direction), LoRA/QLoRA, GPTQ/AWQ, pruning/lottery ticket | COVERED | — |
 | Hallucination taxonomy + SelfCheckGPT/FActScore/inner confidence | COVERED | — |
-| Hallucination mitigation: prompted self-critique / Constitutional AI | ABSENT (5 of 6 shown) | MINOR |
+| Hallucination mitigation: prompted self-critique / Constitutional AI | COVERED (`e83346f`) | ✅ resolved |
 | Responsible use: EU AI Act, look-ahead bias, GDPR, geographic bias | COVERED | — |
-| Responsible use: SEC guidance / fiduciary responsibility | ABSENT | MINOR |
+| Responsible use: SEC guidance / fiduciary responsibility | COVERED (`e83346f`) | ✅ resolved |

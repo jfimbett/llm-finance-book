@@ -1,6 +1,11 @@
 # Slides Coverage Audit — Chapter 9: Financial NLP and Sentiment Analysis
 
-**Verdict:** GAPS FOUND (0 critical, 1 minor)
+> **✅ RESOLVED (commit `e83346f`).** The single minor gap below was closed: the lesson
+> deck's classification slide now defines zero-shot vs few-shot (k in-context examples,
+> no gradient update) before the Fatemi & Hu caveat. Report retained as the historical
+> audit record.
+
+**Verdict:** GAPS FOUND (0 critical, 1 minor) — *resolved*
 **Slides-only student:** Can follow the chapter end to end — the lesson deck plus practical cover every load-bearing concept with intuition, worked examples, and formula panels; the one soft spot is that few-shot/in-context classification is named but never actually explained as a method.
 
 ---
@@ -13,7 +18,7 @@ None. Every learning objective is represented on the slides: the five sources an
 
 ## MINOR — present but under-explained
 
-### Finding 1 — Few-shot (in-context) classification
+### Finding 1 — Few-shot (in-context) classification — ✅ RESOLVED (`e83346f`)
 - **On the slides:** The lesson slide "LLMs classify with no training set at all" defines and illustrates only *zero-shot* (a prompt sketch and rationale). The word "few-shot" appears once, obliquely, in the next slide's Fatemi & Hu bullet ("extra few-shot examples beyond a small set add no accuracy"). The practical deck does not cover it.
 - **What is thin:** The chapter (Sec 2.3, and a stated learning objective) treats few-shot as a co-equal method: *k* labelled in-context examples placed in the prompt, with 4–8 domain examples improving calibration and trading off against throughput. A slides-only student sees the term used as if already understood but is never shown what few-shot *is* in this setting or why one would add in-context examples — they only get the negative result that more examples don't help. (Mitigant: in-context learning was likely introduced in the foundations chapters, so a diligent attendee may carry it over.)
 - **Suggested slide treatment:** One fragment on the zero-shot slide: "Few-shot = prepend *k* labelled examples (4–8) so the model learns the labelling convention in-context — no gradient update," then the Fatemi bullet lands as the natural caveat.
@@ -40,7 +45,7 @@ None. Every learning objective is represented on the slides: the five sources an
 | FinBERT / SEC-BERT + [CLS] classification head | COVERED (underhood) | — |
 | Financial PhraseBank + why neutral matters | COVERED | — |
 | LLM zero-shot classification | COVERED (prompt sketch) | — |
-| LLM few-shot / in-context examples | PARTIAL (named, not defined) | MINOR |
+| LLM few-shot / in-context examples | COVERED (`e83346f`) | ✅ resolved |
 | Five source applications + canonical findings | COVERED (social slide + 4-source grid) | — |
 | Fog index / readability | COVERED (underhood + Li/Lehavy) | — |
 | Aggregation, z-standardization, stationarity, sentiment inflation | COVERED (lesson + practical recap) | — |

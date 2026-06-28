@@ -233,7 +233,7 @@
       <em>Information</em>: text holds un-impounded return information (Grossman–Stiglitz — efficiency
       can't be perfect); evidence is <strong>mixed</strong> — Lopez-Lira &amp; Tang (2023) find a significant
       but small, costly-to-harvest signal. <em>Extraction</em>: LLMs read negation, hedging, and sarcasm
-      better than bag-of-words — this part is largely <strong>unambiguous</strong> (FinBERT).
+      better than bag-of-words — this part is largely <strong>unambiguous</strong> (FinBERT, Araci 2019).
     </div>
   </section>
 
@@ -276,6 +276,7 @@
       <li class="frag"><strong>Aggregate</strong> — position-weighted into a document signal in \([-1,1]\)</li>
       <li class="frag"><strong>Normalize</strong> — within industry and period to remove sector trends</li>
     </ol>
+    <p class="small">Analyst-report tone carries incremental return information (Lehavy, Li &amp; Merkley, 2011); this pipeline operationalises that insight at scale with an LLM.</p>
     <aside class="underhood" data-title="mapping a signal to a BL view">
       Map signal \(s_i\) to a view, with uncertainty <em>inverse</em> to signal strength:
       \[ q_i=\alpha\cdot s_i+\Pi_i,\qquad \Omega_{ii}=\sigma_q^2\cdot(1-|s_i|). \]

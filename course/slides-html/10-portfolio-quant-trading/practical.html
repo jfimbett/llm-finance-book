@@ -271,18 +271,18 @@ def walk_forward_sharpe(lf, train=252, step=21, turnover=0.15, c=5e-4):
 
   <section class="slide">
     <div class="eyebrow">Solution · Problem 1</div>
-    <h2>One 50% error swings the book by ~37 points</h2>
+    <h2>One 50% error swings the book by ~35 points</h2>
     <div class="title-rule"></div>
     <p class="lead">Fully trusting the LLM looks fine — until you nudge one input. A single noisy estimate
       collapses the "optimal" tangency portfolio all the way back to the no-trust baseline.</p>
     <ul>
       <li class="frag"><strong>A. Min-variance:</strong> \(w^\star=\dfrac{0.0016-0.0009}{0.0034}\approx 0.21\Rightarrow \mathbf{w}_{\min}\approx(0.21,\,0.79)\).</li>
-      <li class="frag"><strong>B. Tangency:</strong> \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(9.2,\,6.7)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.58,\,0.42)\).</li>
+      <li class="frag"><strong>B. Tangency:</strong> \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(9.2,\,7.2)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.56,\,0.44)\).</li>
       <li class="frag"><strong>C. Reliability:</strong> with $\mu_1$ corrected to $0.4\%$, \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(2.8,\,10.8)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.21,\,0.79)\) — back to min-variance.</li>
     </ul>
     <div class="alert callout frag">
       <span class="callout-tag">the takeaway</span>
-      A single 50% error in expected return swings the allocation by ~37 points. Position sizing is brutally
+      A single 50% error in expected return swings the allocation by ~35 points. Position sizing is brutally
       sensitive to LLM signal noise — which is exactly why you shrink toward $1/N$ or use Black–Litterman rather
       than plug raw LLM $\boldsymbol{\mu}$ into mean-variance (DeMiguel et al., 2009).
     </div>

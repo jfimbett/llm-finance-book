@@ -20,7 +20,7 @@
     <h1>Building &amp; Choosing Financial LLMs</h1>
     <div class="sub">Hands-on: budgeting a domain-adaptation run, finding the cheapest human-in-the-loop mix, and watching a finance model out-read a general one.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ SECTION 1 ============================ -->
@@ -107,6 +107,18 @@
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Corpus sizes — visualised</div>
+    <h2>Where your data sources sit on the scale of available text</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before picking a token budget, it helps to see how EDGAR and Reuters TRC2 compare to general web text — and why the gap justifies DAPT rather than building from scratch.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/08-domain-specific-llms/fig_corpus.png" alt="Log-scale bar chart of token counts across major financial corpus sources">
+      <figcaption><b>Figure.</b> Token counts (log scale) of major financial pre-training corpus sources. EDGAR (~50 B tokens) and Reuters TRC2 (~2 B) appear far to the left of general web text (~800 B). Use this perspective to calibrate your DAPT token budget in Problem 1.
+        <span class="src">Source: Chapter 8, Figure 8.1 (generated deterministically from corpus table figures).</span></figcaption>
+    </figure>
   </section>
 
   <section class="slide">

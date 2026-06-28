@@ -69,7 +69,7 @@ with a "‹ back to the big picture" link. Pressing `m` opens/closes all of them
    delete equations, relocate them. Preserve numbers, citations (Author, year), and named results.
 3. **Keep the bigpicture / underhood split** the book chapter (`book/chapters/<NN>/chapter.tex`) already uses: `bigpicture` env → `.bigpicture`
    callout; `underhood` env → `aside.underhood`; `alertblock` → `.alert`; `block` → `.block`.
-4. **One idea per slide; breathe.** Prefer 4–7 bullets. Split a dense Beamer frame into two slides if needed.
+4. **One idea per slide; breathe.** Prefer 4–7 bullets. Split a dense slide into two slides if needed.
 5. **Faithful content.** Do not invent data, results, or citations. Use only what the source `.tex` contains.
 6. Title every slide with a *claim or question*, not a noun ("Why text predicts returns", not "Text & Returns").
 7. End the deck with the source's wrap-up / "what's next", and put appendix frames after an `A` section divider.

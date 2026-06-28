@@ -20,7 +20,7 @@
     <h1>Other Applications in Finance and Future Trends</h1>
     <div class="sub">From scattered use-cases to deployed systems — and the governance that has to come with them.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -180,6 +180,21 @@
     </div>
   </section>
 
+  <section class="slide">
+    <div class="eyebrow">Benchmark evidence</div>
+    <h2>Who wins where? Five LLM families on three financial NLP benchmarks</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Domain-adapted models lead on sentiment; larger general-purpose models win on numerical reasoning — the architecture table's predictions confirmed empirically.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/07-applications-future/fig_illustration.png" alt="Grouped bar chart of five LLM families (BERT-base, FinBERT, BloombergGPT, GPT-4, LLaMA) on FinQA, FPB, and FiQA-SA benchmarks">
+      <figcaption><b>Figure.</b> Performance of five LLM families on three financial NLP benchmarks. FinQA (Chen et al., 2021) tests numerical reasoning over tables and text (exact-match); FPB (Malo et al., 2014) tests three-class sentiment classification; FiQA-SA (Maia et al., 2018) tests aspect-based sentiment (F1). GPT-4 leads on numerical reasoning; FinBERT and BloombergGPT — both domain-adapted — lead BERT-base on sentiment but are surpassed by larger general-purpose models. <span class="src">Source: Xie et al. (2023), FinBench survey.</span></figcaption>
+    </figure>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the pattern</span>
+      Domain pre-training helps most when the task is vocabulary-sensitive (sentiment lexicon, tone). Raw scale dominates when the task demands numerical reasoning across tables and prose. Neither family is universally superior — which is why the architecture decision table matters.
+    </div>
+  </section>
+
   <!-- ============================ SECTION 2 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">02</div>
@@ -264,6 +279,39 @@
       Because LLM stages run at seconds-to-minutes latency, they never sit on the critical path of trade
       execution. They produce <em>analysis and narrative</em>, which humans or downstream systems act on —
       preserving both speed and auditability.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Connecting to the plumbing</div>
+    <h2>LLMs talk to existing systems through tool wrappers — never raw protocols</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Financial infrastructure was built long before LLMs. Connecting them requires translation layers at the data, compute, and governance levels.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Standard protocols — the wires LLMs never touch directly</div>
+          <ul>
+            <li><strong>FIX</strong> — order routing between execution systems</li>
+            <li><strong>SWIFT</strong> — international payment messaging</li>
+            <li><strong>XBRL</strong> — structured regulatory filings</li>
+            <li><strong>BLPAPI</strong> — Bloomberg Terminal market data</li>
+          </ul>
+          A tool wrapper such as <code class="inline">get_market_data(ticker, fields, start_date, end_date)</code> translates a natural-language request into a well-formed BLPAPI call and returns a clean DataFrame.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Three integration levels</div>
+          <ol>
+            <li><strong>Data</strong> — tool wrappers abstract each vendor protocol; LLM sees clean abstractions</li>
+            <li><strong>Compute</strong> — LLM output is <em>asynchronous</em> enrichment at seconds-to-minutes; execution at microseconds stays separate</li>
+            <li><strong>Governance</strong> — every LLM call is an audit record: model version, full prompt, output, tool calls, timestamp</li>
+          </ol>
+        </div>
+        <div class="alert callout frag">
+          <span class="callout-tag">the structural rule</span>
+          LLMs produce <em>enriched parameters</em> that downstream systems act on. They never make real-time execution decisions. This clean temporal separation is a feature, not a limitation.
+        </div>
+      </div>
     </div>
   </section>
 
@@ -352,6 +400,33 @@
   </section>
 
   <section class="slide">
+    <div class="eyebrow">RAG for filings · embedding choice</div>
+    <h2>General-purpose embeddings outperform specialist ones more often than not</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Choosing the embedding model is less decisive than choosing the chunking strategy — but there are clear practical guidelines.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Strong general-purpose baselines</div>
+          <ul>
+            <li>OpenAI <code class="inline">text-embedding-3-large</code> — cloud-hosted, strong on cross-domain retrieval</li>
+            <li><code class="inline">e5-mistral-7b</code> — open-source, competitive on domain transfer</li>
+          </ul>
+          Perform well on financial document retrieval without task-specific fine-tuning.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Finance-specific embeddings</div>
+          Fine-tuned on SEC filings and earnings calls show modest improvements on in-domain queries — but sometimes underperform on queries requiring cross-domain reasoning.
+        </div>
+        <div class="takeaway callout frag">
+          <span class="callout-tag">practical recommendation</span>
+          Use a strong general-purpose model as the baseline. Evaluate whether domain fine-tuning yields sufficient improvement to justify its operational cost before committing.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
     <div class="eyebrow">RAG for filings · attribution &amp; context</div>
     <h2>Cite every claim — and don't drown the model in context</h2>
     <div class="title-rule"></div>
@@ -368,6 +443,33 @@
       <span class="callout-tag">implication</span>
       More retrieved context is not automatically better: tightly targeted, well-attributed passages beat dumping
       an entire filing into the prompt.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Production research assistant</div>
+    <h2>Four challenges that only surface after launch</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A prototype that impresses in demos will fail in production unless you solve freshness, hallucination, scale, and feedback before users hit it hard.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Freshness vs. accuracy</div>
+          A corpus months out of date confidently cites superseded regulation and stale earnings. Maintaining freshness requires continuous ingestion, versioning (a new 10-K supersedes the prior year's), and a pragmatic refresh cycle (weekly is a common compromise).
+        </div>
+        <div class="block frag"><div class="block-title">Hallucination mitigation</div>
+          Even RAG hallucinated. Enforce source attribution at the system level: every claim must cite a retrieved passage; uncited claims are flagged as model inference. Validate numerical claims against structured databases where possible.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Model selection at scale</div>
+          A tiered routing strategy: simple queries (entity lookup, date extraction) route to a smaller, cheaper model; complex analytical queries route to a frontier model. The router itself can be a lightweight classifier.
+          <br><br>
+          <em>Context-length caution (Balogh &amp; Didisheim, 2025):</em> LLM predictive accuracy follows an inverted-U in context length. Excessive context degrades performance — mirroring cognitive overload in human analysts. Larger models mitigate but don't eliminate the effect.
+        </div>
+        <div class="block frag"><div class="block-title">User feedback as signal</div>
+          Research assistants are unusual: users can directly assess every response. Log explicit thumbs-up/down; treat immediate query reformulations as implicit dissatisfaction. Review a sample of responses weekly.
+        </div>
+      </div>
     </div>
   </section>
 
@@ -492,6 +594,26 @@
   </section>
 
   <section class="slide">
+    <div class="eyebrow">SR 11-7 · documentation checklist</div>
+    <h2>Seven items every LLM credit-scoring model risk package needs</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM-based credit scoring component must produce a model risk management package — here is what regulators expect to find in it.</p>
+    <ol>
+      <li class="frag"><strong>Model description</strong> — foundation model provider, version, fine-tuning data, prompt template (all version-controlled in a model registry)</li>
+      <li class="frag"><strong>Intended use statement</strong> — population (e.g., small business loan applicants), decision type (approval/denial, rate-setting), human review requirements</li>
+      <li class="frag"><strong>Performance report</strong> — AUROC, KS statistic, Gini, fairness metrics disaggregated by protected class on an out-of-time validation sample</li>
+      <li class="frag"><strong>Sensitivity analysis</strong> — model behaviour under prompt variations and input perturbations</li>
+      <li class="frag"><strong>Adversarial testing report</strong> — prompt injection, jailbreaking, distribution-shift results</li>
+      <li class="frag"><strong>Ongoing monitoring plan</strong> — metrics, frequencies, escalation thresholds</li>
+      <li class="frag"><strong>Decommission plan</strong> — conditions under which the model must be retired</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">why this list is harder for LLMs</span>
+      For traditional statistical models, "known limitations" can be fully enumerated. For LLMs, the failure-mode space is not fully characterised. Best practice: document observed failures from red-teaming explicitly, even if the list is acknowledged to be incomplete.
+    </div>
+  </section>
+
+  <section class="slide">
     <div class="eyebrow">SR 11-7 · what changes</div>
     <h2>The structure is old; the risk it must catch is new</h2>
     <div class="title-rule"></div>
@@ -506,7 +628,7 @@
       <span class="callout-tag">consequence for validation</span>
       Because failure modes can't be fully enumerated in advance, validation shifts from one-off sign-off toward
       continuous, adversarial monitoring — treating every newly observed failure as documentation to add, not an
-      embarrassment to hide.
+      embarrassment to suppress.
     </div>
   </section>
 

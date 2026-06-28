@@ -20,7 +20,7 @@
     <h1>Applications, Governance &amp; the Future</h1>
     <div class="sub">A 60-minute hands-on session: choose architectures, audit fairness, fuse retrievers, and design a real governance package.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -139,6 +139,21 @@
       <span class="callout-tag">impossibility · Chouldechova (2017)</span>
       When base rates differ across groups, these three criteria <em>cannot</em> be simultaneously satisfied by
       any non-trivial classifier. Fairness becomes a policy choice, not a checkbox.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · benchmark reference</div>
+    <h2>Five model families, three benchmarks — keep this slide open for Problem 1</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Architecture choices aren't just theory — this chart shows what domain adaptation and raw scale each buy you in practice.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/07-applications-future/fig_illustration.png" alt="Grouped bar chart of five LLM families on FinQA, FPB, and FiQA-SA benchmarks">
+      <figcaption><b>Figure.</b> Five LLM families on three financial NLP benchmarks. FinQA (Chen et al., 2021): numerical reasoning, exact-match accuracy. FPB (Malo et al., 2014): three-class sentiment. FiQA-SA (Maia et al., 2018): aspect-based sentiment F1. GPT-4 leads numerical reasoning; domain-adapted FinBERT and BloombergGPT lead on sentiment. <span class="src">Source: Xie et al. (2023), FinBench survey.</span></figcaption>
+    </figure>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">what to take from this</span>
+      Domain pre-training buys most on vocabulary-sensitive sentiment tasks. Scale dominates numerical reasoning. The right architecture for a task depends on which of these properties your task has — exactly what Problem 1 asks you to classify.
     </div>
   </section>
 

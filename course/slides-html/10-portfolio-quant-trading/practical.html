@@ -171,6 +171,11 @@
     <div class="title-rule"></div>
     <p class="lead">A backtest is only believable if the model never peeks at the future.
       Walk-forward enforces that: fit on the past, evaluate strictly on the next, untouched window.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/10-portfolio-quant-trading/fig_frontier.png" alt="Mean-variance efficient frontier for a four-asset example with tangency and 1/N portfolios marked">
+      <figcaption><b>Figure.</b> The efficient frontier for a fixed four-asset example. The tangency (max-Sharpe) portfolio and the 1/N equal-weight benchmark are nearly coincident — confirming that the optimization prize is small when expected returns must be estimated. This is the starting benchmark your backtest must beat.
+        <span class="src">Source: <code>gen_efficient_frontier.py</code>, deterministic (no data or network dependence).</span></figcaption>
+    </figure>
     <div class="cols">
       <div class="col">
         <div class="block"><div class="block-title">What you will do</div>
@@ -184,7 +189,6 @@
       </div>
       <div class="col">
         <p class="small">Notebook: <code class="inline">code/notebooks/10-portfolio-quant-trading/demo.ipynb</code></p>
-        <p class="small">Frontier figure: <code class="inline">gen_efficient_frontier.py</code> (deterministic, no network).</p>
         <div class="alert callout">
           <span class="callout-tag">discipline</span>
           Any parameter ($\alpha$, $\lambda$, $W_{\max}$) touched by the test window invalidates the result.

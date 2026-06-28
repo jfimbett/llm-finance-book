@@ -20,7 +20,7 @@
     <h1>Portfolio Optimization &amp; Quantitative Trading with LLMs</h1>
     <div class="sub">Signals, backtests, and risk — where reading text at scale earns its keep, and where it doesn't.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -652,15 +652,17 @@
     <div class="title-rule"></div>
     <p class="lead">The tangency portfolio is the single point that maximizes return per unit of risk — and a
       deterministic plot shows it sitting almost on top of the naive 1/N portfolio.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/10-portfolio-quant-trading/fig_frontier.png" alt="Mean-variance efficient frontier for a four-asset example marking the tangency and 1/N portfolios">
+      <figcaption><b>Figure.</b> Mean-variance efficient frontier for a fixed four-asset example (Definition: mean-variance efficient portfolio), with the maximum-Sharpe (tangency) portfolio and the 1/N equal-weight portfolio marked. The two sit almost on top of one another — a concrete illustration of the DeMiguel et al. (2009) finding that, once expected returns and the covariance matrix must be estimated, the naive 1/N rule is hard to beat.
+        <span class="src">Source: generated deterministically by <code>gen_efficient_frontier.py</code> (no data or network dependence).</span></figcaption>
+    </figure>
     <aside class="underhood" data-title="maximizing the Sharpe ratio">
       The unconstrained tangency portfolio \(\mathbf{w}^{\text{SR}}\propto\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\)
       maximises
       \[ \frac{\boldsymbol{\mu}^\top\mathbf{w}}{\sqrt{\mathbf{w}^\top\boldsymbol{\Sigma}\mathbf{w}}}. \]
     </aside>
     <ul>
-      <li>The frontier (<code class="inline">gen_efficient_frontier.py</code>, deterministic, no data/network)
-        places the tangency and 1/N portfolios <em>almost on top of one another</em> — a concrete picture of
-        the DeMiguel et al. result.</li>
       <li>Adding the non-negativity constraint removes the closed form; the mean-variance program must then be
         solved numerically as a quadratic program.</li>
     </ul>

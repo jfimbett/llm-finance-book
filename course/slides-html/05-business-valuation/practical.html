@@ -20,7 +20,7 @@
     <h1>LLM-Assisted Business Valuation</h1>
     <div class="sub">Hands-on: auditing an LLM's 10-K extraction, chain-of-thought forecasting, and a Monte Carlo DCF.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -76,7 +76,7 @@
         </div>
       </div>
     </div>
-    <aside class="underhood" data-title="FCFF, the DCF, and the FCFF→FCFE bridge">
+    <aside class="underhood" data-title="FCFF, the DCF, and the FCFF→FCFE bridge (Damodaran, 2012)">
       Free cash flow to the firm:
       \[ \text{FCFF}_t = \text{EBIT}_t(1-\tau) + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t \]
       DCF enterprise value (explicit horizon \(n\) plus a Gordon terminal value):
@@ -110,7 +110,7 @@
     <p class="lead">A good forecasting prompt forces four stages of reasoning <em>before</em> any number appears — so the logic is visible and checkable.</p>
     <div class="cols">
       <div class="col">
-        <div class="block"><div class="block-title">CoT four-stage structure</div>
+        <div class="block"><div class="block-title">CoT four-stage structure (Wei et al., 2022)</div>
           <ol>
             <li><strong>Macro</strong> — rates, GDP, inflation</li>
             <li><strong>Industry</strong> — drivers, headwinds, competition</li>
@@ -126,13 +126,13 @@
           <tr><td>RMSE</td><td>Sensitivity to outliers</td></tr>
           <tr><td>DA</td><td>Direction for decisions</td></tr>
         </table>
-        <p class="small">Always compare against a random-walk baseline and analyst consensus.</p>
+        <p class="small">Always compare against a random-walk baseline and analyst consensus (Zhang et al., 2024).</p>
       </div>
     </div>
     <aside class="underhood" data-title="the three forecast-evaluation metrics">
       \[ \text{MAPE}=\frac{1}{n}\sum \frac{|y_t-\hat{y}_t|}{|y_t|}, \qquad
          \text{RMSE}=\sqrt{\frac{1}{n}\sum (y_t-\hat{y}_t)^2}, \qquad
-         \text{DA}=\frac{1}{n}\sum \mathbf{1}[\text{sign match}] \]
+         \text{DA}=\frac{1}{n}\sum \1[\text{sign match}] \]
       MAPE rewards magnitude accuracy; RMSE punishes large misses; directional accuracy (DA) is what an investment decision actually trades on.
     </aside>
   </section>
@@ -225,6 +225,23 @@
   </section>
 
   <section class="slide">
+    <div class="eyebrow">Case study · motivation</div>
+    <h2>What the sensitivity surface looks like</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before drawing thousands of WACC and growth combinations, look at the sensitivity heatmap for a real company — it shows exactly why the distribution shape matters.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/05-business-valuation/fig_illustration.png" alt="DCF sensitivity heatmap: WACC × terminal growth → enterprise value for AAPL">
+      <figcaption><b>Figure.</b> DCF terminal-value sensitivity heatmap for Apple Inc. (AAPL).
+        Each cell shows the implied enterprise value in $B from the Gordon Growth formula, evaluated at
+        AAPL's FY2024 free cash flow. Near the lower-right corner (low WACC, high growth) the denominator
+        \(\text{WACC} - g\) approaches zero and enterprise value swings sharply — exactly the regime your
+        Monte Carlo must handle by clipping \(g &lt; \text{WACC}\).
+        <span class="src">Source: Generated deterministically from AAPL FY2024 10-K via
+          <code>gen_dcf_sensitivity.py</code>; WACC ∈ [6%, 14%], g ∈ [1%, 4%].</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
     <div class="eyebrow">Case study · 20 min · setup</div>
     <h2>Replace point estimates with a distribution</h2>
     <div class="title-rule"></div>
@@ -252,7 +269,7 @@
     </div>
     <div class="takeaway callout">
       <span class="callout-tag">why clip the growth rate</span>
-      If a draw lets growth meet or exceed WACC, the terminal value blows up to infinity. Clipping keeps every simulated valuation finite and economically sane.
+      If a draw lets growth meet or exceed WACC, the terminal value blows up to infinity. Clipping keeps every simulated valuation finite and economically sane — as visible in the lower-right corner of the heatmap above.
     </div>
   </section>
 
@@ -305,7 +322,7 @@ ev_sim = monte_carlo_dcf(fcff0=???, ...)</pre>
     <ol>
       <li class="frag"><strong>Question A — where does the uncertainty come from?</strong> Compare the P10 and P90 enterprise values. What fraction of total EV uncertainty is terminal-value uncertainty vs. explicit-period FCF uncertainty? <span class="small">(Hint: re-run with \(\sigma_g = 0\) to isolate the explicit period.)</span></li>
       <li class="frag"><strong>Question B — how sensitive is the headline number?</strong> At what terminal growth rate \(g\) does the median EV roughly double relative to the Problem 1 base case? <span class="small">(Hint: solve \(TV \propto 1/(\text{WACC}-g)\) for the target \(g\).)</span></li>
-      <li class="frag"><strong>Question C — does the market agree?</strong> A competitor is acquired at 12× EV/EBITDA. With EBITDA = EBIT + DA = \(\$\)623M, does the comparables EV fall inside the Monte Carlo P10–P90 range? What does the gap (or its absence) say about pricing?</li>
+      <li class="frag"><strong>Question C — does the market agree?</strong> A competitor is acquired at 12× EV/EBITDA. With EBITDA = EBIT + DA = $623M, does the comparables EV fall inside the Monte Carlo P10–P90 range? What does the gap (or its absence) say about pricing?</li>
     </ol>
   </section>
 
@@ -374,7 +391,7 @@ ev_sim = monte_carlo_dcf(fcff0=???, ...)</pre>
       </div>
     </div>
     <div class="alert callout frag">
-      <span class="callout-tag">governance question</span>
+      <span class="callout-tag">governance question (FSB, 2023)</span>
       You run this pipeline on 200 companies daily. What human-in-the-loop checkpoint(s) would you add, and at what threshold?
       <span class="small">(Consider P90/P10 ratio, FCFF extraction confidence, and number of non-recurring items flagged.)</span>
     </div>
@@ -395,7 +412,7 @@ ev_sim = monte_carlo_dcf(fcff0=???, ...)</pre>
       <li class="frag"><strong>The audit.</strong> CapEx, parenthesised negatives, and footnoted figures are the classic LLM extraction traps — the model drops the sign/parenthesis or flattens a note. Fix: a verification sub-agent that cross-checks each figure's <em>sign and units</em> against the cash-flow statement and flags disagreements.</li>
       <li class="frag"><strong>FCFF (corrected, CapEx as outflow).</strong> Effective tax rate \(\tau = 85/368 = 23.1\%\); \(\Delta\text{NWC}=65\), giving \(\text{FCFF}_0 = \mathbf{219.3}\) M.</li>
       <li class="frag"><strong>Propagated error.</strong> If the LLM treats CapEx as \(+240\) (sign dropped), FCFF jumps to 699.3 M — a <strong>3.2× overstatement</strong> that flows straight into the DCF (corrected EV ≈ 3,672 M vs. a grossly inflated figure). A single mis-extracted field, not the discounting, breaks the valuation.</li>
-      <li class="frag"><strong>The rule.</strong> Block any automated valuation whose extraction confidence is below threshold (or whose sign-check fails) from reaching a PM without human review.</li>
+      <li class="frag"><strong>The rule.</strong> Block any automated valuation whose extraction confidence is below threshold (or whose sign-check fails) from reaching a portfolio manager without human review.</li>
     </ol>
     <aside class="underhood" data-title="the FCFF arithmetic">
       \[ \text{FCFF}_0 = 428\,(1-0.231) + 195 - 240 - 65 = 428(0.769) + 195 - 240 - 65 = \mathbf{219.3}\text{ M} \]
@@ -439,7 +456,7 @@ ev_sim = monte_carlo_dcf(fcff0=???, ...)</pre>
     <div class="title-rule"></div>
     <ol>
       <li class="frag"><strong>FCFF is not a field in any filing.</strong> It is derived from EBIT, DA, CapEx, \(\Delta\)NWC, and the effective tax rate. Each input can carry LLM extraction error, and errors propagate multiplicatively.</li>
-      <li class="frag"><strong>CoT separates narrative from number.</strong> Force the model to commit to a macro/industry/firm story <em>before</em> generating numbers — inconsistencies become detectable.</li>
+      <li class="frag"><strong>CoT separates narrative from number.</strong> Force the model to commit to a macro/industry/firm story <em>before</em> generating numbers — inconsistencies become detectable (Wei et al., 2022).</li>
       <li class="frag"><strong>Terminal growth dominates the uncertainty.</strong> A 100-bps error in \(g\) yields a 15–18% EV error. Report Monte Carlo percentile ranges, not just point estimates.</li>
       <li class="frag"><strong>Comparables and DCF are complements.</strong> A large gap signals either mispricing or a flawed assumption — investigate, don't average.</li>
       <li class="frag"><strong>Production pipelines need hallucination guards.</strong> Validate every ticker; trace every figure to a specific accession number. One hallucinated comparable can distort the whole multiple analysis.</li>

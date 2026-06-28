@@ -20,7 +20,7 @@
     <h1>Privacy &amp; Local Models — Hands On</h1>
     <div class="sub">Cost a privacy budget, hand-build a de-identification mask, and read an empirical leakage metric.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -230,17 +230,28 @@ def audit_auc(target_loss, ref_loss, is_member):
     <div class="eyebrow">Case study · the code (2/2)</div>
     <h2>A toy run where members overfit, non-members don't</h2>
     <div class="title-rule"></div>
-    <pre class="code"># Toy illustration: members fit noticeably better under the target model.
+    <div class="cols">
+      <div class="col">
+        <pre class="code"># Toy: members fit better under target model.
 rng = np.random.default_rng(0)
 ref     = rng.normal(2.0, 0.4, size=400)
-member  = ref[:200] - rng.normal(0.6, 0.2, size=200)   # over-fit members
-nonmemb = ref[200:] - rng.normal(0.0, 0.2, size=200)   # no advantage
+member  = ref[:200] - rng.normal(0.6, 0.2, size=200)
+nonmemb = ref[200:] - rng.normal(0.0, 0.2, size=200)
 target  = np.concatenate([member, nonmemb])
 is_member = np.array([1]*200 + [0]*200)
 
 auc = audit_auc(target, ref, is_member)
-print(f"membership-inference AUC = {auc:.3f}")
-# Interpret: &lt;0.6 acceptable; ~0.5 ideal; -&gt;1.0 means severe leakage.</pre>
+print(f"MI AUC = {auc:.3f}")
+# &lt;0.6 OK; ~0.5 ideal; 1.0 = severe leakage.</pre>
+      </div>
+      <div class="col">
+        <figure class="deckfig">
+          <img src="../assets/figures/15-privacy-local-models/fig_privacy_utility.png" alt="Privacy-utility tradeoff: test accuracy vs. privacy budget epsilon">
+          <figcaption><b>Figure.</b> The privacy–utility curve: test accuracy rises with \(\varepsilon\) (weaker privacy) and saturates toward the non-private baseline. Q3 asks you to read off the gap at \(\varepsilon = 1\) and \(\varepsilon = 10\).
+            <span class="src">Source: gen_dp_privacy_utility.py (schematic).</span></figcaption>
+        </figure>
+      </div>
+    </div>
   </section>
 
   <section class="slide">

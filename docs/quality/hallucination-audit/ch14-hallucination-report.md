@@ -1,6 +1,6 @@
 # Hallucination Audit Report — Chapter 14: Financial Text Summarization and Information Extraction
 
-**Verdict:** HALLUCINATIONS FOUND (4 text, 0 code)
+**Verdict:** HALLUCINATIONS FOUND (2 text, 0 code)
 
 ---
 
@@ -9,46 +9,24 @@
 ### H1 — Phantom Statistics
 
 **Finding 1**
-- **Location:** Section 14.3.2, Example `ex:earnings-gpt4`
-- **Quoted text:** "Evaluation on a set of 100 earnings releases, scored by a financial analyst against ground truth, finds that the constrained prompt reduces number errors by approximately 40% relative to an unconstrained paraphrase prompt. However, the approach does not eliminate hallucination entirely: in roughly 8% of cases the model paraphrases a nuanced forward guidance statement in a way that changes its meaning."
-- **Why flagged:** Two precise uncited numeric claims ("reduces number errors by ~40%", "roughly 8% of cases") attributed to "a set of 100 earnings releases." No `\cite{}`. The example block is labelled only as "Earnings Report Summarization with GPT-4," not as hypothetical. The specificity of sample size (100), error-reduction magnitude (40%), and failure rate (8%) implies a real study that is not cited.
-- **Severity:** HIGH
-- **Recommended action:** Add citation to the source, or reframe as explicitly illustrative: "In a hypothetical evaluation… suppose the constrained prompt reduced number errors by roughly 40%, with approximately 8% of cases showing paraphrase errors."
-
----
-
-### H4 — Synthetic Real-World Examples
-
-**Finding 2**
-- **Location:** Section 14.1.2, Example `ex:entities-earnings-call`
-- **Quoted text:** "In Q3 2023, **Microsoft** reported revenue of **\$56.5 billion**, representing a **13%** increase year-over-year. **CEO Satya Nadella** noted that **Azure** cloud revenue grew **29%**, driven by enterprise adoption of **Copilot** products."
-- **Why flagged:** Verbatim-style attribution to a real company (Microsoft), real named executive (Satya Nadella), and real products (Azure, Copilot) with specific financial figures. No `\cite{}` key. These figures are close to Microsoft's actual Q3 FY2023 reported numbers, but without citation they cannot be confirmed and could be misremembered. The example is inside `\begin{example}` but presents itself as factual transcript content, not as illustrative.
-- **Severity:** HIGH
-- **Recommended action:** Add citation to the actual earnings call transcript or SEC filing, or replace the real company with a generic stand-in and adjust figures accordingly.
-
-**Finding 3**
-- **Location:** Section 14.3.2, consistency discussion paragraph
-- **Quoted text:** "If an abstractive model summarises an earnings call as reporting 'revenue of \$57 billion' when the actual figure was \$56.5 billion…"
-- **Why flagged:** Reuses the specific Microsoft-sized figure from Finding 2 as a concrete "actual figure" without being framed as purely hypothetical. Compounds the ambiguity of Finding 2.
-- **Severity:** MEDIUM
-- **Recommended action:** If Finding 2 is reframed as generic, update this figure to match. If kept, label explicitly as illustrative.
-
----
+- **Location:** Section 14.1 (`sec:ch14-information-extraction-problem`), opening paragraph beginning "Financial markets run on information."
+- **Quoted text:** "A portfolio manager cannot personally read every 10-K filed by the 6,000-plus companies in the Russell 3000."
+- **Why flagged:** Uncited invented specificity. The Russell 3000 by construction tracks approximately 3,000 companies (the count is encoded in the index name); the precise-sounding "6,000-plus" figure has no `\cite{}` and contradicts the index definition, implying a source that does not exist.
+- **Recommended action:** Correct to "roughly 3,000 companies in the Russell 3000," or reframe generically ("the thousands of companies in a broad equity index").
 
 ### H6 — Undated "Recent" Claims
 
-**Finding 4**
-- **Location:** Section 14.3.4, long-document processing paragraph
-- **Quoted text:** "…more recently, commercial models with 128K or 1M token contexts---can process an entire S-1 in a single forward pass."
-- **Why flagged:** "More recently" is an undated temporal claim. The 1M-token context figure is stated without an explicit date or citation. Context window sizes are rapidly evolving.
-- **Severity:** LOW
-- **Recommended action:** Add explicit date anchor ("as of 2024") or citation to specific model(s) (e.g., Gemini 1.5 Pro's 1M-token context), or reframe as "at the time of writing, models with extended context windows up to 1M tokens."
+**Finding 2**
+- **Location:** Section 14.3.4 (`sec:ch14-long-document-challenges`), final bullet "Long-context models."
+- **Quoted text:** "...and, as of 2024, commercial models with extended context windows of 128K to 1M tokens---such as Gemini 1.5 Pro---can process an entire S-1 in a single forward pass."
+- **Why flagged:** "As of 2024 ... such as [named current product]" soft-currency claim naming a specific commercial model and capability with no `\cite{}`. Matches the H6 pattern (point-in-time SOTA assertion that cannot be verified from the text and will date quickly).
+- **Recommended action:** Add a citation/source for the Gemini 1.5 Pro context-window figure, or generalize ("contemporary long-context commercial models with windows up to ~1M tokens") without anchoring to an undated "as of 2024" SOTA naming.
 
 ---
 
 ## Code Hallucinations
 
-No code hallucinations detected. The notebook contains only a markdown cell and a single stub cell (`# Your code here`).
+None — there is no notebook for this chapter, and the chapter contains no executable code cells (only an illustrative natural-language prompt in a `verbatim` block within an `example` environment).
 
 ---
 
@@ -56,7 +34,12 @@ No code hallucinations detected. The notebook contains only a markdown cell and 
 
 | # | Type | Location | Severity |
 |---|------|----------|----------|
-| 1 | H1 | Sec 14.3.2, Example `ex:earnings-gpt4` — "~40% error reduction", "~8% of cases" | HIGH |
-| 2 | H4 | Sec 14.1.2, Example `ex:entities-earnings-call` — Microsoft/Satya Nadella/Azure figures, uncited | HIGH |
-| 3 | H4 | Sec 14.3.2, "\$56.5 billion actual figure" reuse | MEDIUM |
-| 4 | H6 | Sec 14.3.4, "more recently, commercial models with 128K or 1M token contexts" | LOW |
+| 1 | H1   | Sec 14.1 (Russell 3000 count) | MEDIUM |
+| 2 | H6   | Sec 14.3.4 (Gemini 1.5 Pro, "as of 2024") | LOW |
+
+**Severity guide:**
+- HIGH: fabricated data attributed to a real entity with no disclaimer
+- MEDIUM: uncited precision claim that could mislead a reader
+- LOW: undated "recent" claim or soft imprecision
+
+**Notes on items deliberately NOT flagged:** The Microsoft Q3 2023 figures (Ex. `ex:entities-earnings-call`) sit in an `example` block and carry an explicit footnote attribution; the GPT-5 earnings-summary metrics (Ex. `ex:earnings-gpt4`) are explicitly framed as "As an illustration, suppose..."; the "$57B vs $56.5 billion (illustrative)" and "$142 to $168" target-price line are labeled illustrative/generic templates; and all dataset/benchmark statistics (EDGAR-Corpus ~6.5B tokens, ECTSum 2,425 pairs, FinQA ~50%/over 70%, kryscinski 25–30%, FINER-139) carry `\cite{}`/`\citep{}` keys and are therefore out of scope per the "What NOT to Flag" rules.

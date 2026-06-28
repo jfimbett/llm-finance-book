@@ -1,6 +1,6 @@
 # Hallucination Audit Report — Chapter 02: Large Language Models: Architecture and Practice
 
-**Verdict:** HALLUCINATIONS FOUND (5 text, 0 code)
+**Verdict:** HALLUCINATIONS FOUND (2 text, 0 code)
 
 ---
 
@@ -9,49 +9,16 @@
 ### H1 — Phantom Statistics
 
 **Finding 1**
-- **Location:** Section 2.3 (The Transformer Architecture), opening paragraph
-- **Quoted text:** "Published at NeurIPS 2017, it has since accumulated more than 100,000 citations"
-- **Why flagged:** A precise citation count asserted as established fact with no `\cite{}`. Citation counts for living papers are dynamic; the specific 100,000 threshold cannot be verified from any citable source.
-- **Severity:** LOW
-- **Recommended action:** Replace with qualitative characterisation ("one of the most cited papers in computer science") or add a source with an access date.
+- **Location:** Section~\ref{sec:sequential-rnn} (RNNs / vanishing gradients), paragraph beginning "These theoretical constraints have concrete consequences..."
+- **Quoted text:** "An S\&P~500 earnings-call transcript is typically 8,000--12,000 tokens."
+- **Why flagged:** A specific numeric range presented as an established empirical fact ("is typically") with no `\cite{}` key. The precision of the 8,000–12,000 band implies an underlying measurement/source that is not given. It is not a universally-known textbook constant (unlike "equity risk premium ≈ 5–7%"), and it feeds a downstream quantitative claim (the "$T - t \approx 9{,}900$ BPTT steps" argument), so the unsupported number propagates.
+- **Recommended action:** Add a citation for the typical transcript length, or reframe explicitly as a rough order-of-magnitude ("on the order of ten thousand tokens, for illustration").
 
 **Finding 2**
-- **Location:** Section 2.4 (The Modern LLM Landscape), opening paragraph
-- **Quoted text:** "Within sixty days it had a hundred million users---the fastest consumer adoption of any product in history."
-- **Why flagged:** Two uncited precision claims: (a) "sixty days" to reach 100M users, and (b) "the fastest consumer adoption of any product in history." No `\cite{}` key. The superlative "fastest in history" is an extraordinary claim requiring a citable source.
-- **Severity:** MEDIUM
-- **Recommended action:** Add citation to the Reuters/UBS study (January 2023), or soften to "reportedly reached a hundred million users in approximately two months, making it one of the fastest-growing consumer applications on record \cite{source}."
-
-**Finding 3**
-- **Location:** Section 2.6 (Working with LLMs via API), cost/latency bullet points
-- **Quoted text:** "Time-to-first-token for GPT-4o is typically 1--3 seconds; for Claude 3 Haiku under 500 ms. Locally-hosted Llama 3 (8B, single A100 GPU) can achieve sub-100 ms first-token latency."
-- **Why flagged:** Three specific latency benchmarks stated as engineering facts without any `\cite{}` or date qualifier. Latency figures are highly environment-dependent.
-- **Severity:** MEDIUM
-- **Recommended action:** Add a citation to a benchmark source, add a date qualifier, or soften to indicative ranges.
-
-**Finding 4**
-- **Location:** Section 2.6 (Working with LLMs via API), cost/latency bullet points
-- **Quoted text:** "This can reduce total API cost by 80--95\% on typical workloads."
-- **Why flagged:** Precise percentage range ("80–95%") on "typical workloads" with no `\cite{}`. "Typical workloads" is too vague to be independently verifiable.
-- **Severity:** MEDIUM
-- **Recommended action:** Cite a source for this range, or soften to "can reduce API costs substantially."
-
----
-
-### H3 — Invented Regulatory / Legal Claims
-
-**Finding 5**
-- **Location:** Section 2.8 (Limitations and Responsible Use), Regulatory and Ethical Considerations
-- **Quoted text:** "AI systems used for credit scoring, insurance risk assessment, pricing of life insurance products, and AI-assisted securities pricing fall into the high-risk category (Annex III)."
-- **Why flagged:** EU AI Act Annex III does not explicitly classify "AI-assisted securities pricing" as high-risk. Annex III covers biometric identification, critical infrastructure, education, employment, essential services, law enforcement, migration, administration of justice, and democratic processes. The `\citep{euaiact2024}` citation is present but the specific Annex III attribution to securities pricing appears to be a hallucinated precision detail overextending the cited regulation.
-- **Severity:** HIGH
-- **Recommended action:** Verify the exact Annex III categories against the published regulation text and correct or remove the "AI-assisted securities pricing" characterisation. Replace with accurately cited language from Annex III.
-
----
-
-## Code Hallucinations
-
-No code hallucinations detected. The notebook implements a sinusoidal positional encoding visualisation using `numpy` and `matplotlib`. All imports are real PyPI packages. No hardcoded financial data, no phantom file paths.
+- **Location:** Section~\ref{sec:landscape} (The Modern LLM Landscape), opening `context` block beginning "In November 2022, a chatbot launched..."
+- **Quoted text:** "It reportedly reached a hundred million users in approximately two months, making it one of the fastest-growing consumer applications on record."
+- **Why flagged:** A specific adoption statistic (100M users / ~2 months) presented as fact. The "hundred million in two months" precision implies a specific source report that is absent. The hedges "reportedly"/"approximately" soften but do not supply the missing attribution, so the claim remains unverifiable as written.
+- **Recommended action:** Add a citation for the user-growth figure, or downgrade to a non-numeric framing ("achieved unusually rapid mainstream adoption").
 
 ---
 
@@ -59,8 +26,12 @@ No code hallucinations detected. The notebook implements a sinusoidal positional
 
 | # | Type | Location | Severity |
 |---|------|----------|----------|
-| 1 | H1 | Sec 2.3, "100,000 citations" claim | LOW |
-| 2 | H1 | Sec 2.4, "sixty days / fastest in history" | MEDIUM |
-| 3 | H1 | Sec 2.6, latency benchmarks (GPT-4o, Haiku, Llama 3) | MEDIUM |
-| 4 | H1 | Sec 2.6, "80–95% cost reduction on typical workloads" | MEDIUM |
-| 5 | H3 | Sec 2.8, Annex III attribution for "AI-assisted securities pricing" | HIGH |
+| 1 | H1   | Sec on RNN vanishing gradients ("S&P 500 ... 8,000–12,000 tokens") | LOW |
+| 2 | H1   | Sec~\ref{sec:landscape} context intro ("hundred million users in ~two months") | LOW |
+
+**Severity guide:**
+- HIGH: fabricated data attributed to a real entity with no disclaimer
+- MEDIUM: uncited precision claim that could mislead a reader
+- LOW: undated "recent" claim or soft imprecision
+
+Note: precise numerics elsewhere in the chapter were *not* flagged because they are (a) deterministic computations shown in-text (e.g. $8\times4096^2 \approx 134$M attention entries; $405\text{B}\times2 = 810$ GB; LoRA $4096^2 = 16.8$M $\to 16\times8192 = 131$K), (b) carried a `\cite{}` key (BloombergGPT token counts, FinanceBench 81%, niszczota2023gpt 99%, chen2024uncertainty Sharpe ~20%, EU AI Act 2024/1689, GDPR 2016/679, BERT 15%/80/10/10 masking), (c) sat inside `example`/`remark`/`illustration` blocks or were tagged "illustrative"/"approximate" (BPE tokenisation example, merger-valuation EV/EBITDA 13.5×, cost tables, pricing table with "verify before budgeting"), or (d) are standard product specs / well-known model-landscape facts consistent with the latest-models convention (context-window history, parameter counts, prompt-caching ~10% cache-read rate).

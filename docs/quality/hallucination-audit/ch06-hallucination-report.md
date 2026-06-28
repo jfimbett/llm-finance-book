@@ -9,35 +9,32 @@
 ### H1 — Phantom Statistics
 
 **Finding 1**
-- **Location:** Section 6.1, bureau data paragraph
-- **Quoted text:** "The three major US credit bureaus — Equifax, Experian, and TransUnion — each maintain files on roughly 220 million adults."
-- **Why flagged:** Precise numeric claim ("roughly 220 million adults") without a `\cite{}`. Implies an authoritative source (bureau disclosure, government report, or academic study) that is not given.
-- **Severity:** MEDIUM
-- **Recommended action:** Add citation to the relevant bureau disclosure or industry report, or soften to "hundreds of millions of adults."
+- **Location:** Section 6.1.3 (Preprocessing → Anonymisation), paragraph beginning "Direct identifiers..."
+- **Quoted text:** "The canonical result is Sweeney's (2002) finding that 87\% of the US population can be uniquely identified by the combination of ZIP code, date of birth, and sex."
+- **Why flagged:** Precise statistic (87\%) attributed to a named author-year ("Sweeney's (2002)") but with no `\cite{}` key. The inline attribution is not a real citation, so the precision implies a source that is absent from the bibliography. (This is a genuine result, but the audit targets the uncited-precision pattern, not factual correctness.)
+- **Recommended action:** Add a `\cite{}` to the Sweeney reference (e.g. `\citet{sweeney2002kanonymity}`) or reframe as an approximate, attributed stylized fact.
 
 **Finding 2**
-- **Location:** Section 6.1, thin-file paragraph
-- **Quoted text:** "it is uninformative for the roughly 45 million US adults with thin or no credit files"
-- **Why flagged:** Precise numeric claim ("roughly 45 million US adults") without a `\cite{}`. Implies a specific source such as a CFPB or FDIC report on credit invisibles.
-- **Severity:** MEDIUM
-- **Recommended action:** Add citation (e.g., to a CFPB or FDIC report on credit invisibles), or soften to "tens of millions of US adults."
+- **Location:** Section 6.3 (Household Decisions Under Uncertainty), opening `\begin{context}` paragraph beginning "In 2018, the Consumer Financial Protection Bureau published a study..."
+- **Quoted text:** "...roughly one-third of mortgage borrowers in the United States did not shop for their mortgage... Among low-income borrowers the fraction was closer to one-half. The CFPB estimated that the average borrower who did not shop paid approximately \$300 per year more in interest..."
+- **Why flagged:** Specific statistics (one-third, one-half, \$300/year) attributed to a named real institution and a specific dated study ("a 2018 CFPB study") without any `\cite{}` key. The dollar figure and study year imply a precise source that is not given.
+- **Recommended action:** Add a `\cite{}` to the specific CFPB study, or reframe the figures as illustrative ("a substantial share of borrowers...").
 
 ---
 
-### H3 — Invented Regulatory / Legal Claims
+### H4 — Synthetic Real-World Examples
 
 **Finding 3**
-- **Location:** Section 6.1, ECOA subsection
-- **Quoted text:** "The CFPB's 2022 'Special Purpose Credit Programs' guidance clarified that lenders may proactively use alternative data to extend credit to underserved populations..."
-- **Why flagged:** Specific regulatory document referenced with a year (2022) and quoted name ("Special Purpose Credit Programs") but without a `\cite{}`. The CFPB has issued SPCP-related guidance; the specific 2022 dating and framing need a citation to be verifiable.
-- **Severity:** MEDIUM
-- **Recommended action:** Add citation to the actual CFPB guidance document (e.g., `\cite{cfpb2022spcp}`), or restructure to quote only what is verifiable from cited sources.
+- **Location:** Section 6.1 (Credit Data), opening `\begin{context}` paragraph beginning "In 2019 a viral tweet ignited a Congressional investigation."
+- **Quoted text:** "...his Apple Card credit limit was twenty times lower than his wife's... Steve Wozniak... posted a similar complaint... Senator Elizabeth Warren had written to Goldman Sachs demanding an explanation, and the New York Department of Financial Services had opened a formal investigation."
+- **Why flagged:** A factual narrative making specific claims (a "twenty times" limit ratio, a Warren letter to Goldman Sachs, an NYDFS investigation) about named real individuals and institutions, presented as established fact with no `\cite{}` and no "for illustration" framing. Matches the H4 pattern of named-entity factual claims lacking a citation.
+- **Recommended action:** Add a citation to a press/regulatory source for the 2019 Apple Card / Goldman Sachs / NYDFS episode, or soften the specific quantitative/procedural claims.
 
 ---
 
 ## Code Hallucinations
 
-No code hallucinations detected. The notebook fetches the UCI German Credit dataset from a real, publicly accessible URL. All imports (`numpy`, `matplotlib`, `scienceplots`, `requests`, `pandas`, `sklearn`) are real PyPI packages. No phantom file paths or fabricated API responses.
+None. There is no notebook for this chapter. The embedded JSON/API payloads (e.g. `\Cref{ex:api}`, `application_id "APP-20240315-78423"`) and the borrower/SHAP tables appear inside `\begin{example}`/`\begin{illustration}` blocks and are explicitly illustrative, so they are not flagged per the "What NOT to Flag" rule.
 
 ---
 
@@ -45,6 +42,13 @@ No code hallucinations detected. The notebook fetches the UCI German Credit data
 
 | # | Type | Location | Severity |
 |---|------|----------|----------|
-| 1 | H1 | Sec 6.1, bureau data paragraph ("roughly 220 million adults") | MEDIUM |
-| 2 | H1 | Sec 6.1, thin-file paragraph ("roughly 45 million US adults") | MEDIUM |
-| 3 | H3/H6 | Sec 6.1, ECOA subsection ("CFPB's 2022 SPCP guidance") | MEDIUM |
+| 1 | H1   | Sec 6.1.3 (Sweeney 87%) | MEDIUM |
+| 2 | H1   | Sec 6.3 context (CFPB 2018 study) | MEDIUM |
+| 3 | H4   | Sec 6.1 context (Apple Card 2019) | MEDIUM |
+
+**Severity guide:**
+- HIGH: fabricated data attributed to a real entity with no disclaimer
+- MEDIUM: uncited precision claim that could mislead a reader
+- LOW: undated "recent" claim or soft imprecision
+
+**Notes (considered but NOT flagged):** FICO factor weights (35/30/15/10/10, hedged "publicly disclosed... approximately" — standard publicly disclosed fact); bureau coverage "200--230 million" (explicitly hedged as a "commonly cited range"); KS/Gini/PSI/default-rate thresholds (standard credit stylized facts); all named regulations (FCRA, ECOA, Reg B, GDPR Art. 22/Recital 71, Dodd-Frank §1033, SR 11-7 — genuine, and SR 11-7 carries `\cite{sr117}`); the Maria/Thomas personas and dialogues (explicitly labelled illustrative in `\begin{example}`); the LoRA "~48×" figure (derived from $768^2/(2\cdot8\cdot768)$, not a phantom statistic).

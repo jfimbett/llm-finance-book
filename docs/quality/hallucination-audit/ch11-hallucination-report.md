@@ -1,6 +1,6 @@
 # Hallucination Audit Report — Chapter 11: RegTech, Compliance, and Anti-Money Laundering
 
-**Verdict:** HALLUCINATIONS FOUND (4 text, 0 code)
+**Verdict:** HALLUCINATIONS FOUND (1 text, 0 code)
 
 ---
 
@@ -9,42 +9,16 @@
 ### H1 — Phantom Statistics
 
 **Finding 1**
-- **Location:** Section 11.2.1, Definition block, FPR range claim
-- **Quoted text:** "In practice, AML screening systems operate with $\mathrm{FPR}$ values between 95\% and 99\%, meaning fewer than one in twenty --- and often fewer than one in a hundred --- flagged alerts correspond to genuine matches~\cite{fincen2020aml}."
-- **Why flagged:** The main FPR range (95%–99%) is cited. However, the inline extension "often fewer than one in a hundred" implies FPR > 99%, which goes beyond the cited range without further support. This secondary quantitative claim is embedded within a cited sentence but effectively introduces uncited precision.
-- **Severity:** MEDIUM
-- **Recommended action:** Remove "and often fewer than one in a hundred" or add a separate citation supporting sub-1% alert precision in high-volume AML operations.
-
-**Finding 2**
-- **Location:** Section 11.2, context block
-- **Quoted text:** "the global cost of financial crime compliance was estimated at over \$270 billion per year before the advent of widespread AI adoption"
-- **Why flagged:** Precise dollar figure (\$270 billion) without any `\cite{}`. The preceding FATF estimate is cited, but this distinct figure has no attribution.
-- **Severity:** MEDIUM
-- **Recommended action:** Add citation (frequently attributed to LexisNexis Risk Solutions' True Cost of Financial Crime Compliance study). If uncitable, replace with "hundreds of billions of dollars annually."
-
-**Finding 3**
-- **Location:** Section 11.2, context block
-- **Quoted text:** "Less than 1\% of illicit financial flows are estimated to be seized and frozen globally."
-- **Why flagged:** Precise threshold claim ("less than 1%") with no `\cite{}`. The FATF citation in the same paragraph covers GDP-share laundering estimates, not this seizure-rate figure.
-- **Severity:** MEDIUM
-- **Recommended action:** Add citation (commonly attributed to UNODC reports). If uncitable, soften to "a very small fraction."
-
----
-
-### H1/H3 — Uncited Enforcement Claim
-
-**Finding 4**
-- **Location:** Section 11.2.1, consequences paragraph
-- **Quoted text:** "Banks face fines both for failure to detect money laundering and, paradoxically, for generating so many low-quality SARs that regulators cannot process the useful information~\cite{fincen2020aml}."
-- **Why flagged:** The claim that fines have been levied specifically for SAR volume/quality (rather than AML programme deficiencies generally) is a legally precise assertion. FinCEN has issued SAR quality guidance, but the current citation may not directly support fines for excessive low-quality SARs as a specific enforcement outcome.
-- **Severity:** LOW
-- **Recommended action:** Replace with a citation to a specific enforcement action where SAR quality was cited as the cause, or reframe as: "Regulators have specifically criticised institutions for generating excessive low-quality SARs~\cite{fincen2020aml}, and such deficiencies can contribute to broader AML enforcement actions."
+- **Location:** Section~\ref{sec:ch11-xbrl-tagging} (XBRL tagging and automated filing), paragraph beginning "The challenge is the size of the taxonomy space."
+- **Quoted text:** "The US GAAP taxonomy contains over 20,000 elements."
+- **Why flagged:** A specific quantitative claim about the size of a real, externally published artifact (the FASB US GAAP Financial Reporting Taxonomy) presented as established fact with no `\cite{}` key. The element count is a versioned figure sourced from FASB releases; the bare "over 20,000" implies a specific source that is absent. It is not a generic placeholder, an illustrative example block, or a standard textbook stylized fact.
+- **Recommended action:** Add a citation to the relevant FASB/SEC taxonomy release, or soften and frame as approximate ("on the order of tens of thousands of elements") to remove the implied precise source.
 
 ---
 
 ## Code Hallucinations
 
-No code hallucinations detected. The notebook contains only a markdown title cell and a single stub cell (`# Your code here`).
+None. (No notebook exists for this chapter.)
 
 ---
 
@@ -52,7 +26,15 @@ No code hallucinations detected. The notebook contains only a markdown title cel
 
 | # | Type | Location | Severity |
 |---|------|----------|----------|
-| 1 | H1 | Sec 11.2.1, FPR range — "often fewer than one in a hundred" extension | MEDIUM |
-| 2 | H1 | Sec 11.2, \$270 billion compliance cost figure (uncited) | MEDIUM |
-| 3 | H1 | Sec 11.2, "<1% of illicit flows seized" (uncited) | MEDIUM |
-| 4 | H1/H3 | Sec 11.2.1, "fines for generating low-quality SARs" (enforcement claim) | LOW |
+| 1 | H1   | Sec 11 (XBRL tagging) | LOW |
+
+**Severity guide:**
+- HIGH: fabricated data attributed to a real entity with no disclaimer
+- MEDIUM: uncited precision claim that could mislead a reader
+- LOW: undated "recent" claim or soft imprecision
+
+**Notes on claims deliberately NOT flagged:**
+- The FATF 2%–5% / \$800B–\$2T laundering estimate, the 95%–99% AML false-positive range, the SR~11-7 verbatim model definition, and the FSB "challenges for existing model risk management frameworks" quote all carry `\cite{}` keys (`fatf2021aml`, `fincen2020aml`, `sr117`, `FSB2024stability`) and are exempt.
+- Real, correctly-named regulations and provisions (EU AI Act / Regulation (EU) 2024/1689, MiFID II, Basel III IRB, GDPR Articles 5/9/17/22 and 9(2)(g), FATF Recommendation 24, Corporate Transparency Act 2021, SEC XBRL since 2009) are verifiable real instruments, not phantom regulations — no H3.
+- Named subjects and figures in `\begin{example}` blocks (Carlos Fernandez-Gutierrez, Meridian Capital Holdings, A.~Petrov score 0.87, seven-year retention, precision<60%/recall<95% thresholds, 200-case samples) are explicitly illustrative and exempt per the "What NOT to Flag" list.
+- Design parameters (200–400 token chunks, RRF κ≈60, <30s latency, two-to-four hours per SAR) are hedged/illustrative engineering choices, not factual world-claims implying a source.

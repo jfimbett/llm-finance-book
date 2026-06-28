@@ -1,6 +1,6 @@
 # HTML Slides — Authoring Spec
 
-These slides re-present the Beamer course decks as **MBA-facing HTML/JS presentations**:
+These slides re-present the course material as **summer-school HTML/JS presentations** (mixed grad/practitioner audience):
 plain-language narrative on the surface, with the math/mechanism one click away.
 
 ## How a deck works
@@ -36,7 +36,7 @@ plain-language narrative on the surface, with the math/mechanism one click away.
 - `.cols` (two col) or `.cols.c3` (three), each child `<div class="col">`.
 - `.block` with a `.block-title` child — a neutral labelled box.
 - Callouts: `<div class="CLASS callout"><span class="callout-tag">LABEL</span> text</div>` where CLASS is:
-  - `bigpicture` — warm "the bigger picture" intuition (the MBA story).
+  - `bigpicture` — warm "the bigger picture" intuition (the plain-language story).
   - `takeaway` — blue "why this matters / the move that follows".
   - `alert` — red caution / the catch / the limitation.
 - `.frag` on any element → it reveals on the next arrow press (progressive build). Use for
@@ -63,15 +63,16 @@ with a "‹ back to the big picture" link. Pressing `m` opens/closes all of them
   no custom `\newcommand`). Use HTML tables for tabular data, KaTeX only for equations.
 
 ## Editorial rules (the whole point)
-1. **MBA first.** Lead every content slide with a plain-language sentence a non-technical exec understands.
+1. **Intuition first.** Lead every content slide with a plain-language sentence a quantitatively comfortable non-specialist understands.
    Translate jargon: "orthogonal one-hot vectors" → "to a computer these words are total strangers".
 2. **Math close by, not gone.** Move formulas into `aside.underhood`. Keep the source's rigor — don't
    delete equations, relocate them. Preserve numbers, citations (Author, year), and named results.
-3. **Keep the bigpicture / underhood split** the Beamer decks already use: `bigpicture` env → `.bigpicture`
+3. **Keep the bigpicture / underhood split** the book chapter (`book/chapters/<NN>/chapter.tex`) already uses: `bigpicture` env → `.bigpicture`
    callout; `underhood` env → `aside.underhood`; `alertblock` → `.alert`; `block` → `.block`.
 4. **One idea per slide; breathe.** Prefer 4–7 bullets. Split a dense Beamer frame into two slides if needed.
 5. **Faithful content.** Do not invent data, results, or citations. Use only what the source `.tex` contains.
 6. Title every slide with a *claim or question*, not a noun ("Why text predicts returns", not "Text & Returns").
 7. End the deck with the source's wrap-up / "what's next", and put appendix frames after an `A` section divider.
+8. **One figure per chapter, minimum.** Every chapter's deck embeds at least one on-topic figure using `<figure class="deckfig">` with an `<img>` (PNG under `../assets/figures/<NN>/`) or inline `<svg>`, plus a `<figcaption>` and a `.src` credit line.
 
 The canonical example is `course/slides-html/01-intro/index.html`. Match its quality and structure.

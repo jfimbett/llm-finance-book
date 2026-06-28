@@ -63,7 +63,7 @@
       <tr><td><kbd>Home</kbd><kbd>End</kbd></td><td>First / last slide</td></tr>
       <tr><td><kbd>?</kbd></td><td>This help</td></tr>
     </table>
-    <p class="small" style="margin-bottom:0">Tip: the warm <b style="color:#B48228">◆ bigger picture</b> boxes are the MBA story;
+    <p class="small" style="margin-bottom:0">Tip: the warm <b style="color:#B48228">◆ bigger picture</b> boxes are the intuition;
     the blue <b style="color:#0E4B8C">⚙ under the hood</b> panels hold the math — click any to expand.</p>
   </div>`;
   help.addEventListener("click", () => help.classList.remove("show"));

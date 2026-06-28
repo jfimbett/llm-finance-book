@@ -112,6 +112,8 @@ Deck: `course/slides-html/16-ai-ml-finance-text/index.html`
 
 *(All checklist items above are marked [x]. No omissions remain.)*
 
+> **Fix note (2026-06-28):** The Goodfellow et al. (2016) checkbox was previously marked [x] in error — the citation was absent from both slides. Fixed: "(Goodfellow et al., 2016)" added inline to (a) the §2.1 ML-definition lead paragraph ("improve at a task by being exposed to data") and (b) the §2.2 universal-approximation "under the hood" aside. Both validators confirmed OK after the edit.
+
 ---
 
 ## Figure Coverage

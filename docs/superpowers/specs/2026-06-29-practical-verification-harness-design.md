@@ -99,15 +99,36 @@ Run in the temp copy, inside a fresh venv (unless `--fast`):
 
 ### 4. Layer B — live Claude checks (per agentic practical, `--live` only)
 
-- Headless invocation in the temp copy: `claude -p '<skill call>'` with permissions
-  pre-accepted and a turn cap.
-- **Deterministic assertions** declared in `verify.yaml`:
-  - `expect_file` — a glob (e.g. `reports/*.md`) that must exist after the run.
-  - `expect_contains` / `expect_not_contains` — substrings the produced output/report
-    must include or omit (e.g. the unanswerable probe must yield `Not answerable`).
-- **Implementation risk to validate first:** confirm `claude -p` invokes project
-  slash-commands / skills as expected in headless mode. This is smoke-tested on
-  `04-llm-agents` before any manifests are authored.
+**Headless invocation (validated 2026-06-29 against `claude` 2.1.195 with a toy
+practical):**
+
+```bash
+cd <temp-copy-of-practical>
+claude -p '<skill call, e.g. /ask "...">' \
+  --permission-mode bypassPermissions \
+  --max-turns 15 \
+  --output-format json
+```
+
+Confirmed behavior:
+- A project skill in `.claude/skills/` **is invoked just by running `-p '/name "args"'`
+  from the folder** — no registration needed; cwd is sufficient.
+- The agent runs the practical's `tools/` and writes outputs (e.g. `reports/result.md`).
+- `--permission-mode bypassPermissions` runs tools/writes without prompting (safe because
+  execution is in a throwaway temp copy).
+- `--output-format json` returns a structured object; the harness parses, not scrapes.
+  Useful keys: `is_error` (top-level pass/fail), `result` (the agent's final text),
+  `num_turns`, `total_cost_usd`, `permission_denials`.
+
+**Deterministic assertions** declared in `verify.yaml`, evaluated against that JSON +
+the temp filesystem:
+- `is_error == false` (always checked).
+- `expect_file` — a glob (e.g. `reports/*.md`) that must exist after the run.
+- `expect_contains` / `expect_not_contains` — substrings the `result` text (or named
+  file) must include or omit (e.g. the unanswerable probe must yield `Not answerable`).
+
+**Cost:** a single skill run was ~5 turns / ~$0.19 in the toy test — confirming Layer B
+is appropriately "occasional, critical-path only," not an every-push check.
 
 ### 5. Per-practical manifest — `code/practicals/NN-*/verify.yaml`
 
@@ -144,14 +165,16 @@ representative live flow only** — no pytest, no smoke commands.
 
 1. Build `verify.py` + the harness (discovery, repo-safe temp copy, Layer A, table
    output).
-2. Prove it end-to-end on **one** practical (`04-llm-agents`), including `--live`, to
-   retire the `claude -p` headless risk.
+2. Prove it end-to-end on **one** practical (`04-llm-agents`), including `--live`. (The
+   core `claude -p` headless-skill risk is already retired — see Component 4 — so this
+   step is about wiring the real `/ask` manifest, not re-proving the mechanism.)
 3. Author the ~15 `verify.yaml` manifests.
 4. Verify notebook practicals and the `05-*-example` oddball.
 
 ## Open items folded into implementation
 
-- Exact `claude -p` permission/turn-cap flags (validated in step 2).
 - Whether to add `requirements.txt` to notebook practicals or pin them to the repo base
   env.
+
+(Resolved during design: `claude -p` headless invocation flags — see Component 4.)
 ```

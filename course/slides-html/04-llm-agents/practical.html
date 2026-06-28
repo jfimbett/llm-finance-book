@@ -20,7 +20,7 @@
     <h1>Agents and RAG in Finance — Hands On</h1>
     <div class="sub">Tracing a ReAct agent, designing a tool schema, and building &amp; grading a RAG pipeline.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -73,6 +73,11 @@
           <strong>Finish</strong>. Each thought says <em>why</em> the next tool is called; each
           observation grounds the next step in real data.
         </div>
+        <figure class="deckfig">
+          <img src="../assets/figures/04-llm-agents/diagram.svg" alt="LLM agent loop: observe, reason, act, tools and memory, environment">
+          <figcaption><b>Figure.</b> The perceive–reason–act loop in an LLM agent. Each action grounds the next thought in real evidence from the environment (tools, APIs, databases).
+            <span class="src">Source: Course materials, Chapter 4.</span></figcaption>
+        </figure>
       </div>
       <div class="col">
         <div class="bigpicture callout">
@@ -244,7 +249,7 @@ import numpy as np
 
 # --- Sample corpus (use provided strings in the lab notebook) ---
 docs = {
-    "apple_q4_2023": "Revenue guidance for Q1 2024 is $89-90B ...",
+    "apple_q4_2023": "Revenue guidance for Q1 2024 is &#36;89-90B ...",
     # ... add remaining documents
 }
 

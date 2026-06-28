@@ -20,7 +20,7 @@
     <h1>Explainability &amp; Interpretability of LLMs in Finance</h1>
     <div class="sub">When a model says "no," the law often demands it say <em>why</em>. How we open the black box — and how to know the answer is real.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -59,7 +59,7 @@
     <div class="eyebrow">The problem in one scenario</div>
     <h2>A loan is rejected in seconds — now explain it to the borrower</h2>
     <div class="title-rule"></div>
-    <p class="lead frag">A small-business owner applies for a working-capital loan. A transformer-based credit
+    <p class="lead">A small-business owner applies for a working-capital loan. A transformer-based credit
       system returns a <strong>rejection</strong> instantly. The model offers a probability — not a reason.
       But the law demands a reason.</p>
     <div class="cols">
@@ -73,13 +73,15 @@
         <div class="block frag"><div class="block-title">Explainability, defined</div>
           The degree to which a human can understand the cause of a model's decision
           <span class="small">(Miller, 2019)</span>.
+          Rane, Choudhary &amp; Rane (2023) survey how XAI approaches address the transparency
+          and accountability requirements specific to the financial domain.
         </div>
       </div>
     </div>
     <div class="alert callout frag">
       <span class="callout-tag">why LLMs sharpen the challenge</span>
       Billions of parameters, uninterpretable activations, and outputs that swing with prompt phrasing
-      in ways that are hard to characterise. Institutions must show outputs are
+      in ways that are hard to characterise (Arrieta et al., 2020). Institutions must show outputs are
       <em>appropriate, non-discriminatory, and auditable</em> — not merely accurate (SR 11-7).
     </div>
   </section>
@@ -92,14 +94,14 @@
       <tr><th>Framework</th><th>What it demands</th></tr>
       <tr><td><strong>EU AI Act (2024)</strong></td><td>Credit scoring &amp; insurance pricing are <em>high-risk</em> (Annex III): transparency, input/output logging, human oversight; must explain what drove a <em>specific</em> decision.</td></tr>
       <tr><td><strong>SR 11-7 (Fed)</strong></td><td>Model-risk management: document conceptual soundness; outputs explainable to non-technical risk managers; sensitivity &amp; post-hoc attribution.</td></tr>
-      <tr><td><strong>ECOA / Reg. B</strong></td><td>Adverse-action notices must give the "principal reasons" (4–5 factors) in plain language. "Not creditworthy" is <em>not</em> enough.</td></tr>
-      <tr><td><strong>GDPR Art. 22 / FCRA</strong></td><td>Right to a "meaningful explanation" of the logic of solely-automated decisions.</td></tr>
+      <tr><td><strong>ECOA / Reg. B</strong></td><td>Adverse-action notices must give the "principal reasons" (4–5 factors) in plain language within 30 days. "Not creditworthy" is <em>not</em> enough.</td></tr>
+      <tr><td><strong>GDPR Art. 22 / FCRA</strong></td><td>Right to a "meaningful explanation" of the logic of solely-automated decisions that significantly affect the data subject.</td></tr>
     </table>
     <div class="alert callout frag">
       <span class="callout-tag">interpretation vs. explanation</span>
       <strong>Interpretation:</strong> how does the model work <em>in general</em>?
       <strong>Explanation:</strong> why <em>this</em> output for <em>this</em> input?
-      Regulation is primarily <em>explanatory</em> — specific decisions justified to specific persons
+      Regulatory requirements are primarily <em>explanatory</em> — specific decisions justified to specific persons
       (Doshi-Velez &amp; Kim, 2017).
     </div>
   </section>
@@ -113,12 +115,14 @@
       <div class="col">
         <div class="block frag"><div class="block-title">Clients / applicants</div>
           Actionable, plain-language, contrastive. "DTI of 52% was 10 pp above threshold"
-          beats "<span class="small">\(x_{17}\) had SHAP \(-0.43\)</span>".
+          beats "\(x_{17}\) had SHAP \(-0.43\)".
         </div>
       </div>
       <div class="col">
         <div class="block frag"><div class="block-title">Regulators / examiners</div>
-          Higher technical rigour. Global behaviour: is there disparate impact? Right to audit any case on complaint.
+          Higher technical rigour. Global behaviour: is there disparate impact?
+          CFA Institute (2025): institutional investors increasingly require explainability
+          assurances before deploying third-party AI for portfolio construction.
         </div>
       </div>
       <div class="col">
@@ -169,7 +173,7 @@
   <section class="slide section-slide">
     <div class="secnum">02</div>
     <h2>Classical XAI methods applied to LLMs</h2>
-    <div class="secsub">SHAP, LIME, and attention maps — powerful tools, but each bends awkwardly when the "features" are words.</div>
+    <div class="secsub">SHAP, attention mechanisms, and feature importance — the three dominant techniques in financial XAI (Mohsin &amp; Nasim, 2025) — but each bends awkwardly when the "features" are words.</div>
   </section>
 
   <section class="slide">
@@ -178,7 +182,7 @@
     <div class="title-rule"></div>
     <p class="lead">Treat each feature as a player on a team that together produced the prediction. A feature's
       score is its average contribution across every order in which players could have joined — a provably
-      <em>fair</em> division.</p>
+      <em>fair</em> division (Shapley, 1953; Lundberg &amp; Lee, 2017).</p>
     <aside class="underhood" data-title="the Shapley value">
       For a game \((N,v)\) with \(v(\emptyset)=0\), the Shapley value of player \(i\) is
       \[ \phi_i(v) = \sum_{S \subseteq N \setminus \{i\}}
@@ -196,7 +200,7 @@
 
   <section class="slide">
     <div class="eyebrow">SHAP · why it fits finance</div>
-    <h2>Three guarantees that line up with credit law</h2>
+    <h2>Three axioms that line up directly with credit law</h2>
     <div class="title-rule"></div>
     <p class="lead">The Shapley split isn't just convenient — it's the <em>unique</em> attribution satisfying a
       set of axioms. Three of them matter directly for regulated credit work.</p>
@@ -215,15 +219,21 @@
       Efficiency guarantees the reasons <em>add up</em> to the decision. Symmetry and dummy give the fairness
       footing: features are treated consistently and irrelevant ones cannot be cited.
     </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">what SHAP cannot do</span>
+      SHAP measures <em>correlational</em> feature importance within the model — not real-world causation.
+      A spurious correlation (e.g. jargon correlated with a protected class) is reported faithfully.
+      Fairness auditing requires a <strong>separate</strong> step beyond attribution (Mehrabi et al., 2021).
+    </div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">SHAP · on text</div>
     <h2>What is a "feature" when the input is a sentence?</h2>
     <div class="title-rule"></div>
-    <p class="lead">For text, the feature is the <strong>token</strong>. But "removing" a token to measure its
-      effect requires deciding what to replace it with — a mask, a random word, or a sample from a small
-      reference model. TreeSHAP is exact for trees; for LLMs we <em>approximate</em> with KernelSHAP.</p>
+    <p class="lead">For text, the feature is the <strong>token</strong>. But "removing" a token requires deciding
+      what to replace it with — a mask, a random word, or a sample from a reference model. TreeSHAP is exact for
+      trees; for LLMs we <em>approximate</em> with KernelSHAP.</p>
     <div class="cols">
       <div class="col">
         <div class="block"><div class="block-title">Fine-tuned BERT · \(P(\text{creditworthy})=0.14\) (baseline \(0.50\))</div>
@@ -246,14 +256,21 @@
           <span class="callout-tag">the resulting ECOA statement</span>
           "Primarily affected by language indicating declining revenue, operational struggle, and market difficulties."
         </div>
-        <div class="alert callout">
-          <span class="callout-tag">caveat</span>
-          SHAP measures <em>correlational</em> importance <em>within the model</em> — not real-world causation.
-          A spurious correlation (jargon ↔ protected class) is reported faithfully. Fairness auditing is a
-          <strong>separate</strong> step.
-        </div>
       </div>
     </div>
+  </section>
+
+  <!-- SHAP FIGURE SLIDE -->
+  <section class="slide">
+    <div class="eyebrow">SHAP · attribution figure</div>
+    <h2>Token-level attributions make the "why" visible — and auditable</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each bar shows a token's contribution to the creditworthy probability. Red pushes down; green pushes up. The figure is generated deterministically from fixed values — the reproducibility property auditors require.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/12-xai-explainability/fig_shap_attribution.png" alt="Horizontal bar chart of token-level SHAP values for a credit-decision classifier">
+      <figcaption><b>Figure.</b> Token-level SHAP attributions for the credit-decision classifier of the chapter example. Red (negative) bars push \(P(\text{creditworthy})\) down from the 0.50 baseline toward the model's 0.14 output; "operates" makes a small positive (+0.012) contribution. The negative tokens together account for most of the 0.36 prediction gap.
+        <span class="src">Source: deterministically generated by <code>gen_shap_attribution.py</code> from fixed example values (no live model or data).</span></figcaption>
+    </figure>
   </section>
 
   <section class="slide">
@@ -263,7 +280,7 @@
     <div class="bigpicture callout">
       <span class="callout-tag">the bigger picture</span>
       A globally non-linear model is <em>locally</em> almost linear. So fit a simple, interpretable model in
-      the small neighbourhood around the one decision you need to explain.
+      the small neighbourhood around the one decision you need to explain (Ribeiro et al., 2016).
     </div>
     <p class="lead">Recipe: (1) perturb the input by masking features; (2) ask the model for its prediction on
       each; (3) fit a sparse linear model, weighting nearby perturbations most.</p>
@@ -271,7 +288,7 @@
       With proximity weight \(\pi_x(z)=\exp(-D(x,z)^2/\sigma^2)\),
       \[ \xi(x) = \arg\min_{g \in \mathcal{G}}\;
         \underbrace{\textstyle\sum_k \pi_x(z_k)\bigl(f(z_k)-g(z_k)\bigr)^2}_{\text{locality-weighted fidelity}}
-        \;+\;\underbrace{\Omega(g)}_{\text{complexity}}. \]
+        \;+\;\underbrace{\Omega(g)}_{\text{complexity (}\ell_0\text{ sparsity)}}. \]
     </aside>
     <div class="cols">
       <div class="col">
@@ -282,8 +299,8 @@
       <div class="col">
         <div class="alert callout frag">
           <span class="callout-tag">disadvantage: instability</span>
-          Stochastic perturbations \(\Rightarrow\) different explanations on reruns. <strong>Fix a seed</strong>
-          for audit reproducibility.
+          Stochastic perturbations \(\Rightarrow\) different explanations on reruns (Arrieta et al., 2020).
+          <strong>Fix a seed</strong> for audit reproducibility.
         </div>
       </div>
     </div>
@@ -293,8 +310,9 @@
     <div class="eyebrow">Attention · promise and limits</div>
     <h2>The tempting shortcut that can quietly mislead an auditor</h2>
     <div class="title-rule"></div>
-    <p class="lead">Attention weights sum to one, so it's tempting to colour tokens by attention and say "this
-      word drove the output." Tempting — and often wrong.</p>
+    <p class="lead">Attention weights (Vaswani et al., 2017) sum to one, so it's tempting to colour tokens by
+      attention and say "this word drove the output." Clark et al. (2019) explored BERT heads attending to
+      syntactic relations — tempting as explanation. Often wrong.</p>
     <aside class="underhood" data-title="attention weights">
       \[ \alpha_{ij}=\operatorname{softmax}\!\bigl(\mathbf{Q}\mathbf{K}^\top/\sqrt{d_k}\bigr)_{ij}. \]
       Normalising to one makes the weights <em>look</em> like an importance distribution — but normalisation
@@ -312,7 +330,7 @@
     </div>
     <p class="frag">Attention is often <em>plausible</em> but <em>unfaithful</em> — dangerous: it can make an
       auditor certify a decision as well-reasoned when the real drivers differ. <strong>Integrated Gradients</strong>
-      (Sundararajan, 2017) gives stronger faithfulness — but needs gradients, so no closed APIs.</p>
+      (Sundararajan et al., 2017) gives stronger faithfulness — but needs gradients, so no closed APIs.</p>
   </section>
 
   <!-- ============================ SECTION 3 ============================ -->
@@ -339,7 +357,7 @@
     <aside class="underhood" data-title="explanation trace, defined">
       A sequence \(r_1,\dots,r_T\) generated before output \(\hat{y}\), each \(r_t\) following from prior steps
       and input \(x\), together entailing \(\hat{y}\). The trace is <em>counterfactually faithful</em> if
-      negating any \(r_t\) flips \(\hat{y}\).
+      negating any \(r_t\) flips \(\hat{y}\) accordingly.
     </aside>
   </section>
 
@@ -416,11 +434,15 @@
       <div class="col">
         <div class="block frag"><div class="block-title">2 · Attribution (SHAP / IG)</div>
           Identifies top drivers. Evaluated for <em>faithfulness</em> to that model.
+          Tatsat &amp; Shater (2025) show that mechanistic interpretability — analysis of attention heads and
+          circuits — can trace behaviour in financial LLMs without relying solely on post-hoc wrappers.
         </div>
       </div>
       <div class="col">
         <div class="block frag"><div class="block-title">3 · LLM generator</div>
           Translates drivers into prose. Evaluated for <em>clarity, completeness, compliance</em>.
+          Cetintav et al. (2024) demonstrate GPT-4o translating SHAP outputs into natural-language
+          explanations accessible to non-expert users.
         </div>
       </div>
     </div>
@@ -447,22 +469,13 @@
     <ol>
       <li class="frag"><strong>Structured (42 vars):</strong> gradient-boosted tree + <em>exact</em> TreeSHAP.</li>
       <li class="frag"><strong>Unstructured text:</strong> fine-tuned DistilBERT + KernelSHAP (1,000 samples) → top-5 negative tokens.</li>
-      <li class="frag"><strong>Adverse-action generation:</strong> GPT-4o, constrained to the feed below.</li>
+      <li class="frag"><strong>Adverse-action generation:</strong> GPT-4o, constrained to the attribution feed (DTI −0.18, revenue −0.12, text −0.09, cash reserve −0.07, industry −0.05). 150-word limit; no unlisted factors; no protected characteristics.</li>
     </ol>
-    <pre class="code">You are a credit officer drafting a regulatory-compliant
-adverse action notice. The application was declined. The
-primary reasons, in order of importance, are:
-1. Debt-to-income ratio: 54% (threshold 45%)  - SHAP -0.18
-2. Revenue trend: -28% YoY                     - SHAP -0.12
-3. Description: "struggling","declining"       - txt  -0.09
-4. Cash reserve: 0.8 mo (threshold 3)          - SHAP -0.07
-5. Industry: Hospitality (elevated default)    - SHAP -0.05
-Do NOT introduce factors not listed. Do NOT mention protected
-characteristics. Limit to 150 words.</pre>
     <div class="takeaway callout frag">
-      <span class="callout-tag">the principle</span>
+      <span class="callout-tag">the principle — and the evidence</span>
       LLMs are safest in the explanation layer when inputs are <em>tightly constrained by upstream attribution</em>.
-      The LLM transforms attributions into prose; it must not exercise credit judgement here.
+      Schmitt (2024) shows that combining AutoML with post-hoc SHAP attribution improves both predictive
+      accuracy and model transparency, satisfying interpretability requirements without sacrificing performance.
     </div>
   </section>
 
@@ -495,6 +508,9 @@ characteristics. Limit to 150 words.</pre>
         <li>Post-generation compliance check (classifier / keyword filter).</li>
         <li>Human-review queue for any flagged letter.</li>
       </ol>
+      Desai (2024) frames explainability as an optimisation constraint via Shapley and information-theoretic
+      measures, covering BSA/AML and Consumer Compliance audit categories.
+      Lakarasu (2024) proposes an XAI-prompted compliance platform addressing EU AI Act Article 13 obligations.
     </div>
   </section>
 
@@ -503,7 +519,7 @@ characteristics. Limit to 150 words.</pre>
     <h2>Explaining, before execution, why a product fits the client</h2>
     <div class="title-rule"></div>
     <p class="lead">MiFID II requires investment firms to give retail clients a <strong>suitability report</strong>
-      explaining why a product fits their objectives, risk tolerance, situation, and knowledge — <em>before</em> execution.</p>
+      explaining why a product fits their objectives, risk tolerance, situation, and knowledge — <em>before</em> execution (ESMA, 2018).</p>
     <div class="block frag"><div class="block-title">CFA Institute (2025): three requirements for AI-generated disclosures</div>
       <ol>
         <li>Reasoning <strong>traceable</strong> to the client data on file.</li>
@@ -523,7 +539,7 @@ characteristics. Limit to 150 words.</pre>
   <section class="slide section-slide">
     <div class="secnum">05</div>
     <h2>Evaluating the quality of explanations</h2>
-    <div class="secsub">There is no ground-truth explanation to check against — so we measure faithfulness, completeness, plausibility, and human utility.</div>
+    <div class="secsub">There is no ground-truth explanation to check against — so we measure faithfulness, completeness, plausibility, and human utility (Nauta et al., 2023).</div>
   </section>
 
   <section class="slide">
@@ -585,12 +601,12 @@ characteristics. Limit to 150 words.</pre>
     <h2>The ultimate test: can an expert actually use it?</h2>
     <div class="title-rule"></div>
     <p class="lead">Regulation cares whether a qualified expert can <em>use</em> the explanation to make
-      appropriate decisions. Three standard designs (Doshi-Velez &amp; Kim, 2017):</p>
+      appropriate decisions. Three standard designs (Doshi-Velez &amp; Kim, 2017; Nauta et al., 2023):</p>
     <table>
       <tr><th>Design</th><th>What it tests</th></tr>
       <tr><td><strong>Forward simulation</strong></td><td>Given an explanation, predict the model's output on a held-out input.</td></tr>
       <tr><td><strong>Decision support</strong></td><td>Approve/reject with vs. without explanations — does it help catch model errors?</td></tr>
-      <tr><td><strong>Trust calibration</strong></td><td>Should <em>raise</em> trust on correct predictions, <em>lower</em> it on incorrect ones.</td></tr>
+      <tr><td><strong>Trust calibration</strong></td><td>Should <em>raise</em> trust on correct predictions, <em>lower</em> it on incorrect ones. CFA Institute (2025): explanations may reduce overreliance, especially in high-uncertainty conditions.</td></tr>
     </table>
     <p class="frag"><strong>Practical constraint:</strong> credit officers and compliance specialists are
       expensive participants. Alternative: <em>vignette studies</em> with synthetic scenarios via professional networks.</p>
@@ -610,7 +626,7 @@ characteristics. Limit to 150 words.</pre>
       <div class="col">
         <ol>
           <li class="frag"><strong>Explainability is a legal requirement</strong>, not an aspiration: EU AI Act, SR 11-7, ECOA, MiFID II.</li>
-          <li class="frag"><strong>Classical XAI adapts to LLMs but not trivially:</strong> SHAP &amp; LIME need feature definitions and marginalisation/perturbation schemes; both can be unstable.</li>
+          <li class="frag"><strong>Classical XAI adapts to LLMs but not trivially:</strong> SHAP &amp; LIME need feature definitions and marginalisation/perturbation schemes; both can be unstable (Arrieta et al., 2020).</li>
           <li class="frag"><strong>Attention is not faithful</strong> in general; gradient methods (Integrated Gradients) are stronger but need model internals.</li>
           <li class="frag"><strong>LLM-native methods</strong> (CoT, counterfactuals, NL justifications) give plain language — but constrain the generator to upstream attributions and add compliance filters.</li>
           <li class="frag"><strong>Evaluate on multiple axes:</strong> faithfulness, completeness, plausibility, human utility. No single metric suffices.</li>
@@ -633,7 +649,7 @@ characteristics. Limit to 150 words.</pre>
   <section class="slide section-slide">
     <div class="secnum">A</div>
     <h2>Appendix — deeper foundations, benchmarks &amp; further reading</h2>
-    <div class="secsub">Why Shapley is unique, why marginalising a token is hard, the attribution figure, and a reading list. Beyond the core lecture.</div>
+    <div class="secsub">Why Shapley is unique, why marginalising a token is hard, and a reading list. Beyond the core lecture.</div>
   </section>
 
   <section class="slide">
@@ -654,7 +670,7 @@ characteristics. Limit to 150 words.</pre>
     <ul>
       <li><strong>Exact Shapley:</strong> exponential in the number of features.</li>
       <li><strong>TreeSHAP</strong> (Lundberg et al., 2020): <em>exact</em>, polynomial-time for tree ensembles.</li>
-      <li><strong>Neural nets / LLMs:</strong> KernelSHAP sampling approximation — its weighting connects directly to LIME's locality kernel.</li>
+      <li><strong>Neural nets / LLMs:</strong> KernelSHAP sampling approximation — its locality weighting connects directly to LIME's proximity kernel.</li>
     </ul>
   </section>
 
@@ -682,14 +698,13 @@ characteristics. Limit to 150 words.</pre>
     <div class="eyebrow">Appendix C · the figure</div>
     <h2>SHAP attribution for the credit example</h2>
     <div class="title-rule"></div>
-    <div class="block">
-      <div class="block-title">Token-level SHAP attributions</div>
-      Red (negative) tokens push \(P(\text{creditworthy})\) down from the \(0.50\) baseline toward \(0.14\);
-      "operates" adds \(+0.012\). Generated <em>deterministically</em> by
-      <code class="inline">gen_shap_attribution.py</code> from the fixed example values — no live model or data.
-    </div>
-    <p class="small">Figure source:
-      <code class="inline">book/chapters/12-xai-explainability/figures/fig_shap_attribution.pdf</code></p>
+    <p class="lead">Token-level SHAP attributions for the credit-decision classifier. Red (negative) tokens push
+      \(P(\text{creditworthy})\) down from the 0.50 baseline toward 0.14; "operates" adds +0.012.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/12-xai-explainability/fig_shap_attribution.png" alt="Token-level SHAP attribution bar chart for the credit example">
+      <figcaption><b>Figure.</b> Each horizontal bar is a token's contribution to the predicted probability of the "creditworthy" class. Negative (red) contributions pull the prediction from the 0.50 baseline toward the 0.14 model output.
+        <span class="src">Source: deterministically generated by <code>gen_shap_attribution.py</code> from the fixed values in the chapter example — depends on no live model or data.</span></figcaption>
+    </figure>
   </section>
 
   <section class="slide">
@@ -699,11 +714,13 @@ characteristics. Limit to 150 words.</pre>
     <ul>
       <li><strong>Foundations:</strong> Shapley (1953) axiomatic uniqueness; Lundberg &amp; Lee (2017) unified additive attribution; Lundberg et al. (2020) TreeSHAP.</li>
       <li><strong>LIME:</strong> Ribeiro et al. (2016) — readable, worked text/image/tabular examples.</li>
-      <li><strong>Evaluation:</strong> Doshi-Velez &amp; Kim (2017) — vocabulary for human-subject XAI.</li>
+      <li><strong>Evaluation:</strong> Doshi-Velez &amp; Kim (2017); Nauta et al. (2023) — vocabulary for human-subject XAI.</li>
       <li><strong>Counterfactuals:</strong> Wachter et al. (2017) — includes GDPR Art. 22 context.</li>
       <li><strong>Human side:</strong> Miller (2019) — what users actually want from explanations.</li>
-      <li><strong>Attention debate:</strong> Jain &amp; Wallace (2019) <em>vs.</em> Wiegreffe &amp; Pinter (2019); resolution by Jacovi &amp; Goldberg (2020).</li>
-      <li><strong>Regulation:</strong> EU AI Act (2024); ESMA MiFID II suitability; Fed SR 11-7; CFA Institute (2025) industry survey; Arrieta et al. (2020) full taxonomy.</li>
+      <li><strong>Attention debate:</strong> Clark et al. (2019); Jain &amp; Wallace (2019) <em>vs.</em> Wiegreffe &amp; Pinter (2019); resolution by Jacovi &amp; Goldberg (2020).</li>
+      <li><strong>Fairness:</strong> Mehrabi et al. (2021); Rane, Choudhary &amp; Rane (2023).</li>
+      <li><strong>Regulation:</strong> EU AI Act (2024); ESMA MiFID II suitability (2018); Fed SR 11-7; CFA Institute (2025); Arrieta et al. (2020) full taxonomy.</li>
+      <li><strong>Recent practice:</strong> Tatsat &amp; Shater (2025) mechanistic interpretability; Cetintav et al. (2024) GPT-4o SHAP translation; Schmitt (2024) AutoML+SHAP; Desai (2024); Lakarasu (2024); Mohsin &amp; Nasim (2025) bibliometric review.</li>
     </ul>
   </section>
 

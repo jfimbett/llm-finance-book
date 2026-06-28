@@ -20,7 +20,7 @@
     <h1>Financial NLP and Sentiment Analysis</h1>
     <div class="sub">Treating language as financial data — from raw text to a tradeable signal.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -80,7 +80,7 @@
       </div>
     </div>
     <div class="takeaway callout frag">
-      <span class="callout-tag">why an MBA should care</span>
+      <span class="callout-tag">the key discipline</span>
       Treating text like any other noisy dataset — with explicit measurement error — is what separates
       a defensible signal from a backtest mirage.
     </div>
@@ -116,7 +116,7 @@
         <div class="block frag"><div class="block-title">Social media (X, Reddit/WSB, StockTwits)</div>
           <ul>
             <li>Least curated; high noise, sarcasm, bots</li>
-            <li>Captures <em>retail attention</em> orthogonal to institutions</li>
+            <li>Captures <em>retail attention</em> orthogonal to institutions (Antweiler &amp; Frank 2004)</li>
             <li>Aggregates inform even when single posts don't</li>
           </ul>
         </div>
@@ -222,18 +222,23 @@
     <div class="title-rule"></div>
     <p class="lead">The simplest score: count positive and negative words and net them out — as long as your word
       list was built from financial language, not everyday English.</p>
-    <p class="frag">Harvard's General Inquirer mislabels <em>tax, liability, cost, foreign, crude, cancer</em> as
+    <p class="frag">Harvard's General Inquirer (Stone et al. 1966) mislabels <em>tax, liability, cost, foreign, crude, cancer</em> as
       negative — they're neutral in 10-Ks. On filings, GI "negativity" tracks legal boilerplate, not performance.</p>
     <aside class="underhood" data-title="the LM net-sentiment ratio">
       For a document \(d\), Loughran–McDonald sentiment is
       \[ S_{\text{LM}}(d) = \frac{N_{\text{pos}}(d) - N_{\text{neg}}(d)}{N_{\text{words}}(d)}. \]
     </aside>
-    <table class="frag">
-      <tr><th>Negative</th><th>Litigious</th><th>Positive</th><th>Uncertainty</th><th>Weak modal</th><th>Strong modal</th></tr>
-      <tr><td>2,355</td><td>903</td><td>354</td><td>297</td><td>27</td><td>19</td></tr>
-    </table>
-    <p class="small">The LM lists are built from the 10-K vocabulary; the <strong>negative</strong> list dominates —
-      the asymmetry of disclosure language.</p>
+    <figure class="deckfig frag">
+      <img src="../assets/figures/09-financial-nlp-sentiment/fig_lm_lexicon.png"
+           alt="Horizontal bar chart of Loughran-McDonald dictionary word-list sizes by category">
+      <figcaption><b>Figure.</b> Word-list sizes of the Loughran–McDonald finance dictionary
+        (Loughran &amp; McDonald 2011). The <em>negative</em> list (2,355 words) dominates,
+        reflecting the asymmetry of corporate disclosure language; the uncertainty list (297 words)
+        captures hedging — Li (2010) shows uncertain forward-looking language predicts lower
+        earnings persistence.
+        <span class="src">Source: generated deterministically from published LM counts.</span>
+      </figcaption>
+    </figure>
   </section>
 
   <section class="slide">
@@ -323,7 +328,7 @@
     <h2>LLMs classify with no training set at all</h2>
     <div class="title-rule"></div>
     <p class="lead">GPT-4, Claude, and LLaMA-3 classify sentiment from a task description alone — no fine-tuning,
-      no labelled set. That makes rapid prototyping on a new domain almost free.</p>
+      no labelled set (Brown et al. 2020). That makes rapid prototyping on a new domain almost free.</p>
     <div class="block">
       <div class="block-title">Zero-shot prompt sketch</div>
       <em>"You are a financial analyst. Classify the sentiment … from the perspective of a stock investor."</em>
@@ -342,7 +347,7 @@
     <div class="title-rule"></div>
     <ul>
       <li class="frag"><strong>Ko &amp; Lee 2024:</strong> GPT-4 zero-shot <em>matches or exceeds</em> FinBERT on
-        PhraseBank, FiQA, and a proprietary call dataset — with no labels.</li>
+        PhraseBank, FiQA (Maia et al. 2018), and a proprietary call dataset — with no labels.</li>
       <li class="frag"><strong>López-Lira &amp; Tang 2023:</strong> GPT headline scores positively predict next-day
         returns, beating lexicons.</li>
       <li class="frag"><strong>Kirtac &amp; Germano 2024:</strong> OPT (GPT-3 family) yields a markedly higher
@@ -416,7 +421,9 @@
         <div class="block frag"><div class="block-title">Earnings calls</div>
           <ul>
             <li>Larcker 2012: deception cues → restatements</li>
-            <li>Price 2012: tone → post-call abnormal returns</li>
+            <li>Feldman 2010: Q&amp;A responsiveness predicts post-announcement drift</li>
+            <li>Price 2012: management tone → post-call abnormal returns</li>
+            <li>Davis 2015: manager-specific tone component → future earnings</li>
             <li>Cook &amp; Kazinnik 2023: local LLMs ≈ closed-source, lower privacy risk</li>
           </ul>
         </div>
@@ -524,7 +531,9 @@
     <div class="title-rule"></div>
     <p class="lead">The sharp test: after you already know the earnings surprise, does sentiment still predict the
       drift? If yes, the text carries information the number doesn't.</p>
-    <aside class="underhood" data-title="abnormal returns &amp; the event study">
+    <aside class="underhood" data-title="abnormal returns &amp; the event study (Fama 1970)">
+      The event study framework (Fama 1970) tests whether a class of events carries information by measuring the
+      average abnormal return in a window around the event date.
       Abnormal return \(AR_{i,\tau}=R_{i,\tau}-\hat R_{i,\tau}\) against a benchmark (e.g. CAPM); cumulated over \([a,b]\),
       \[ \mathrm{CAR}_i[a,b]=\sum_{\tau=a}^{b}AR_{i,\tau},\qquad
          \overline{\mathrm{CAR}}[a,b]=\tfrac1N\sum_i \mathrm{CAR}_i[a,b]. \]
@@ -583,9 +592,10 @@
     <div class="eyebrow">Evaluation, part 1</div>
     <h2>How much do human labellers even agree?</h2>
     <div class="title-rule"></div>
-    <p class="lead">Before trusting a classifier, ask how reliable the labels are. Finance sentences are genuinely
-      ambiguous, so agreement is moderate — and that ceiling matters.</p>
-    <aside class="underhood" data-title="Krippendorff's alpha">
+    <p class="lead">Before trusting a classifier, ask how reliable the labels are. Krippendorff's alpha
+      (Krippendorff 1970) measures agreement beyond chance — finance sentences are genuinely ambiguous,
+      so that ceiling matters.</p>
+    <aside class="underhood" data-title="Krippendorff's alpha (Krippendorff 1970)">
       Agreement beyond chance:
       \[ \alpha = 1-\frac{D_o}{D_e}, \]
       \(D_o\) = observed, \(D_e\) = expected disagreement. For nominal \(k\)-class data,
@@ -649,7 +659,8 @@
           LM scoring, FinBERT vs. lexicon, and a filing-date event study on real EDGAR + price data.
         </div>
         <p class="small"><strong>Key refs:</strong> Tetlock (2007/08) · Loughran–McDonald (2011) ·
-          Malo et al. (2014) · Araci (2019) · López-Lira &amp; Tang (2023) · Ko &amp; Lee (2024).</p>
+          Malo et al. (2014) · Araci (2019) · López-Lira &amp; Tang (2023) · Ko &amp; Lee (2024).
+          <br><strong>Surveys:</strong> Kearney &amp; Loughran (2014) · Loughran &amp; McDonald (2020).</p>
       </div>
     </div>
   </section>

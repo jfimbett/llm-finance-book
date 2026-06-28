@@ -20,7 +20,7 @@
     <h1>LLMs for Business Valuation</h1>
     <div class="sub">Turning filings into a defensible enterprise value — and knowing exactly which steps to trust the model with.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -34,8 +34,9 @@
           <li class="frag"><strong>Valuation frameworks</strong> — DCF, multiples, net assets — and where an LLM actually helps.</li>
           <li class="frag"><strong>Getting the data</strong> — pulling clean numbers out of SEC filings.</li>
           <li class="frag"><strong>Cash flows</strong> — computing and normalising free cash flow.</li>
-          <li class="frag"><strong>Forecasting &amp; arithmetic</strong> — reasoning with the model, computing with code.</li>
-          <li class="frag"><strong>Scenarios, comparables, and the full pipeline</strong>.</li>
+          <li class="frag"><strong>Forecasting</strong> — CoT prompting, few-shot vs. fine-tuning, evaluation.</li>
+          <li class="frag"><strong>Tools &amp; arithmetic</strong> — why the model must never do the maths itself.</li>
+          <li class="frag"><strong>Scenarios, comparables, pipeline, and cost.</strong></li>
         </ol>
       </div>
       <div class="col">
@@ -62,8 +63,8 @@
     <div class="title-rule"></div>
     <p class="lead">Valuation turns financial facts — cash flows, growth, a discount rate — into a single
       number: what a rational, fully informed buyer would pay for the claim.</p>
-    <aside class="underhood" data-title="the object we estimate">
-      Valuation maps observable and projected financial variables into a scalar enterprise value
+    <aside class="underhood" data-title="the formal object (Damodaran, 2012)">
+      Valuation maps observable and projected financial variables into a scalar
       \( V \in \mathbb{R}_+ \) that a rational, fully informed market participant would assign to the claim.
     </aside>
     <div class="block"><div class="block-title">Where this number gets used</div>
@@ -71,7 +72,8 @@
         <li><strong>M&amp;A</strong> — the spread between buyer and seller defines the zone of possible agreement</li>
         <li><strong>IPOs</strong> — banks produce valuation ranges to price new shares</li>
         <li><strong>Portfolio management</strong> — model value vs. market price generates trade signals</li>
-        <li><strong>Financial reporting</strong> — IFRS 13 / ASC 820 Level 3 assets require documented models</li>
+        <li><strong>Financial reporting</strong> — IFRS 13 / ASC 820 Level 3 assets require documented valuation models subject to auditor scrutiny (IASB, 2011)</li>
+        <li><strong>Litigation, tax, and regulatory capital</strong> — transfer pricing, estate tax, fair-value assessments</li>
       </ul>
     </div>
   </section>
@@ -84,9 +86,11 @@
       The whole game is turning today's information into a credible forward estimate.</p>
     <div class="bigpicture callout">
       <span class="callout-tag">the bigger picture</span>
-      Valuation is forward-looking. Translating current information into a credible forward estimate is
-      exactly where LLMs add the most value.
+      Valuation is always forward-looking. Translating current information into a credible forward estimate is
+      exactly where LLMs add the most transformative value — at every step of the analytical chain.
     </div>
+    <p class="frag">Every assumption is defensible; every assumption is contestable.
+      Business valuation is the discipline of making assumptions <strong>explicit, consistent, and auditable</strong>.</p>
   </section>
 
   <section class="slide">
@@ -96,7 +100,7 @@
     <div class="cols c3">
       <div class="col">
         <div class="block"><div class="block-title">Income — DCF</div>
-          Discount projected free cash flows back to today. The dominant method for going concerns.
+          Discount projected free cash flows back to today at the weighted cost of capital. The dominant method for going concerns.
         </div>
       </div>
       <div class="col">
@@ -111,17 +115,40 @@
         </div>
       </div>
     </div>
-    <aside class="underhood" data-title="the three formulas">
+    <aside class="underhood" data-title="the three formulas (Damodaran, 2012; Berk, 2020)">
       Income approach (DCF):
       \[ V = \sum_{t=1}^{n} \frac{\text{FCF}_t}{(1+\text{WACC})^t}
           + \underbrace{\frac{\text{FCF}_{n+1}/(\text{WACC}-g)}{(1+\text{WACC})^n}}_{\text{Terminal Value}} \]
-      A 100-bps change in WACC or \(g\) alters terminal value by <strong>20–40%</strong> — scenario analysis is indispensable.
+      A 100-bps change in WACC or \(g\) alters terminal value by <strong>20–40%</strong> for a moderate-growth firm —
+      scenario analysis is indispensable.<br><br>
       Asset approach (net asset value):
       \[ V_{\text{NAV}} = \sum_i FV(\text{Asset}_i) - \sum_j FV(\text{Liability}_j) \]
     </aside>
     <div class="takeaway callout frag">
       <span class="callout-tag">in practice</span>
       Triangulate across all three and present a valuation <em>range</em>, not a point estimate.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">WACC and the cost of equity</div>
+    <h2>The discount rate is itself a model output</h2>
+    <div class="title-rule"></div>
+    <p class="lead">WACC is not a market observable — it is derived from the firm's capital structure and the
+      CAPM estimate of equity cost. The cost of equity is the single most consequential input.</p>
+    <aside class="underhood" data-title="WACC and CAPM definitions">
+      Let \(E, D\) be market values of equity and debt, \(w_E = E/(E+D)\), \(w_D = D/(E+D)\).
+      \[ \text{WACC} = w_E r_E + w_D r_D (1-\tau) \]
+      The factor \(1-\tau\) reflects the tax deductibility of interest. Cost of equity via CAPM:
+      \[ r_E = r_f + \beta\,(\mathbb{E}[r_m] - r_f) = r_f + \beta \cdot \text{ERP} \]
+      where \(r_f\) is the risk-free rate, \(\beta\) the equity's market sensitivity, and \(\text{ERP}\) the equity risk premium.
+    </aside>
+    <div class="block frag"><div class="block-title">Why this matters for LLM pipelines</div>
+      <ul>
+        <li>β must be estimated from market data — an LLM should retrieve it, not recall it from training</li>
+        <li>ERP and r_f change over time — stale model knowledge is dangerous here</li>
+        <li>All computations must go through a code interpreter, never in-context maths</li>
+      </ul>
     </div>
   </section>
 
@@ -133,6 +160,7 @@
       <tr><th>Step</th><th>Traditional approach</th><th>LLM contribution</th></tr>
       <tr><td>Data collection</td><td>Manual EDGAR parsing</td><td>Automated extraction pipeline</td></tr>
       <tr><td>FCF computation</td><td>Spreadsheet formulas</td><td>Code interpreter (error-free)</td></tr>
+      <tr><td>FCF normalisation</td><td>Analyst reads MD&amp;A</td><td>Non-recurring item identification</td></tr>
       <tr><td>Forecasting</td><td>Analyst judgment</td><td>CoT prompting + evaluation</td></tr>
       <tr><td>Scenario analysis</td><td>Manual scenarios</td><td>Narrative coherence checking</td></tr>
       <tr><td>Comparable selection</td><td>SIC codes + manual</td><td>Embedding + LLM hybrid</td></tr>
@@ -163,9 +191,9 @@
         <div class="block"><div class="block-title">Filing types that matter</div>
           <ul>
             <li class="frag"><strong>10-K</strong> — annual audited financials + MD&amp;A. Primary source.</li>
-            <li class="frag"><strong>10-Q</strong> — quarterly unaudited interim statements.</li>
+            <li class="frag"><strong>10-Q</strong> — quarterly unaudited interim statements (three per year).</li>
             <li class="frag"><strong>8-K</strong> — material events within 4 business days (earnings, M&amp;A, CEO changes).</li>
-            <li class="frag"><strong>DEF 14A</strong> — proxy: executive comp, board composition.</li>
+            <li class="frag"><strong>DEF 14A</strong> — proxy: executive comp, board composition, related-party transactions.</li>
           </ul>
         </div>
       </div>
@@ -180,10 +208,33 @@
       </div>
     </div>
     <div class="takeaway callout frag">
-      <span class="callout-tag">XBRL: the first-pass extractor</span>
-      Since 2009 the SEC requires XBRL tagging, which covers most standard line items reliably. The LLM
-      fills the gap for non-standard layouts, merged cells, and extension elements.
+      <span class="callout-tag">XBRL: the first-pass extractor (SEC, 2009)</span>
+      Since 2009 the SEC requires XBRL tagging, covering most standard line items reliably. The LLM fills
+      the gap for non-standard layouts, merged cells, and extension elements. Use XBRL as ground truth;
+      treat LLM extraction as a complement and cross-check.
     </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Engineering details</div>
+    <h2>Getting the pipeline right: rate limits and accession numbers</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Automation is straightforward once you understand a few EDGAR conventions
+      that trip up careless implementations.</p>
+    <div class="block"><div class="block-title">Practical engineering points</div>
+      <ul>
+        <li class="frag"><strong>User-Agent header required</strong> — requests that omit it are throttled or blocked.</li>
+        <li class="frag"><strong>Rate limit</strong> — approximately 10 requests per second; exponential backoff for large-scale jobs.</li>
+        <li class="frag"><strong>Accession numbers</strong> — format <code class="inline">XXXXXXXXXX-YY-ZZZZZZ</code>; strip hyphens to get the directory path in <code class="inline">/Archives/</code>.</li>
+        <li class="frag"><strong>Look-ahead bias</strong> — always record the <em>filing date</em>, not the fiscal year-end date. Using fiscal year-end in a backtest includes information not yet available to investors.</li>
+      </ul>
+    </div>
+    <aside class="underhood" data-title="why XBRL alone is not enough">
+      XBRL covers the majority of standard line items reliably but misses a material fraction of the
+      detail needed for a full valuation. Filers use extension elements for firm-specific line items
+      and sometimes apply the taxonomy inconsistently. Raw XBRL plus LLM gap-filling is the correct
+      architecture.
+    </aside>
   </section>
 
   <section class="slide">
@@ -198,19 +249,38 @@
         <li>Convert to compact plain text (preserve headers, strip HTML tags)</li>
         <li>Send to the LLM with a structured extraction prompt requesting a JSON schema</li>
         <li>Validate output against the schema; retry on parse failure</li>
+        <li>Cross-check LLM-extracted figures against XBRL tags; flag conflicts for human review</li>
       </ol>
     </aside>
     <div class="block frag"><div class="block-title">Design principles</div>
       <ul>
-        <li>Request JSON directly — reduces post-processing; enables automatic validation</li>
+        <li>Request JSON directly — enables automatic validation against a schema</li>
         <li>Add "Respond only with valid JSON. No markdown code fences." if the model lacks JSON mode</li>
-        <li>Use XBRL as ground truth; flag conflicts between XBRL tags and LLM extractions</li>
+        <li>XBRL as ground truth; LLM extraction fills the gap and acts as cross-check</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">After extraction: the data model</div>
+    <h2>Assembling a clean, consistent financial data model</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Extracting figures from one filing is step one. Assembling them into a schema that can
+      be safely fed into computation — without silent errors — is step two.</p>
+    <div class="block"><div class="block-title">Minimal schema for DCF (3–5 years per company)</div>
+      <ul>
+        <li class="frag"><strong>Company identifier</strong> — ticker and CIK</li>
+        <li class="frag"><strong>Fiscal period end date</strong> — not all fiscal years end December 31</li>
+        <li class="frag"><strong>Filing date</strong> — to prevent look-ahead bias in backtests</li>
+        <li class="frag"><strong>Standardised quantities</strong> — units (thousands vs. millions) and sources clearly annotated</li>
+        <li class="frag"><strong>Provenance</strong> — XBRL tag or LLM extraction (model + date) for every figure</li>
+        <li class="frag"><strong>Restatement flag</strong> — a refiled 10-K supersedes the original and may change prior figures</li>
       </ul>
     </div>
     <div class="alert callout frag">
-      <span class="callout-tag">avoid look-ahead bias</span>
-      Always record the <em>filing date</em>, not the fiscal year-end date. Using fiscal year-end in a
-      backtest can include information not yet available.
+      <span class="callout-tag">normalisation traps</span>
+      Currency-unit mismatch (some filers report in thousands, others in millions), fiscal-year offset,
+      and restatements are the three most common sources of silent downstream errors.
     </div>
   </section>
 
@@ -227,18 +297,21 @@
     <div class="title-rule"></div>
     <p class="lead">Free cash flow is the cash a business throws off after paying to keep running and grow.
       One version belongs to <em>everyone</em> who funded the firm; the other only to shareholders.</p>
-    <aside class="underhood" data-title="FCFF, FCFE, and their relationship">
-      Free Cash Flow to Firm:
+    <aside class="underhood" data-title="FCFF, FCFE, and their relationship (Damodaran, 2012)">
+      Free Cash Flow to the Firm (FCFF):
       \[ \text{FCFF}_t = \text{EBIT}_t(1-\tau) + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t \]
-      Free Cash Flow to Equity:
+      where \(\tau\) = marginal tax rate, \(\text{DA}\) = depreciation and amortisation,
+      \(\Delta\text{NWC}\) = change in net working capital.<br><br>
+      Free Cash Flow to Equity (FCFE):
       \[ \text{FCFE}_t = \text{NI}_t + \text{DA}_t - \text{CapEx}_t - \Delta\text{NWC}_t + \text{NB}_t \]
-      Relationship (Modigliani–Miller with taxes):
+      where \(\text{NB}_t\) = net new borrowing.<br><br>
+      Relationship (Modigliani–Miller with corporate taxes):
       \[ \text{FCFE}_t = \text{FCFF}_t - \text{InterestExp}_t(1-\tau) + \text{NB}_t \]
     </aside>
     <div class="takeaway callout">
-      <span class="callout-tag">which to use</span>
+      <span class="callout-tag">which to use?</span>
       When leverage is changing materially, <strong>FCFF</strong> is more robust: WACC can be held constant,
-      while the cost of equity must be re-levered per scenario. (Discount-rate mapping in the appendix.)
+      while the cost of equity must be re-levered per scenario when using FCFE.
     </div>
   </section>
 
@@ -250,7 +323,7 @@
     <div class="cols">
       <div class="col">
         <table>
-          <tr><th>Item</th><th>Value</th></tr>
+          <tr><th>Item</th><th>Value (USD M)</th></tr>
           <tr><td>Revenue</td><td>4,200</td></tr>
           <tr><td>EBIT</td><td>840</td></tr>
           <tr><td>D&amp;A</td><td>310</td></tr>
@@ -267,8 +340,9 @@
           \[ = 663.6 + 310 - 180 - 80 = \mathbf{713.6\text{ M}} \]
         </aside>
         <div class="block frag"><div class="block-title">From cash flow to value</div>
-          With WACC = 9%, 5-year explicit growth = 8%, terminal growth = 3%, enterprise value
-          \(\approx\) <strong>\(\$\)15.2B</strong> \(\approx\) 3.6× trailing revenue.
+          With WACC = 9%, 5-yr explicit growth = 8%, terminal growth = 3%:<br>
+          Enterprise value <strong>≈ $15.2B ≈ 3.6× trailing revenue</strong>, consistent with
+          high-quality software-sector medians for firms with strong near-term growth.
         </div>
       </div>
     </div>
@@ -283,14 +357,15 @@
     <div class="block"><div class="block-title">Three categories that distort FCFF</div>
       <ol>
         <li class="frag"><strong>One-time items</strong> — restructuring charges, litigation settlements, impairments. Remove from base EBIT.</li>
-        <li class="frag"><strong>Capitalised operating leases</strong> (IFRS 16, ASC 842) — mismatch between reported EBIT, depreciation, and cash flows; must be reconciled.</li>
-        <li class="frag"><strong>Acquired intangible amortisation</strong> — from purchase-accounting step-up; often excluded in "cash EBIT".</li>
+        <li class="frag"><strong>Capitalised operating leases</strong> (IFRS 16, ASC 842) — mismatch between reported EBIT, depreciation, and cash flows; must be reconciled carefully.</li>
+        <li class="frag"><strong>Acquired intangible amortisation</strong> — from purchase-accounting step-up; often excluded in "cash EBIT" (Koller et al., 2020).</li>
       </ol>
     </div>
-    <aside class="underhood" data-title="the adjustment">
+    <aside class="underhood" data-title="the LLM adjustment workflow">
       Prompt the model on the MD&amp;A to identify non-recurring items; return JSON with description, amount,
-      and confidence. Adjusted EBIT:
+      line_item, and confidence. Adjusted EBIT:
       \[ \text{EBIT}^* = \text{EBIT} + \sum_{k \in \mathcal{K}} a_k \]
+      where \(\mathcal{K}\) is the set of non-recurring items and \(a_k > 0\) is the pre-tax amount.
     </aside>
     <div class="takeaway callout frag">
       <span class="callout-tag">human-in-the-loop design</span>
@@ -313,11 +388,12 @@
     <p class="lead">Simple statistical models project cash flow from its own past. They're honest baselines —
       but blind to anything not already in the numbers.</p>
     <aside class="underhood" data-title="two classical models">
-      Random walk with drift:
+      Random walk with drift (Ball and Brown, 1972):
       \[ \text{FCF}_{t+1} = \mu + \text{FCF}_t + \varepsilon_{t+1}, \quad \varepsilon \sim \mathcal{N}(0,\sigma^2) \]
-      Mean-reverting model:
+      Mean-reverting model (Fama and French, 2000):
       \[ \text{FCF}_{t+1} - \bar{\text{FCF}} = \phi(\text{FCF}_t - \bar{\text{FCF}}) + \varepsilon_{t+1} \]
-      Empirically \( \phi \approx 0.5\text{–}0.7 \) for earnings — substantial persistence, non-trivial mean reversion.
+      Empirically \(\phi \approx 0.5\text{–}0.7\) for earnings — substantial persistence, non-trivial
+      mean reversion (Fama and French, 2000). Analyst consensus as a third baseline (Lewellen, 2010).
     </aside>
     <div class="alert callout">
       <span class="callout-tag">the key limitation</span>
@@ -326,7 +402,7 @@
     </div>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the LLM opportunity</span>
-      LLMs are trained on disclosures, analyst reports, and economic news — they can fold in the qualitative
+      LLMs are trained on disclosures, analyst reports, and economic news — they can fold in qualitative
       dimensions time-series models miss. The empirical question: does this measurably improve accuracy?
     </div>
   </section>
@@ -353,26 +429,60 @@
   </section>
 
   <section class="slide">
+    <div class="eyebrow">Two adaptation strategies</div>
+    <h2>Few-shot in-context vs. fine-tuning: when to use which</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You can teach an LLM the forecasting task without retraining (few-shot) or with supervised
+      adaptation of its weights (fine-tuning). Each strategy has a different cost–benefit profile.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Few-shot prompting (Brown et al., 2020)</div>
+          <ul>
+            <li class="frag">3–10 historical (company, context, forecast) examples prepended to the prompt</li>
+            <li class="frag">Zero training cost; easy to update; deployment flexibility</li>
+            <li class="frag">Include diverse macro environments and industry types to reduce forecast variance</li>
+            <li class="frag">Risk: poorly chosen examples anchor the model to the wrong regime</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Fine-tuning and PEFT</div>
+          <ul>
+            <li class="frag">Train on labelled (filing, subsequent cash-flow realisation) pairs — captures domain-specific patterns (e.g., MD&amp;A language and earnings surprises)</li>
+            <li class="frag">LLM signals carry return-predictive information even without fine-tuning (López-Lira and Tang, 2023)</li>
+            <li class="frag"><strong>LoRA / PEFT</strong> (Hu et al., 2022): train only a small fraction of parameters — competitive performance at a fraction of the compute cost</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">practical recommendation</span>
+      Start with few-shot; fine-tune only if the sector has non-standard accounting conventions or you need
+      calibrated uncertainty estimates. LoRA makes fine-tuning feasible even without large-scale GPU clusters.
+    </div>
+  </section>
+
+  <section class="slide">
     <div class="eyebrow">Did it actually work?</div>
     <h2>How to grade a forecast</h2>
     <div class="title-rule"></div>
     <p class="lead">Three metrics, each answering a different question: how far off, how far off in dollars,
       and did we at least get the direction right.</p>
-    <aside class="underhood" data-title="MAPE, RMSE, directional accuracy">
+    <aside class="underhood" data-title="MAPE, RMSE, directional accuracy (Zhang et al., 2024)">
       \[ \text{MAPE} = \frac{1}{n}\sum_{t=1}^{n} \frac{|y_t - \hat{y}_t|}{|y_t|} \times 100 \]
       \[ \text{RMSE} = \sqrt{\frac{1}{n}\sum_{t=1}^{n}(y_t - \hat{y}_t)^2} \]
       \[ \text{DA} = \frac{1}{n}\sum_{t=1}^{n}
          \1\!\left[\mathrm{sign}(y_t - y_{t-1}) = \mathrm{sign}(\hat{y}_t - y_{t-1})\right] \]
     </aside>
     <table>
-      <tr><th>Metric</th><th>Problem</th><th>When to use</th></tr>
+      <tr><th>Metric</th><th>Problem</th><th>When most useful</th></tr>
       <tr><td>MAPE</td><td>Undefined when \(y_t \approx 0\)</td><td>Stable, positive cash flows</td></tr>
       <tr><td>RMSE</td><td>Scale-dependent</td><td>Within-company comparison</td></tr>
       <tr><td>DA</td><td>Scale-invariant</td><td>Investment-decision relevance</td></tr>
     </table>
     <div class="takeaway callout frag">
       <span class="callout-tag">the discipline</span>
-      Always compare against a random-walk baseline <em>and</em> analyst consensus.
+      Always compare against a random-walk baseline <em>and</em> sell-side analyst consensus (Zhang et al., 2024).
     </div>
   </section>
 
@@ -380,7 +490,7 @@
   <section class="slide section-slide">
     <div class="secnum">05</div>
     <h2>Tool-augmented agents for financial arithmetic</h2>
-    <div class="secsub">The single most important rule in this lecture: never let the LLM do the math.</div>
+    <div class="secsub">The single most important rule in this lecture: never let the LLM do the maths.</div>
   </section>
 
   <section class="slide">
@@ -389,15 +499,17 @@
     <div class="title-rule"></div>
     <p class="lead">An LLM predicts the next word. Arithmetic is a deterministic algorithm. It can pattern-match
       simple sums, but reliability collapses as the computation grows.</p>
-    <aside class="underhood" data-title="the architectural mismatch">
-      LLMs are next-token predictors; arithmetic is a deterministic algorithm. Statistical pattern-matching
-      approximates arithmetic for simple cases, and reliability degrades rapidly with complexity.
+    <aside class="underhood" data-title="the architectural mismatch (Frieder et al., 2023)">
+      LLMs are next-token predictors trained on text corpora. GPT-4 achieves near-perfect accuracy on
+      single-digit multiplication and simple percentages but makes errors with non-trivial frequency on
+      multi-step financial calculations involving chained operations, unit conversions, and long formulas
+      (Frieder et al., 2023). The solution is architectural, not a better prompt.
     </aside>
     <div class="block"><div class="block-title">For valuation, this is serious</div>
       <ul>
-        <li class="frag">A 5-year DCF involves \(\approx 15\text{–}20\) chained arithmetic operations</li>
+        <li class="frag">A 5-year DCF involves approximately <strong>15–20 chained arithmetic operations</strong></li>
         <li class="frag">An incorrectly applied tax rate propagates through every calculation</li>
-        <li class="frag">A 5% FCFF extraction error + 1% terminal-growth bias can together cause a \(&gt;10\%\) error in enterprise value</li>
+        <li class="frag">Final valuation error can be several times the original computational error</li>
       </ul>
     </div>
     <div class="alert callout frag">
@@ -411,9 +523,10 @@
     <div class="eyebrow">The pattern that fixes it</div>
     <h2>The agent reasons; the code interpreter computes</h2>
     <div class="title-rule"></div>
-    <p class="lead">A ReAct agent emits structured Thought / Action steps and hands every number to a Python
-      executor. The arithmetic is delegated, not guessed.</p>
-    <pre class="code"># ReAct agent trace --- DCF computation
+    <p class="lead">Toolformer (Schick et al., 2023) showed models can learn when to call external tools.
+      A ReAct agent (Yao et al., 2022) emits Thought / Action / Observation steps, delegating every number
+      to a Python executor.</p>
+    <pre class="code"># ReAct agent trace — DCF computation (Yao et al., 2022)
 
 Thought 1: I need to compute FCFF. EBIT=840, DA=310, CapEx=180,
            delta_NWC=80, tau=0.21. Use python_executor.
@@ -427,7 +540,7 @@ Action 1:  python_executor(code="""
 Observation 1: FCFF = 713.6 M</pre>
     <div class="block frag"><div class="block-title">Why this is the right design</div>
       Arithmetic is delegated to <code class="inline">python_executor</code> rather than performed
-      in-context — and the generated code is an auditable artefact.
+      in-context — and the generated code is an <strong>auditable artefact</strong> a human can inspect.
     </div>
   </section>
 
@@ -461,22 +574,22 @@ Observation 2: EV = 15224.0 M</pre>
     <div class="cols">
       <div class="col">
         <div class="block"><div class="block-title">1 · Phantom tickers</div>
-          Realistic-sounding but non-existent tickers. <em>Mitigation:</em> validate every ticker against a
-          securities master before use.
+          Realistic-sounding but non-existent tickers or company names. <em>Mitigation:</em> validate every
+          ticker against a securities master (e.g., the EDGAR company search API) before use.
         </div>
         <div class="block"><div class="block-title">2 · Invented ratios</div>
           Confabulated numbers in no filing. <em>Mitigation:</em> trace every figure to a specific EDGAR
-          accession number — <strong>do not trust until verified</strong>.
+          accession number — <strong>do not trust until verified</strong> (Zhang et al., 2024).
         </div>
       </div>
       <div class="col">
         <div class="block"><div class="block-title">3 · Misapplied formulas</div>
-          Correct code, wrong formula (FCFE when FCFF was asked; missing tax shield). <em>Mitigation:</em>
-          automated formula-level testing against benchmark cases.
+          Correct code, wrong formula (FCFE when FCFF was asked; missing tax shield on interest).
+          <em>Mitigation:</em> automated formula-level testing against known benchmark cases.
         </div>
         <div class="block"><div class="block-title">4 · Stale knowledge</div>
-          Models have a knowledge cutoff; tax rates and standards change. <em>Mitigation:</em> prefer
-          EDGAR-retrieved facts over parametric memory.
+          Models have a knowledge cutoff; tax rates and accounting standards change.
+          <em>Mitigation:</em> prefer EDGAR-retrieved facts over parametric model memory.
         </div>
       </div>
     </div>
@@ -502,12 +615,13 @@ Observation 2: EV = 15224.0 M</pre>
       <tr><td>Bear</td><td>P10</td><td>Adverse macro, margin compression, or competitive deterioration</td></tr>
     </table>
     <p class="frag">Every scenario must specify a complete, consistent set: revenue growth, EBIT margins,
-      CapEx intensity, NWC ratios, terminal growth. A scenario combining <strong>25% revenue CAGR and 1%
-      terminal growth is internally contradictory.</strong></p>
+      CapEx intensity, NWC ratios, terminal growth rate.
+      A scenario combining <strong>25% revenue CAGR and 1% terminal growth is internally contradictory</strong>
+      — rapid-growth corporations rarely decelerate to near-zero growth abruptly.</p>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the LLM's job here</span>
-      LLMs excel at <em>narrative coherence checking</em> — does the story justify the numbers? — and should
-      <em>not</em> compute the resulting valuations. That goes to the code interpreter.
+      LLMs excel at <em>narrative coherence checking</em> — does the story justify the numbers? — and
+      generate the investment write-up paragraph. They should <em>not</em> compute the resulting valuations.
     </div>
   </section>
 
@@ -518,19 +632,39 @@ Observation 2: EV = 15224.0 M</pre>
     <p class="lead">Instead of three hand-built cases, draw thousands of WACC and growth values from
       distributions and re-run the DCF each time. The output is a range, not a point.</p>
     <aside class="underhood" data-title="the simulation">
-      Let \( \text{WACC} \sim \mathcal{N}(\mu_W, \sigma_W^2) \) and \( g \sim \mathcal{N}(\mu_g, \sigma_g^2) \)
-      (truncated so \( g &lt; \text{WACC} \)). For \(M\) paths:
+      Let \(\text{WACC} \sim \mathcal{N}(\mu_W, \sigma_W^2)\) and \(g \sim \mathcal{N}(\mu_g, \sigma_g^2)\)
+      (truncated so \(g &lt; \text{WACC}\) to keep terminal value finite). For \(M\) paths:
       \[ V^{(m)} = \sum_{t=1}^{n} \frac{\text{FCF}_t^{(m)}}{(1+\text{WACC}^{(m)})^t}
          + \frac{\text{FCF}_{n+1}^{(m)}}{(\text{WACC}^{(m)}-g^{(m)})(1+\text{WACC}^{(m)})^n} \]
-      Typical parameters: \( \mu_W = 0.09,\ \sigma_W = 0.015,\ \mu_g = 0.03,\ \sigma_g = 0.01 \). With
-      \( M = 10{,}000 \), runtime \( &lt; 1 \) second.
+      Typical parameters: \(\mu_W = 0.09,\ \sigma_W = 0.015,\ \mu_g = 0.03,\ \sigma_g = 0.01\).
+      With \(M = 10{,}000\), runtime is under 1 second on a modern laptop.
     </aside>
-    <p class="frag"><strong>Output:</strong> mean, median, standard deviation, and P10 / P25 / P75 / P90 of the EV distribution.</p>
+    <p class="frag"><strong>Output:</strong> mean, median, standard deviation, and P10 / P25 / P75 / P90 of
+      the EV distribution — a quantified uncertainty that a point estimate conceals.</p>
     <div class="alert callout frag">
       <span class="callout-tag">why Monte Carlo is not optional</span>
-      A 100-bps error in terminal growth → <strong>15–18% error in enterprise value</strong>. Point
-      estimates aren't just imprecise — they're misleading.
+      A 100-bps error in terminal growth produces a <strong>15–18% error in enterprise value</strong>.
+      Point estimates aren't just imprecise — they're misleading.
     </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Sensitivity analysis</div>
+    <h2>The WACC–growth spread dominates enterprise value</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A sensitivity heatmap makes the non-linearity tangible: small changes near the lower-right
+      corner — where the discount-rate minus growth-rate spread is smallest — swing enterprise value sharply.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/05-business-valuation/fig_illustration.png" alt="DCF sensitivity heatmap: WACC × terminal growth → enterprise value for AAPL">
+      <figcaption><b>Figure.</b> DCF terminal-value sensitivity heatmap for Apple Inc. (AAPL). Each cell shows
+        the implied enterprise value (billions USD) from the Gordon Growth formula
+        \(\text{EV} = \text{FCF}(1+g)/(\text{WACC}-g)\), evaluated at AAPL's FY2024 free cash flow.
+        Colour encodes value on a green (high) to red (low) scale.
+        Note: the 10-K reports FCF of $108.8B; the yfinance API returns $98.8B for the same period —
+        a data-vendor discrepancy that illustrates why sourcing inputs from primary filings matters.
+        <span class="src">Source: Generated deterministically from AAPL FY2024 10-K via
+          <code>gen_dcf_sensitivity.py</code>; WACC ∈ [6%, 14%], g ∈ [1%, 4%].</span></figcaption>
+    </figure>
   </section>
 
   <!-- ============================ SECTION 7 ============================ -->
@@ -545,18 +679,19 @@ Observation 2: EV = 15224.0 M</pre>
     <h2>The trouble with picking comparables</h2>
     <div class="title-rule"></div>
     <p class="lead">Multiples are only as good as the peer set. The traditional tools for choosing peers are
-      decades out of date.</p>
-    <div class="block"><div class="block-title">Traditional pitfalls</div>
+      decades out of date and riddled with well-documented pitfalls.</p>
+    <div class="block"><div class="block-title">Traditional approach and its pitfalls</div>
       <ol>
-        <li class="frag"><strong>Code obsolescence</strong> — SIC codes last revised in 1987. A cloud-computing firm and a 1990s software distributor share a code.</li>
-        <li class="frag"><strong>Diversified conglomerates</strong> — a "manufacturing" SIC firm deriving revenue from financial services.</li>
-        <li class="frag"><strong>Cyclical timing</strong> — temporarily distressed firms depress the median multiple.</li>
+        <li class="frag"><strong>Industry codes</strong> (SIC, GICS, NAICS) + size filter (0.3–3.0× revenue or market cap): simple, but SIC codes were last revised in <strong>1987</strong>. A cloud-computing firm and a 1990s software distributor share a code.</li>
+        <li class="frag"><strong>Diversified conglomerates</strong> — a "manufacturing" SIC firm deriving revenue from financial services; its multiples are uninformative for a pure-play manufacturer.</li>
+        <li class="frag"><strong>Cyclical timing</strong> — temporarily distressed firms depress the median multiple and undervalue the target.</li>
       </ol>
     </div>
     <div class="alert callout frag">
       <span class="callout-tag">prompt-based selection — the catch</span>
-      Describe the target and ask for 8–12 comparable firms as JSON. Easy, broad world knowledge — but
-      <em>hallucinated tickers occur frequently</em>. Validating every ticker against a securities master is mandatory.
+      Describe the target and ask for 8–12 comparable firms. Easy, broad world knowledge — but
+      <em>hallucinated tickers occur with non-trivial frequency</em>.
+      Validating every ticker against a securities master is mandatory in production.
     </div>
   </section>
 
@@ -564,18 +699,20 @@ Observation 2: EV = 15224.0 M</pre>
     <div class="eyebrow">The grounded alternative</div>
     <h2>Embedding-based peers: every candidate is real</h2>
     <div class="title-rule"></div>
-    <p class="lead">Turn each company's MD&amp;A into a vector and retrieve the closest ones. Because candidates
-      come from actual filings, no ticker can be hallucinated.</p>
+    <p class="lead">Turn each company's MD&amp;A into a dense vector and retrieve the closest ones.
+      Because candidates come from actual filings, no ticker can be hallucinated.</p>
     <aside class="underhood" data-title="cosine retrieval">
-      Embed the MD&amp;A of every company in the universe; retrieve the top-\(k\) by cosine similarity:
-      \[ \text{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \]
-      Empirically, embedding-based peers have lower IQR of EV/EBITDA and lower deviation from transaction
-      prices than SIC-based peers.
+      An embedding \(\phi: \mathcal{D} \to \mathbb{R}^d\) maps a document to a dense vector.
+      Peer similarity is measured by cosine similarity:
+      \[ \text{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \in [-1, 1] \]
+      Embed the MD&amp;A of every company in the universe; retrieve top-\(k\) by cosine similarity.
+      Embedding-based peer sets show a <em>tighter inter-quartile range of EV/EBITDA</em> than
+      SIC-code-based sets — an indicator of more internally consistent comparables.
     </aside>
     <div class="alert callout">
       <span class="callout-tag">the trade-off</span>
       Embeddings are grounded — every retrieved peer is a real firm — but may surface textual lookalikes
-      whose business model differs from the target.
+      with similar MD&amp;A boilerplate whose business model actually differs from the target.
     </div>
   </section>
 
@@ -587,8 +724,8 @@ Observation 2: EV = 15224.0 M</pre>
       each used only for what it's good at.</p>
     <div class="block"><div class="block-title">Two-stage hybrid</div>
       <ol>
-        <li class="frag"><strong>Candidate generation</strong> — the embedding index returns the top 30 by cosine similarity.</li>
-        <li class="frag"><strong>LLM filtering</strong> — the model receives candidates + brief descriptions and removes firms that are geographically incomparable, in different competitive positions, or hit by idiosyncratic events (pending acquisition, bankruptcy). A filtered set of 8–12 proceeds to multiple analysis.</li>
+        <li class="frag"><strong>Candidate generation</strong> — the embedding index returns the top 30 by cosine similarity (large enough to capture genuine peers).</li>
+        <li class="frag"><strong>LLM filtering</strong> — the model receives candidates + brief descriptions and removes firms that are geographically incomparable, in different competitive positions, or hit by idiosyncratic events (pending acquisition, bankruptcy). Filtered set of <strong>8–12 comparables</strong> proceeds to multiple analysis.</li>
       </ol>
     </div>
     <div class="takeaway callout frag">
@@ -601,31 +738,62 @@ Observation 2: EV = 15224.0 M</pre>
   <!-- ============================ SECTION 8 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">08</div>
-    <h2>End-to-end pipeline and best practices</h2>
-    <div class="secsub">Where errors compound, and the rules that keep a production system honest.</div>
+    <h2>End-to-end pipeline: cost, error, and best practices</h2>
+    <div class="secsub">Where errors compound, what it costs to run at scale, and the rules that keep a production system honest.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">Where the uncertainty really lives</div>
     <h2>One input dominates the error in your valuation</h2>
     <div class="title-rule"></div>
-    <p class="lead">Errors flow through a multi-step pipeline. Tracing how each input perturbs value shows that
-      one of them swamps the rest: the terminal growth rate.</p>
+    <p class="lead">Errors flow through a multi-step pipeline. First-order sensitivity analysis shows that
+      one input swamps the rest: the terminal growth rate.</p>
     <aside class="underhood" data-title="first-order error propagation">
-      With extraction error \( \varepsilon_1 \) in FCF and terminal-growth bias \( \varepsilon_2 \):
+      With extraction error \(\varepsilon_1\) in FCF and terminal-growth bias \(\varepsilon_2\):
       \[ \Delta V \approx \frac{\partial V}{\partial \text{FCF}} \varepsilon_1 + \frac{\partial V}{\partial g} \varepsilon_2 \]
-      For the Gordon-Growth perpetuity:
+      For the Gordon-Growth perpetuity \(V \approx \text{FCF}_n(1+g)/(\text{WACC}-g)\):
       \[ \frac{\partial V}{\partial \text{FCF}_n} = \frac{1+g}{\text{WACC}-g}, \qquad
          \frac{\partial V}{\partial g} = \frac{\text{FCF}_n(1+\text{WACC})}{(\text{WACC}-g)^2} \]
+      Both are large when \(g \approx \text{WACC}\) — valuation is most sensitive in high-growth scenarios.
     </aside>
     <div class="statrow">
-      <div class="stat"><div class="num">≈1%</div><div class="lbl">EV error from a 1% FCF error</div></div>
+      <div class="stat"><div class="num">≈1%</div><div class="lbl">EV error from a 1% FCF extraction error</div></div>
       <div class="stat"><div class="num">15–18%</div><div class="lbl">EV error from a 100-bps terminal-growth error</div></div>
     </div>
     <div class="alert callout frag">
       <span class="callout-tag">the dominant uncertainty source</span>
       Terminal-growth uncertainty <em>dominates</em> enterprise-value uncertainty. Always run Monte Carlo;
-      always present percentile ranges.
+      always present percentile ranges rather than a point estimate.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How accurate, and what does it cost?</div>
+    <h2>Benchmarking and unit economics at scale</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A production pipeline must be evaluated on accuracy and unit economics before
+      deploying across a large coverage universe.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Accuracy benchmarks (Zhang et al., 2024)</div>
+          <ul>
+            <li class="frag"><strong>MAVE</strong> (mean absolute valuation error): comparable to the spread between analyst price targets and realised prices — accuracy ceiling is set by unpredictable future cash flows, not the engine</li>
+            <li class="frag"><strong>Coverage rate</strong>: above 90% for large-cap companies; above 75% for smaller companies where filings are less standardised</li>
+            <li class="frag"><strong>Directional accuracy</strong>: fraction of cases directionally consistent with analyst consensus</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Token costs and latency</div>
+          <ul>
+            <li class="frag">A typical 10-K: ≈50,000 tokens; extraction context 3,000–8,000 tokens per call</li>
+            <li class="frag">6 LLM calls per valuation (3 extraction + 1 normalisation + 1 forecast + 1 comparable filter)</li>
+            <li class="frag"><strong>≈$1–$5 per company</strong> at 2024 frontier-model prices (verify current rates at provider pricing pages)</li>
+            <li class="frag">3,000 companies refreshed quarterly → <strong>≈$3,000–$15,000 per quarter</strong></li>
+            <li class="frag">Latency: with parallelised calls, end-to-end ≈ tens of seconds per company</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -635,15 +803,15 @@ Observation 2: EV = 15224.0 M</pre>
     <div class="title-rule"></div>
     <ol>
       <li class="frag"><strong>XBRL first</strong> — verify extracted numbers against XBRL tags; flag any conflict. LLM extraction is a complement, not a sole source.</li>
-      <li class="frag"><strong>Code interpreter for all arithmetic</strong> — no calculation in-context; the generated code is the deliverable.</li>
+      <li class="frag"><strong>Code interpreter for all arithmetic</strong> — no calculation in-context; the generated code is the deliverable and the audit trail.</li>
       <li class="frag"><strong>Run Monte Carlo</strong> — a point-estimate DCF is misleading; communicate the P10–P90 range.</li>
       <li class="frag"><strong>Mandatory hallucination guards</strong> — validate every ticker; trace every figure to an EDGAR accession number; suppress unverifiable claims.</li>
       <li class="frag"><strong>Human review before publication</strong> — the LLM is a powerful assistant, not an autonomous decision-maker. A qualified analyst owns the figures.</li>
     </ol>
     <div class="takeaway callout frag">
-      <span class="callout-tag">governance anchor</span>
+      <span class="callout-tag">governance anchor (FSB, 2023)</span>
       Consistent with FSB (2023) guidance on AI in finance: human accountability, model transparency, and
-      robust back-testing are prerequisites.
+      robust back-testing are prerequisites for responsible deployment.
     </div>
   </section>
 
@@ -658,22 +826,25 @@ Observation 2: EV = 15224.0 M</pre>
         <table>
           <tr><th>Component</th><th>Key mechanism</th></tr>
           <tr><td>Data extraction</td><td>EDGAR API + LLM table parsing + XBRL validation</td></tr>
-          <tr><td>FCF computation</td><td>Pydantic schema + code interpreter</td></tr>
-          <tr><td>Forecasting</td><td>CoT prompting; MAPE / RMSE / DA</td></tr>
+          <tr><td>FCF computation</td><td>Code interpreter (deterministic, auditable)</td></tr>
+          <tr><td>Normalisation</td><td>LLM reads MD&amp;A; human reviews high-confidence flags</td></tr>
+          <tr><td>Forecasting</td><td>CoT prompting; few-shot or LoRA; MAPE / RMSE / DA</td></tr>
           <tr><td>Scenarios</td><td>Bull/base/bear + Monte Carlo over WACC and \(g\)</td></tr>
-          <tr><td>Comparables</td><td>Embedding index + LLM qualitative filter</td></tr>
-          <tr><td>Orchestration</td><td>Multi-agent, parallel specialists</td></tr>
-          <tr><td>Governance</td><td>HITL review; hallucination guards; audit trail</td></tr>
+          <tr><td>Comparables</td><td>Embedding index + LLM qualitative filter (8–12 peers)</td></tr>
+          <tr><td>Orchestration</td><td>Multi-agent, parallel specialists, Pydantic contracts</td></tr>
+          <tr><td>Governance</td><td>HITL review; hallucination guards; full audit trail</td></tr>
         </table>
       </div>
       <div class="col">
         <h3>Lecture 6 — Credit Risk</h3>
-        <div class="block"><div class="block-title">Connection to Chapter 6</div>
+        <div class="block"><div class="block-title">Connection</div>
           The same data-extraction and forecasting tools, now applied to credit risk — where the targets are
           probability of default and loss given default, and regulatory constraints on model transparency are
           stricter.
         </div>
-        <p class="small"><strong>Key refs:</strong> Wei et al. (2022) · FSB (2023) · IFRS 13 / ASC 820 · IFRS 16 / ASC 842.</p>
+        <p class="small"><strong>Key refs:</strong> Wei et al. (2022) · López-Lira &amp; Tang (2023) ·
+          Hu et al. (2022) · FSB (2023) · IFRS 13 / ASC 820 · IFRS 16 / ASC 842 ·
+          Damodaran (2012) · Zhang et al. (2024).</p>
       </div>
     </div>
   </section>
@@ -681,28 +852,80 @@ Observation 2: EV = 15224.0 M</pre>
   <!-- ============================ APPENDIX ============================ -->
   <section class="slide section-slide">
     <div class="secnum">A</div>
-    <h2>Appendix — worked case study &amp; production orchestration</h2>
-    <div class="secsub">A full mid-cap valuation, the multi-agent architecture, and the discount-rate mapping. Beyond the core lecture.</div>
+    <h2>Appendix — case studies, orchestration, and reference tables</h2>
+    <div class="secsub">A full SaaS valuation, the AAPL companion exercise, the multi-agent architecture, and the discount-rate mapping.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">Appendix · case study</div>
     <h2>A mid-cap SaaS company, valued three ways</h2>
     <div class="title-rule"></div>
-    <p class="lead">Profile: revenue \(4.2B (+12% YoY), EBIT margin 20%, D&amp;A \(\$\)310M, CapEx \)180M, net debt
-      \(\$\)800M, 280M shares outstanding.</p>
-    <p class="frag"><strong>After normalisation:</strong> EBIT = $915M, FCFF = $789M (two non-recurring items:
-      \(\$\)45M restructuring + \(\$\)30M acquired intangible amortisation).</p>
-    <table>
-      <tr><th>Method</th><th>Enterprise value</th><th>Equity / share</th></tr>
-      <tr><td>DCF (WACC 9%, \(g\) 3%)</td><td>\(\$\)17.0B</td><td>\(\$\)57.9</td></tr>
-      <tr><td>Comparables (EV/EBITDA 24.5×)</td><td>\(\$\)29.9B</td><td>—</td></tr>
+    <p class="lead">A stylised mid-cap US cloud software firm based on a composite of publicly available filings
+      (specific company names and figures are illustrative).</p>
+    <div class="block"><div class="block-title">Profile</div>
+      Revenue $4.2B (+12% YoY) · EBIT margin 20% · D&amp;A $310M · CapEx $180M ·
+      Net debt $800M · 280M shares outstanding
+    </div>
+    <p class="frag"><strong>After normalisation</strong> (LLM-flagged non-recurring: $45M restructuring + $30M acquired intangible amortisation):
+      EBIT = $915M, FCFF = $789M (τ = 21%).</p>
+    <table class="frag">
+      <tr><th>Method</th><th>Enterprise value</th><th>Equity value / share</th></tr>
+      <tr><td>DCF (WACC 9%, g 3%)</td><td>$17.0B</td><td>$57.9</td></tr>
+      <tr><td>Comparables (9 peers, median EV/EBITDA 24.5×, EBITDA $1.22B)</td><td>$29.9B</td><td>—</td></tr>
     </table>
-    <p class="frag">The DCF-vs-comparables gap reflects a sector trading at elevated growth multiples. Both
-      are informative; neither is definitive.</p>
     <div class="takeaway callout frag">
-      <span class="callout-tag">Monte Carlo (10,000 draws)</span>
-      Mean \(17.2B, P10–P90 range \(\$\)12.5B–\)24.1B. The range quantifies the uncertainty a point estimate conceals.
+      <span class="callout-tag">Monte Carlo (10,000 draws, σ_WACC = 1.5%, σ_g = 1%)</span>
+      Mean $17.2B · P10–P90 <strong>$12.5B–$24.1B</strong>. The range quantifies the uncertainty a point estimate conceals.
+      The DCF-vs-comparables gap reflects a sector trading at elevated growth multiples.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · case study — FCF projections</div>
+    <h2>CoT-generated cash-flow paths for the SaaS case</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The CoT forecasting prompt, seeded with historical FCFF and the MD&amp;A summary,
+      returns these base, upside, and bear projections (USD millions).</p>
+    <table>
+      <tr><th>Year</th><th>Base</th><th>Upside</th><th>Bear</th></tr>
+      <tr><td>1</td><td>868</td><td>940</td><td>760</td></tr>
+      <tr><td>2</td><td>947</td><td>1,050</td><td>820</td></tr>
+      <tr><td>3</td><td>1,025</td><td>1,170</td><td>870</td></tr>
+      <tr><td>4</td><td>1,100</td><td>1,280</td><td>900</td></tr>
+      <tr><td>5</td><td>1,170</td><td>1,385</td><td>920</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">internal consistency check</span>
+      The upside path implies near-linear FCF growth; the bear path implies margin compression and slowing reinvestment.
+      A consistency-checking agent reviews both narratives before numbers enter the DCF.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · AAPL companion exercise</div>
+    <h2>How close can a sub-agent pipeline get to the market price?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A complete, agent-orchestrated valuation of Apple Inc. (AAPL) at its FY2024 close
+      (28 September 2024) illustrates how all components connect — and where data-vendor discrepancies emerge.</p>
+    <aside class="underhood" data-title="AAPL WACC derivation">
+      Risk-free rate \(r_f = 3.78\%\); equity beta \(\beta = 1.24\); ERP = 4.23%.
+      CAPM: \(r_E = 3.78\% + 1.24 \times 4.23\% \approx 9.0\%\).
+      After-tax cost of debt = 2.2%. At market capital-structure weights:
+      \(\text{WACC} \approx 8.84\%\).
+    </aside>
+    <div class="block frag"><div class="block-title">Valuation results</div>
+      <ul>
+        <li>FCF from primary 10-K: <strong>$108.8B</strong> vs. $98.8B from yfinance API — a routine data-vendor gap; primary filings are the authoritative source</li>
+        <li>Two-stage DCF → intrinsic ≈ <strong>$225/share</strong></li>
+        <li>EV/EBITDA cross-check → ≈ <strong>$217/share</strong></li>
+        <li>50/50 triangulation → <strong>$221.04/share</strong> — within <strong>2.6%</strong> of the $226.84 market price (inside ±10% tolerance)</li>
+      </ul>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the exercise question</span>
+      The pipeline comes within 2.6% of the market price — but is that accuracy due to the model, or does
+      the ±10% tolerance just happen to accommodate the estimate? Test by injecting the yfinance FCF error
+      and measuring how far the triangulated estimate moves.
     </div>
   </section>
 
@@ -711,7 +934,7 @@ Observation 2: EV = 15224.0 M</pre>
     <h2>Why a multi-agent orchestrator beats one big script</h2>
     <div class="title-rule"></div>
     <p class="lead">A monolithic pipeline reruns everything when step 6 fails and is untestable in parts. Split
-      it into an orchestrator plus specialists.</p>
+      it into an orchestrator plus independently testable specialists.</p>
     <div class="cols">
       <div class="col">
         <div class="block"><div class="block-title">Orchestrator + specialists</div>
@@ -725,12 +948,14 @@ Observation 2: EV = 15224.0 M</pre>
         </div>
       </div>
       <div class="col">
-        <div class="block"><div class="block-title">Parallelism</div>
+        <div class="block"><div class="block-title">Parallelism and data contracts</div>
           Comparable selection has no dependency on the FCF forecast — both run concurrently, cutting latency.
+          A shared valuation state dictionary with Pydantic-validated schemas provides full provenance for the
+          final output.
         </div>
         <div class="takeaway callout"><span class="callout-tag">production latency</span>
-          6 LLM calls × 1–5s each, with parallelisation ≈ <strong>15–30 seconds</strong> per company.
-          Cost: \(\$\)0.50–\(\$\)3.00 per company at 2024 frontier-model pricing.
+          6 LLM calls × 1–5 s each, with parallelisation ≈ <strong>15–30 seconds</strong> per company.
+          Cost: ≈$1–$5 per company at 2024 frontier-model pricing (prices change; verify at provider pages).
         </div>
       </div>
     </div>
@@ -741,14 +966,16 @@ Observation 2: EV = 15224.0 M</pre>
     <h2>FCFF vs. FCFE: which rate discounts which cash flow</h2>
     <div class="title-rule"></div>
     <p class="lead">The two free-cash-flow definitions are discounted at different rates and yield different
-      value measures.</p>
+      value measures. Choose based on capital-structure stability.</p>
     <table>
-      <tr><th>Metric</th><th>Discounted at</th><th>Yields</th></tr>
-      <tr><td>FCFF</td><td>WACC</td><td>Enterprise value</td></tr>
-      <tr><td>FCFE</td><td>Cost of equity</td><td>Equity value directly</td></tr>
+      <tr><th>Metric</th><th>Discounted at</th><th>Yields</th><th>When to use</th></tr>
+      <tr><td>FCFF</td><td>WACC</td><td>Enterprise value</td><td>Stable or changing leverage</td></tr>
+      <tr><td>FCFE</td><td>Cost of equity</td><td>Equity value directly</td><td>Stable leverage only</td></tr>
     </table>
-    <p>Discounting FCFF at WACC gives enterprise value; subtract net debt to recover equity value.
-      Discounting FCFE at the cost of equity yields equity value directly.</p>
+    <p class="frag">Discounting FCFF at WACC gives enterprise value; subtract net debt to recover equity value.
+      Discounting FCFE at the cost of equity yields equity value directly.
+      When capital structure is changing materially, FCFF is more robust because WACC can be held constant
+      while the cost of equity must be re-levered per scenario (Damodaran, 2012).</p>
   </section>
 
 </div></div>

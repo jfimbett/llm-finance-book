@@ -20,7 +20,7 @@
     <h1>Domain-Specific Financial LLMs</h1>
     <div class="sub">When finance needs its own models — and when a general one will do.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -296,6 +296,7 @@
       <tr><td>InvestLM</td><td>65B LLaMA</td>
         <td>Instruction-tuned on a <em>small, curated</em> set (CFA Qs, research reports). Large base beats 7B models with fewer examples.</td></tr>
     </table>
+    <p class="small frag"><strong>Supporting work:</strong> Keshri et al. (2025) survey BloombergGPT's full downstream applications (news summarisation, fraud detection, trading strategy optimisation). Zhang et al. (2023) show instruction-formatting even a small financial-sentiment dataset yields strong classification gains. Hirano et al. (2024b) show model merging can build instruction-following FinLLMs without any instruction data.</p>
   </section>
 
   <section class="slide">
@@ -417,7 +418,7 @@
         </div>
       </div>
     </div>
-    <p class="small frag">Hirano (2024): Japanese financial LLMs confirm DAPT gains generalise across languages and sub-domains.</p>
+    <p class="small frag">Hirano (2024a): Japanese financial LLMs confirm DAPT gains generalise across languages and sub-domains.</p>
   </section>
 
   <section class="slide">
@@ -440,6 +441,18 @@
       General web text (~800B) dwarfs even the largest <em>financial</em> source. This asymmetry is exactly
       <em>why DAPT beats from-scratch</em>: cheaply shift a model that already has the breadth, rather than rebuild it.
     </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Corpus composition — visualised</div>
+    <h2>On a log scale, the web is an ocean; finance is a pond</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Even the largest proprietary financial corpus is tiny relative to general web text — the clearest visual argument for DAPT over training from scratch.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/08-domain-specific-llms/fig_corpus.png" alt="Log-scale bar chart of token counts across major financial corpus sources">
+      <figcaption><b>Figure.</b> Approximate token counts of major pre-training corpus sources on a log scale. The Pile (~800 B tokens) dwarfs every financial source — the key reason domain-adaptive pre-training is more cost-effective than training from scratch.
+        <span class="src">Source: Chapter 8, Figure 8.1 (generated deterministically from corpus table figures).</span></figcaption>
+    </figure>
   </section>
 
   <section class="slide">
@@ -488,6 +501,7 @@
         <td>36 datasets, 24 tasks, 5 capability categories incl. generation + risk mgmt.</td>
         <td>Designed to test <em>decoder</em> open-ended generation, not just classification.</td></tr>
     </table>
+    <p class="small frag">Cook &amp; Kazinnik (2023) demonstrate a complementary evaluation framework using bank earnings calls — practical orientation for central-bank researchers where existing public benchmarks may not match the deployment distribution.</p>
     <div class="takeaway callout frag">
       <span class="callout-tag">how to read the numbers</span>
       Each benchmark stresses a different capability. FinQA isolates table + arithmetic reasoning;
@@ -656,6 +670,7 @@
       <li class="frag">Traceability is not a nicety: model-risk regimes <em>require</em> an auditable link from output back to evidence.</li>
       <li class="frag">This makes a small grounded model a regulatory-grade alternative to a large ungrounded one.</li>
     </ul>
+    <p class="small frag">Liu et al. (2024) extend FinGPT to retrieval-augmented search agents customised for individual and institutional users — accounting for privacy constraints, latency requirements, and heterogeneous information needs.</p>
   </section>
 
   <section class="slide">
@@ -695,6 +710,40 @@
       <li class="frag"><strong>Deployment.</strong> License audit, governance, hosting, and the accuracy–cost
         trade-off. <strong>Hybrid routing</strong> dominates single-model deployments.</li>
     </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Further reading</div>
+    <h2>Where to go deeper from here</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Foundations</div>
+          <ul>
+            <li>Gururangan et al. (2020) — the DAPT paper; read with Devlin et al. (2019) BERT and Liu et al. (2018) RoBERTa</li>
+            <li>Wu et al. (2023) — BloombergGPT: corpus design, tokeniser, benchmarks</li>
+            <li>Yang et al. (2023) — FinGPT: LoRA pipeline and data-centric philosophy</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Benchmarks &amp; evaluation</div>
+          <ul>
+            <li>Chen et al. (2021) — FinQA (numerical reasoning, canonical reference)</li>
+            <li>Xie et al. (2024) — FinBen (comprehensive 36-dataset suite)</li>
+            <li>Shah et al. (2022) — FLUE: design principles and sub-task limits</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Vocabulary, lexicon &amp; deployment</div>
+      <ul>
+        <li>Loughran &amp; McDonald (2011, 2020) — LM financial dictionary; textual analysis in finance review</li>
+        <li>Huang et al. (2023) — FinBERT capabilities &amp; limits from an accounting-research perspective</li>
+        <li>Li et al. (2023) — broad survey of LLMs in finance</li>
+        <li>SR 11-7 — model risk management guidance (authoritative for regulated deployments)</li>
+      </ul>
+    </div>
   </section>
 
   <!-- ============================ APPENDIX ============================ -->

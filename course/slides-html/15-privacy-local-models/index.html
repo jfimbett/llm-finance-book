@@ -20,7 +20,7 @@
     <h1>LLMs and Privacy</h1>
     <div class="sub">Local deployments and text de-identification — how to use powerful models without your client data leaving the building.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -586,8 +586,6 @@
         <div class="block"><div class="block-title">A useful pairing</div>
           LoRA / adapters pair well with DP-SGD: fewer trainable params &rArr; lower sensitivity &rArr; less noise.
         </div>
-      </div>
-      <div class="col">
         <aside class="underhood" data-title="Proposition 15.1 — composition">
           Sequential composition: \((\varepsilon_1{+}\varepsilon_2,\,\delta_1{+}\delta_2)\).
           <br><br>
@@ -596,6 +594,13 @@
           \varepsilon' \approx \varepsilon\sqrt{2k\ln(1/\delta')}.
           \]
         </aside>
+      </div>
+      <div class="col">
+        <figure class="deckfig">
+          <img src="../assets/figures/15-privacy-local-models/fig_privacy_utility.png" alt="Privacy-utility tradeoff curve for differentially private fine-tuning">
+          <figcaption><b>Figure.</b> Test accuracy rises with the privacy budget \(\varepsilon\) (weaker privacy) and saturates toward the non-private baseline; strong privacy (\(\varepsilon = 1\)) carries a larger utility cost than weak privacy (\(\varepsilon = 10\)).
+            <span class="src">Source: gen_dp_privacy_utility.py (schematic of qualitative tradeoff, not measured data).</span></figcaption>
+        </figure>
       </div>
     </div>
     <div class="alert callout frag">

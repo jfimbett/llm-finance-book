@@ -20,7 +20,7 @@
     <h1>When the Model Sounds Right but Is Wrong</h1>
     <div class="sub">LLM limitations and the rigorous evaluation a finance shop needs before trusting any answer.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -364,6 +364,9 @@
     </div>
     <p class="small frag"><strong>CFA Institute:</strong> durable alpha is unlikely in liquid, well-covered
       markets; value is possible in small-cap, EM, or private-information synthesis.</p>
+    <p class="small frag"><strong>Precursors and alpha decay:</strong> Tetlock (2007) and Bollen et al. (2011)
+      provided early evidence that text-based signals contain price-relevant information; the alpha from such
+      strategies has since declined as they became widely known and deployed (Harvey, 2016).</p>
   </section>
 
   <section class="slide">
@@ -499,7 +502,8 @@
     <div class="alert callout frag">
       <span class="callout-tag">cost trade-off</span>
       Full LLM fine-tuning is expensive to re-estimate, so practitioners widen \(h\) — at the price of
-      evaluating a staler model late in each window.
+      evaluating a staler model late in each window. PEFT/LoRA adapters (see Chapter 3) reduce refit cost
+      substantially without full retraining.
     </div>
   </section>
 
@@ -655,12 +659,11 @@
     <div class="title-rule"></div>
     <p class="lead">Bars are empirical accuracy vs. mean predicted probability per bin; the dashed diagonal is
       perfect calibration; red segments are the per-bin gaps that ECE aggregates (ECE = 0.115).</p>
-    <ul>
-      <li>Well calibrated at low confidence; increasingly overconfident at the top.</li>
-      <li>Generated deterministically by <code class="inline">gen_reliability_diagram.py</code>.</li>
-    </ul>
-    <p class="small">Figure source:
-      <code class="inline">book/chapters/13-llm-limitations-evaluation/figures/fig_reliability</code>.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/13-llm-limitations-evaluation/fig_reliability.png" alt="Reliability diagram: bars show empirical accuracy vs. mean confidence per bin; model is well-calibrated at low confidence but increasingly overconfident at high confidence, with ECE = 0.115">
+      <figcaption><b>Figure.</b> Reliability diagram for the LLM credit-risk classifier (Example 13.1). Bins 4 and 5 (the 60–100% confidence region) lie well below the 45° perfect-calibration diagonal — predictions issued with 80–100% confidence are right only 62% of the time. The weighted per-bin gaps yield ECE = 0.115.
+        <span class="src">Source: Generated deterministically by <code class="inline">gen_reliability_diagram.py</code> from fixed bin statistics (see chapter.tex §13.1).</span></figcaption>
+    </figure>
   </section>
 
   <section class="slide">
@@ -729,7 +732,8 @@
     <div class="cols">
       <div class="col">
         <p class="small"><strong>Calibration.</strong> Guo et al. (2017, temperature scaling);
-          Niculescu-Mizil &amp; Caruana (2005, Platt/isotonic); Angelopoulos &amp; Bates (2022, conformal).</p>
+          Niculescu-Mizil &amp; Caruana (2005, adaptive binning); Platt (1999, Platt scaling);
+          Zadrozny &amp; Elkan (2002, isotonic); Angelopoulos &amp; Bates (2022, conformal).</p>
         <p class="small"><strong>Temporal leakage.</strong> Ziemke et al. (2024); Lopez-Lira, Tang &amp; Zhu
           (2025, numerical memorisation); Noguer i Alonso (2024, taxonomy); Rahimikia &amp; Drinkall (2024,
           year-specific LLMs); Gao, Jiang &amp; Yan (2025, LAP); Lopez de Prado (2018, purged CV).</p>

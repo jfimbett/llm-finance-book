@@ -20,7 +20,7 @@
     <h1>AI, Machine Learning, and Text in Finance</h1>
     <div class="sub">Where AI, ML, and LLMs sit in one hierarchy — and why financial text is the place they earn their keep.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -160,10 +160,25 @@
   </section>
 
   <section class="slide">
+    <div class="eyebrow">The nested taxonomy</div>
+    <h2>AI ⊃ ML ⊃ DL ⊃ NLP ⊃ LLM: five boxes, one hierarchy</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each box is a proper subset of the one above it. Understanding the nesting tells you exactly what
+      distinguishes LLMs from earlier AI — and why they represent a qualitative step forward, not just a bigger model.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/16-ai-ml-finance-text/diagram.svg" alt="Nested set diagram: AI ⊃ ML ⊃ DL ⊃ NLP ⊃ LLM with text-as-data flow arrows">
+      <figcaption><b>Figure.</b> The five-level nesting from broad AI down to large language models, with the
+        text-as-data pipeline that routes financial documents — filings, news, earnings calls — through each
+        layer to the model.
+        <span class="src">Source: Chapter 16 — AI, Machine Learning, and Text in Finance.</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
     <div class="eyebrow">The core idea</div>
     <h2>Machine learning is getting better at a task through experience</h2>
     <div class="title-rule"></div>
-    <p class="lead">ML = algorithms that improve at a task by being exposed to data. The whole point is
+    <p class="lead">ML = algorithms that improve at a task by being exposed to data (Goodfellow et al., 2016). The whole point is
       <strong>generalization</strong>: perform well not just on data you've seen, but on new inputs drawn from the
       same world.</p>
     <aside class="underhood" data-title="supervised learning, formally">
@@ -222,7 +237,7 @@
       representations automatically</em> — nobody hand-specifies the features.</p>
     <aside class="underhood" data-title="universal approximation &amp; the value of depth">
       <strong>Universal approximation:</strong> hierarchical compositions of simple nonlinear functions can
-      represent arbitrarily complex mappings given enough width/depth. <em>Depth</em> confers a specific advantage:
+      represent arbitrarily complex mappings given enough width/depth (Goodfellow et al., 2016). <em>Depth</em> confers a specific advantage:
       <ul>
         <li>Lower layers: general, transferable features (edges, phonemes, collocations).</li>
         <li>Higher layers: task-specific combinations.</li>
@@ -418,7 +433,7 @@
       <tr><th>Source</th><th>Content &amp; evidence</th></tr>
       <tr><td>Corporate filings</td><td>SEC EDGAR: 10-K, 10-Q, 8-K — narrative MD&amp;A, Risk Factors, forward-looking statements. <strong>Loughran–McDonald (2011):</strong> 10-K sentiment (finance lexicon) predicts post-filing returns.</td></tr>
       <tr><td>News &amp; wires</td><td>High-frequency public information. <strong>Tetlock (2007):</strong> pessimistic WSJ "Abreast of the Market" language predicts downward pressure, then mean-reversion.</td></tr>
-      <tr><td>Earnings calls</td><td>Live: scripted remarks <em>plus</em> unscripted Q&amp;A. Tone, question types, hedging, even speech pace carry information beyond the reported numbers.</td></tr>
+      <tr><td>Earnings calls</td><td>Live: scripted remarks <em>plus</em> unscripted Q&amp;A. Tone, question types, hedging, even speech pace carry information beyond the reported numbers (Loughran–McDonald, 2020).</td></tr>
     </table>
     <div class="takeaway callout frag">
       <span class="callout-tag">signal hidden in text</span>
@@ -471,7 +486,7 @@
       <div class="block-title">Dictionary sentiment</div>
       Map words to sentiment scores; net sentiment = (positive − negative) frequency. The
       <strong>Loughran–McDonald lexicon</strong> — about <strong>2,700 words</strong> in six categories (negative,
-      positive, uncertainty, litigious, strong/weak modal) — is still a benchmark.
+      positive, uncertainty, litigious, strong/weak modal) — is still a benchmark (Loughran–McDonald, 2020).
     </div>
   </section>
 
@@ -687,8 +702,10 @@
       presentation \(d_v=d_k\); multi-head implementations may differ.</p>
     <div class="block">
       <div class="block-title">Standard configuration (base Transformer)</div>
-      \(h=8\) heads, \(d_k=d_v=64\), \(d_{\text{model}}=512\), \(L=6\) layers. Modern LLMs:
-      \(L=32\text{–}96\), \(d_{\text{model}}=4{,}096\text{–}8{,}192\).
+      \(h=8\) heads, \(d_k=d_v=64\), \(d_{\text{model}}=512\), \(L=6\) layers
+      <span class="small">[Vaswani et al., 2017 — cited in this chapter; exact numbers not stated in ch. 16 text]</span>.
+      Modern large models vary widely in depth and width
+      <span class="small">[figures from outside this chapter]</span>.
     </div>
   </section>
 

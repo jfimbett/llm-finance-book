@@ -2,7 +2,7 @@
 
 **Paired chapter:** `book/chapters/01-intro/chapter.tex`
 **Duration:** 2 hours
-**Practical session:** `practical.tex` (separate 1-hour session)
+**Practical session:** `course/slides-html/01-intro/practical.html` (separate 1-hour session)
 
 ---
 

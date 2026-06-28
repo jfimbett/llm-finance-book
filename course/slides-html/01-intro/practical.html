@@ -20,15 +20,15 @@
     <h1>From Text to Vectors — Hands On</h1>
     <div class="sub">TF-IDF by hand, cosine similarity, embedding analogies, and Python on real earnings calls.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ SESSION OVERVIEW ============================ -->
   <section class="slide">
     <div class="eyebrow">Session overview</div>
-    <h2>One hour, four things you'll actually do</h2>
+    <h2>One hour, five things you'll actually do</h2>
     <div class="title-rule"></div>
-    <p class="lead">Guided problems first, then a short Python case study. Try each problem before you reveal the solution.</p>
+    <p class="lead">Guided problems first, then a short Python case study, and a bonus API exercise. Try each problem before you reveal the solution.</p>
     <div class="cols">
       <div class="col">
         <div class="statrow">
@@ -85,8 +85,14 @@
     <ul>
       <li>Only \(K{+}1\) embedding rows update per step (vs. all \(V\) for full softmax)</li>
       <li>Positive context vectors are pulled <em>toward</em> the centre word; random "noise" words are pushed <em>away</em></li>
-      <li>Linear analogies emerge: \(\hat{\mathbf{v}}_{\text{king}}-\hat{\mathbf{v}}_{\text{man}}+\hat{\mathbf{v}}_{\text{woman}}\approx\hat{\mathbf{v}}_{\text{queen}}\)</li>
+      <li>Linear analogies emerge: \(\hat{\mathbf{v}}_{\text{king}}-\hat{\mathbf{v}}_{\text{man}}+\hat{\mathbf{v}}_{\text{woman}}\approx\hat{\mathbf{v}}_{\text{queen}}\) (cosine similarity 0.67 in GloVe-300)</li>
     </ul>
+    <figure class="deckfig">
+      <img src="../assets/figures/01-intro/fig_king_analogy.png" alt="PCA projection of the king minus man plus woman approximately equals queen word analogy in GloVe-300 vector space">
+      <figcaption><b>Figure.</b> The word analogy \(\hat{\mathbf{v}}_{\text{king}} - \hat{\mathbf{v}}_{\text{man}} + \hat{\mathbf{v}}_{\text{woman}} \approx \hat{\mathbf{v}}_{\text{queen}}\), visualised in 2D via PCA of real GloVe-300 vectors.
+        The orange arrow is the vector arithmetic; the dotted line shows the result landing next to <em>queen</em>.
+        <span class="src">Source: author calculations; see gen_king_analogy.py in code/notebooks/01-intro/.</span></figcaption>
+    </figure>
     <aside class="underhood" data-title="skip-gram with negative sampling">
       Skip-gram predicts context from the centre word:
       \[ J_{\mathrm{SG}}=\frac{1}{T}\sum_{t}\sum_{k\neq 0}^{\pm c}\log P(w_{t+k}\mid w_t). \]
@@ -318,7 +324,7 @@ print(f"Top terms for doc {i}: {top_terms}")</pre>
         <ul>
           <li>TF-IDF: fast, interpretable, order-invariant</li>
           <li>Cosine similarity is just normalised overlap of discriminative words</li>
-          <li>Word2Vec/GloVe: semantic geometry and linear analogies</li>
+          <li>Word2Vec/GloVe: semantic geometry and linear analogies (king → queen)</li>
           <li>Domain adaptation matters — "risk" means something different on Wall Street</li>
         </ul>
       </div>

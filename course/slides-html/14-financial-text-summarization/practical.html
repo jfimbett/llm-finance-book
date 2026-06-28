@@ -20,7 +20,7 @@
     <h1>Summarizing &amp; Extracting from SEC Filings</h1>
     <div class="sub">Hands-on: extractive summarization, ROUGE by hand, and consistency checking on a 10-K.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -223,6 +223,11 @@
             <li><code class="inline">rouge_score</code> (or the hand formula) — evaluation</li>
           </ul>
         </div>
+        <figure class="deckfig">
+          <img src="../assets/figures/14-financial-text-summarization/diagram.svg" alt="Summarization pipeline: 10-K to chunks to map-reduce to executive summary">
+          <figcaption><b>Figure.</b> The pipeline we implement: chunk the 10-K MD&amp;A, score each sentence with TextRank (map), then aggregate top sentences (reduce) and cross-check numbers against the XBRL table.
+            <span class="src">Source: Chapter 14 illustration.</span></figcaption>
+        </figure>
       </div>
       <div class="col">
         <div class="block"><div class="block-title">What you will do</div>
@@ -249,7 +254,7 @@
 from collections import Counter
 
 MDNA = (
- "Revenue increased 13% to $56.5 billion in fiscal 2023. "
+ "Revenue increased 13% to &#36;56.5 billion in fiscal 2023. "
  "The growth was driven by strong cloud demand. "
  "Azure revenue grew 29% year over year. "
  "Operating margin expanded to 42%. "
@@ -431,7 +436,7 @@ for row in consistency(TABLE, PROSE):
     <table>
       <tr><th>Claim</th><th>Label</th><th>Why</th></tr>
       <tr><td>Revenue grew 13% to \(\$\)56.5B</td><td><span class="pill g">verified</span></td><td>matches source</td></tr>
-      <tr><td>Net income rose to \(17 billion</td><td><span class="pill r">incorrect</span></td><td>source is \(\$\)16.4B; rounding to \)17B is <em>material</em></td></tr>
+      <tr><td>Net income rose to \(\$\)17 billion</td><td><span class="pill r">incorrect</span></td><td>source is \(\$\)16.4B; rounding to \(\$\)17B is <em>material</em></td></tr>
       <tr><td>Azure increased 29%</td><td><span class="pill g">verified</span></td><td>matches source</td></tr>
       <tr><td>Management raised full-year guidance</td><td><span class="pill o">unverifiable</span></td><td>no guidance fact in the source</td></tr>
     </table>

@@ -55,21 +55,37 @@ cat > "$LECDIR/notes.md" << EOF
 [Placeholder]
 EOF
 
-cat > "$LECDIR/slides.tex" << EOF
-\\documentclass{beamer}
-\\usetheme{Madrid}
-\\usepackage{amsmath, amssymb}
-\\title{Lecture ${NUM}: ${TITLE}}
-\\author{AUTHOR NAME}
-\\institute{INSTITUTION}
-\\date{\\today}
-\\begin{document}
-\\begin{frame}\\titlepage\\end{frame}
-\\begin{frame}{Placeholder}
-  Invoke /draft-lecture to generate slides.
-\\end{frame}
-\\end{document}
-EOF
+# Create HTML slide deck stubs (lesson + practical) per course/slides-html/AUTHORING.md
+SLIDEDIR="course/slides-html/$DIRNAME"
+LECNUM=$((10#$NUM))
+mkdir -p "$SLIDEDIR"
+for DECK in index practical; do
+  if [ "$DECK" = "index" ]; then DTITLE="Lecture ${NUM}: ${TITLE}"; KIND="Lecture"; else DTITLE="Practical ${NUM}: ${TITLE}"; KIND="Practical session"; fi
+  cat > "$SLIDEDIR/$DECK.html" << HTMLEOF
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${DTITLE}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: ${LECNUM} };</script>
+<script defer src="../assets/slides.js"></script>
+</head><body><div class="deck"><div class="stage">
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · ${KIND} ${LECNUM}</div>
+    <h1>${TITLE}</h1>
+    <div class="sub">Placeholder deck — invoke /draft-lecture to generate.</div>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+  </section>
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Section title</h2>
+    <div class="secsub">Invoke /draft-lecture to populate this deck from book/chapters/$DIRNAME/chapter.tex (follow course/slides-html/AUTHORING.md).</div>
+  </section>
+</div></div></body></html>
+HTMLEOF
+done
 
 printf "**Exercise placeholder**\n\n[Invoke /draft-exercises to generate]\n" > "$LECDIR/exercises.md"
 
@@ -89,7 +105,7 @@ EOF
 echo "Auto-scaffolded lecture and notebook for $DIRNAME"
 
 # Stage new files
-git add "$LECDIR" "$NBDIR" 2>/dev/null || true
+git add "$LECDIR" "$NBDIR" "$SLIDEDIR" 2>/dev/null || true
 
 # Update book/main.tex to include the new chapter
 MAIN_TEX="book/main.tex"

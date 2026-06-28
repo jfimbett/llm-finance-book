@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="system-ui, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2f6fed"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="32" text-anchor="middle" fill="#2a3340" font-size="18" font-weight="600">LLM Agent Loop</text>
+
+  <!-- Central LLM box -->
+  <rect x="280" y="148" width="160" height="64" rx="12" fill="#eef2fb" stroke="#2f6fed" stroke-width="2.5"/>
+  <text x="360" y="175" text-anchor="middle" fill="#2a3340" font-size="16" font-weight="600">LLM</text>
+  <text x="360" y="196" text-anchor="middle" fill="#5b6472" font-size="13">Reason · Plan</text>
+
+  <!-- Observation box (top-left) -->
+  <rect x="60" y="44" width="160" height="56" rx="10" fill="#fff" stroke="#5b6472" stroke-width="1.5"/>
+  <text x="140" y="68" text-anchor="middle" fill="#2a3340" font-size="14" font-weight="600">Observation</text>
+  <text x="140" y="88" text-anchor="middle" fill="#5b6472" font-size="12">tool results, state</text>
+
+  <!-- Action box (top-right) -->
+  <rect x="500" y="44" width="160" height="56" rx="10" fill="#fff" stroke="#5b6472" stroke-width="1.5"/>
+  <text x="580" y="68" text-anchor="middle" fill="#2a3340" font-size="14" font-weight="600">Action</text>
+  <text x="580" y="88" text-anchor="middle" fill="#5b6472" font-size="12">tool call / output</text>
+
+  <!-- Tools/Memory box (bottom-right) -->
+  <rect x="500" y="270" width="160" height="56" rx="10" fill="#fff" stroke="#B48228" stroke-width="1.5"/>
+  <text x="580" y="295" text-anchor="middle" fill="#2a3340" font-size="14" font-weight="600">Tools · Memory</text>
+  <text x="580" y="313" text-anchor="middle" fill="#5b6472" font-size="12">search, code, DB</text>
+
+  <!-- Environment box (bottom-left) -->
+  <rect x="60" y="270" width="160" height="56" rx="10" fill="#fff" stroke="#5b6472" stroke-width="1.5"/>
+  <text x="140" y="295" text-anchor="middle" fill="#2a3340" font-size="14" font-weight="600">Environment</text>
+  <text x="140" y="313" text-anchor="middle" fill="#5b6472" font-size="12">market, filings, web</text>
+
+  <!-- Arrows (clockwise: observation→LLM→action→tools→environment→LLM) -->
+  <g stroke="#2f6fed" fill="none" stroke-width="2" marker-end="url(#a)">
+    <!-- Observation → LLM -->
+    <path d="M140,100 C140,150 240,168 280,178"/>
+    <!-- LLM → Action -->
+    <path d="M440,175 C480,160 540,110 500,72"/>
+    <!-- Action → Tools -->
+    <line x1="580" y1="100" x2="580" y2="268"/>
+    <!-- Tools → Environment -->
+    <line x1="500" y1="300" x2="222" y2="300"/>
+    <!-- Environment → LLM -->
+    <path d="M140,270 C140,225 210,200 280,188"/>
+  </g>
+
+  <!-- Step labels -->
+  <text x="188" y="148" text-anchor="middle" fill="#2f6fed" font-size="11">①</text>
+  <text x="490" y="140" text-anchor="middle" fill="#2f6fed" font-size="11">②</text>
+  <text x="600" y="198" text-anchor="middle" fill="#2f6fed" font-size="11">③</text>
+  <text x="362" y="320" text-anchor="middle" fill="#2f6fed" font-size="11">④</text>
+  <text x="190" y="246" text-anchor="middle" fill="#2f6fed" font-size="11">⑤</text>
+</svg>

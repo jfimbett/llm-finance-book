@@ -20,7 +20,7 @@
     <h1>Portfolios, Views, and Backtests</h1>
     <div class="sub">Turn a textual signal into a portfolio weight — then prove, with numbers, whether the strategy is deployable.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">Hands-on · 1 hour · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -171,6 +171,11 @@
     <div class="title-rule"></div>
     <p class="lead">A backtest is only believable if the model never peeks at the future.
       Walk-forward enforces that: fit on the past, evaluate strictly on the next, untouched window.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/10-portfolio-quant-trading/fig_frontier.png" alt="Mean-variance efficient frontier for a four-asset example with tangency and 1/N portfolios marked">
+      <figcaption><b>Figure.</b> The efficient frontier for a fixed four-asset example. The tangency (max-Sharpe) portfolio and the 1/N equal-weight benchmark are nearly coincident — confirming that the optimization prize is small when expected returns must be estimated. This is the starting benchmark your backtest must beat.
+        <span class="src">Source: <code>gen_efficient_frontier.py</code>, deterministic (no data or network dependence).</span></figcaption>
+    </figure>
     <div class="cols">
       <div class="col">
         <div class="block"><div class="block-title">What you will do</div>
@@ -184,7 +189,6 @@
       </div>
       <div class="col">
         <p class="small">Notebook: <code class="inline">code/notebooks/10-portfolio-quant-trading/demo.ipynb</code></p>
-        <p class="small">Frontier figure: <code class="inline">gen_efficient_frontier.py</code> (deterministic, no network).</p>
         <div class="alert callout">
           <span class="callout-tag">discipline</span>
           Any parameter ($\alpha$, $\lambda$, $W_{\max}$) touched by the test window invalidates the result.
@@ -267,18 +271,18 @@ def walk_forward_sharpe(lf, train=252, step=21, turnover=0.15, c=5e-4):
 
   <section class="slide">
     <div class="eyebrow">Solution · Problem 1</div>
-    <h2>One 50% error swings the book by ~37 points</h2>
+    <h2>One 50% error swings the book by ~35 points</h2>
     <div class="title-rule"></div>
     <p class="lead">Fully trusting the LLM looks fine — until you nudge one input. A single noisy estimate
       collapses the "optimal" tangency portfolio all the way back to the no-trust baseline.</p>
     <ul>
       <li class="frag"><strong>A. Min-variance:</strong> \(w^\star=\dfrac{0.0016-0.0009}{0.0034}\approx 0.21\Rightarrow \mathbf{w}_{\min}\approx(0.21,\,0.79)\).</li>
-      <li class="frag"><strong>B. Tangency:</strong> \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(9.2,\,6.7)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.58,\,0.42)\).</li>
+      <li class="frag"><strong>B. Tangency:</strong> \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(9.2,\,7.2)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.56,\,0.44)\).</li>
       <li class="frag"><strong>C. Reliability:</strong> with $\mu_1$ corrected to $0.4\%$, \(\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}\propto(2.8,\,10.8)\times10^{-6}\Rightarrow \mathbf{w}^{\text{SR}}\approx(0.21,\,0.79)\) — back to min-variance.</li>
     </ul>
     <div class="alert callout frag">
       <span class="callout-tag">the takeaway</span>
-      A single 50% error in expected return swings the allocation by ~37 points. Position sizing is brutally
+      A single 50% error in expected return swings the allocation by ~35 points. Position sizing is brutally
       sensitive to LLM signal noise — which is exactly why you shrink toward $1/N$ or use Black–Litterman rather
       than plug raw LLM $\boldsymbol{\mu}$ into mean-variance (DeMiguel et al., 2009).
     </div>

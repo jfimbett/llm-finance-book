@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/pre-commit-checks.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-commit-checks.sh\"",
             "description": "Run integrity and quality checks before any git commit"
           }
         ]
@@ -18,28 +18,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/auto-commit.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto-commit.sh\"",
             "description": "Auto-commit file writes when auto_commit=true in TOPIC.md"
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/score-on-save.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/score-on-save.sh\"",
             "description": "Remind user to run /score-content after saving content files."
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/scaffold-pairs.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scaffold-pairs.sh\"",
             "description": "Auto-create paired lecture/notebook when a new chapter is created"
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/notify-threshold.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/notify-threshold.sh\"",
             "description": "Print banner when a quality score file first reaches passing threshold"
-          },
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/compile-slides.sh",
-            "description": "Auto-compile slides.tex after editing a slides file"
           }
         ]
       }
@@ -49,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/hooks/session-log.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-log.sh\"",
             "description": "Append session summary to docs/SESSION_LOG.md"
           }
         ]
@@ -63,6 +58,7 @@
       "Bash(biber *)",
       "Bash(bash scripts/*)",
       "Bash(bash .claude/hooks/*)",
+      "Bash(bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/*)",
       "Bash(python *)",
       "Bash(pytest *)",
       "Bash(jupyter *)"

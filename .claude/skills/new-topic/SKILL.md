@@ -26,7 +26,7 @@ When the user wants to add a new topic (chapter or appendix) to the book/course.
 4. Create `book/chapters/NN-name/chapter.tex` using the approved outline: one `\section{}` per top-level section, one `\subsection{}` per subsection, each with a `[Placeholder]` body and correct `\label` tags.
 5. Create `book/chapters/NN-name/figures/.gitkeep`.
 6. Create `course/lectures/NN-name/notes.md` with header `# Lecture N: [Topic Name]`, learning objectives derived from the approved outline (one per major section), and one `## N. [Section]` heading per top-level section with a `[Placeholder]` body. Include a **Further Reading** footer pointing to the companion book chapter.
-7. Create `course/lectures/NN-name/slides.tex` with a Beamer template: title frame plus one `\section` frame per top-level section from the approved outline.
+7. Create stub HTML slide decks under `course/slides-html/NN-name/`: both `index.html` (lesson) and `practical.html` (practical session), each containing the required boilerplate from `course/slides-html/AUTHORING.md` — a title slide plus one section-divider slide per top-level section from the approved outline. Load shared assets via `../assets/slides.css` and `../assets/slides.js`.
 8. Create `course/lectures/NN-name/exercises.md` with three placeholder exercises (one `[B]` beginner, one `[I]` intermediate, one `[A]` advanced), each tied to a section from the approved outline.
 9. Create `course/lectures/NN-name/solutions.md` with three placeholder solutions matching the exercises.
 10. Create `code/notebooks/NN-name/demo.ipynb` and `code/notebooks/NN-name/exercises.ipynb` — minimal valid notebooks with one markdown cell each describing the chapter topic.
@@ -44,7 +44,7 @@ Replace `NN-name` with the actual chapter directory segment (e.g., `02-linear-al
 
 13. **Re-run outline-curator on the created `chapter.tex`** as a final check: read the section/subsection headings from the file, pass them to the agent, and verify `STATUS: APPROVED`. If not, fix the file and repeat until approved.
 14. Run `bash scripts/validate-scaffold.sh` to verify the new directories exist.
-15. Stage and commit: `git add book/chapters/NN-name course/lectures/NN-name code/notebooks/NN-name docs/STATUS.md book/main.tex && git commit -m "chore: scaffold topic NN-name"`
+15. Stage and commit: `git add book/chapters/NN-name course/lectures/NN-name course/slides-html/NN-name code/notebooks/NN-name docs/STATUS.md book/main.tex && git commit -m "chore: scaffold topic NN-name"`
 
 ---
 
@@ -57,7 +57,7 @@ Use this mode when the user asks to create an appendix (e.g., "add appendix A on
 3. **Run the outline-curator agent** on the user-provided section list (or a minimal default outline). Apply the approved outline. If the agent returns `STATUS: NEEDS_REVISION`, fix and re-run until `STATUS: APPROVED`.
 4. Create `book/appendices/A-name/chapter.tex` using the approved outline: one `\section{}` per top-level section, one `\subsection{}` per subsection, each with a `[Placeholder]` body and correct `\label` tags. The file starts with `\chapter{[Appendix Title]}` (no number prefix — LaTeX handles lettering via `\appendix`).
 5. Create `book/appendices/A-name/figures/.gitkeep`.
-6. **No course lecture files** — appendices are book-only (no notes.md, slides.tex, exercises.md, solutions.md, or notebooks).
+6. **No course lecture files** — appendices are book-only (no notes.md, index.html/practical.html under course/slides-html/, exercises.md, solutions.md, or notebooks).
 7. Update `docs/STATUS.md` — append a new row in the appendices section: `| A | [Appendix Name] | No | No | — | — | — | — | — | No |`. If an appendices section doesn't exist yet, add a `## Appendices` header before it.
 
 **Step 8: Update `book/main.tex` to include the new appendix**

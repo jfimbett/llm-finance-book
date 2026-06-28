@@ -215,3 +215,4 @@
 | 2026-06-26 | 42 files | feat(slides): add all 17 practical-session HTML decks + fix currency rendering;feat(slides): convert all 16 remaining lectures to HTML decks;feat(slides): HTML/JS slide engine + Lecture 1 reference + landing page; | — |
 | 2026-06-28 | 39 files | chore: session log 2026-06-26;feat(slides): add all 17 practical-session HTML decks + fix currency rendering;feat(slides): convert all 16 remaining lectures to HTML decks; | — |
 | 2026-06-28 | 39 files | docs(slides): HTML slides overhaul design spec;chore: session log 2026-06-28;chore: session log 2026-06-26; | — |
+| 2026-06-28 | 3 files | docs(slides): HTML slides overhaul implementation plan;chore: session log 2026-06-28;docs(slides): HTML slides overhaul design spec; | — |

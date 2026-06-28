@@ -259,3 +259,4 @@
 | 2026-06-29 | 28 files | fix(book): resolve hallucination-audit findings in 10 chapters;chore: session log 2026-06-29;docs: hallucination audit report; | — |
 | 2026-06-29 | 28 files | chore: session log 2026-06-29;fix(book): resolve hallucination-audit findings in 10 chapters;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 14 files | feat(skills): add audit-slides-coverage skill + slides-coverage-auditor agent;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 14 files | chore: session log 2026-06-29;feat(skills): add audit-slides-coverage skill + slides-coverage-auditor agent;chore: session log 2026-06-29; | — |

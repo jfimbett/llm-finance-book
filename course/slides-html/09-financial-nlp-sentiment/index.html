@@ -16,11 +16,10 @@
 
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
-    <div class="kicker">Large Language Models in Finance · Lecture 9</div>
+    <div class="kicker">Large Language Models in Finance · Chapter 9 / Lecture 9</div>
     <h1>Financial NLP and Sentiment Analysis</h1>
     <div class="sub">Treating language as financial data — from raw text to a tradeable signal.</div>
-    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -327,13 +326,17 @@
     <div class="eyebrow">Generation three</div>
     <h2>LLMs classify with no training set at all</h2>
     <div class="title-rule"></div>
-    <p class="lead">GPT-4, Claude, and LLaMA-3 classify sentiment from a task description alone — no fine-tuning,
+    <p class="lead">GPT-5, Claude, and Llama 4 classify sentiment from a task description alone — no fine-tuning,
       no labelled set (Brown et al. 2020). That makes rapid prototyping on a new domain almost free.</p>
     <div class="block">
       <div class="block-title">Zero-shot prompt sketch</div>
       <em>"You are a financial analyst. Classify the sentiment … from the perspective of a stock investor."</em>
       → "Neutral", with a rationale (revenue growth offset by margin compression).
     </div>
+    <ul>
+      <li class="frag"><strong>Zero-shot</strong> — task description only, no examples.</li>
+      <li class="frag"><strong>Few-shot</strong> — prepend \(k\) labelled examples (typically 4–8) into the prompt so the model learns your labelling convention <em>in-context</em>, with no gradient update. Helps calibration on domain-specific conventions; trades off against prompt length and throughput.</li>
+    </ul>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the bigger picture</span>
       The model brings its own world knowledge to the task, so it can reason about <em>why</em> a sentence is

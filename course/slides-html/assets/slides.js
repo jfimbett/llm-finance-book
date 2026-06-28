@@ -34,6 +34,7 @@
     <div class="spacer"></div>
     <button class="btn" id="depth" title="Toggle technical depth (m)">⚙ <span>Under the hood</span></button>
     <button class="btn" id="overview" title="Overview (o)">▦ Overview</button>
+    <button class="btn" id="fsbtn" title="Fullscreen (f)">⛶ <span>Fullscreen</span></button>
     <button class="btn" id="helpbtn" title="Help (?)">?</button>`;
   document.body.appendChild(hud);
 
@@ -153,6 +154,14 @@
   document.getElementById("depth").addEventListener("click", () => setDepth(!depthOn));
   document.getElementById("overview").addEventListener("click", () => toggleOverview());
   document.getElementById("helpbtn").addEventListener("click", () => help.classList.toggle("show"));
+  document.getElementById("fsbtn").addEventListener("click", toggleFs);
+  document.addEventListener("fullscreenchange", () => {
+    const b = document.getElementById("fsbtn");
+    const on = !!document.fullscreenElement;
+    b.classList.toggle("active", on);
+    b.querySelector("span").textContent = on ? "Exit full" : "Fullscreen";
+    b.title = on ? "Exit fullscreen (f)" : "Fullscreen (f)";
+  });
 
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;

@@ -137,3 +137,14 @@ All items below were present in the original deck. The overhaul added:
 
 - [x] fig_reliability.png embedded with proper `<figure class="deckfig">` markup in both decks
 - [x] "MBA" badge removed from both decks; replaced with "Summer school · math one click away" badge
+
+## Corrections (2026-06-28)
+
+- Fixed citation conflation on the "References by theme" appendix slide: the entry
+  `Niculescu-Mizil & Caruana (2005, Platt/isotonic)` was incorrect. Replaced with three
+  correctly-attributed entries: Niculescu-Mizil & Caruana (2005, adaptive binning);
+  Platt (1999, Platt scaling); Zadrozny & Elkan (2002, isotonic).
+- Added brief mentions to make previously-falsely-checked items genuinely covered:
+  - Tetlock (2007) and Bollen et al. (2011) — added to §3 "What the data actually shows" slide.
+  - Harvey (2016) — added alongside Tetlock/Bollen on the same slide (alpha decay from factor crowding).
+  - PEFT / LoRA cross-reference — added to the §4 walk-forward cost trade-off callout.

@@ -18,9 +18,9 @@
   <section class="slide title-slide current">
     <div class="kicker">Large Language Models in Finance · Lecture 1</div>
     <h1>From Text to Signals in Finance</h1>
-    <div class="sub">How words in filings, calls, and headlines become numbers you can trade.</div>
+    <div class="sub">How words in filings, calls, and headlines become numbers you can trade — and how LLMs change that.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -31,10 +31,13 @@
     <div class="cols">
       <div class="col">
         <ol>
-          <li class="frag"><strong>A founding moment</strong> — the 2007 study that turned newspaper tone into a market signal.</li>
-          <li class="frag"><strong>Why text matters</strong> — and why a "signal in the news" can survive efficient markets.</li>
-          <li class="frag"><strong>The classic toolkit</strong> — counting words: bag-of-words, TF-IDF, their blind spots.</li>
-          <li class="frag"><strong>Word embeddings</strong> — giving words a geometry, where meaning becomes distance.</li>
+          <li class="frag"><strong>AI, jobs, and tasks</strong> — the task-based lens on what LLMs actually do to finance careers.</li>
+          <li class="frag"><strong>A brief history</strong> — dictionaries → topic models → embeddings → transformers.</li>
+          <li class="frag"><strong>Why text matters</strong> — the EDGAR explosion and why signals survive efficient markets.</li>
+          <li class="frag"><strong>Classical toolkit</strong> — BoW, TF-IDF, their strengths and blind spots.</li>
+          <li class="frag"><strong>Word embeddings</strong> — meaning as geometry; Word2Vec, GloVe, finance domain.</li>
+          <li class="frag"><strong>RNNs, attention, and LLM families</strong> — from sequential state to parallel self-attention.</li>
+          <li class="frag"><strong>APIs and limitations</strong> — querying models in Python; hallucinations and regulation.</li>
         </ol>
       </div>
       <div class="col">
@@ -48,41 +51,119 @@
     </div>
   </section>
 
-  <!-- ============================ SECTION 1 ============================ -->
+  <!-- ============================ SECTION 00 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">00</div>
+    <h2>AI, jobs, and tasks</h2>
+    <div class="secsub">LLMs affect tasks within jobs, not jobs wholesale — and that distinction is everything.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The framework</div>
+    <h2>Automation acts task by task, not job by job</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A job is a bundle of tasks. AI substitutes some tasks, complements others — and which tasks determines everything.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The theory</div>
+          <ul>
+            <li>Autor, Levy &amp; Murnane (2003): routine tasks are susceptible to automation; non-routine cognitive tasks are not</li>
+            <li>Acemoglu &amp; Restrepo (2019): automation displaces labour from exposed tasks while creating demand for new complementary tasks</li>
+            <li>Hampole et al. (2025): one-SD increase in task-level AI exposure → modest aggregate decline in relative labour demand, <em>concentrated among workers with near-complete exposure</em></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">The key insight</div>
+          <ul>
+            <li>Felten, Raj &amp; Seamans (2021): high-skill, high-wage white-collar occupations — including finance — have the <strong>greatest AI exposure</strong></li>
+            <li>This does not mean most at risk: it means greatest productivity <em>amplification</em></li>
+            <li>Workers who can reallocate toward judgment, synthesis, and relationship tasks are insulated</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="Acemoglu–Restrepo framework">
+      In the general-equilibrium model of Acemoglu &amp; Restrepo (2019), automation displaces
+      labour from task \(A\) (say, routine data collection). A worker who also performs tasks
+      \(B\) and \(C\) (synthesis, client management) can redirect freed time toward those tasks.
+      The aggregate employment effect depends on whether the productivity gain in \(B, C\) generates
+      new demand — a question that turns on the elasticity of demand for the outputs of those tasks.
+      Hampole et al. (2025) test this empirically using AI/ML patent text matched to O*NET task
+      descriptions linked to firm-level payroll, 2010–2023.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Finance professionals</div>
+    <h2>High AI exposure creates compound advantage — if you reallocate</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Tools that compress low-value tasks free capacity for high-value ones where human judgment dominates.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">High AI exposure — AI substitutes</div>
+          <ul>
+            <li>Cleaning and retrieving public data</li>
+            <li>Formatting references and boilerplate disclosures</li>
+            <li>First-pass data visualisations</li>
+            <li>Drafting referee reports from margin notes</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Low AI exposure — human advantage</div>
+          <ul>
+            <li>Formulating novel research hypotheses</li>
+            <li>Mentoring and tailored feedback</li>
+            <li>Synthesising divergent empirical presentations</li>
+            <li>Negotiating with portfolio company management</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">three concrete examples</span>
+      An equity analyst who screens calls with AI can cover twice as many companies. A compliance officer whose AI flags violations can focus on genuine ambiguity. A quant who uses AI for first-draft code iterates on model design — not syntax.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 01 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">01</div>
     <h2>A brief history of textual analysis in finance</h2>
-    <div class="secsub">From hand-coded dictionaries to the first machine-read sentiment signals.</div>
+    <div class="secsub">From hand-coded dictionaries to neural methods — each generation fixed the failure of the one before.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">The founding moment</div>
     <h2>Tetlock (2007): the news has a mood, and the mood has a price</h2>
     <div class="title-rule"></div>
-    <p class="lead frag">A simple experiment: measure how <strong>negative</strong> the <em>Wall Street Journal's</em>
+    <p class="lead">A simple experiment: measure how <strong>negative</strong> the <em>Wall Street Journal's</em>
       daily market column sounds, then ask whether tomorrow's market moves with it.</p>
     <div class="cols">
       <div class="col">
-        <div class="block frag"><div class="block-title">The setup (1984–1999)</div>
+        <div class="block"><div class="block-title">The setup (1984–1999)</div>
           <ul>
             <li>Daily share of negative words in the WSJ "Abreast of the Market" column</li>
-            <li>Next-day Dow Jones return</li>
+            <li>Next-day Dow Jones Industrial Average return</li>
+            <li>Dictionary: Harvard IV-4 (General Inquirer, 1966) — ~11,000 word stems</li>
           </ul>
         </div>
       </div>
       <div class="col">
-        <div class="block frag"><div class="block-title">What he found</div>
+        <div class="block"><div class="block-title">What he found</div>
           <ul>
             <li>Gloomy prose → <strong>lower</strong> next-day returns</li>
             <li>...that <em>reverses</em> within a week</li>
             <li>Extreme tone → heavier trading volume</li>
+            <li>Tetlock &amp; Loughran (2008): firm-level news predicts quarterly earnings</li>
           </ul>
         </div>
       </div>
     </div>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the bigger picture</span>
-      Human language can be turned into a quantitative, return-predicting signal. And the
+      Human language can be turned into a quantitative, return-predicting signal. The
       <em>reversal</em> is the tell: this is sentiment temporarily moving prices, not fresh fundamental news.
     </div>
   </section>
@@ -93,19 +174,20 @@
     <div class="title-rule"></div>
     <div class="cols">
       <div class="col">
-        <h3>The old way: General Inquirer (1966)</h3>
+        <h3>The old way: General Inquirer (Stone et al., 1966)</h3>
         <ul>
-          <li>11,000 word stems sorted into Positive, Negative, Strong, Weak…</li>
+          <li>~11,000 word stems sorted into Positive, Negative, Strong, Weak…</li>
           <li>Score a document by counting words per bucket</li>
           <li>Transparent, reproducible — but blunt</li>
+          <li>Li (2008): Fog Index applied to annual reports — harder to read filings predict lower future earnings</li>
         </ul>
       </div>
       <div class="col">
         <h3>The fix: Loughran–McDonald (2011)</h3>
         <ul>
           <li><em>tax, liability, depreciation</em> look "negative" to a general dictionary — but they're just finance vocabulary</li>
-          <li>LM hand-coded sentiment from actual 10-K filings</li>
-          <li>Substantially better at predicting filing-date returns</li>
+          <li>LM hand-coded sentiment from actual 10-K filings; six categories: Negative, Positive, Uncertainty, Litigious, Strong Modal, Weak Modal</li>
+          <li>Substantially better at predicting filing-date abnormal returns</li>
         </ul>
       </div>
     </div>
@@ -116,11 +198,57 @@
     </div>
   </section>
 
-  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide">
+    <div class="eyebrow">The statistical turn</div>
+    <h2>Topic models: letting the data discover its own structure</h2>
+    <div class="title-rule"></div>
+    <p class="lead">By the mid-2000s NLP moved beyond dictionaries to methods that learn structure from the data — no hand-coding required.</p>
+    <div class="block">
+      <div class="block-title">Latent Dirichlet Allocation (Blei, Ng &amp; Jordan, 2003)</div>
+      Each document is a mixture of a small number of latent <strong>topics</strong>; each topic is a probability distribution over vocabulary words.
+      Topics are discovered from the corpus — not pre-specified — using Bayesian inference on unlabelled data.
+    </div>
+    <ul>
+      <li class="frag"><strong>Boudoukh et al. (2013):</strong> LDA on firm-level news identified which stories actually move stock prices</li>
+      <li class="frag"><strong>Hansen, McMahon &amp; Prat (2018):</strong> LDA on FOMC transcripts revealed deliberation structure — who is hawkish, who is dovish — invisible to word-counting</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">still bag-of-words</span>
+      LDA discovers topics but still treats documents as unordered word counts. Negation, syntax, and long-range context remain invisible.
+    </div>
+    <aside class="underhood" data-title="LDA generative model">
+      For each document \(d\): draw topic proportions \(\theta_d \sim \mathrm{Dir}(\alpha)\).
+      For each word position: draw topic \(z_{d,n} \sim \mathrm{Cat}(\theta_d)\),
+      draw word \(w_{d,n} \sim \mathrm{Cat}(\phi_{z_{d,n}})\),
+      where \(\phi_k \sim \mathrm{Dir}(\beta)\) is the topic-word distribution.
+      Inference (collapsed Gibbs sampling or variational Bayes) integrates out
+      \(\theta\) and \(\phi\) to estimate topic assignments.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 02 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">02</div>
     <h2>Why text matters in finance</h2>
     <div class="secsub">Where the words come from — and why a profitable signal can hide in plain sight.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The raw material is exploding</div>
+    <h2>10-K filings have grown longer every decade since 1993</h2>
+    <div class="title-rule"></div>
+    <p class="lead">More text means more signal — but also more work for any human reader. That gap is where NLP tools earn their keep.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/01-intro/fig_edgar_text_growth.png" alt="Growth of narrative text in SEC 10-K annual filings 1993–2023">
+      <figcaption><b>Figure.</b> Mean alphabetic character count per 10-K filing, 1993–2023 (sample of 25 per year; band = ±1 SE).
+        Vertical lines mark the Sarbanes-Oxley Act (2002) and SEC Release 33-8591 (2005), which mandated a standalone risk-factors section.
+        The textual share of filings has risen steadily even as financial statements stayed roughly constant in size.
+        <span class="src">Source: SEC EDGAR full-text index; author calculations. See Loughran &amp; McDonald (2020).</span></figcaption>
+    </figure>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      As AI-generated text gets cheaper to produce, the volume of financial disclosure is likely to keep rising — reinforcing the case for AI-based tools to read it.
+    </div>
   </section>
 
   <section class="slide">
@@ -130,21 +258,21 @@
     <div class="cols">
       <div class="col">
         <ul>
-          <li class="frag"><strong>Earnings calls</strong> — scripted talk + spontaneous Q&amp;A (the Q&amp;A leaks the most)</li>
-          <li class="frag"><strong>10-K / 10-Q filings</strong> — risk factors, MD&amp;A; up to 200 pages</li>
+          <li class="frag"><strong>Earnings calls</strong> — scripted talk + spontaneous Q&amp;A; the Q&amp;A leaks the most (Davis et al., 2015)</li>
+          <li class="frag"><strong>10-K / 10-Q filings</strong> — risk factors, MD&amp;A; up to 200 pages; the Loughran–McDonald (2011) data</li>
           <li class="frag"><strong>Newswire</strong> — fast, narrow window; value is in speed and breadth</li>
         </ul>
       </div>
       <div class="col">
         <ul>
-          <li class="frag"><strong>Analyst reports</strong> — dense; complexity rises with information asymmetry</li>
-          <li class="frag"><strong>Central-bank comms</strong> — FOMC statements move rates on release</li>
-          <li class="frag"><strong>Social media</strong> — high-frequency, noisy, hotly debated</li>
+          <li class="frag"><strong>Analyst reports</strong> — dense; complexity rises with information asymmetry (Lehavy et al., 2011)</li>
+          <li class="frag"><strong>Central-bank comms</strong> — FOMC statements move rates on release (Hansen et al., 2018)</li>
+          <li class="frag"><strong>Social media</strong> — high-frequency, noisy; Bollen et al. (2011) showed Twitter mood predicts DJIA, but the finding is contested</li>
         </ul>
       </div>
     </div>
     <div class="takeaway callout frag">
-      <span class="callout-tag">why an MBA should care</span>
+      <span class="callout-tag">why this matters</span>
       Each source trades off <em>signal richness</em> against <em>speed</em> and <em>cost to process</em>.
       That trade-off is exactly where technology — and this course — creates an edge.
     </div>
@@ -154,15 +282,15 @@
     <div class="eyebrow">The puzzle</div>
     <h2>If markets are efficient, why does news tone predict returns?</h2>
     <div class="title-rule"></div>
-    <p class="lead">Efficient-markets theory says prices already reflect public information. Yet the data keeps
+    <p class="lead">Efficient-markets theory (Fama, 1970) says prices already reflect public information. Yet the data keeps
       finding that text predicts returns. Three reconciling reasons:</p>
     <ol>
       <li class="frag"><strong>Processing costs &amp; limited attention.</strong> A 200-page 10-K is expensive to read.
         Not everyone does — so signals persist until the technology to read at scale spreads.</li>
       <li class="frag"><strong>Soft information &amp; disagreement.</strong> Is a cautious tone genuine worry, or
         expectation management? When readers disagree, price reflects the <em>average</em> belief, not the sharpest one.</li>
-      <li class="frag"><strong>Latent information.</strong> Regulation limits explicit selective disclosure, so meaning
-        leaks through word choice, omissions, and structure.</li>
+      <li class="frag"><strong>Latent information.</strong> Regulation limits explicit selective disclosure (Reg FD), so meaning
+        leaks through word choice, omissions, and rhetorical structure.</li>
     </ol>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the bigger picture</span>
@@ -173,18 +301,18 @@
 
   <section class="slide">
     <div class="eyebrow">Four facts any theory must explain</div>
-    <h2>The stylized facts of text-and-returns</h2>
+    <h2>The stylised facts of text-and-returns</h2>
     <div class="title-rule"></div>
     <ol>
       <li class="frag"><strong>Negative tone → negative short-run returns, then reversal.</strong>
         <span class="small">Tetlock (2007).</span></li>
       <li class="frag"><strong>Finance dictionaries beat general ones.</strong>
         <span class="small">Loughran–McDonald (2011).</span></li>
-      <li class="frag"><strong>Call tone predicts future earnings surprises.</strong>
-        <span class="small">Larcker–Zakolyukina (2012): deceptive speech has linguistic fingerprints.</span></li>
+      <li class="frag"><strong>Call tone predicts future earnings surprises and deception.</strong>
+        <span class="small">Larcker &amp; Zakolyukina (2012): deceptive speech has distinct linguistic markers.</span></li>
       <li class="frag"><strong>LLM-based signals add fresh predictive power.</strong>
-        <span class="small">Lopez-Lira &amp; Tang (2023): ChatGPT headline sentiment predicts next-day returns —
-        absent in older, smaller models. An <em>emergent</em> property of scale.</span></li>
+        <span class="small">Lopez-Lira &amp; Tang (2023): ChatGPT headline sentiment predicts next-day returns.
+        Absent in GPT-1 and BERT — an <em>emergent</em> property of scale.</span></li>
     </ol>
   </section>
 
@@ -192,7 +320,7 @@
     <div class="eyebrow">Making it precise</div>
     <h2>A "textual signal," defined once and used all course</h2>
     <div class="title-rule"></div>
-    <p class="lead">Strip away the jargon and a text signal is just a recipe that turns a document into numbers.</p>
+    <p class="lead">Strip away the jargon: a text signal is just a recipe that turns a document into numbers.</p>
     <div class="block">
       <div class="block-title">In plain words</div>
       A function that reads document \(d_t\) at time \(t\) and outputs a value \(s_t\) — a sentiment score,
@@ -203,39 +331,12 @@
       \[ f \colon \mathcal{D} \longrightarrow \mathbb{R}^k, \qquad s_t = f(d_t). \]
       Examples of \(f\): fraction of LM-negative words (\(k=1\)); LDA topic proportions
       (\(k=\)#topics); a 300-dim sentence embedding (\(k=300\)); an LLM classifier (\(k=\)#classes).
+      The signal is <em>economically significant</em> if \(\mathrm{Cov}(s_t, r_{t+1}) \neq 0\) after
+      controlling for known return predictors and if the implied Sharpe ratio exceeds transaction costs.
     </aside>
     <div class="takeaway callout">
       <span class="callout-tag">the whole course in one line</span>
       We are searching for the best \(f\): word counts → topic models → transformer embeddings → LLMs as reasoning agents.
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">From signal to strategy</div>
-    <h2>When is a signal actually worth trading?</h2>
-    <div class="title-rule"></div>
-    <p class="lead">A signal earns its keep only if it moves returns <em>and</em> survives real-world frictions.</p>
-    <div class="cols">
-      <div class="col">
-        <div class="block"><div class="block-title">Two hurdles</div>
-          <ol>
-            <li>Predictive power remains after controlling for size, value, momentum…</li>
-            <li>The implied Sharpe ratio beats transaction costs</li>
-          </ol>
-        </div>
-      </div>
-      <div class="col">
-        <aside class="underhood" data-title="the linear factor model">
-          The empirical question is whether \(\mathrm{Cov}(s_t, r_{t+1}) \neq 0\). Under a linear model
-          \[ r_{t+1} = \alpha + \beta^\top s_t + \varepsilon_{t+1}, \quad \mathbb{E}[\varepsilon_{t+1}\mid s_t]=0, \]
-          \(\beta\) is <em>economically</em> significant iff it is non-zero after controlling for known factors
-          <em>and</em> the implied Sharpe ratio exceeds plausible costs.
-        </aside>
-      </div>
-    </div>
-    <div class="alert callout">
-      <span class="callout-tag">don't confuse the two</span>
-      Statistical significance without economic significance does not justify a trade.
     </div>
   </section>
 
@@ -264,7 +365,7 @@
     </div>
   </section>
 
-  <!-- ============================ SECTION 3 ============================ -->
+  <!-- ============================ SECTION 03 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">03</div>
     <h2>The classic toolkit: counting words</h2>
@@ -275,11 +376,11 @@
     <div class="eyebrow">Step zero</div>
     <h2>Cleaning text before you can count it</h2>
     <div class="title-rule"></div>
-    <p class="lead">Every method starts by standardizing raw text into a tidy vocabulary.</p>
+    <p class="lead">Every method starts by standardising raw text into a tidy vocabulary.</p>
     <ol>
       <li class="frag"><strong>Case folding</strong> — "Revenue" = "revenue"</li>
       <li class="frag"><strong>Stop-word removal</strong> — drop "the", "and", "of"… (100–300 words)</li>
-      <li class="frag"><strong>Stemming / lemmatization</strong> — <em>earnings, earned, earns</em> → <em>earn</em></li>
+      <li class="frag"><strong>Stemming / lemmatisation</strong> — <em>earnings, earned, earns</em> → <em>earn</em></li>
       <li class="frag"><strong>Vocabulary truncation</strong> — keep the common types, discard the rare ones</li>
     </ol>
     <div class="bigpicture callout frag">
@@ -321,7 +422,7 @@
     <div class="title-rule"></div>
     <p class="lead">When every word is its own dimension, no two distinct words share <em>any</em> similarity —
       "revenue" is as far from "income" as it is from "penguin."</p>
-    <aside class="underhood" data-title="orthogonality &amp; the discrete metric">
+    <aside class="underhood" data-title="orthogonality and the discrete metric">
       Each token maps to a basis vector \(\mathbf{e}_k=(0,\dots,1,\dots,0)^\top\). Then
       \[ \mathbf{e}_j^\top \mathbf{e}_k = \mathbb{1}[j=k] \;\Rightarrow\;
          \mathrm{sim}(\text{revenue},\text{income}) = 0 = \mathrm{sim}(\text{revenue},\text{penguin}). \]
@@ -341,14 +442,15 @@
     <p class="lead">Raw counts are dominated by common words. TF-IDF up-weights words that are frequent in
       <em>this</em> document but rare across the corpus — the ones that actually distinguish it.</p>
     <ul>
-      <li class="frag">A word in <em>every</em> document → weight \(0\) (says nothing)</li>
+      <li class="frag">A word in <em>every</em> document → IDF = 0 (says nothing distinctive)</li>
       <li class="frag">A word in <em>one</em> document → maximal weight (highly distinctive)</li>
+      <li class="frag">Cosine similarity on TF-IDF vectors is length-invariant — the vector space model (Salton et al., 1975)</li>
     </ul>
     <aside class="underhood" data-title="term frequency × inverse document frequency">
       \[ \mathrm{tf}(v,d)=\frac{\mathrm{count}(v,d)}{|d|}, \qquad
          \mathrm{idf}(v,\mathcal{C})=\log\!\frac{|\mathcal{C}|}{\mathrm{df}(v,\mathcal{C})}, \qquad
          \mathrm{tfidf}=\mathrm{tf}\times\mathrm{idf}. \]
-      Document similarity is the cosine of the TF-IDF vectors:
+      Document similarity is the cosine of the \(\ell_2\)-normalised TF-IDF vectors:
       \[ \mathrm{sim}(d_i,d_j)=\frac{\tilde{\mathbf{x}}(d_i)^\top \tilde{\mathbf{x}}(d_j)}
          {\|\tilde{\mathbf{x}}(d_i)\|\,\|\tilde{\mathbf{x}}(d_j)\|}\in[0,1]. \]
     </aside>
@@ -379,7 +481,7 @@
     </div>
   </section>
 
-  <!-- ============================ SECTION 4 ============================ -->
+  <!-- ============================ SECTION 04 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">04</div>
     <h2>Word embeddings: meaning as geometry</h2>
@@ -393,7 +495,7 @@
     <div class="bigpicture callout">
       <span class="callout-tag">the distributional hypothesis · Firth, 1957</span>
       Words that mean similar things show up in similar contexts. So if you can capture <em>which words
-      appear near which</em>, you capture meaning — without anyone hand-labeling a thing.
+      appear near which</em>, you capture meaning — without anyone hand-labelling a thing.
     </div>
     <p class="lead">An embedding maps each word to a point in a few-hundred-dimensional space where
       <strong>direction and distance encode meaning</strong>.</p>
@@ -402,28 +504,44 @@
       \(\mathbf{W}\in\mathbb{R}^{V\times d}\) has row \(i = \varphi(w_i)\). Typically \(d\in\{50,100,300\}\),
       a compression of \(\sim\!150\text{–}1000\times\). Cosine similarity then \(\approx\) semantic similarity.
     </aside>
-    <p class="small">Famous party trick: \(\varphi(\text{king}) - \varphi(\text{man}) + \varphi(\text{woman}) \approx \varphi(\text{queen})\).
-      In finance: \(\varphi(\text{call}) - \varphi(\text{upside}) + \varphi(\text{downside}) \approx \varphi(\text{put})\).</p>
   </section>
 
   <section class="slide">
     <div class="eyebrow">How the geometry gets learned · Word2Vec</div>
-    <h2>Predict the neighbors, and meaning falls out</h2>
+    <h2>Predict the neighbours, and meaning falls out</h2>
     <div class="title-rule"></div>
     <p class="lead">Train a model to guess the words surrounding a target word. To do that well it's
       <em>forced</em> to place related words near each other. That arrangement <em>is</em> the embedding.</p>
-    <aside class="underhood" data-title="skip-gram objective">
-      Each center word \(w_t\) predicts its \(\pm c\) context words:
+    <aside class="underhood" data-title="skip-gram objective (Mikolov et al., 2013)">
+      Each centre word \(w_t\) predicts its \(\pm c\) context words:
       \[ J_{\mathrm{SG}}=\frac1T\sum_{t=1}^{T}\sum_{k\neq 0}\log P(w_{t+k}\mid w_t),\quad
          P(w_{t+k}\mid w_t)=\frac{\exp(\mathbf{v}_{w_{t+k}}^\top \hat{\mathbf{v}}_{w_t})}{\sum_{w=1}^{V}\exp(\mathbf{v}_w^\top \hat{\mathbf{v}}_{w_t})}. \]
-      The catch: that denominator sums over all \(V\approx10^4\text{–}10^5\) words at <em>every</em> step.
-      For a billion tokens, intractable — which is why negative sampling exists.
+      The denominator sums over all \(V\approx10^4\text{–}10^5\) words at every step — intractable for a billion tokens, which is why negative sampling exists.
     </aside>
     <aside class="underhood" data-title="negative sampling (the speed trick)">
       Replace the full softmax with binary classification: one real context word vs. \(K\) random "noise" words.
       \[ \mathcal{L}=\log\sigma(\mathbf{v}_{w_{t+k}}^\top\hat{\mathbf{v}}_{w_t})
          +\sum_{j=1}^{K}\mathbb{E}_{w_j\sim P_n}\!\big[\log\sigma(-\mathbf{v}_{w_j}^\top\hat{\mathbf{v}}_{w_t})\big]. \]
       Only \(K{+}1\) rows update per step. Recommended \(K=5\text{–}20\), \(P_n(w)\propto \mathrm{freq}(w)^{3/4}\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">GloVe: the global picture</div>
+    <h2>Factorising co-occurrence counts instead of streaming windows</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Word2Vec processes one window at a time; GloVe counts <em>all</em> co-occurrences across the entire corpus first, then fits the geometry in one pass.</p>
+    <ul>
+      <li class="frag">Key insight: the <em>ratio</em> of co-occurrence probabilities \(P_{ik}/P_{jk}\) encodes relational meaning more faithfully than raw probabilities</li>
+      <li class="frag">Minimise a weighted squared loss between the dot product of word vectors and \(\log X_{ij}\)</li>
+      <li class="frag">Pennington, Socher &amp; Manning (2014): recommended \(\alpha = 0.75\), \(x_{\max} = 100\)</li>
+    </ul>
+    <aside class="underhood" data-title="GloVe objective">
+      With \(X_{ij}\) = times word \(j\) occurs in the context of word \(i\), GloVe minimises:
+      \[ J=\sum_{i,j=1}^{V} f(X_{ij})\big(\mathbf{w}_i^\top\tilde{\mathbf{w}}_j+b_i+\tilde b_j-\log X_{ij}\big)^2, \]
+      with \(f(x)=(x/x_{\max})^{\alpha}\) for \(x \lt x_{\max}\) else 1.
+      GloVe and Word2Vec learn similar representations in practice; GloVe is faster when co-occurrence counts are precomputed,
+      Word2Vec scales more gracefully to streaming corpora.
     </aside>
   </section>
 
@@ -439,10 +557,371 @@
     </table>
     <h3>Three ways to adapt</h3>
     <ul>
-      <li class="frag"><strong>Train from scratch</strong> on a financial corpus (e.g. Bloomberg Word2Vec)</li>
+      <li class="frag"><strong>Train from scratch</strong> on a financial corpus (e.g. BloombergGPT, FinancialPhraseBank embeddings)</li>
       <li class="frag"><strong>Fine-tune</strong> a general model (FinBERT: BERT re-trained on news, 10-Ks, calls)</li>
       <li class="frag"><strong>Retrofit</strong> — nudge synonyms together / antonyms apart using a financial lexicon</li>
     </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The geometry at work · PCA case study</div>
+    <h2>king − man + woman ≈ queen: the analogy is visible in 2D</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Load pre-trained GloVe (300d), compute the analogy in full vector space, then project to 2D with PCA — the arithmetic lands next to <em>queen</em> (cosine similarity 0.67).</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/01-intro/fig_king_analogy.png" alt="PCA projection showing the word analogy king minus man plus woman approximately equals queen">
+      <figcaption><b>Figure.</b> The classic analogy \(\hat{\mathbf{v}}_{\text{king}} - \hat{\mathbf{v}}_{\text{man}} + \hat{\mathbf{v}}_{\text{woman}} \approx \hat{\mathbf{v}}_{\text{queen}}\),
+        computed from real pre-trained GloVe-300 vectors (glove-wiki-gigaword-300) and projected to two dimensions by PCA.
+        The orange arrow is the vector arithmetic; the dotted line shows the result landing next to <em>queen</em>.
+        <span class="src">Source: author calculations using gensim + GloVe-300; generated deterministically by gen_king_analogy.py.</span></figcaption>
+    </figure>
+    <aside class="underhood" data-title="why PCA axes are not directly interpretable">
+      PCA axes are the directions of greatest variance <em>among the selected terms</em> — not named financial concepts.
+      Proximity in 2D is suggestive, not definitive; exact relationships require full-dimensional cosine similarities.
+      Whether comparable financial analogies (e.g., call − upside + downside ≈ put) emerge depends on the training corpus —
+      the rationale for domain-specific embeddings.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 05 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Recurrent networks and the vanishing gradient</h2>
+    <div class="secsub">Order finally matters — but reading 500 tokens by hand has a flaw the LSTM was built to fix.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Sequential reading</div>
+    <h2>RNNs: the first architecture to process a document left to right</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each token folds into a running hidden state — a summary of everything read so far. But carrying that summary across 500 tokens breaks.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The recurrence</div>
+          \(\mathbf{h}_t = \tanh(\mathbf{W}_h\,\mathbf{h}_{t-1} + \mathbf{W}_x\,\mathbf{x}_t + \mathbf{b})\)
+          <br><br>
+          The final state \(\mathbf{h}_T\) feeds a task head — a sentiment classifier, an LM head.
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">vanishing gradient</span>
+          Propagating error back \(T\) steps multiplies \(T\) Jacobians.
+          A factor of 0.95 per step → \(0.95^{500} \approx 5 \times 10^{-12}\).
+          The opening paragraph is numerically gone before training can use it.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="spectral-norm bound on the gradient">
+      The gradient of the loss \(\mathcal{L}\) with respect to a hidden state \(k\) steps back satisfies
+      \[ \left\|\frac{\partial \mathcal{L}}{\partial \mathbf{h}_t}\right\| \leq
+         \left(\rho(\mathbf{W}_h)\cdot \sup_t \|\mathrm{diag}(1 - \mathbf{h}_t^2)\|\right)^{T-k}
+         \cdot \left\|\frac{\partial \mathcal{L}}{\partial \mathbf{h}_T}\right\|, \]
+      where \(\rho(\mathbf{W}_h)\) is the spectral radius. When \(\rho \lt 1\), the bound decays exponentially in \(T - k\).
+      Gradients explode when \(\rho \gt 1\) — gradient clipping addresses this, but not vanishing.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The fix</div>
+    <h2>LSTM: a cell state that can carry information across long lags</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Instead of repeatedly multiplying the hidden state, the LSTM cell state is updated <em>additively</em> — gradients flow like water through an open pipe.</p>
+    <ul>
+      <li class="frag"><strong>Hochreiter &amp; Schmidhuber (1997):</strong> Long Short-Term Memory adds a cell state \(\mathbf{c}_t\) updated via learned gates</li>
+      <li class="frag"><strong>Forget gate:</strong> what fraction of the old cell to erase</li>
+      <li class="frag"><strong>Input gate:</strong> what new information to write into the cell</li>
+      <li class="frag"><strong>Output gate:</strong> what the cell exposes as the hidden state \(\mathbf{h}_t\)</li>
+      <li class="frag">When the forget gate stays open, the cell state behaves like a near-lossless gradient highway</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">LSTMs in finance</span>
+      State-of-the-art on Financial PhraseBank (Malo et al., 2014) and FiQA (Maia et al., 2018) sentiment benchmarks through the mid-2010s — before attention displaced them.
+    </div>
+    <aside class="underhood" data-title="LSTM gating equations">
+      \[ \mathbf{f}_t = \sigma(\mathbf{W}_f[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_f), \quad
+         \mathbf{i}_t = \sigma(\mathbf{W}_i[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_i), \]
+      \[ \tilde{\mathbf{c}}_t = \tanh(\mathbf{W}_c[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_c), \quad
+         \mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t, \]
+      \[ \mathbf{o}_t = \sigma(\mathbf{W}_o[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_o), \quad
+         \mathbf{h}_t = \mathbf{o}_t \odot \tanh(\mathbf{c}_t). \]
+      The additive update \(\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t\)
+      preserves gradients: when \(\mathbf{f}_t \approx 1\), \(\partial \mathbf{c}_t / \partial \mathbf{c}_{t-1} \approx 1\).
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 06 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Scaled dot-product attention and the Transformer</h2>
+    <div class="secsub">Every token attends to every other token — in parallel, with no distance decay.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Attention as content-based lookup</div>
+    <h2>Instead of a sequential state, every token looks at every other token</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each token asks a question (query), every token posts an answer (key + value); the update is a weighted average of all values, weighted by how well the query matches each key.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Two advantages over the RNN</div>
+          <ul>
+            <li>Runs in <strong>parallel</strong> across the sequence — critical for GPU-scale training</li>
+            <li>Gradient flows <strong>directly</strong> between any two positions — no exponential decay with distance</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">The formula</div>
+          \(\mathrm{Attention}(\mathbf{Q},\mathbf{K},\mathbf{V}) = \mathrm{softmax}\!\left(\tfrac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}\)
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="why divide by sqrt(d_k)?">
+      The dot product of two \(d_k\)-dimensional unit vectors has variance that grows with \(d_k\).
+      Without rescaling, large \(d_k\) drives the softmax into saturation — near-zero gradients everywhere.
+      Dividing by \(\sqrt{d_k}\) restores unit-scale scores. Formally: if \(\mathbf{q}, \mathbf{k}\) are i.i.d.
+      with \(\mathbb{E}[q_i] = 0\), \(\mathrm{Var}(q_i) = 1\), then
+      \(\mathrm{Var}(\mathbf{q}^\top\mathbf{k}) = d_k\), so dividing by \(\sqrt{d_k}\) gives unit variance.
+      (Vaswani et al., 2017, §3.2.1.)
+    </aside>
+    <p class="small">Bahdanau, Cho &amp; Bengio (2015): the original attention mechanism for sequence-to-sequence MT.
+      Vaswani et al. (2017): generalised to the Transformer, which discards recurrence entirely.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Multi-head attention</div>
+    <h2>Several attention patterns in parallel, each specialising</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A single attention head can track only one kind of relationship. Multi-head attention runs several in parallel on lower-dimensional projections.</p>
+    <ul>
+      <li class="frag">In financial text: one head may follow temporal links (<em>prior quarter vs. current quarter</em>), another entity coreference (<em>the company, it, JPMorgan</em>), another negation scope (<em>did not, failed to</em>)</li>
+      <li class="frag">BERT (Devlin et al., 2019): 12-layer Transformer encoder pre-trained with Masked LM (15% of tokens masked); bidirectionality makes it exceptional for classification</li>
+      <li class="frag">FinBERT (Yang et al., 2020): BERT further pre-trained on Reuters news, 10-K filings, and earnings calls — achieves state-of-the-art sentiment on Financial PhraseBank</li>
+    </ul>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">interpretability bonus</span>
+      Attention weights expose <em>which parts of a document</em> a prediction rests on — letting an analyst see when a model keys on forward-looking guidance or a specific risk-factor disclosure.
+    </div>
+    <aside class="underhood" data-title="multi-head attention construction">
+      \[ \mathrm{MHA}(\mathbf{Q},\mathbf{K},\mathbf{V}) = \mathrm{Concat}(\mathrm{head}_1,\dots,\mathrm{head}_H)\mathbf{W}^O, \]
+      \[ \mathrm{head}_h = \mathrm{Attention}(\mathbf{Q}\mathbf{W}_h^Q, \mathbf{K}\mathbf{W}_h^K, \mathbf{V}\mathbf{W}_h^V). \]
+      Project to \(d_k = d_{\mathrm{model}}/H\) per head; concatenate and project back.
+      Masked LM objective: \(\mathcal{L}_{\mathrm{MLM}}(\theta) = -\sum_{i\in\mathcal{M}}\log p_\theta(w_i \mid \mathbf{w}_{\setminus i})\).
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 07 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">07</div>
+    <h2>A taxonomy of modern LLM families</h2>
+    <div class="secsub">Two design axes — training objective and domain — determine which model to reach for.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Three training objectives</div>
+    <h2>How a model is trained determines what it's good at</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Objective</th><th>Architecture</th><th>Models</th><th>Best for</th></tr>
+      <tr><td>Autoregressive (next token)</td><td>Decoder-only</td><td>GPT-1/2/3, GPT-4</td><td>Generation, Q&amp;A, summarisation</td></tr>
+      <tr><td>Masked LM (fill the blank)</td><td>Encoder-only</td><td>BERT, FinBERT</td><td>Classification, extraction, NER</td></tr>
+      <tr><td>Sequence-to-sequence</td><td>Encoder-decoder</td><td>T5 (Raffel et al., 2020)</td><td>Multi-task: summarise + classify + extract</td></tr>
+    </table>
+    <aside class="underhood" data-title="autoregressive objective">
+      GPT maximises \(\mathcal{L}_{\mathrm{AR}}(\theta) = -\sum_{t=1}^T \log p_\theta(w_t \mid w_1,\dots,w_{t-1})\).
+      GPT-1 (Radford et al., 2018): 12-layer decoder on 800M words; GPT-2 (2019): 1.5B params, zero-shot generalisation;
+      GPT-3 (Brown et al., 2020): 175B params, few-shot learners. T5 frames every NLP task as text-to-text, simplifying multi-task financial pipelines.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">note on FinBERT</span>
+      Two models share the name: Araci (2019) fine-tuned BERT on financial text; Yang et al. (2020) retrained BERT from scratch on financial corpora. They are distinct.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Open-weight and finance-domain</div>
+    <h2>LLaMA, BloombergGPT, FinGPT — and why data sovereignty matters</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Routing proprietary trading data through a third-party API is a compliance problem. Open-weight models run on your servers.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">LLaMA (Touvron et al., 2023)</div>
+          7B–65B parameters; freely downloadable; LLaMA-2/3 extend context to 128K tokens — handles most filings in one pass.
+        </div>
+        <div class="block"><div class="block-title">BloombergGPT (Wu et al., 2023)</div>
+          50B params; trained on 363B-token financial corpus + 345B general; outperforms same-size general models on ConvFinQA, FiQA-SA, FPB.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">FinGPT (Yang et al., 2023)</div>
+          LoRA fine-tuning of a 7B general model on financial data matches much larger domain-pretrained models — a cost-effective path for academic researchers.
+        </div>
+        <div class="takeaway callout">
+          <span class="callout-tag">model selection heuristics</span>
+          (1) Task type: classification → encoder; generation → decoder. (2) Data sensitivity: proprietary → open-weight. (3) Latency: 7B–13B real-time on one A100; 70B+ needs multi-GPU.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 08 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">08</div>
+    <h2>Querying LLMs via Python APIs</h2>
+    <div class="secsub">OpenAI, Anthropic, and HuggingFace — the three gateways to LLMs in any financial NLP pipeline.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The three gateways</div>
+    <h2>A sentiment query in ten lines of Python</h2>
+    <div class="title-rule"></div>
+    <p class="lead">All three APIs share the same structure: a list of role-tagged messages in, a structured response out.</p>
+    <div class="cols">
+      <div class="col">
+        <pre class="code">import openai
+client = openai.OpenAI()
+resp = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+      {"role": "system",
+       "content": "You are a financial analyst."},
+      {"role": "user",
+       "content": "Sentiment of 'Revenue fell 12%.'?"
+                  " One word."},
+    ])
+# -> 'Negative'</pre>
+      </div>
+      <div class="col">
+        <pre class="code">from transformers import pipeline
+# HuggingFace — runs locally
+clf = pipeline("text-classification",
+               model="ProsusAI/finbert")
+print(clf("Revenue fell 12%."))
+# -> [{'label': 'negative',
+#      'score': 0.95}]</pre>
+        <p class="small">Anthropic API: identical request shape to OpenAI; <code class="inline">anthropic.Anthropic()</code>, <code class="inline">client.messages.create()</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Economics of inference</div>
+    <h2>Token costs and latency determine the right model for each task</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Model</th><th>Input $/M tok</th><th>Output $/M tok</th><th>Tokens/s</th></tr>
+      <tr><td><code class="inline">gpt-4o</code></td><td>2.50</td><td>10.00</td><td>60</td></tr>
+      <tr><td><code class="inline">gpt-4o-mini</code></td><td>0.15</td><td>0.60</td><td>120</td></tr>
+      <tr><td><code class="inline">claude-sonnet</code></td><td>3.00</td><td>15.00</td><td>80</td></tr>
+      <tr><td><code class="inline">claude-haiku</code></td><td>0.25</td><td>1.25</td><td>200</td></tr>
+      <tr><td>LLaMA-3 70B (on-prem)</td><td>—</td><td>—</td><td>45</td></tr>
+    </table>
+    <p class="small">Illustrative 2024 list prices; verify current rates before production deployment.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">the cost maths</span>
+      Classifying 1M headlines at 100 tokens: ~$250 with a frontier model, ~$15 with a lightweight alternative.
+      Chain-of-thought (Wei et al., 2022) improves multi-step accuracy but substantially increases output tokens — cost-effective only when accuracy gains justify the expense.
+    </div>
+    <aside class="underhood" data-title="cost control via prompt brevity">
+      The single most effective cost-reduction strategy is prompt brevity: fewer input tokens, lower cost.
+      In classification tasks, a one-line system prompt with a one-sentence instruction typically outperforms
+      a five-paragraph prompt on accuracy while costing far less. Batch overnight processing of 10-K filings
+      tolerates higher latency — accuracy differences dominate; real-time news classification needs speed.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 09 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">09</div>
+    <h2>Limitations and the regulatory landscape</h2>
+    <div class="secsub">LLMs are powerful but imperfect — know the failure modes before deploying in production.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The main failure mode</div>
+    <h2>LLMs can confidently fabricate financial facts</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM hallucination is an output that is fluent and coherent but factually incorrect, unverifiable, or unsupported by the input context.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Three types in finance</div>
+          <ol>
+            <li><strong>Factual</strong> — fabricated stock price, revenue, or regulation number</li>
+            <li><strong>Attribution</strong> — correct fact ascribed to the wrong company or period</li>
+            <li><strong>Reasoning</strong> — plausible-sounding but logically wrong valuation chain</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Mitigation strategies</div>
+          <ul>
+            <li><strong>RAG</strong>: provide source doc as context; instruct "answer only from provided text"</li>
+            <li><strong>Citation enforcement</strong>: require page and sentence for every numerical claim</li>
+            <li><strong>Consistency sampling</strong>: generate ≥5 responses; flag high-variance claims</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">data contamination (Didisheim et al., 2025)</span>
+      LLMs carry memorised knowledge of historical asset returns into zero-shot forecasting — out-of-sample tests may be invalid if the model trained on the very time series it predicts.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Practical constraints</div>
+    <h2>Long documents challenge even 128K-token context windows</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Most standard filings fit in modern context windows — but very long documents still require chunking, and placement of relevant facts matters.</p>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>Document</th><th>Tokens (approx)</th></tr>
+          <tr><td>Earnings press release</td><td>800</td></tr>
+          <tr><td>Earnings call transcript</td><td>6,000</td></tr>
+          <tr><td>10-Q filing</td><td>35,000</td></tr>
+          <tr><td>10-K filing</td><td>70,000</td></tr>
+          <tr><td>Proxy statement</td><td>120,000</td></tr>
+          <tr><td>Basel III Pillar 3</td><td>250,000</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">"lost in the middle" (Liu et al., 2023)</span>
+          Retrieval accuracy degrades for information placed in the middle of long contexts — even when the document fits in the window, where relevant facts appear matters.
+        </div>
+        <ul>
+          <li class="frag"><strong>Recency bias:</strong> large, liquid firms dominate training corpora — small-cap analysis may be less reliable</li>
+          <li class="frag"><strong>Sentiment framing:</strong> models reproduce media framing effects, amplifying narratives rather than extracting fundamentals</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Regulatory landscape</div>
+    <h2>Disclosure obligations are real — EU AI Act (2024) and SEC (2023)</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Deploying an LLM in a client-facing or regulatory context is not just a technical decision — it carries legal obligations.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">EU AI Act (2024)</div>
+          Four risk tiers. General-purpose LLM APIs must disclose AI system use and cannot deceive users about artificial origin.
+          High-risk applications (credit scoring, underwriting) face conformity assessment, data governance, and human oversight requirements.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">SEC 2023 Guidance</div>
+          Investment advisers using LLMs in investor interactions must eliminate or neutralise conflicts of interest.
+          LLM outputs that influence investment decisions are subject to the same fiduciary duty standards as human advisor recommendations.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the bottom line</span>
+      Ignoring either the technical failure modes or the regulatory framework creates material operational, reputational, and legal risk.
+    </div>
   </section>
 
   <!-- ============================ WRAP ============================ -->
@@ -454,25 +933,28 @@
       <div class="col">
         <h3>Today</h3>
         <ul>
-          <li>Why text predicts returns: three EMH-consistent reasons</li>
-          <li>The textual-signal framework and when a signal is tradeable</li>
+          <li>AI amplifies finance professionals via the task-based lens</li>
+          <li>History: dictionaries → LDA → embeddings → Transformers</li>
+          <li>Text predicts returns: three EMH-consistent reasons</li>
           <li>Classical reps: BoW, TF-IDF — order-blind, discrete</li>
-          <li>Embeddings: meaning as geometry; Word2Vec; domain adaptation</li>
+          <li>Embeddings: Word2Vec, GloVe, domain adaptation</li>
+          <li>RNNs → LSTM → Attention → LLM families</li>
+          <li>APIs, token costs, hallucinations, and regulation</li>
         </ul>
         <div class="block"><div class="block-title">Practical Session 1</div>
-          TF-IDF by hand · cosine similarity · TF-IDF on earnings-call snippets in Python.
+          TF-IDF by hand · cosine similarity · word embedding analogies · Python on earnings calls · LLM API basics.
         </div>
       </div>
       <div class="col">
         <h3>Lecture 2 — LLM Foundations</h3>
         <ul>
-          <li>RNNs: sequential order &amp; vanishing gradients</li>
-          <li>LSTM: cell state, forget / input / output gates</li>
-          <li>The Transformer: self-attention, multi-head, positional encoding</li>
+          <li>RNNs and LSTM: full derivation and spectral-norm bound</li>
+          <li>Transformer: positional encoding, layer normalisation, causal masking</li>
           <li>Pre-training: masked LM (BERT) vs. autoregressive (GPT)</li>
+          <li>Fine-tuning, instruction tuning, LoRA</li>
         </ul>
         <p class="small"><strong>Key refs:</strong> Tetlock (2007) · LM (2011) · Mikolov (2013) ·
-          Pennington (2014) · Lopez-Lira &amp; Tang (2023).</p>
+          Pennington (2014) · Vaswani (2017) · Devlin (2019) · Lopez-Lira &amp; Tang (2023).</p>
       </div>
     </div>
   </section>
@@ -480,8 +962,8 @@
   <!-- ============================ APPENDIX ============================ -->
   <section class="slide section-slide">
     <div class="secnum">A</div>
-    <h2>Appendix — extra &amp; optional material</h2>
-    <div class="secsub">Timeline, worked TF-IDF example, GloVe, and a PCA case study. Beyond the core lecture.</div>
+    <h2>Appendix — extra and optional material</h2>
+    <div class="secsub">Timeline, worked TF-IDF example, and PCA case study notes. Beyond the core lecture.</div>
   </section>
 
   <section class="slide">
@@ -490,16 +972,22 @@
     <div class="title-rule"></div>
     <table>
       <tr><th>Year</th><th>Method</th><th>Key advance</th></tr>
+      <tr><td>1957</td><td>Distributional hypothesis (Firth)</td><td>Meaning from context</td></tr>
       <tr><td>1966</td><td>General Inquirer</td><td>Systematic word counting</td></tr>
-      <tr><td>2003</td><td>LDA topic models</td><td>Data-driven topics, no labels</td></tr>
+      <tr><td>1975</td><td>Vector space model (Salton)</td><td>Cosine similarity for retrieval</td></tr>
+      <tr><td>1997</td><td>LSTM (Hochreiter &amp; Schmidhuber)</td><td>Gated cell state</td></tr>
+      <tr><td>2003</td><td>LDA (Blei, Ng &amp; Jordan)</td><td>Data-driven topics, no labels</td></tr>
+      <tr><td>2007</td><td>Tetlock (2007)</td><td>Media sentiment → returns</td></tr>
       <tr><td>2011</td><td>LM dictionary</td><td>Finance-domain sentiment</td></tr>
-      <tr><td>2013</td><td>Word2Vec / GloVe</td><td>Dense embeddings, semantic geometry</td></tr>
-      <tr><td>1997/2015</td><td>LSTM / Attention</td><td>Sequential context, negation</td></tr>
-      <tr><td>2017</td><td>Transformer</td><td>Parallel self-attention, massive scale</td></tr>
+      <tr><td>2013</td><td>Word2Vec (Mikolov)</td><td>Dense embeddings, semantic geometry</td></tr>
+      <tr><td>2014</td><td>GloVe (Pennington)</td><td>Global co-occurrence factorisation</td></tr>
+      <tr><td>2015</td><td>Attention (Bahdanau)</td><td>Direct token-to-token paths</td></tr>
+      <tr><td>2017</td><td>Transformer (Vaswani)</td><td>Parallel self-attention, massive scale</td></tr>
       <tr><td>2018–19</td><td>BERT / FinBERT</td><td>Pre-train, then fine-tune</td></tr>
-      <tr><td>2020+</td><td>GPT-4, Claude, Llama</td><td>Instruction-following, reasoning</td></tr>
+      <tr><td>2020+</td><td>GPT-3/4, Claude, Llama</td><td>Instruction-following, reasoning</td></tr>
+      <tr><td>2023</td><td>BloombergGPT / FinGPT</td><td>Finance-domain scale and LoRA</td></tr>
     </table>
-    <p class="muted">Each generation fixes the core limitation of the one before it.</p>
+    <p class="small">Each generation fixes the core limitation of the one before it.</p>
   </section>
 
   <section class="slide">
@@ -522,25 +1010,10 @@
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Appendix · the other embedding</div>
-    <h2>GloVe: factorizing global co-occurrence</h2>
+    <div class="eyebrow">Appendix · PCA caution</div>
+    <h2>Reading PCA plots of embedding space with care</h2>
     <div class="title-rule"></div>
-    <p class="lead">Word2Vec learns word-by-word as it streams text; GloVe instead counts all co-occurrences
-      first, then fits the geometry in one pass. Similar quality, different engineering.</p>
-    <aside class="underhood" data-title="the objective">
-      With \(X_{ij}\) = times word \(j\) occurs in the context of word \(i\), GloVe minimises
-      \[ J=\sum_{i,j=1}^{V} f(X_{ij})\big(\mathbf{w}_i^\top\tilde{\mathbf{w}}_j+b_i+\tilde b_j-\log X_{ij}\big)^2, \]
-      with \(f(x)=(x/x_{\max})^{\alpha}\) for \(x&lt;x_{\max}\) else 1; recommended \(\alpha=0.75,\ x_{\max}=100\).
-      The key insight: the <em>ratio</em> \(P_{ik}/P_{jk}\) encodes relational meaning better than raw probabilities.
-    </aside>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Appendix · case study</div>
-    <h2>PCA on financial vocabulary: the clusters are real</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Project 30 financial terms to 2D via PCA on GloVe vectors and color by theme —
-      consistent clusters appear across pre-trained models.</p>
+    <p class="lead">Project 30 financial terms to 2D via PCA on GloVe vectors and colour by theme — consistent clusters appear, but axes need careful interpretation.</p>
     <ul>
       <li><em>option, futures, derivative</em> → tight cluster</li>
       <li><em>default, credit</em> → together, away from equities</li>
@@ -549,7 +1022,8 @@
     </ul>
     <div class="alert callout">
       <span class="callout-tag">read the axes with care</span>
-      PCA axes are <em>not</em> automatically interpretable as named financial concepts without further validation.
+      PCA axes are <em>not</em> automatically interpretable as named financial concepts — they are the directions of greatest variance among the selected terms.
+      Proximity in 2D is suggestive, not definitive; exact relationships require full-dimensional cosine similarities.
     </div>
     <p class="small">Full code: <code class="inline">code/notebooks/01-intro/demo.ipynb</code></p>
   </section>

@@ -20,7 +20,7 @@
     <h1>Building Agentic Iteration Loops</h1>
     <div class="sub">Hands-on: a root-finding loop and a credit-risk stress loop — both the same machine.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -44,6 +44,11 @@
           a validator, and a definition of "residual." Only the residual changes — a number, a failing test,
           or a committee's objection.
         </div>
+        <figure class="deckfig">
+          <img src="../assets/figures/17-loops-goals-iterations/diagram.svg" alt="agentic goal loop: plan → act → observe → reflect">
+          <figcaption><b>Figure.</b> The goal-directed loop: observe → propose → act → evaluate → revise — the engine behind every problem in this session.
+            <span class="src">Source: Chapter 17.</span></figcaption>
+        </figure>
       </div>
     </div>
     <p class="small">Companion notebooks: <code class="inline">code/notebooks/17-loops-goals-iterations/</code></p>
@@ -66,17 +71,20 @@
     <div class="cols c3">
       <div class="col">
         <div class="block frag"><div class="block-title">Agents — <em>who</em> acts</div>
-          Worker, critic, validator, planner, refactorer. Their value is the durable change to state.
+          Worker, critic, validator, planner, refactorer. Their value is the durable change to state —
+          measured by the diff, not by the transcript.
         </div>
       </div>
       <div class="col">
         <div class="block frag"><div class="block-title">Skills — <em>how</em> work repeats</div>
-          The way recurring work is done the same way twice. A skill ≈ a function.
+          A skill is to a workflow what a function is to a computation: named, scoped, repeatable, composable.
+          Freezes "how we do X here" into executable form.
         </div>
       </div>
       <div class="col">
         <div class="block frag"><div class="block-title">Hooks — <em>what</em> may never break</div>
-          Constraints that fire automatically, outside the agent's control.
+          Constraints that fire automatically, outside the agent's control. Pre-action = pre-trade limit;
+          post-action = post-trade surveillance.
         </div>
       </div>
     </div>
@@ -86,10 +94,10 @@
       <em>not</em> control — a <strong>tolerance hook</strong>.
     </div>
     <aside class="underhood" data-title="the loop, formally">
-      A goal-directed loop runs while $\neg\,\mathrm{ok}(s_t)$ and no stopping rule fires, with action
+      A goal-directed loop runs while \(\neg\,\mathrm{ok}(s_t)\) and no stopping rule fires, with action
       \[ a_{t+1} = \pi\big(s_t,\, e_t\big), \]
-      where $e_t$ is the feedback (residual, failing test, objection) from evaluating the previous action.
-      Genuine iteration means $a_{t+1}$ truly depends on $e_t$ — not a fixed script.
+      where \(e_t\) is the feedback (residual, failing test, objection) from evaluating the previous action.
+      Genuine iteration means \(a_{t+1}\) truly depends on \(e_t\) — not a fixed script.
     </aside>
   </section>
 
@@ -107,13 +115,14 @@
       <div class="col">
         <div class="block"><div class="block-title">Expected loss (credit)</div>
           How much you expect to lose = chance of default × fraction lost if it defaults × amount at stake.
+          Written as a formula, this identity must reconcile in every column of the memo.
         </div>
       </div>
     </div>
     <aside class="underhood" data-title="the formulas">
       <strong>Root finding:</strong> from a bracket \([a,b]\) with \(f(a)&lt;0&lt;f(b)\), the root lies between;
       weight the next guess toward the endpoint with the smaller \(|f|\) (false-position intuition).
-      Success when $|f(x)|&lt;10^{-3}$ (the IRR problem uses $|\mathrm{NPV}|&lt;0.05$).
+      Success when \(|f(x)|&lt;10^{-3}\) (the IRR problem uses \(|\mathrm{NPV}|&lt;0.05\)).
       <br><br>
       <strong>Expected loss:</strong>
       \[ \mathrm{EL} = \mathrm{PD}\times\mathrm{LGD}\times\mathrm{EAD},
@@ -139,14 +148,15 @@
     <h2>Three angles on one loop</h2>
     <div class="title-rule"></div>
     <ol>
-      <li class="frag"><strong>P1 — IRR loop (transfer):</strong> apply the sign-and-magnitude search to solve for an IRR from feedback alone.</li>
-      <li class="frag"><strong>P2 — the success gate:</strong> write the tolerance hook in bash that vetoes a premature "success."</li>
+      <li class="frag"><strong>P1 — IRR loop (transfer):</strong> apply the sign-and-magnitude search to solve for an IRR from feedback alone — no calculus.</li>
+      <li class="frag"><strong>P2 — the success gate:</strong> write the tolerance hook in bash that vetoes a premature "success" claim.</li>
       <li class="frag"><strong>P3 — credit mini case:</strong> compute base vs. stressed EL and make the lend / modify / decline call.</li>
     </ol>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the bigger picture</span>
       P1 and P2 are the <em>same loop</em> from two angles: P1 is the agent's directed search; P2 is the
-      guardrail that defines "done." P3 scales the idea up to a judgment a committee must accept.
+      guardrail that defines "done." P3 scales the idea up to a judgment a committee must accept —
+      with explicit goals, hooks, and an unsigned sign-off block.
     </div>
     <p class="small">Companion notebooks: <code class="inline">code/notebooks/17-loops-goals-iterations/</code> — run the evaluator, the stop hook, and the EL reconciliation end-to-end.</p>
   </section>
@@ -155,16 +165,17 @@
     <div class="eyebrow">P1 · transfer task</div>
     <h2>Find an IRR using only feedback — no calculus</h2>
     <div class="title-rule"></div>
-    <p class="lead">This is the root-finder's loop with $x$ renamed $r$ and $f$ renamed NPV — the same machine,
+    <p class="lead">This is the root-finder's loop with \(x\) renamed \(r\) and \(f\) renamed NPV — the same machine,
       only the residual changes. You may only evaluate NPV at a trial rate and read the result.</p>
     <div class="cols">
       <div class="col">
         <div class="block"><div class="block-title">The project</div>
-          Cash flows: \(-100\) at \(t=0\), \(+60\) at \(t=1\), \(+60\) at \(t=2\). Find the rate $r$ where NPV hits zero.
-          <br><span class="small">Sign rule: NPV &gt; 0 ⇒ the rate is too <em>low</em>, so raise $r$.</span>
+          Cash flows: \(-100\) at \(t=0\), \(+60\) at \(t=1\), \(+60\) at \(t=2\).
+          Find the rate \(r\) where NPV hits zero.
+          <br><span class="small">Sign rule: NPV &gt; 0 ⇒ the rate is too <em>low</em>, so raise \(r\).</span>
         </div>
         <table>
-          <tr><th>$r$</th><th>$\mathrm{NPV}(r)$</th><th>Status</th></tr>
+          <tr><th>\(r\)</th><th>\(\mathrm{NPV}(r)\)</th><th>Status</th></tr>
           <tr><td>0.00</td><td>+20.00</td><td>Positive — rate too low</td></tr>
           <tr><td>0.20</td><td>−8.33</td><td>Negative — overshot</td></tr>
         </table>
@@ -173,7 +184,7 @@
         <div class="block"><div class="block-title">Your tasks</div>
           <ol>
             <li>Confirm the first two evaluations <em>bracket</em> the root. Where does the IRR lie?</li>
-            <li>From the sign and magnitude of NPV, propose the next two trial rates $r_3, r_4$.</li>
+            <li>From the sign and magnitude of NPV, propose the next two trial rates \(r_3, r_4\).</li>
             <li>Are you within tolerance yet? Which loop component decides — the agent or the hook?</li>
           </ol>
         </div>
@@ -196,14 +207,15 @@
       <div class="block-title">Specification — a bash stop hook that…</div>
       <ul>
         <li>reads the <em>latest</em> logged NPV from <code class="inline">run-log.txt</code>;</li>
-        <li>exits <code class="inline">0</code> (allow "success") <em>only if</em> $|\mathrm{NPV}|&lt;0.05$;</li>
+        <li>exits <code class="inline">0</code> (allow "success") <em>only if</em> \(|\mathrm{NPV}|&lt;0.05\);</li>
         <li>otherwise prints a clear, human-readable message and exits <code class="inline">1</code>, which <strong>blocks</strong> the agent from declaring success.</li>
       </ul>
     </div>
     <div class="alert callout frag">
       <span class="callout-tag">why this matters</span>
       This single script is the difference between feedback-driven iteration and premature success.
-      Without it, the agent can announce "done" at $r=0.135$ ($|\mathrm{NPV}|=0.56$) and be believed.
+      Without it, the agent can announce "done" at \(r=0.135\) (\(|\mathrm{NPV}|=0.56\)) and be believed.
+      With it, termination hangs on an external, deterministic check — the seven-step template's Step 5.
     </div>
     <p class="small"><strong>Plan first:</strong> how do you grab the last line's number
       (<code class="inline">tail</code> / <code class="inline">grep</code> / <code class="inline">cut</code>),
@@ -254,23 +266,23 @@
     <div class="cols">
       <div class="col">
         <ul>
-          <li class="frag"><strong>Goal file</strong> — state the success criterion, a stopping rule, and one anticipated failure mode.</li>
-          <li class="frag"><strong>Agents</strong> — which two or three roles are genuinely needed (resist excessive delegation)?</li>
+          <li class="frag"><strong>Goal file</strong> — state the success criterion (EL thresholds), a stopping rule (max iterations or no-progress), and one anticipated failure mode (leakage, premature "low risk").</li>
+          <li class="frag"><strong>Agents</strong> — which two or three roles are genuinely needed (resist excessive delegation)? A function computes EL; only open-ended judgment needs an agent.</li>
           <li class="frag"><strong>Hooks</strong> — which automatic checks must fire, and <em>when</em> (pre- vs. post-action)?</li>
         </ul>
       </div>
       <div class="col">
         <ul>
-          <li class="frag"><strong>Escalation trigger</strong> — what condition forces a human into the loop before it proceeds?</li>
+          <li class="frag"><strong>Escalation trigger</strong> — what condition forces a human into the loop before it proceeds? (Materiality threshold, irreconcilable agents, irreversible action.)</li>
           <li class="frag"><strong>Pattern selection</strong> — which of the lecture's <em>five</em> design patterns best fits the Atlas credit workflow? Name it and justify it.</li>
         </ul>
       </div>
     </div>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the bigger picture</span>
-      There is no single right answer — but a good design names a <em>checkable</em> goal, a
-      <em>guaranteed-terminating</em> stopping rule, at least one <em>outcome-tied</em> hook, and an
-      escalation point that does not depend on the agent's goodwill.
+      A good design names a <em>checkable</em> goal, a <em>guaranteed-terminating</em> stopping rule,
+      at least one <em>outcome-tied</em> hook, and an escalation point that does not depend on the
+      agent's goodwill.
     </div>
   </section>
 
@@ -280,14 +292,15 @@
     <div class="title-rule"></div>
     <p class="lead">Argue both sides, using the lecture's vocabulary:</p>
     <ul>
-      <li class="frag"><strong>Goodhart / fake convergence</strong> — could the hooks be green while the true goal is unmet? What would gaming look like here?</li>
-      <li class="frag"><strong>Accountability</strong> — the skeptic's sign-off is <em>not</em> sign-off. Who owns the decision, and what does the unsigned block add?</li>
-      <li class="frag"><strong>Audit trail</strong> — if a regulator asks "where did the stressed 8% PD come from?" three months later, can you answer?</li>
+      <li class="frag"><strong>Goodhart / fake convergence</strong> — could the hooks be green while the true goal is unmet? What would gaming look like here? (Recall: a model agent rewarded for AUC will reach for leakage; a memo agent rewarded for a clean checklist will phrase around it.)</li>
+      <li class="frag"><strong>Accountability</strong> — the skeptic's sign-off is <em>not</em> sign-off (SR 11-7). Who owns the decision? What does the unsigned block add?</li>
+      <li class="frag"><strong>Audit trail</strong> — if a regulator asks "where did the stressed 8% PD come from?" three months later, can you answer? Does your loop emit a structured run log?</li>
     </ul>
     <div class="alert callout frag">
       <span class="callout-tag">the point</span>
       A green loop produces a <em>defensible recommendation</em>, not a decision. "Lend" is a human act that
-      the loop can evidence but never authorize.
+      the loop can evidence but never authorize. Sign-off is an event with a time, an identity, and a scope —
+      not a property of the artifact.
     </div>
   </section>
 
@@ -302,31 +315,31 @@
     <div class="eyebrow">P1 solution</div>
     <h2>The IRR bracket tightens to ≈ 13.1%</h2>
     <div class="title-rule"></div>
-    <p class="lead"><strong>(a)</strong> NPV goes $+20.00 \to -8.33$ as $r$ goes $0.00 \to 0.20$: it crosses
+    <p class="lead"><strong>(a)</strong> NPV goes \(+20.00 \to -8.33\) as \(r\) goes \(0.00 \to 0.20\): it crosses
       zero in between, so the IRR lies in \((0.00, 0.20)\).</p>
     <div class="cols">
       <div class="col">
         <table>
-          <tr><th>$r$</th><th>$\mathrm{NPV}(r)$</th><th>Reasoning</th></tr>
+          <tr><th>\(r\)</th><th>\(\mathrm{NPV}(r)\)</th><th>Reasoning</th></tr>
           <tr><td>0.00</td><td>+20.00</td><td>Positive; rate too low</td></tr>
-          <tr><td>0.20</td><td>−8.33</td><td>Negative; bracket (0.00, 0.20)</td></tr>
-          <tr><td><strong>0.13</strong></td><td><strong>+0.09</strong></td><td>Root in (0.13, 0.20)</td></tr>
-          <tr><td><strong>0.135</strong></td><td><strong>−0.56</strong></td><td>Root in (0.13, 0.135)</td></tr>
-          <tr><td>0.131</td><td>−0.04</td><td>$|\mathrm{NPV}|&lt;0.05$: IRR ≈ 13.1%</td></tr>
+          <tr><td>0.20</td><td>−8.33</td><td>Negative; bracket \((0.00, 0.20)\)</td></tr>
+          <tr><td><strong>0.13</strong></td><td><strong>+0.09</strong></td><td>Root in \((0.13, 0.20)\)</td></tr>
+          <tr><td><strong>0.135</strong></td><td><strong>−0.56</strong></td><td>Root in \((0.13, 0.135)\)</td></tr>
+          <tr><td>0.131</td><td>−0.04</td><td>\(|\mathrm{NPV}|&lt;0.05\): IRR ≈ 13.1%</td></tr>
         </table>
       </div>
       <div class="col">
         <div class="block"><div class="block-title">Who decides "done"?</div>
-          <strong>The hook, not the agent.</strong> At $r=0.135$, $|\mathrm{NPV}|=0.56$ — still above
+          <strong>The hook, not the agent.</strong> At \(r=0.135\), \(|\mathrm{NPV}|=0.56\) — still above
           tolerance. The agent proposes; the tolerance hook (P2) is the only thing allowed to certify convergence.
         </div>
       </div>
     </div>
     <aside class="underhood" data-title="(b) the first proposal, by linear interpolation">
-      Across the bracket, $0 + \tfrac{20}{20+8.33}\times 0.20 \approx 0.14$ points near $14\%$; test there
-      and tighten on each sign change. This is the sign-and-magnitude search with $x\to r$ and
-      $f\to\mathrm{NPV}$: bracket on a sign change, then weight the next guess toward the endpoint with the
-      smaller $|\mathrm{NPV}|$.
+      Across the bracket, \(0 + \tfrac{20}{20+8.33}\times 0.20 \approx 0.14\) points near 14%; test there
+      and tighten on each sign change. This is the sign-and-magnitude search with \(x\to r\) and
+      \(f\to\mathrm{NPV}\): bracket on a sign change, then weight the next guess toward the endpoint with the
+      smaller \(|\mathrm{NPV}|\).
     </aside>
   </section>
 
@@ -342,7 +355,7 @@ last=$(grep -o 'NPV=[-0-9.eE]*' run-log.txt | tail -n1 | cut -d= -f2)
 ok=$(python -c "print(1 if abs(float('$last')) &lt; 0.05 else 0)")
 
 if [ "$ok" -ne 1 ]; then
-  echo "BLOCKED: |NPV|=$last &gt;= 0.05 -- not converged" &gt;&amp;2
+  echo "BLOCKED: |NPV|=&#36;last &gt;= 0.05 -- not converged" &gt;&amp;2
   exit 1          # nonzero exit = veto: the loop may NOT stop
 fi
 echo "OK: |NPV| &lt; 0.05 -- converged"
@@ -379,7 +392,8 @@ exit 0</pre>
     <div class="alert callout">
       <span class="callout-tag">may the memo say "low risk"?</span>
       No. That gate requires base ≤ 50 <em>and</em> stressed ≤ 150 bps; here base = 70 and stressed = 400.
-      The hook decides, not the writer — language is a control surface, and the phrase must be earned by the arithmetic.
+      The hook decides, not the writer — language is a control surface, and the phrase must be earned by the
+      arithmetic, not chosen by the author of the memo.
     </div>
   </section>
 
@@ -388,16 +402,17 @@ exit 0</pre>
     <h2>Build → stress-test → red-team → finalize</h2>
     <div class="title-rule"></div>
     <p class="lead">The intended answer: the <strong>credit-model pattern</strong> — a specialization of
-      <em>scaffold–draft–audit–repair</em> with an explicit adversarial skeptic stage.</p>
+      <em>scaffold–draft–audit–repair</em> with an explicit adversarial skeptic stage and mandatory
+      stress testing (adverse and severe, not just base).</p>
     <ul>
       <li class="frag"><strong>The goal is a judgment</strong>, not a single machine-checkable number, so generate–test–revise alone is too thin.</li>
-      <li class="frag"><strong>It is high-stakes</strong>: the two distinguishing stages — mandatory stress testing (adverse and severe, not just base) and a red-team skeptic demanding sensitivities and peer benchmarks — are exactly what Atlas needs.</li>
-      <li class="frag"><strong>It finalizes into a governed artifact</strong> with an unsigned sign-off block, encoding SR 11-7 governance.</li>
+      <li class="frag"><strong>It is high-stakes</strong>: the two distinguishing stages — mandatory stress testing and a red-team skeptic demanding sensitivities and peer benchmarks — are exactly what Atlas needs. SR 11-7 governance is encoded as a pattern stage, not an afterthought.</li>
+      <li class="frag"><strong>It finalizes into a governed artifact</strong> with an unsigned sign-off block, encoding accountability: the loop fills in everything except the signature.</li>
     </ul>
     <div class="bigpicture callout frag">
       <span class="callout-tag">patterns nest</span>
       Sub-patterns still sit inside: the PD-model build stage is generate–test–revise; the red-team is
-      planner–executor–critic.
+      planner–executor–critic. The data ingestion is build–validate–document. Patterns compose.
     </div>
   </section>
 
@@ -410,14 +425,17 @@ exit 0</pre>
       <li>Directed search from <strong>feedback alone</strong> (P1) — the engine inside every loop in the book.</li>
       <li>A <strong>tolerance hook</strong> (P2) that makes "done" external to the agent.</li>
       <li>EL reconciliation and a <strong>policy-gated</strong> lend decision (P3) — the credit loop in miniature.</li>
+      <li>A <strong>governance debate</strong> (discussion) — green hooks do not substitute for human accountability or a reproducible audit trail.</li>
     </ul>
     <div class="bigpicture callout">
       <span class="callout-tag">the bigger picture</span>
       The root-finder and the credit memo are the <em>same machine</em>: a state variable, a validator, and
-      a definition of "residual." Only the residual changes — a number, a failing test, or a committee's objection.
+      a definition of "residual." Only the residual changes — a number, a failing test, or a committee's
+      objection. A loop adds value exactly to the degree each iteration's feedback informs the next action.
     </div>
     <p class="small"><strong>Take it further:</strong> <code class="inline">code/notebooks/17-loops-goals-iterations/</code>
-      runs both loops end-to-end. See book Chapter 17 and Appendices A–F for the full treatment and concrete tooling.</p>
+      runs both loops end-to-end. See book Chapter 17 and Appendices A–F for the full treatment and concrete
+      tooling (Claude Code, Codex, the SDKs, Git, Cline).</p>
   </section>
 
 </div></div>

@@ -1,0 +1,190 @@
+# Concept Checklist — Chapter 03: Training and Fine-Tuning LLMs
+
+## Sections and Subsections
+
+- [x] §1 Data for LLMs: Sources and Preprocessing
+  - [x] §1.1 Text Corpora: Web Crawls, Books, Wikipedia, Code
+  - [x] §1.2 Financial Data: Filings, Earnings Calls, News, Alternative Data
+  - [x] §1.3 Tokenisation and Vocabulary Construction
+  - [x] §1.4 Data Quality: Deduplication, Filtering, and Cleaning
+  - [x] §1.5 Data Mixing and Curriculum Strategies
+- [x] §2 Pre-training Objectives and Scaling
+  - [x] §2.1 Causal Language Modelling vs Masked Language Modelling
+  - [x] §2.2 Compute–Data Scaling: The Chinchilla Laws
+  - [x] §2.3 Distributed Training: Data, Model, and Pipeline Parallelism
+  - [x] §2.4 Mixed-Precision Training and Gradient Checkpointing
+- [x] §3 Transfer Learning and Fine-Tuning
+  - [x] §3.1 The Adaptation Spectrum: Zero-Shot to Full Fine-Tuning
+  - [x] §3.2 Parameter-Efficient Methods: LoRA, Prefix Tuning, Adapters
+  - [x] §3.3 Instruction Tuning and RLHF
+  - [x] §3.4 Domain Adaptation for Finance
+- [x] §4 Pre-Trained Models for Finance Tasks
+  - [x] §4.1 FinBERT and Encoder-Based Models
+  - [x] §4.2 BloombergGPT and Domain-Specific Pre-Training
+  - [x] §4.3 Task-Specific Fine-Tuning: Sentiment, NER, Summarisation
+- [x] §5 Evaluation and Benchmarking
+  - [x] §5.1 Perplexity and Cross-Entropy
+  - [x] §5.2 Downstream Task Metrics: F1, ROUGE, Accuracy
+  - [x] §5.3 Financial Benchmarks: FinQA, FiQA, SEC-EDGAR Tasks
+  - [x] §5.4 Red-Teaming and Human Evaluation
+- [x] §6 Safety, Bias, and Responsible AI in Finance
+  - [x] §6.1 Sources of Bias in Financial Corpora
+  - [x] §6.2 Hallucination in Financial Contexts
+  - [x] §6.3 Regulatory Considerations: MiFID II and Explainability
+  - [x] §6.4 Governance Frameworks for LLM Deployment
+
+## Named Methods, Models, and Results
+
+- [x] Common Crawl (200–400 TB compressed per snapshot)
+- [x] The Pile (Gao et al., 2020) — 800 GB, 22 sub-sources
+- [x] RefinedWeb (Penedo et al., 2023) — quality filtering beats volume
+- [x] GPT-3 corpus composition table (Brown et al., 2020)
+- [x] Financial text ≈ 0.5% of typical web crawl (Wu et al., 2023)
+- [x] EDGAR (10-K, 10-Q, 8-K; from 1993)
+- [x] Earnings call transcripts (Refinitiv, FactSet, Seeking Alpha)
+- [x] Bloomberg corpus (≈ 363B finance tokens + 345B general)
+- [x] Temporal alignment / look-ahead bias remark
+- [x] BPE / Byte-Pair Encoding (Sennrich et al., 2016)
+- [x] BPE merge rule equation
+- [x] SentencePiece / unigram tokenizer (Kudo & Richardson, 2018)
+- [x] Fertility (tokens per word); BPE-50k ≈ 1.3 for English; higher for financial text
+- [x] Language identification (fastText)
+- [x] Heuristic quality filters (RefinedWeb)
+- [x] Perplexity filtering
+- [x] MinHash LSH deduplication — 128–256 hashes; Jaccard threshold 0.8
+- [x] MinHash similarity definition / equation
+- [x] PII scrubbing
+- [x] Proportional mixing, up-sampling (α ∈ (0,1))
+- [x] Curriculum learning
+- [x] Replay buffer for continual learning (1–5% general data)
+- [x] Causal Language Modelling (CLM) — definition and loss
+- [x] Masked Language Modelling (MLM) — definition and loss
+- [x] Span corruption (T5/encoder-decoder)
+- [x] Finance task → objective mapping (CLM for generation; MLM for classification)
+- [x] Kaplan et al. (2020) scaling power law
+- [x] Chinchilla theorem (Hoffmann et al., 2022) — L(N,D) formula
+- [x] Chinchilla constants: E≈1.69, A≈406.4, B≈410.7, α≈0.34, β≈0.28
+- [x] Compute constraint C ≈ 6ND
+- [x] Compute-optimal scaling: N*(C) and D*(C) power laws
+- [x] D*/N* ≈ 20 (IsoFLOP heuristic) or ≈ 78 (parametric, C₀=10²³)
+- [x] GPT-3 over-parameterised; Chinchilla-optimal 7B example
+- [x] Data parallelism (Ring-AllReduce)
+- [x] Model/Tensor parallelism — Megatron-LM (Shoeybi et al., 2019)
+- [x] Pipeline parallelism (GPipe/PipeDream micro-batches, bubble fraction)
+- [x] ZeRO optimizer (Rajbhandari et al., 2020) — Stages 1, 2, 3
+- [x] 3D parallelism (data × tensor × pipeline)
+- [x] Mixed-precision training (bfloat16, float16 vs float32 master)
+- [x] Loss scaling (dynamic loss scaling)
+- [x] Gradient checkpointing / activation recomputation — O(L) → O(√L)
+- [x] FlashAttention — tiling into SRAM, avoids T×T HBM materialisation
+- [x] Zero-shot prompting
+- [x] Few-shot / in-context learning (ICL) — 1–32 examples; no gradient update
+- [x] Adaptation tax / catastrophic forgetting
+- [x] Full fine-tuning
+- [x] LoRA (Hu et al., 2022) — low-rank decomposition W = W₀ + αBA/r
+- [x] LoRA rank r, scaling α, parameter count r(d+k) per layer
+- [x] LoRA example: 7B LLaMA, r=8, 4 projections, 32 layers → 8.4M = 0.12%
+- [x] LoRA training time: 90 min vs 40 hr; zero inference overhead after merge
+- [x] QLoRA (4-bit quantisation + LoRA, 24 GB consumer GPU)
+- [x] Prefix tuning (Li & Liang, 2021) — trainable prefix on K and V; context-window cost
+- [x] Adapter modules (Houlsby et al., 2019) — bottleneck residual; inference latency
+- [x] Instruction tuning (Wei et al., 2022 FLAN) — task format diversity
+- [x] InvestLM (Yang et al., 2023) — LLaMA-65B; CFA/SEC/quant finance; ≈GPT-3.5/4
+- [x] Superficial Alignment Hypothesis — quality > quantity
+- [x] PIXIU / FinMA (Xie et al., 2023) — 136,000 samples; 5 task types; 9 datasets
+- [x] InstructGPT three-stage RLHF (Ouyang et al., 2022): SFT → reward → PPO
+- [x] Bradley-Terry reward model loss equation
+- [x] PPO objective with KL penalty equation
+- [x] Direct Preference Optimisation (DPO, Rafailov et al., 2023) — eliminates reward model
+- [x] DPO loss equation
+- [x] Balogh & Didisheim (2025) — inverted-U: information overload in financial analysis
+- [x] Domain-adaptive pre-training (DAPT / continued pre-training)
+- [x] Two-stage adaptation: DAPT → task fine-tuning
+- [x] Two-stage example: LLaMA-2 (7B) on Financial PhraseBank — ≈94% vs ≈89% vs ≈79%
+- [x] FinGPT (Yang et al., 2023) — LoRA on public models; <$300 training cost
+- [x] FinBERT (Yang et al., 2020) — 110M params; 88.5% vs 80.7% BERT-large (+7.8 pp)
+- [x] FinBERT [CLS] classification head equation
+- [x] Huang et al. (2023) — 4.9B token FinBERT variant; predicts stock returns / fraud
+- [x] RoBERTa-financial
+- [x] FLANG (2022) — Financial Language model, five domains
+- [x] BloombergGPT (Wu et al., 2023) — 50B params; 708B tokens; 51% finance / 49% general
+- [x] BloombergGPT corpus table (Bloomberg News 105B, Web 88B, Filings 88B, Press 63B, Social 19B)
+- [x] BloombergGPT under-trained vs Chinchilla (363B vs ≈1T optimal tokens)
+- [x] BloombergGPT outperforms GPT-NeoX-20B by 10–20% on financial benchmarks
+- [x] ALiBi positional encoding — attention bias aᵢⱼ = qᵢᵀkⱼ/√d_k − m(i−j)
+- [x] Financial NER (BIO tagging: B-ORG, I-ORG, B-MON)
+- [x] FinQA (Chen et al., 2021) — 8,281 QA pairs; program executor; human ≈91%
+- [x] Financial summarisation and factual fidelity (ROUGE insufficient alone)
+- [x] FinLLaMA / Llama 2 multi-task (Zhang et al., 2023) — LoRA; sentiment + NER + summarisation
+- [x] Perplexity definition: PPL = 2^H; H = −(1/T) Σ log₂ p(xₜ|x<ₜ)
+- [x] Macro-F1 definition: unweighted average of per-class F1
+- [x] ROUGE-N definition (n-gram recall)
+- [x] FPB (Financial PhraseBank) — 4,846 examples; 3-class sentiment; accuracy metric
+- [x] FiQA-SA — 1,173 examples; aspect sentiment; MAE; implicit jargon challenge
+- [x] FinQA — 8,281 examples; numerical QA; execution accuracy
+- [x] ConvFinQA — 3,892 examples; conversational QA
+- [x] Headlines (Sinha et al.) — 11,412 examples; 9-class labelling; avg. F1
+- [x] FinBen (Xie et al., 2024) — 42 datasets; 24 tasks; 21 models; LLMs struggle on forecasting
+- [x] Red-teaming: factual hallucination, regulatory hallucination, compliance failure, info barrier
+- [x] Lopez-Lira & Tang (2023) — ChatGPT sentiment; Sharpe ratio declines as signal becomes public
+- [x] Human evaluation (domain experts; factual accuracy, relevance, coherence)
+- [x] Survivorship bias in financial corpora
+- [x] Temporal bias ("CDO" meaning shift 2006→2009)
+- [x] Geographic / cultural bias (US-centric; GAAP vs IFRS; SIC vs NACE)
+- [x] Analyst consensus bias
+- [x] Stochastic parrots (Bender et al., 2021)
+- [x] Hallucination — factual and regulatory types (Ji et al., 2023)
+- [x] RAG, confidence calibration, output verification, human-in-loop mitigations
+- [x] MiFID II Art. 37 (research independence; suitability; LIME/SHAP required)
+- [x] SR 11-7 (model risk management; tiered validation)
+- [x] EU AI Act — high-risk (credit scoring, insurance); August 2026 deadline
+- [x] Three-tier risk classification (Low/Medium/High)
+- [x] Audit trails (SEC Rule 17a-4: 7-year retention for Tier 3)
+- [x] Monitoring (distributional shift, performance degradation, safety violations)
+- [x] Incident response (MiFID II: disclose to national competent authority)
+
+## Key Numbers
+
+- [x] Finance ≈ 0.5% of typical web crawl
+- [x] Common Crawl: 200–400 TB compressed per snapshot
+- [x] The Pile: 800 GB, 22 sub-sources
+- [x] GPT-3 corpus: CC 410B (60%), WebText2 19B (22%), Books 67B (16%), Wikipedia 3B (2%)
+- [x] BPE vocabulary: 32,000–100,000 tokens
+- [x] Fertility: ≈1.3 (English prose); 1.40–1.60 (financial text, GPT-2 BPE)
+- [x] Raw web: ≈90% noise by weight
+- [x] MinHash: 128–256 hash functions; threshold 0.8; std error ≈0.04 at J=0.5
+- [x] Chinchilla constants: E≈1.69, A≈406.4, B≈410.7, α≈0.34, β≈0.28
+- [x] GPT-3: 175B params, 300B tokens, D/N≈1.7 (over-parameterised)
+- [x] Chinchilla-optimal 7B: 140B tokens, D/N≈20
+- [x] D*/N* ≈ 78 at C₀=10²³ FLOPs (parametric model)
+- [x] A100: 80 GB HBM2e; 7B model needs ≈112 GB full-precision
+- [x] LoRA 7B LLaMA r=8: 8.4M params = 0.12%; 90 min vs 40 hr
+- [x] FinGPT: <$300 training cost
+- [x] InvestLM: LLaMA-65B; PIXIU/FinMA: 136,000 samples
+- [x] Two-stage: ≈94% vs ≈89% vs ≈79% on Financial PhraseBank
+- [x] FinBERT: 110M params; 88.5% vs 80.7% BERT (+7.8 pp); Huang et al. 4.9B tokens
+- [x] BloombergGPT: 50B params; 708B tokens; 10–20% gain over GPT-NeoX-20B
+- [x] FinQA: 8,281 pairs; human ≈91%; neural ≈68–75% at publication
+- [x] FinBen: 42 datasets, 24 tasks, 21 models
+- [x] FlashAttention: T=4096 → ≈32 MB per head attention matrix
+- [x] EU AI Act: August 2026 deadline for high-risk Annex III systems
+- [x] SEC Rule 17a-4: 7-year retention
+
+## Omissions (filled in this pass)
+
+- [x] GPT-3 corpus composition table (was missing)
+- [x] Temporal alignment / look-ahead bias slide (was missing)
+- [x] BPE definition with merge equation (was missing)
+- [x] SentencePiece / unigram tokenizer (was missing)
+- [x] Data mixing and curriculum slide (was missing)
+- [x] Replay buffer for continual learning (was missing)
+- [x] Instruction tuning slide (FLAN, InvestLM, PIXIU/FinMA) (was missing)
+- [x] Training pipeline figure — diagram.svg embedded (was missing)
+- [x] Domain adaptation two-stage slide (was missing)
+- [x] Balogh & Didisheim (2025) information overload (was missing)
+- [x] FinBERT alternatives: RoBERTa-financial, FLANG (was missing)
+- [x] Task-specific fine-tuning: NER, FinQA, FinLLaMA slide (was missing)
+- [x] Financial benchmarks table: FPB, FiQA-SA, FinQA, ConvFinQA, Headlines (was missing)
+- [x] FinBen coverage expanded with dataset/task counts (was missing detail)
+- [x] Badge de-MBA'd: "Summer school · math one click away" (was "MBA-friendly")
+- [x] Figure embedded in practical.html (was missing)

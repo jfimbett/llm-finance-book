@@ -267,3 +267,4 @@
 | 2026-06-29 | 4 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 2 files | docs: design for practical verification harness;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 4 files | feat(lec02,lec09): close slides-coverage gaps from audit;chore: session log 2026-06-29;docs: design for practical verification harness; | — |
+| 2026-06-29 | 4 files | docs: fold validated claude -p headless recipe into harness spec;chore: session log 2026-06-29;feat(lec02,lec09): close slides-coverage gaps from audit; | — |

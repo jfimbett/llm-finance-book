@@ -62,7 +62,7 @@ Generated during deck overhaul (2026-06-28).
 - [x] AI Occupational Exposure index (Felten, Raj & Seamans, 2021)
 - [x] General Inquirer / Harvard IV-4 dictionary (Stone et al., 1966)
 - [x] Tetlock (2007) WSJ negativity → DJIA returns
-- [x] Tetlock & Loughran (2008) firm-level news sentiment
+- [x] Tetlock, Saar-Tsechansky & Macskassy (2008) firm-level news sentiment
 - [x] Loughran–McDonald (2011) LM financial sentiment dictionary
 - [x] Li (2008) Fog Index readability
 - [x] Latent Dirichlet Allocation (Blei, Ng & Jordan, 2003)

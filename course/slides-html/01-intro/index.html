@@ -156,7 +156,7 @@
             <li>Gloomy prose → <strong>lower</strong> next-day returns</li>
             <li>...that <em>reverses</em> within a week</li>
             <li>Extreme tone → heavier trading volume</li>
-            <li>Tetlock &amp; Loughran (2008): firm-level news predicts quarterly earnings</li>
+            <li>Tetlock, Saar-Tsechansky &amp; Macskassy (2008): firm-level news predicts quarterly earnings</li>
           </ul>
         </div>
       </div>
@@ -286,7 +286,8 @@
       finding that text predicts returns. Three reconciling reasons:</p>
     <ol>
       <li class="frag"><strong>Processing costs &amp; limited attention.</strong> A 200-page 10-K is expensive to read.
-        Not everyone does — so signals persist until the technology to read at scale spreads.</li>
+        Not everyone does — so signals persist until the technology to read at scale spreads.
+        Li, Lundholm &amp; Minnis (2013): textual signals are strongest precisely for documents that are longest and most complex.</li>
       <li class="frag"><strong>Soft information &amp; disagreement.</strong> Is a cautious tone genuine worry, or
         expectation management? When readers disagree, price reflects the <em>average</em> belief, not the sharpest one.</li>
       <li class="frag"><strong>Latent information.</strong> Regulation limits explicit selective disclosure (Reg FD), so meaning
@@ -560,6 +561,11 @@
       <li class="frag"><strong>Train from scratch</strong> on a financial corpus (e.g. BloombergGPT, FinancialPhraseBank embeddings)</li>
       <li class="frag"><strong>Fine-tune</strong> a general model (FinBERT: BERT re-trained on news, 10-Ks, calls)</li>
       <li class="frag"><strong>Retrofit</strong> — nudge synonyms together / antonyms apart using a financial lexicon</li>
+    </ul>
+    <h3>Applications</h3>
+    <ul>
+      <li class="frag"><strong>Ke et al. (2019):</strong> supervised text-mining learns which words in financial news best predict asset returns — outperforms bag-of-words baselines out-of-sample</li>
+      <li class="frag"><strong>Manela &amp; Moreira (2017):</strong> embedding-based text features construct a news-implied measure of disaster risk (news-implied volatility)</li>
     </ul>
   </section>
 
@@ -953,7 +959,7 @@ print(clf("Revenue fell 12%."))
           <li>Pre-training: masked LM (BERT) vs. autoregressive (GPT)</li>
           <li>Fine-tuning, instruction tuning, LoRA</li>
         </ul>
-        <p class="small"><strong>Key refs:</strong> Tetlock (2007) · LM (2011) · Mikolov (2013) ·
+        <p class="small"><strong>Key refs:</strong> Tetlock (2007) · Loughran-McDonald (2011) · Mikolov (2013) ·
           Pennington (2014) · Vaswani (2017) · Devlin (2019) · Lopez-Lira &amp; Tang (2023).</p>
       </div>
     </div>

@@ -159,9 +159,9 @@
       <li class="frag">A domain-specific vocabulary trained on financial text will have lower fertility on that domain, reducing context-window consumption.</li>
     </ul>
     <table class="frag">
-      <tr><th>Text type</th><th>Fertility (GPT-2 BPE)</th><th>Effect</th></tr>
-      <tr><td>Standard English prose</td><td>1.10–1.20</td><td>Efficient</td></tr>
-      <tr><td>Financial regulatory text</td><td>1.40–1.60</td><td>Fragmented</td></tr>
+      <tr><th>Text type</th><th>Fertility (BPE-50k)</th><th>Effect</th></tr>
+      <tr><td>Standard English prose</td><td>≈ 1.3</td><td>Efficient</td></tr>
+      <tr><td>Financial regulatory text</td><td>higher</td><td>Fragmented</td></tr>
     </table>
     <aside class="underhood" data-title="BPE and SentencePiece">
       <strong>BPE (Sennrich et al., 2016):</strong> initialise vocabulary as the set of bytes; iteratively merge
@@ -596,7 +596,7 @@
       <div class="col">
         <table>
           <tr><th>Model</th><th>Accuracy</th></tr>
-          <tr><td>Human upper bound</td><td>≈ 97%</td></tr>
+          <tr><td>Human upper bound (inter-annotator agreement, Malo et al. 2014)</td><td>≈ 97%</td></tr>
           <tr><td>FinBERT</td><td>88.5%</td></tr>
           <tr><td>BERT-large (general)</td><td>80.7%</td></tr>
           <tr><td>Dictionary / rule-based</td><td>≈ 72%</td></tr>
@@ -772,17 +772,17 @@
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Summaries and the finance scoreboard</div>
-    <h2>ROUGE for summaries — and where LLMs still fail</h2>
+    <div class="eyebrow">Summaries and evaluation limits</div>
+    <h2>ROUGE for summaries — and its limits in finance</h2>
     <div class="title-rule"></div>
-    <p class="lead">ROUGE checks how much of a reference summary the model recovered. The FinBen benchmark then
-      stress-tests finance LLMs broadly — and finds a revealing weak spot.</p>
-    <div class="block">
-      <div class="block-title">FinBen (Xie et al., 2024)</div>
-      42 datasets, 24 tasks, 21 models. LLMs excel at extraction / classification but
-      struggle on forecasting and decision tasks — <em>exactly what practitioners want most</em>.
-      FiQA-SA is especially challenging: sentiment expressed implicitly through jargon
-      ("the stock is overbought," "burning cash") requires domain knowledge to interpret correctly.
+    <p class="lead">ROUGE checks how much of a reference summary the model recovered — but in finance,
+      surface overlap does not guarantee factual accuracy.</p>
+    <div class="alert callout">
+      <span class="callout-tag">the factuality gap</span>
+      ROUGE rewards n-gram overlap with a reference; it does not penalise hallucinated numbers.
+      A summary reporting "revenue grew 2%" scores the same as "revenue grew 12%" if all other
+      n-grams match. Production pipelines supplement ROUGE with NLI-based factuality checks:
+      a secondary model verifies that every claim in the summary is entailed by the source document.
     </div>
     <aside class="underhood" data-title="ROUGE-N: recall of reference n-grams">
       Let \(\mathcal{G}_N(y)\) be the multiset of all \(N\)-grams in reference \(y\):

@@ -187,4 +187,10 @@
 - [x] Financial benchmarks table: FPB, FiQA-SA, FinQA, ConvFinQA, Headlines (was missing)
 - [x] FinBen coverage expanded with dataset/task counts (was missing detail)
 - [x] Badge de-MBA'd: "Summer school · math one click away" (was "MBA-friendly")
+
+## Faithfulness Fixes (2026-06-28)
+
+- [x] **FinBERT accuracy table — human upper bound annotation**: Row "Human upper bound ≈ 97%" was unattributed. Added source annotation "(inter-annotator agreement, Malo et al. 2014)" to flag it as an external figure not from chapter.tex.
+- [x] **Tokenizer fertility figures corrected**: Slide had "1.10–1.20" (English prose) and "1.40–1.60" (financial) — both invented ranges not in chapter.tex (line ~237). Corrected to "≈ 1.3" (English prose, matching chapter) and "higher" (financial, matching chapter's non-numeric characterisation). Column header updated to "BPE-50k" to match chapter.
+- [x] **FinBen duplicate removed**: FinBen (42 datasets / 24 tasks / 21 models) appeared on both the "Financial NLP benchmarks" slide (kept) and the "ROUGE for summaries" slide (removed). The ROUGE slide now covers ROUGE's factuality gap in finance, replacing the redundant FinBen callout.
 - [x] Figure embedded in practical.html (was missing)

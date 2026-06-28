@@ -79,7 +79,7 @@ print(f"Estimated cost for {n_questions} Q&A: ${total:.4f}")</pre>
     </div>
     <aside class="underhood" data-title="cost formula and BPE tokenisation">
       \[\text{cost} = N_\text{in}\cdot c_\text{in} + N_\text{out}\cdot c_\text{out}.\]
-      BPE splits unknown tokens at character level. "EBITDA" → ["EB","IT","DA"]; "CUSIP" → ["C","US","IP"]. Rare financial tickers fragment to more tokens than ordinary English words, inflating cost beyond the 1.3 chars/token heuristic.
+      BPE splits unknown tokens at character level. "EBITDA" → ["EB","IT","DA"]; "earnings" → ["earn","ings"]. Rare financial tickers fragment to more tokens than ordinary English words, inflating cost beyond the 1.3 chars/token heuristic.
     </aside>
   </section>
 

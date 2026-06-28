@@ -69,7 +69,7 @@ Generated from `book/chapters/02-llm-foundations/chapter.tex` (2,966 lines).
 - [x] Base model: L=6; large: L=24; modern LLMs: L=32–96
 - [x] \subsection{Special Tokens} — [CLS], [SEP], [MASK], <pad>, <eos>, <bos>, <unk>
 - [x] Finance consequences of misusing special tokens
-- [x] \subsection{Numerical Walk-Through} — step-by-step tiny GPT forward pass (7 steps)
+- [x] \subsection{Numerical Walk-Through} — step-by-step tiny GPT forward pass (7 steps) [added 2026-06-28: "Seven steps from tokens to next-word probability" slide; numeric trace in underhood]
 - [x] \subsection{Pre-training, Fine-tuning, BERT vs GPT}
 - [x] Pre-training definition; fine-tuning definition
 - [x] BERT MLM loss (15% masking: 80/10/10 protocol); encoder-only; bidirectional
@@ -183,3 +183,6 @@ All items in the checklist above were gaps relative to the original deck. The fo
 - [x] fig_illustration.png embedded on positional encoding slide
 - [x] Badge changed to "Summer school · math one click away — press m or click ⚙ Under the hood"
 - [x] "MBA" references removed from heading and badge in both decks
+- [x] GPT-4o params cell corrected from "~1T" (unsubstantiated rumour) to "n/d" to match chapter.tex line 1685 [fix 2026-06-28]
+- [x] Numerical walk-through slide added (index.html): 7-step forward pass with plain-language lead + underhood numeric trace faithful to chapter §3.6 [fix 2026-06-28]
+- [x] practical.html BPE example updated from "CUSIP"→["C","US","IP"] to "earnings"→["earn","ings"] to match chapter examples [fix 2026-06-28]

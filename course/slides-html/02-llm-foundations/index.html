@@ -361,6 +361,45 @@
     </div>
   </section>
 
+  <section class="slide">
+    <div class="eyebrow">Tracing a forward pass</div>
+    <h2>Seven steps from tokens to next-word probability — in miniature</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A toy GPT (6-word vocab, \(d_\text{model}=4\), one decoder block) reads <em>"revenue fell"</em>
+      and predicts the next word. The same seven steps run inside every production LLM — just with larger matrices.</p>
+    <ol>
+      <li class="frag"><strong>Embed</strong> — look up each token's row in the embedding table \(E\)</li>
+      <li class="frag"><strong>Add positional encoding</strong> — inject sinusoidal signals so the model recovers order</li>
+      <li class="frag"><strong>Form Q, K, V</strong> — project each row to a query, key, and value vector</li>
+      <li class="frag"><strong>Score, mask, softmax</strong> — dot-product scores, causal \(-\infty\) mask, row-wise softmax → attention weights \(A\)</li>
+      <li class="frag"><strong>Attention output + Add &amp; Norm</strong> — weighted average of values, then residual + LayerNorm</li>
+      <li class="frag"><strong>Feed-forward + Add &amp; Norm</strong> — position-wise FFN (widen → ReLU → project), then residual + LayerNorm</li>
+      <li class="frag"><strong>Un-embed + softmax</strong> — multiply final row by \(E^\top\) to get logits; softmax gives \(P(\text{next token})\)</li>
+    </ol>
+    <aside class="underhood" data-title="numeric trace — 'revenue fell → sharply' (chapter §3.6)">
+      Tiny GPT config (hand-picked weights, not trained): \(V=6\), \(d_\text{model}=4\), \(d_\text{ff}=6\),
+      one head (\(d_k=4\)), \(W^Q=W^K=I\).
+      After steps 1–2 the <code>fell</code> row is \(X^{(0)}_3=(1.91,\,-0.42,\,1.02,\,1.00)\).
+      After causal masking and row-wise softmax (step 4), <code>fell</code> attends with weights
+      \((0.13,\;0.17,\;0.70)\) — weighting its own position most.
+      After FFN and second Add &amp; Norm (steps 5–6) the block output row is
+      \(X^{(1)}_3=(-0.95,\,1.00,\,1.00,\,-1.05)\).
+      Un-embedding (step 7): dot product with <code>sharply</code>'s embedding \((0,1,1,0)\) gives logit
+      \(1.00+1.00=2.00\) — the largest in the row. After softmax:
+      \[ P_3=\bigl(0.03,\;0.08,\;0.09,\;\mathbf{0.66},\;0.09,\;0.03\bigr) \]
+      for the six tokens
+      \((\langle s\rangle,\;\text{revenue},\;\text{fell},\;\mathbf{sharply},\;\text{rose},\;.\,)\).
+      The model assigns 66% probability to <code>sharply</code> — the intended completion.
+      A real GPT differs only in scale: BPE vocab ≈100K, \(d_\text{model}=4{,}096\text{–}8{,}192\),
+      32–96 stacked blocks. The data flow is identical.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the key insight</span>
+      The causal mask (step 4) makes autoregressive training efficient: a single forward pass on a
+      sequence of length \(n\) simultaneously trains the model on all \(n\) prefixes in parallel.
+    </div>
+  </section>
+
   <!-- ============================ SECTION 3 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">03</div>
@@ -469,7 +508,7 @@
       text it can read at once) and open vs. closed weights matter as much as raw size.</p>
     <table>
       <tr><th>Model</th><th>Org.</th><th>Arch.</th><th>Params</th><th>Context</th><th>Finance</th></tr>
-      <tr><td>GPT-4o</td><td>OpenAI</td><td>Decoder</td><td>~1T</td><td>128K</td><td>No</td></tr>
+      <tr><td>GPT-4o</td><td>OpenAI</td><td>Decoder</td><td>n/d</td><td>128K</td><td>No</td></tr>
       <tr><td>Claude 3.x/4.x</td><td>Anthropic</td><td>Decoder</td><td>n/d</td><td>200K</td><td>No</td></tr>
       <tr><td>Llama 3 (405B)</td><td>Meta</td><td>Decoder</td><td>405B</td><td>128K</td><td>No</td></tr>
       <tr><td>Gemini 1.5 Pro</td><td>Google DM</td><td>Multimodal</td><td>n/d</td><td>1M</td><td>No</td></tr>

@@ -219,3 +219,4 @@
 | 2026-06-28 | 86 files | fix(slides): align ch10 practical badge to summer-school wording;chore(slides): delete legacy Beamer slide artifacts; HTML is the single source of truth;fix(slides): 17-loops — fix Park 2023 misattribution, align diagram caption; | — |
 | 2026-06-28 | 158 files | Merge feat/html-slides-overhaul: complete + de-MBA HTML decks, figures, delete Beamer;chore: session log 2026-06-28;fix(slides): align ch10 practical badge to summer-school wording; | — |
 | 2026-06-28 | 157 files | feat(slides): always-visible fullscreen button in the shared HUD;chore: session log 2026-06-28;Merge feat/html-slides-overhaul: complete + de-MBA HTML decks, figures, delete Beamer; | — |
+| 2026-06-28 | 156 files | chore: session log 2026-06-28;feat(slides): always-visible fullscreen button in the shared HUD;chore: session log 2026-06-28; | — |

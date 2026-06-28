@@ -87,6 +87,7 @@ Common entry points:
 - `/audit-hallucinations` — detect fabricated content and synthetic data across all chapters in parallel
 - `/audit-chapter-quality [chNN]` — multi-agent 14-dimension (0–100) audit of one chapter (no edits)
 - `/audit-book-quality` — book-wide fan-out audit in `main.tex` reading order + book-level reports (no edits)
+- `/audit-slides-coverage [chNN]` — parallel audit of HTML slide decks vs. book chapters: flags load-bearing concepts a slides-only student would miss (no edits)
 - `/iterate-book-quality [chNN]` — editor→chapter-surgeon→re-score loop until ≥90 on every dimension
 - `/book-quality-regression` — final gate: build + bib + cross-ref + ordering + repetition + score roll-up
 

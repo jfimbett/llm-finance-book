@@ -28,7 +28,7 @@ filings, earnings transcripts, analyst reports, central bank statements, and new
 articles are released. Each document contains facts that can move asset prices, alter
 credit assessments, or trigger compliance reviews. The bottleneck is not the
 absence of information but the cost of reading, interpreting, and routing it. A
-portfolio manager cannot personally read every 10-K filed by the 6,000-plus companies
+portfolio manager cannot personally read every 10-K filed by the roughly 3,000 companies
 in the Russell 3000. A compliance officer cannot manually scan every contract in a
 merger data room. Natural language processing---and, increasingly, large language
 models---addresses this bottleneck by automating the transformation of raw text into
@@ -461,7 +461,7 @@ A common pipeline architecture for 10-K summarization consists of three stages:
         retrieval-based approach that selects the most informative chunk-level summaries.
 \end{enumerate}
 
-\begin{example}[Earnings Report Summarization with GPT-4]
+\begin{example}[Earnings Report Summarization with GPT-5]
 \label{ex:earnings-gpt4}
 Consider an investor who wishes to summarise the earnings release of a large-cap
 technology company. The release runs to 12,000 words and includes a press release,
@@ -469,10 +469,12 @@ financial tables, and an MD\&A section. A simple but effective approach uses a
 structured prompt:
 
 \begin{verbatim}
-You are a senior equity analyst. Summarise the following earnings release
-in no more than 150 words, covering: (1) revenue and EPS vs. consensus,
-(2) the single most important forward guidance statement, and (3) one key
-risk mentioned by management. Quote all numbers exactly as stated.
+You are a senior equity analyst. Summarise the following
+earnings release in no more than 150 words, covering:
+(1) revenue and EPS vs. consensus, (2) the single most
+important forward guidance statement, and (3) one key
+risk mentioned by management. Quote all numbers exactly
+as stated.
 
 [EARNINGS RELEASE TEXT]
 \end{verbatim}
@@ -569,8 +571,8 @@ Strategies for handling these extreme-length documents include:
         summarise those passages. This turns summarisation into retrieval-augmented
         generation \citep{lewis2020rag}.
   \item \textbf{Long-context models.} Models with extended context windows---Longformer
-        \citep{beltagy2020} and, as of 2024, commercial models with extended context
-        windows of 128K to 1M tokens---such as Gemini 1.5 Pro---can process an entire S-1 in a single forward pass. The practical
+        \citep{beltagy2020} and contemporary long-context commercial models, with context
+        windows ranging up to roughly one million tokens, can process an entire S-1 in a single forward pass. The practical
         constraint is the computational cost: processing 300,000 tokens through a
         dense attention model is expensive, though sparse-attention variants mitigate
         this.

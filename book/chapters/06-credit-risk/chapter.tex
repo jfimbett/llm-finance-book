@@ -32,7 +32,7 @@ After completing this chapter, the reader should be able to:
 
 \begin{context}
 
-In 2019 a viral tweet ignited a Congressional investigation. The subject was not a data breach, a ransomware attack, or a rogue trading algorithm. It was a credit card credit limit. David Heinemeier Hansson, creator of the Ruby on Rails framework, reported that his Apple Card credit limit was twenty times lower than his wife's despite the couple filing joint tax returns, sharing assets, and having comparable (in his assessment, inferior) credit profiles. Steve Wozniak, Apple's co-founder, posted a similar complaint within hours. Within days Senator Elizabeth Warren had written to Goldman Sachs demanding an explanation, and the New York Department of Financial Services had opened a formal investigation.
+In 2019 a viral tweet ignited a Congressional investigation. The subject was not a data breach, a ransomware attack, or a rogue trading algorithm. It was a credit card credit limit. David Heinemeier Hansson, creator of the Ruby on Rails framework, reported that his Apple Card credit limit was far lower than his wife's despite the couple filing joint tax returns, sharing assets, and having comparable (in his assessment, inferior) credit profiles. Steve Wozniak, Apple's co-founder, posted a similar complaint within hours. Within days the episode drew scrutiny from lawmakers and financial regulators.
 
 The episode crystallised something practitioners had long known but regulators had only recently begun to quantify: automated credit decisions, even those built on carefully anonymised financial data, can embed and amplify discrimination in ways invisible to both the lender and the borrower. The challenge is structural. Credit data is simultaneously the richest behavioural dataset available to financial institutions and one of the most legally regulated. Getting it wrong --- in either direction, whether by denying credit unfairly or by extending it recklessly --- carries consequences measured in billions of dollars and decades of individual financial harm.
 
@@ -123,7 +123,7 @@ Raw credit data requires substantial preprocessing before it is suitable for mod
 
 \subsubsection*{Anonymisation and De-identification}
 
-Direct identifiers (name, SSN, account number, date of birth) must be removed or hashed before training data is ingested by a model. Beyond direct identifiers, credit data contains \emph{quasi-identifiers} --- combinations of attributes that, taken together, uniquely identify individuals even without an explicit name field. The canonical result is Sweeney's (2002) finding that 87\% of the US population can be uniquely identified by the combination of ZIP code, date of birth, and sex.
+Direct identifiers (name, SSN, account number, date of birth) must be removed or hashed before training data is ingested by a model. Beyond direct identifiers, credit data contains \emph{quasi-identifiers} --- combinations of attributes that, taken together, uniquely identify individuals even without an explicit name field. The canonical result is the finding by \citet{sweeney2002k} that 87\% of the US population can be uniquely identified by the combination of ZIP code, date of birth, and sex.
 
 Practical anonymisation for credit data typically involves:
 \begin{enumerate}
@@ -416,7 +416,7 @@ Platt scaling is preferred when the training set for calibration is small (hundr
 
 \begin{context}
 
-In 2018, the Consumer Financial Protection Bureau published a study documenting that roughly one-third of mortgage borrowers in the United States did not shop for their mortgage before accepting the first offer they received. Among low-income borrowers the fraction was closer to one-half. The CFPB estimated that the average borrower who did not shop paid approximately \$300 per year more in interest than a comparable borrower who compared at least three offers --- a cost that compounds into tens of thousands of dollars over the life of a thirty-year loan.
+Studies of the US mortgage market have found that a substantial share of borrowers --- and an even larger share of low-income borrowers --- do not shop across lenders before accepting the first offer they received. Borrowers who do not shop tend to pay materially more in interest over the life of the loan than comparable borrowers who compare several offers --- a difference that compounds into a substantial sum over the life of a thirty-year loan.
 
 The finding is puzzling from the perspective of standard economic theory. The expected benefit of comparison shopping is substantial, the information is publicly available, and the decision is large enough that even a small percentage improvement is financially meaningful. Yet many households do not shop. The explanation lies not in irrationality but in the cognitive and informational limits that \citet{simon1955behavioral} called \emph{bounded rationality}: households satisfice rather than optimise, relying on heuristics, social norms, and trusted intermediaries rather than exhaustive search.
 
@@ -721,7 +721,12 @@ Let $F_-$ be the CDF of the non-default score distribution and $F_+$ the CDF of 
 
 The Lorenz curve for the CAP traces $(1 - [\pi_+ F_+(t) + \pi_- F_-(t)], 1 - F_+(t))$ as $t$ decreases from 1 to 0. It can be shown by change of variables that the area under the CAP Lorenz curve equals $\pi_- \cdot \text{AUROC} + \tfrac{1}{2}\pi_+$. The area under the diagonal (random model) is $\tfrac{1}{2}$. The area under the perfect model's CAP (capturing all $\pi_+$ defaulters first) is $1 - \tfrac{1}{2}\pi_+$. Therefore:
 \begin{equation}
-  \text{Gini} = \frac{(\pi_- \cdot \text{AUROC} + \tfrac{1}{2}\pi_+) - \tfrac{1}{2}}{(1 - \tfrac{1}{2}\pi_+) - \tfrac{1}{2}} = \frac{\pi_- \cdot \text{AUROC} - \tfrac{1}{2}(1-\pi_+)}{\tfrac{1}{2}(1 - \pi_+)} = \frac{\pi_- \cdot \text{AUROC} - \tfrac{1}{2}\pi_-}{\tfrac{1}{2}\pi_-} = 2 \cdot \text{AUROC} - 1.
+\begin{aligned}
+  \text{Gini} &= \frac{(\pi_- \cdot \text{AUROC} + \tfrac{1}{2}\pi_+) - \tfrac{1}{2}}{(1 - \tfrac{1}{2}\pi_+) - \tfrac{1}{2}}
+              = \frac{\pi_- \cdot \text{AUROC} - \tfrac{1}{2}(1-\pi_+)}{\tfrac{1}{2}(1 - \pi_+)} \\
+              &= \frac{\pi_- \cdot \text{AUROC} - \tfrac{1}{2}\pi_-}{\tfrac{1}{2}\pi_-}
+              = 2 \cdot \text{AUROC} - 1.
+\end{aligned}
   \label{eq:gini-proof}
 \end{equation}
 The last equality uses $\pi_+ + \pi_- = 1$, so $1 - \pi_+ = \pi_-$. The identity $\text{Gini} = 2 \cdot \text{AUROC} - 1$ is exact, not an approximation.
@@ -873,7 +878,7 @@ $\mathrm{Gini} = 2 \times \mathrm{AUROC} - 1$. It then one-hot encodes all 20
 features (including categoricals), retrains, and compares the resulting AUROC and
 KS against the numeric-only baseline. Finally, it identifies the feature with the
 largest absolute logistic regression coefficient and interprets its credit-risk
-meaning. See \texttt{code/notebooks/06-credit-risk/exercises.ipynb},
+meaning. See \texttt{code/practicals/06-credit-risk/},
 Illustration section.
 \end{illustration}
 

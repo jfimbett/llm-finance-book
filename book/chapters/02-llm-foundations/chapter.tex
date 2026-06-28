@@ -434,7 +434,7 @@ is the standard remedy for explosion, but there is no analogous in-architecture 
 for vanishing gradients in the vanilla RNN.
 \end{remark}
 
-These theoretical constraints have concrete consequences for financial text. An S\&P~500 earnings-call transcript is typically 8,000--12,000 tokens.
+These theoretical constraints have concrete consequences for financial text. An S\&P~500 earnings-call transcript is on the order of ten thousand tokens.
 Management guidance on page~20 may negate a claim on page~3.
 Proposition~\ref{thm:vanish-explode} implies the gradient from position $t = 100$
 contributes essentially nothing to $W_h$ after $T - t \approx 9{,}900$ BPTT
@@ -1196,6 +1196,7 @@ measures how strongly token $i$ attends to token $j$.  Because this is a
 entry to $-\infty$ so that a token cannot attend to its own future.  A row-wise
 softmax then turns each masked row into attention weights $A$:
 \begin{equation*}
+  \setlength{\arraycolsep}{2pt}
   S =
   \begin{bmatrix}
     1.50 & 2.19 & 1.25\\
@@ -1522,7 +1523,7 @@ for practitioners.
 
 \begin{illustration}[Sinusoidal Positional Encoding]
 \label{ex:ch02-illustration}
-The deterministic script \texttt{gen\_positional\_encoding.py} reproduces
+The deterministic script \texttt{\seqsplit{gen\_positional\_encoding.py}} reproduces
 Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$ and sequence length 50
 (no data or network dependence), and the encoding's geometry can be probed in two ways.
 First, extracting the encoding vectors for positions 5 and 10 and computing their cosine
@@ -1533,8 +1534,9 @@ separation grows.  Second, regenerating the heatmap for
 $d_{\mathrm{model}} \in \{32, 128\}$ shows how the frequency pattern changes with model
 dimension---higher dimensions add slower-varying frequency bands that let the encoding
 distinguish positions over longer ranges.
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb},
-Illustration section.
+See \texttt{code/figures/02-llm-foundations/gen\_positional\_encoding.py}
+for the deterministic figure generator, and \texttt{\seqsplit{code/practicals/02-llm-foundations/practical.ipynb}}
+for a hands-on reimplementation.
 
 \smallskip
 \noindent\textbf{Self-check.}
@@ -1551,7 +1553,7 @@ $\cos(\mathrm{PE}_{10},\mathrm{PE}_{45})$ is larger, and explain why.
 
 \begin{context}
 
-In November 2022, a chatbot launched with almost no fanfare.  It reportedly reached a hundred million users in approximately two months, making it one of the fastest-growing consumer applications on record.  ChatGPT did not introduce any fundamentally new technology; the
+In November 2022, a chatbot launched with almost no fanfare.  It achieved unusually rapid mainstream adoption, becoming one of the fastest-growing consumer applications on record.  ChatGPT did not introduce any fundamentally new technology; the
 Transformer architecture had existed since 2017, GPT-3 since 2020.  What it
 introduced was \emph{interface}: a fluent, patient, conversational layer over a
 raw language model that made the underlying capability legible to people who had
@@ -1648,7 +1650,7 @@ is \$310 million, and we expect \$150 million in synergies within three years.  
 current weighted average cost of capital is 8.5\%.''
 \end{quote}
 
-A standard generative model (GPT-4o, temperature $= 0$) reads the excerpt and
+A standard generative model (GPT-5.6, temperature $= 0$) reads the excerpt and
 directly outputs a one-paragraph assessment, typically noting that the EV/EBITDA
 multiple is approximately $13.5\times$ and characterising the deal as
 \emph{``strategically sound given the synergy guidance.''}  This response is often
@@ -1676,27 +1678,28 @@ Table~\ref{tab:model-families} provides a structured overview of the major model
 families referenced throughout this book.
 
 \begin{center}
-\small
-\begin{tabular}{llllll}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X l l l X l}
 \hline
 \textbf{Model} & \textbf{Organisation} & \textbf{Arch.} & \textbf{Params} &
 \textbf{Training Data} & \textbf{Finance} \\
 \hline
-GPT-4 / GPT-4o   & OpenAI        & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
-Claude 3.x/4.x   & Anthropic     & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
-Llama 3 (405B)   & Meta          & Decoder-only & 405B             & 15T tokens       & No  \\
-Gemini 1.5 Pro   & Google DM     & Multimodal   & Undisclosed      & Multimodal web   & No  \\
+GPT-5.6          & OpenAI        & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
+Claude Opus 4.8  & Anthropic     & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
+Llama 4 (Maverick) & Meta        & Decoder-only & 400B (MoE)       & Multimodal web   & No  \\
+Gemini 3 Pro     & Google DM     & Multimodal   & Undisclosed      & Multimodal web   & No  \\
 FinBERT          & Araci (2019)  & Encoder      & 110M             & Financial news   & Yes \\
 BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ tok.  & Yes \\
 \hline
-\end{tabular}
-\captionof{table}{Major language model families relevant to financial NLP (as of 2024--2025).
+\end{tabularx}
+\captionof{table}{Major language model families relevant to financial NLP (as of 2026).
 Parameter counts are approximate.  ``Finance'' indicates whether the model was
 trained or fine-tuned specifically on financial corpora.}
 \label{tab:model-families}
 \end{center}
 
-The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
+The most capable models (GPT-5, Claude Opus 4.8, Gemini 3 Pro) are proprietary: their
 weights are not released, and access is mediated through pay-per-token APIs.
 Early empirical evidence that general-purpose LLMs encode actionable financial
 knowledge comes from \citet{LopezLiraTang2023}, who show that ChatGPT sentiment
@@ -1726,7 +1729,7 @@ that domain-specific pre-training on financial text was feasible at scale.
 Subsequent benchmarks revealed a nuanced picture.  On tasks requiring deep financial
 \emph{knowledge} (entity recognition in financial news, financial sentiment on
 FinancialPhraseBank), BloombergGPT outperforms same-size general-purpose baselines.
-But general-purpose models at significantly larger scale---GPT-4 or Claude 3---often
+But general-purpose models at significantly larger scale---GPT-5 or Claude Opus 4.8---often
 match or exceed BloombergGPT on the same benchmarks, because scale compensates for
 domain specificity.  This is an instance of the \emph{emergent capability} effect:
 beyond a threshold of model scale and training compute, models acquire domain knowledge
@@ -1762,7 +1765,7 @@ experiments in subsequent chapters.
 
 \begin{center}
 \small
-\begin{tabular}{lllll}
+\begin{tabularx}{\linewidth}{l X l l X}
 \hline
 \textbf{Benchmark} & \textbf{Task} & \textbf{Size} & \textbf{Metric} &
 \textbf{Reference} \\
@@ -1773,7 +1776,7 @@ ECTSum              & Earnings call summ.  & 2,425 docs        & ROUGE-L        
 FinQA               & Numerical reasoning  & 8,281 Q\&A pairs  & Execution acc. & \cite{chen2021finqa} \\
 FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  & \cite{shah2022flue} \\
 \hline
-\end{tabular}
+\end{tabularx}
 \captionof{table}{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
 ``Metric'' is the primary evaluation metric used in the literature.}
 \label{tab:benchmarks}
@@ -1979,7 +1982,7 @@ recommendations for five common financial NLP tasks.
 
 \begin{center}
 \small
-\begin{tabular}{lllp{5cm}}
+\begin{tabularx}{\linewidth}{X l l X}
 \toprule
 \textbf{Task} & \textbf{Temperature} & \textbf{Sampling} & \textbf{Rationale} \\
 \midrule
@@ -2010,7 +2013,7 @@ Extractive summarisation / ROUGE evaluation
   & Deterministic output maximises $n$-gram overlap with reference texts;
     less suitable for open-ended or factual generation. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \captionof{table}{Recommended sampling strategies for financial NLP tasks.}
 \label{tab:sampling-strategies}
 \end{center}
@@ -2085,7 +2088,7 @@ the model produced the right fields, the developer declares a Pydantic model, co
 it to a JSON Schema, passes that schema as a tool definition, and receives a typed
 Python object in return.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 Note the \texttt{tool\_choice} parameter: setting it to a specific tool name forces the
 model to invoke that tool rather than choosing between text response and tool call.
@@ -2111,7 +2114,7 @@ The listing below demonstrates EBNF-constrained generation with \texttt{outlines
 for a minimal financial reporting record containing a company ticker, a numeric
 earnings figure, and a currency code.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 \subsection{Why Structured Generation Is Critical in Finance}
 \label{sec:structured-gen-finance}
@@ -2209,9 +2212,9 @@ representation of position $t$.  Any input exceeding $L_{\max}$ tokens must be
 truncated or split across multiple calls.
 \end{definition}
 
-Context windows grew rapidly in the 2022--2024 period: GPT-3 offered 4,096 tokens;
-GPT-4-turbo extended this to 128,000 tokens; Gemini 1.5 Pro supports 1,000,000
-tokens; Claude 3/4 supports up to 200,000 tokens with plans to expand further.  For
+Context windows grew rapidly: GPT-3 offered 4,096 tokens; GPT-4-turbo extended
+this to 128,000 tokens; and Gemini 1.5 Pro reached 1,000,000 tokens.  Current frontier
+models (GPT-5, Claude Opus 4.8) reach 1M tokens, and Gemini 3 Pro exceeds it.  For
 financial NLP, the context window determines whether an entire 10-K filing (which may
 exceed 100,000 tokens) can be processed in a single call---a question with significant
 implications for retrieval-augmented generation architectures (\Cref{ch:business-valuation}).
@@ -2236,7 +2239,7 @@ The OpenAI Python SDK follows a \emph{chat completion} model: the user submits a
 of messages (with roles \texttt{system}, \texttt{user}, and \texttt{assistant}), and
 the API returns a completion.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
 list, passing it as a top-level argument rather than as the first message.  This
@@ -2244,21 +2247,21 @@ is a first-class API design choice: the system turn is processed as a distinct
 input type, enabling finer-grained prefix caching and system-level instruction
 enforcement at the inference layer, independent of conversation history.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 FinBERT \cite{araci2019finbert} % [CITE: araci2019finbert Araci (2019)]
 is a BERT-based encoder fine-tuned on financial news for three-class sentiment
 classification.  It runs locally without any API key or per-token cost.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 Table~\ref{tab:api-comparison} summarises the key structural differences across the three ecosystems.
 
 \begin{center}
-\small
-\begin{tabular}{llll}
+\footnotesize
+\begin{tabularx}{\linewidth}{l X X X}
 \hline
-\textbf{Feature} & \textbf{OpenAI (GPT-4o)} & \textbf{Anthropic (Claude)} &
+\textbf{Feature} & \textbf{OpenAI (GPT-5.6)} & \textbf{Anthropic (Claude)} &
 \textbf{HuggingFace (FinBERT)} \\
 \hline
 System prompt   & First message (\texttt{"system"}) & Top-level \texttt{system=} arg & N/A \\
@@ -2268,7 +2271,7 @@ Cost model      & Per input/output token & Per input/output token & Compute only
 Context window  & 128K tokens & 200K tokens & 512 tokens \\
 Task type       & Generative / reasoning & Generative / reasoning & Classification \\
 \hline
-\end{tabular}
+\end{tabularx}
 \captionof{table}{Comparison of LLM API designs for financial NLP tasks.}
 \label{tab:api-comparison}
 \end{center}
@@ -2284,23 +2287,23 @@ API providers charge separately for input tokens (the prompt) and output tokens
 \end{equation}
 where $N_{\text{in}}$, $N_{\text{out}}$ are token counts and $c_{\text{in}}$,
 $c_{\text{out}}$ are the provider's per-token prices.
-Table~\ref{tab:api-pricing} gives approximate 2024 prices in USD per million tokens.
+Table~\ref{tab:api-pricing} gives approximate mid-2026 prices in USD per million tokens.
 
 \begin{center}
 \small
-\begin{tabular}{llll}
+\begin{tabularx}{\linewidth}{l l l X}
 \hline
 \textbf{Model} & \textbf{Input (\$/MTok)} & \textbf{Output (\$/MTok)} &
 \textbf{Notes} \\
 \hline
-GPT-4o                 & \$5.00       & \$15.00       & OpenAI, proprietary \\
-Claude 3 Sonnet        & \$3.00       & \$15.00       & Anthropic, proprietary \\
-Claude 3 Haiku         & \$0.25       & \$1.25        & Smaller, faster \\
-Llama 3 70B (via API)  & \$0.59       & \$0.79        & E.g.\ Together AI \\
-Llama 3 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
+GPT-5.6 Sol            & \$5.00       & \$30.00       & OpenAI, proprietary \\
+Claude Sonnet 4.6      & \$3.00       & \$15.00       & Anthropic, proprietary \\
+Claude Haiku 4.5       & \$1.00       & \$5.00        & Smaller, faster \\
+Llama 4 (via API)      & \$0.59       & \$0.79        & E.g.\ Together AI \\
+Llama 4 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
 \hline
-\end{tabular}
-\captionof{table}{Approximate 2024 API pricing.  Prices in USD per million tokens (MTok).
+\end{tabularx}
+\captionof{table}{Approximate mid-2026 API pricing.  Prices in USD per million tokens (MTok).
 Verify current prices on provider websites before budgeting.}
 \label{tab:api-pricing}
 \end{center}
@@ -2309,8 +2312,8 @@ To make this concrete, suppose a compliance team needs to process $N = 10{,}000$
 each approximately 5,000 words.  At 1.3 tokens per word (see
 Example~\ref{ex:bpe}), each transcript is $\approx 6{,}500$ input tokens.  Adding a
 500-token system prompt and $\approx 400$ output tokens, applying
-\eqref{eq:cost-model} gives $\text{cost}_{\text{GPT-4o}} \approx \$410$.
-The same workload on Claude 3 Haiku costs approximately \$20---a twenty-fold
+\eqref{eq:cost-model} gives $\text{cost}_{\text{GPT-5.6}} \approx \$410$ (illustrative).
+The same workload on Claude Haiku 4.5 costs approximately \$90---a more than four-fold
 reduction.  This illustrates the core cost-optimisation decision in financial NLP
 pipelines: a small, cheap model handles straightforward extraction tasks, while a
 large model is reserved for complex reasoning steps.
@@ -2475,7 +2478,7 @@ answering questions about a 10-K filing.  It uses FAISS for dense retrieval and
 the Anthropic API for generation.  Citation of passage numbers in the system prompt
 enables answer verification.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 Three features of this design merit emphasis.  First, normalising the embeddings
 before adding them to the FAISS \texttt{IndexFlatIP} (inner product) index converts
@@ -2829,7 +2832,7 @@ necessary regardless of model type.
 \begin{context}
 
 In 2024, the EU's AI Act came into force, classifying certain AI applications in
-finance---credit scoring, insurance pricing, certain forms of algorithmic
+finance---credit scoring, insurance pricing, certain forms of algo\-rithmic
 trading---as high-risk.  The regulation does not ban these applications.  It
 requires documentation, explainability, human oversight, and ongoing monitoring.
 These requirements are not obstacles to using LLMs in finance; they are the
@@ -2928,7 +2931,7 @@ vectors through recurrent architectures to the Transformer, deriving the mathema
 of self-attention, positional encoding, and the encoder--decoder structure.
 We surveyed the modern LLM landscape, distinguishing standard autoregressive models
 from reasoning models trained to produce explicit chains of thought.  We introduced
-the major model families (GPT-4o, Claude, Llama, FinBERT, BloombergGPT) and the
+the major model families (GPT-5, Claude, Llama 4, FinBERT, BloombergGPT) and the
 principal financial NLP benchmarks (FinancialPhraseBank, FiQA, ECTSum, FinQA, FLUE)
 against which models are evaluated throughout the book.  We covered the practical
 mechanics of LLM APIs---tokenisation, context windows, sampling parameters, and cost

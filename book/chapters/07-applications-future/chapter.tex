@@ -13,7 +13,8 @@ After completing this chapter, the reader should be able to:
         canonical automation patterns---sequential pipeline, event-triggered, and
         orchestrator-worker---in Python.
   \item Design and deploy an LLM-powered research assistant incorporating hybrid retrieval,
-        persistent memory, and tool use, including the OpenClaw framework.
+        persistent memory, and tool use, illustrated by a hypothetical reference
+        architecture we call OpenClaw.
   \item Identify and measure the principal sources of bias in LLM-based finance systems,
         apply fairness metrics, and select appropriate mitigation strategies.
   \item Apply the SR~11-7 model risk management framework to LLM deployments, including
@@ -78,7 +79,7 @@ Each chapter has also been a case study in a recurring design challenge: bridgin
 \centering
 \small
 \setlength{\tabcolsep}{5pt}
-\begin{tabular}{clp{4.0cm}p{4.0cm}}
+\begin{tabularx}{\linewidth}{c l X X}
 \toprule
 \textbf{Ch.} & \textbf{Topic} & \textbf{Primary LLM Technique} & \textbf{Finance Application} \\
 \midrule
@@ -134,7 +135,7 @@ Each chapter has also been a case study in a recurring design challenge: bridgin
   & Workflow automation, multimodal, agents
   & Full-stack deployment, governance \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \begin{context}
@@ -186,7 +187,8 @@ Let a finance task $\mathcal{T}$ be characterised by an input distribution $\mat
 \centering
 \caption{Deployment pattern selection heuristics for finance LLM tasks.}
 \label{tab:deployment-heuristics}
-\begin{tabular}{lllll}
+\small
+\begin{tabularx}{\linewidth}{l X X l X}
 \hline
 \textbf{Pattern} & \textbf{Best for} & \textbf{Data needed} & \textbf{Latency} & \textbf{Cost} \\
 \hline
@@ -194,7 +196,7 @@ Zero-shot & General reasoning, novel tasks & None & Low & Per-call \\
 RAG & Document QA, live data, audit trail & Corpus only & Medium & Corpus + call \\
 Fine-tuning & Domain jargon, consistent format & Labelled pairs & Low (inference) & High (training) \\
 \hline
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \begin{context}
@@ -208,7 +210,7 @@ A complementary decision concerns the \emph{model architecture family} rather th
 The four families relevant to finance NLP tasks are:
 \begin{enumerate}
   \item \emph{Encoder-only} (BERT, RoBERTa, FinBERT): bidirectional Transformer producing contextual representations without generation. Trained by masked language modelling; fine-tuned with a classification or regression head.
-  \item \emph{Decoder-only} (GPT-4, LLaMA, Mistral): autoregressive Transformer generating text token by token. Aligned with instruction tuning and reinforcement learning from human feedback (RLHF); the dominant family for general-purpose financial NLP today.
+  \item \emph{Decoder-only} (GPT-5, Llama, Mistral): autoregressive Transformer generating text token by token. Aligned with instruction tuning and reinforcement learning from human feedback (RLHF); the dominant family for general-purpose financial NLP today.
   \item \emph{Encoder-decoder} (T5, FLAN-T5, BART): sequence-to-sequence Transformer with separate encoder and decoder. Natural for summarisation, structured extraction, and translation tasks.
   \item \emph{Agentic system}: a generative model augmented with a planning loop (e.g.\ ReAct) that interleaves reasoning steps with calls to external tools — databases, APIs, code executors. Appropriate when task completion requires retrieving or manipulating external state.
 \end{enumerate}
@@ -223,7 +225,7 @@ The four families relevant to finance NLP tasks are:
 \label{tab:arch-decision}
 \centering
 \small
-\begin{tabular}{lcccc}
+\begin{tabularx}{\linewidth}{X cccc}
 \toprule
 \textbf{Task Property}
   & \textbf{Encoder-only}
@@ -239,7 +241,7 @@ Real-time / low-latency constraint     & Strong & Weak   & Weak   & Weak   \\
 Audit trail / interpretability needed  & Strong & Weak   & Weak   & Weak   \\
 Task spans multiple steps or documents & Weak   & Weak   & Weak   & Strong \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \begin{context}
@@ -297,7 +299,7 @@ When a rule-based surveillance system flags an unusual order pattern---potential
 
 A representative Python implementation of an event-triggered pipeline that monitors EDGAR and classifies incoming 8-K filings is developed as an exercise in the companion notebook.
 
-\textit{This example is developed as an exercise in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
+\textit{This example is developed as an exercise in the chapter notebook \texttt{code/practicals/07-applications-future/}.}
 
 \subsection{Integrating LLMs with Existing Financial Infrastructure}
 \label{subsec:af-workflows-integration}
@@ -353,18 +355,18 @@ The third decision is \emph{hybrid retrieval}. Given a query $q$, the retrieval 
 
 Finally, \emph{source attribution} is a non-negotiable requirement. Every claim in an LLM-generated response must be attributable to a retrieved passage. The system should include passage identifiers in the response, allow users to navigate to the source, and flag when a claim is not supported by retrieved context. Attribution is not merely a quality feature; in regulated contexts it is the mechanism by which the system's outputs can be audited.
 
-\subsection{OpenClaw: A Local Personal AI Assistant for Finance Professionals}
+\subsection{OpenClaw: A Hypothetical Local Personal AI Assistant for Finance Professionals}
 \label{subsec:af-ra-openclaw}
 
 A recurrent theme in the deployment of LLMs for professional finance is the tension between capability and data security. Cloud-hosted LLM APIs offer state-of-the-art reasoning and convenient access, but they require sending financial data---potentially including confidential client information, proprietary trading signals, and personal portfolio details---to a third-party server. For individual finance professionals, family offices, and smaller institutions, this tension is often resolved in practice by using less capable tools or by forgoing LLM assistance for the most sensitive tasks.
 
-OpenClaw (\url{https://openclaw.ai}) is an open-source framework that resolves this tension architecturally: it runs entirely on the user's own hardware, so financial data never leaves the machine. The framework is designed around four design principles.
+Consider a hypothetical local research assistant we will call \emph{OpenClaw}---an illustrative reference architecture that resolves this tension architecturally: it would run entirely on the user's own hardware, so financial data never leaves the machine. Such a framework would be designed around four design principles.
 
 First, \emph{privacy by default}: all processing occurs locally. The user's documents, portfolio data, and conversation history are stored on their own file system. If a local model (via Ollama or llama.cpp) is selected, the entire system operates without any network calls during inference.
 
-Second, \emph{meet users where they work}: OpenClaw accepts queries and returns responses through the messaging channels finance professionals already use---WhatsApp, Telegram, Slack, Discord, iMessage, and Signal. This removes the friction of switching contexts and allows the assistant to integrate naturally into existing workflows.
+Second, \emph{meet users where they work}: such an assistant would accept queries and return responses through the messaging channels finance professionals already use---WhatsApp, Telegram, Slack, Discord, iMessage, and Signal. This removes the friction of switching contexts and allows the assistant to integrate naturally into existing workflows.
 
-Third, \emph{model flexibility}: users can select from cloud models (Claude, GPT-4) for maximum reasoning capability when tasks permit, or from locally-hosted open-weight models (Llama, Mistral, Phi) when data sensitivity requires it. The framework's tool-calling and memory architecture work identically regardless of the underlying model.
+Third, \emph{model flexibility}: users can select from cloud models (Claude Opus 4.8, GPT-5) for maximum reasoning capability when tasks permit, or from locally-hosted open-weight models (Llama, Mistral, Phi) when data sensitivity requires it. The framework's tool-calling and memory architecture work identically regardless of the underlying model.
 
 Fourth, \emph{extensibility through skills}: the framework discovers callable skills from Python function definitions annotated with natural-language descriptions. Any user---or the agent itself---can write a new skill and register it by placing the file in the skills directory. This self-modification capability allows the assistant to grow with the user's needs.
 
@@ -383,7 +385,7 @@ The \emph{macro digest skill} assembles a morning briefing from multiple sources
 
 The skill definition mechanism is deliberately simple: a Python function with a descriptive docstring is sufficient for the framework to expose it as a callable tool, as the companion notebook illustrates.
 
-\textit{This example is developed as an exercise in the chapter notebook \texttt{code/notebooks/07-applications-future/exercises.ipynb}.}
+\textit{This example is developed as an exercise in the chapter notebook \texttt{code/practicals/07-applications-future/}.}
 
 When this file is placed in the OpenClaw skills directory, the framework parses the function signature and docstring, and the skill becomes callable via any connected messaging channel. The self-modification capability means that the assistant can itself be prompted to write new skills: ``write me a skill that monitors my watchlist for short interest changes above 5\%'' will produce a new Python file that, after user review, extends the assistant's capabilities permanently.
 
@@ -540,7 +542,7 @@ Two regulatory instruments impose the most material privacy constraints on LLM d
 
 \emph{MiFID~II} imposes record-keeping obligations on investment firms that extend to LLM-generated outputs~\citep{esma2018mifid2}. Practitioners typically capture the prompt, the model version, the output, and the time of generation to satisfy the spirit of these obligations, though regulators have not yet enumerated LLM-specific fields explicitly. Firms must be able to demonstrate, in the event of a regulatory inquiry, that recommendations generated by an LLM were appropriate for the client and consistent with the firm's suitability assessment.
 
-The practical implication for system design is that on-premise or private-cloud deployment is strongly preferred for any application that processes personal financial data or generates client-specific recommendations. Sending client data to a third-party LLM API endpoint creates a data processor relationship that requires a Data Processing Agreement, exposes the firm to the provider's data retention policies, and may conflict with client confidentiality obligations. The OpenClaw framework described in \Cref{sec:af-research-assistant} is one architectural response to this constraint; private cloud deployments of open-weight models on the firm's own infrastructure are another.
+The practical implication for system design is that on-premise or private-cloud deployment is strongly preferred for any application that processes personal financial data or generates client-specific recommendations. Sending client data to a third-party LLM API endpoint creates a data processor relationship that requires a Data Processing Agreement, exposes the firm to the provider's data retention policies, and may conflict with client confidentiality obligations. The hypothetical OpenClaw architecture described in \Cref{sec:af-research-assistant} illustrates one architectural response to this constraint; private cloud deployments of open-weight models on the firm's own infrastructure are another.
 
 \subsection{Incident Response and Model Monitoring}
 \label{subsec:af-deployment-monitoring}
@@ -583,7 +585,7 @@ reflects the structural trade-off between domain-specific pretraining and raw
 scale. Finally, it computes the mean rank of each model across all three
 benchmarks and identifies the Pareto-optimal model---the one with the highest
 average rank and no benchmark score below the median.
-See \texttt{code/notebooks/07-applications-future/exercises.ipynb}, Illustration
+See \texttt{code/practicals/07-applications-future/}, Illustration
 section.
 \end{illustration}
 

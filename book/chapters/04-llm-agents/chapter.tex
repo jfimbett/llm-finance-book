@@ -116,7 +116,7 @@ the loop). The ``observation'' is the concatenation of tool call results, retrie
 documents, or user messages.
 
 This framing reveals the central bottleneck: the memory space $\mathcal{M}$ is bounded
-by the model's context window. A GPT-4-class model with a 128,000-token context can
+by the model's context window. A frontier-class model with a 128,000-token context can
 hold approximately 100 pages of text---substantial, but insufficient for the full annual
 report history of a large corporation. Strategies for extending effective memory beyond
 the context window are discussed in Section~\ref{subsec:agent-memory}.
@@ -319,7 +319,7 @@ that the agent accesses via precise key-value lookup. The orchestration layer ro
 \label{sec:tool-use}
 
 \begin{context}
-When Morgan Stanley deployed an internal LLM assistant for financial advisors, one of
+When a large wealth-management firm deployed an internal LLM assistant for financial advisors, one of
 the earliest challenges was not language quality but factual grounding. An advisor
 asking ``What is the current yield on the 10-year Treasury?'' needed the answer that
 was true \emph{today}, not an answer pattern-matched against training data from months
@@ -416,7 +416,7 @@ connectors, and web search interfaces. Each category has distinct design conside
 
 The following Python pseudocode illustrates a minimal tool registration pattern:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/04-llm-agents/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/04-llm-agents/}.}
 
 The tool's docstring serves a dual purpose: it documents the function for human
 developers and, when formatted into the system prompt, tells the language model what
@@ -500,7 +500,7 @@ model with irrelevant options. A retrieval-augmented tool selection approach mai
 a vector index of tool descriptions and retrieves only the most semantically relevant
 tools for inclusion in the active context. This mirrors the structure of the human
 expert who knows which Bloomberg function to reach for without mentally enumerating
-all 30,000 available Bloomberg functions.
+the tens of thousands of available Bloomberg functions.
 
 \end{deepdive}
 
@@ -826,7 +826,7 @@ directly. An \emph{extractor agent} reads a short earnings snippet and pulls out
 reported EPS and analyst consensus, then passes the structured result to a
 \emph{classifier agent} that labels the result as a beat, miss, or inline outcome.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/04-llm-agents/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/04-llm-agents/}.}
 
 \end{deepdive}
 
@@ -904,8 +904,8 @@ The most widely deployed ANN algorithm in production financial systems is FAISS 
 AI Similarity Search) \cite{johnson2019billion}, which implements several index types
 including flat (exact) search, inverted file (IVF) indexing, and hierarchical navigable
 small worlds (HNSW). For corpora up to roughly one million vectors, IVF-HNSW provides
-an excellent balance of query speed (typically under 10 milliseconds) and recall
-(typically above 95\% for top-10 retrieval).
+an excellent balance of low query latency (single-digit-to-tens of milliseconds on
+commodity hardware) and high top-10 recall.
 
 Commercial vector databases---Pinecone, Weaviate, Chroma, Qdrant---provide additional
 infrastructure around FAISS-like indexing: metadata filtering, multi-tenancy, real-time
@@ -1109,7 +1109,7 @@ them highest, then replaces TF-IDF with dense embeddings from
 \texttt{sentence-transformers} (\texttt{all-MiniLM-L6-v2}) to compare the
 two rankings, illustrating how dense retrieval can surface qualitatively
 different chunks than a sparse lexical baseline.
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Illustration
+See \texttt{code/practicals/04-llm-agents/}, Illustration
 section.
 \end{illustration}
 
@@ -1120,8 +1120,8 @@ section.
 
 \begin{context}
 The techniques developed in the preceding sections converge in a set of high-value
-financial applications. These applications are not hypothetical: firms including Goldman
-Sachs, JPMorgan, Bloomberg, and numerous hedge funds have deployed LLM-based systems
+financial applications. These applications are not hypothetical: several major banks, data
+vendors, and hedge funds have publicly described LLM-based systems
 for tasks ranging from document analysis to automated report generation. This section
 develops five representative applications in sufficient depth for practitioners to
 adapt and implement them, drawing on the agent architectures, tool-use patterns,
@@ -1224,7 +1224,7 @@ market data, consensus estimates, key events) in machine-readable format, and th
 agent produces prose that describes this data package, citing each figure with a
 reference to its source.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/04-llm-agents/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/04-llm-agents/}.}
 
 The fact-grounding discipline ensures that every number in the generated report can be
 audited against a data source. This is not merely a best-practice recommendation; for
@@ -1394,7 +1394,7 @@ framework systematically.
 Production financial agents must satisfy strict performance constraints that do not
 apply to research prototypes. Latency matters: an agent that takes two minutes to
 answer a question about current portfolio risk is unusable in a live trading
-environment. Cost matters: running a GPT-4-class model for every document in a
+environment. Cost matters: running a frontier-class model for every document in a
 50,000-filing corpus is economically infeasible. Reliability matters: an agent that
 fails 5\% of the time due to API timeouts is unacceptable in a workflow where every
 failure requires manual intervention.
@@ -1404,7 +1404,7 @@ Caching stores the results of expensive computations (embedding, retrieval, LLM
 generation) against a content hash of the input, so that repeated queries over the
 same document incur only the cost of the cache lookup rather than the full pipeline.
 Model tiering assigns different tasks to models of appropriate capability: a small,
-fast model (e.g., GPT-4o-mini, Claude Haiku) handles routine classification and
+fast model (e.g., Claude Haiku 4.5 or a comparable mini-tier model) handles routine classification and
 extraction tasks, while a larger model handles synthesis and report generation tasks
 that require deeper reasoning.
 

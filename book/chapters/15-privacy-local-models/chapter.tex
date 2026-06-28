@@ -28,7 +28,7 @@ After completing this chapter, the reader should be able to:
 \label{sec:ch15-privacy-imperative}
 
 \begin{context}
-It is January 2023, and a major bank's legal team is reviewing a new internal policy: employees may not paste client data into ChatGPT. The rule lands after a leaked memo reveals that staff have been doing exactly that — feeding loan applications, earnings call transcripts, and merger term sheets into a public cloud API to speed up their drafting work. The bank is not alone. Samsung engineers make global headlines weeks later when source code submitted to ChatGPT is retained for training. In both cases the data left the institution the moment it crossed the API boundary — and there is no technical mechanism for recall.
+It is January 2023, and a major bank's legal team is reviewing a new internal policy: employees may not paste client data into ChatGPT. The rule lands after a leaked memo reveals that staff have been doing exactly that — feeding loan applications, earnings call transcripts, and merger term sheets into a public cloud API to speed up their drafting work. The bank is not alone. Engineers at a major technology firm reportedly pasted proprietary source code into a public chatbot, only to realise the data could be retained and used for training. In both cases the data left the institution the moment it crossed the API boundary — and there is no technical mechanism for recall.
 
 The episode captures a structural tension that cuts across every sector but is especially acute in finance. LLMs are transformatively useful precisely because they have absorbed vast amounts of text. But that absorption process, and the cloud infrastructure that supports LLM inference, creates privacy surface that financial institutions are poorly equipped to govern. Client names, account numbers, trading strategies, and legal advice all constitute sensitive information whose disclosure is regulated by multiple overlapping frameworks.
 
@@ -175,7 +175,7 @@ The classifier itself must be trained on internal data and must not call any ext
 \subsection{Performance Trade-offs and Quantisation}
 \label{sec:ch15-quantisation}
 
-The primary cost of local deployment relative to the largest cloud models is capability. GPT-4 class models, which require tens of thousands of GPUs to run at production scale, are not available as open-weight releases. The best available open-weight models as of 2025 are competitive with GPT-3.5-class performance on general benchmarks, but lag behind GPT-4 on complex reasoning, multi-step instruction following, and tasks requiring broad factual knowledge.
+The primary cost of local deployment relative to the largest cloud models is capability. Frontier cloud models (e.g.\ GPT-5 and Claude Opus 4.8), which require tens of thousands of GPUs to run at production scale, are not available as open-weight releases. The best available open-weight models have become competitive with strong proprietary models on many general benchmarks, but still tend to lag the frontier proprietary models on the hardest reasoning tasks, multi-step instruction following, and tasks requiring broad factual knowledge.
 
 Quantisation bridges part of this gap by reducing the numerical precision of the model's weights from the standard 32-bit or 16-bit floating-point to lower-precision formats. GPTQ~\citep{frantar2022gptq} and AWQ~\citep{lin2023awq} are the two dominant post-training quantisation methods. Both achieve 4-bit quantisation with performance degradation that is negligible for most practical tasks. At 4-bit precision, a 7B model occupies approximately 3.5\,GB of memory — less than a modern video game — and a 13B model occupies approximately 6.5\,GB, fitting within the VRAM budget of a high-end consumer GPU.
 
@@ -487,5 +487,5 @@ information from a deployed model's parameters---machine unlearning---remains an
 problem rather than a solved control. Residual exposure should therefore be re-measured on a
 fixed cadence (membership-inference AUC and canary extraction rate) after every fine-tune, not
 assessed once at launch. The companion notebooks
-(\texttt{code/notebooks/15-privacy-local-models/}) implement the DP fine-tuning and
+(\texttt{code/practicals/15-privacy-local-models/}) implement the DP fine-tuning and
 membership-inference evaluation used above so these metrics can be reproduced.

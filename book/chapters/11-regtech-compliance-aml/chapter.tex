@@ -341,7 +341,7 @@ The eXtensible Business Reporting Language (XBRL) is a standardised taxonomy for
 
 Manual XBRL tagging is error-prone. Financial statements contain ambiguous line items (``other comprehensive income'' may map to different XBRL concepts depending on the nature of the items it contains), and taxonomy versions change annually. LLMs can automate tagging by treating it as a classification problem: given a financial statement line item and its surrounding context, predict the correct XBRL concept.
 
-The challenge is the size of the taxonomy space. The US GAAP taxonomy contains over 20,000 elements. A simple classification model over this space performs poorly due to label sparsity --- most XBRL concepts are rarely used. In practice, the tagging problem is better framed as a retrieval problem: embed the financial statement line item and retrieve the most semantically similar XBRL concept descriptions, then use an LLM to verify the match and select among the top candidates.
+The challenge is the size of the taxonomy space. The US GAAP taxonomy contains on the order of tens of thousands of elements. A simple classification model over this space performs poorly due to label sparsity --- most XBRL concepts are rarely used. In practice, the tagging problem is better framed as a retrieval problem: embed the financial statement line item and retrieve the most semantically similar XBRL concept descriptions, then use an LLM to verify the match and select among the top candidates.
 
 \begin{equation}
 \label{eq:xbrl-retrieval-score}

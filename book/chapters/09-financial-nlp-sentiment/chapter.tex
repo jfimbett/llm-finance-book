@@ -221,7 +221,7 @@ One limitation of the Financial PhraseBank is that news sentences differ in styl
 \subsection{LLM Zero-Shot and Few-Shot Sentiment Classification}
 \label{sec:ch09-llm-zeroshot-fewshot}
 
-Large language models such as GPT-4, Claude, and LLaMA-3 can classify financial sentiment without any fine-tuning, using only a natural-language description of the task. This capability, known as zero-shot classification, opens the possibility of rapid prototyping on new domains without labelled data \cite{brown2020language}.
+Large language models such as GPT-5, Claude, and Llama 4 can classify financial sentiment without any fine-tuning, using only a natural-language description of the task. This capability, known as zero-shot classification, opens the possibility of rapid prototyping on new domains without labelled data \cite{brown2020language}.
 
 A standard zero-shot prompt for financial sentiment might read:
 
@@ -518,7 +518,7 @@ Efficiency optimisations include:
 \begin{itemize}
   \item \textbf{Dynamic padding and batching}: group documents by approximate length to minimize padding overhead.
   \item \textbf{Mixed-precision inference}: use FP16 or BF16 to halve memory consumption and increase throughput.
-  \item \textbf{Model distillation}: replace a 110M-parameter model with a 33M-parameter distilled version with $<$5\% accuracy loss.
+  \item \textbf{Model distillation} \citep{hinton2015distilling}: replace a larger model with a much smaller distilled version (often a fraction of the parameters) at a modest accuracy cost.
   \item \textbf{Parallelism}: distribute across multiple GPUs using data-parallel inference, or across CPU cores for lexicon-based scoring.
 \end{itemize}
 
@@ -545,13 +545,13 @@ When constructing a labelled dataset, multiple annotators assign labels to the s
 
 where $D_o$ is the observed disagreement and $D_e$ is the expected disagreement under the null hypothesis of random annotation. For nominal categories with $k$ labels, $D_o = \frac{1}{n(n-1)} \sum_{i \neq j} \mathbb{1}[y_i \neq y_j]$ and $D_e = 1 - \sum_c \left(\frac{n_c}{n}\right)^2$, where $n_c$ is the number of annotations in category $c$.
 
-An alpha of 0 indicates agreement at chance level; 1 indicates perfect agreement. Krippendorff suggested $\alpha \geq 0.667$ as the minimum threshold for reliable data, and $\alpha \geq 0.800$ for high confidence. Published financial sentiment benchmarks typically report alphas between 0.65 and 0.78, reflecting the genuine ambiguity of many financial sentences.
+An alpha of 0 indicates agreement at chance level; 1 indicates perfect agreement. Krippendorff suggested $\alpha \geq 0.667$ as the minimum threshold for reliable data, and $\alpha \geq 0.800$ for high confidence. Published financial sentiment benchmarks typically report only moderate agreement --- reliability coefficients well below the near-perfect levels seen in simpler labelling tasks --- reflecting the genuine ambiguity of many financial sentences.
 
 The formula above gives the nominal variant, which treats all disagreements as equally costly. For ordinal labels---such as the three-class sentiment scale \textsc{positive} $>$ \textsc{neutral} $>$ \textsc{negative}---the ordinal variant replaces the binary coincidence metric with a weighted disagreement measure. Specifically, for categories $c$ and $c'$ drawn from an ordered scale, the ordinal difference function is $d^2(c,c') = \bigl(\sum_{g=c}^{c'} n_g\bigr)^2$, where $n_g$ is the frequency of category $g$; this penalises disagreements proportionally to the number of scale steps separating the two labels. The ordinal $\alpha$ is generally more conservative than the nominal $\alpha$ for sentiment corpora, providing a stricter lower bound on agreement.
 
 \begin{table}[htbp]
   \centering
-  \caption{Inter-annotator agreement on sentiment labels for financial text. Values are Krippendorff's alpha. Source: selected published benchmarks.}
+  \caption{Inter-annotator agreement on sentiment labels for financial text, expressed as Krippendorff's alpha. Representative, illustrative values; not drawn from a single published source.}
   \label{tab:krippendorff-benchmarks}
   \begin{tabular}{lcc}
     \toprule

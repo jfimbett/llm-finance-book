@@ -139,8 +139,10 @@ any workflow requiring numerical precision \cite{kang2023hallucination}.
 
 \textit{Table parsing failures.}  On the FinQA benchmark \cite{chen2021finqa},
 which requires chaining arithmetic operations over financial tables, general-purpose
-models in the GPT-3 class (175B parameters) achieve accuracy below 60\%, while
-fine-tuned specialist systems exceed 80\%.  The gap cannot be closed by prompting
+models in the GPT-3 class (175B parameters) reach accuracy that is substantially
+lower (roughly below 60\%) than that of fine-tuned specialist systems, whose reported
+execution accuracies fall approximately in the high-60s to low-70s percent range.
+These figures are illustrative rather than exact leaderboard values. The gap cannot be closed by prompting
 alone; the model must have seen enough financial table structures during training
 to internalise the mapping from table position to semantic role.
 
@@ -580,9 +582,11 @@ given the following income statement?''  The answer requires locating the releva
 rows, extracting the numeric values, and performing the division, all without
 arithmetic errors.  FinQA is widely considered the most challenging standard
 benchmark for financial NLP because it simultaneously tests reading comprehension,
-table parsing, and numerical reasoning.  On the public leaderboard, the best
-fine-tuned specialist systems achieve execution accuracy around 68--72\%, while
-general-purpose zero-shot GPT-4 class models achieve approximately 55--60\%.
+table parsing, and numerical reasoning.  Fine-tuned specialist systems substantially
+outperform general-purpose zero-shot models: reported execution accuracies for
+specialists fall roughly in the high-60s to low-70s percent range, while zero-shot
+general-purpose models are markedly lower. These percentages are approximate and
+illustrative, not exact leaderboard figures.
 
 \textit{FLUE.}  The Financial Language Understanding Evaluation benchmark
 \cite{shah2022flue} is a multi-task suite designed to mirror GLUE/SuperGLUE for
@@ -653,7 +657,7 @@ legal-regulatory text differs substantially from news or web text.
 \textit{Where general models win or are competitive.}  On tasks requiring broad
 world knowledge---such as answering questions about macroeconomic events, regulatory
 history, or geopolitical risk factors that appear in financial text---frontier
-general models (GPT-4, Claude 3, Llama-3 70B) are competitive with domain-specific
+general models (GPT-5, Claude Opus 4.8, Llama 4) are competitive with domain-specific
 models.  More strikingly, on multi-step numerical reasoning tasks like FinQA,
 chain-of-thought prompting \cite{wei2022chain} applied to a large general model
 often matches or exceeds the performance of a smaller domain-specific model,

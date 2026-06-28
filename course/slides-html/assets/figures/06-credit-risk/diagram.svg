@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="system-ui, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#2f6fed"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="36" text-anchor="middle" fill="#2a3340" font-size="18" font-weight="600">Probability-of-Default Pipeline</text>
+
+  <!-- Box 1: Text Input -->
+  <rect x="24" y="110" width="140" height="140" rx="12" fill="#eef2fb" stroke="#2f6fed" stroke-width="2"/>
+  <rect x="24" y="110" width="140" height="34" rx="12" fill="#2f6fed"/>
+  <rect x="24" y="130" width="140" height="14" fill="#2f6fed"/>
+  <text x="94" y="134" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Text Input</text>
+  <text x="94" y="162" text-anchor="middle" fill="#2a3340" font-size="11">Earnings calls</text>
+  <text x="94" y="178" text-anchor="middle" fill="#5b6472" font-size="11">10-K filings</text>
+  <text x="94" y="194" text-anchor="middle" fill="#5b6472" font-size="11">News &amp; analyst</text>
+  <text x="94" y="210" text-anchor="middle" fill="#5b6472" font-size="11">reports</text>
+
+  <!-- Arrow 1→2 -->
+  <line x1="164" y1="180" x2="198" y2="180" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Box 2: NLP Features -->
+  <rect x="200" y="110" width="140" height="140" rx="12" fill="#eef2fb" stroke="#B48228" stroke-width="2"/>
+  <rect x="200" y="110" width="140" height="34" rx="12" fill="#B48228"/>
+  <rect x="200" y="130" width="140" height="14" fill="#B48228"/>
+  <text x="270" y="134" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">NLP Features</text>
+  <text x="270" y="162" text-anchor="middle" fill="#2a3340" font-size="11">Sentiment scores</text>
+  <text x="270" y="178" text-anchor="middle" fill="#5b6472" font-size="11">Tone / hedging</text>
+  <text x="270" y="194" text-anchor="middle" fill="#5b6472" font-size="11">LLM embeddings</text>
+  <text x="270" y="210" text-anchor="middle" fill="#5b6472" font-size="11">Topic signals</text>
+
+  <!-- Arrow 2→3 -->
+  <line x1="340" y1="180" x2="374" y2="180" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Box 3: PD Model -->
+  <rect x="376" y="110" width="140" height="140" rx="12" fill="#eef2fb" stroke="#2a3340" stroke-width="2"/>
+  <rect x="376" y="110" width="140" height="34" rx="12" fill="#2a3340"/>
+  <rect x="376" y="130" width="140" height="14" fill="#2a3340"/>
+  <text x="446" y="134" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">PD Model</text>
+  <text x="446" y="162" text-anchor="middle" fill="#2a3340" font-size="11">Logistic / XGBoost</text>
+  <text x="446" y="178" text-anchor="middle" fill="#5b6472" font-size="11">Fine-tuned LLM</text>
+  <text x="446" y="194" text-anchor="middle" fill="#5b6472" font-size="11">Financial ratios</text>
+  <text x="446" y="210" text-anchor="middle" fill="#5b6472" font-size="11">+ text features</text>
+
+  <!-- Arrow 3→4 -->
+  <line x1="516" y1="180" x2="550" y2="180" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Box 4: Decision -->
+  <rect x="552" y="110" width="140" height="140" rx="12" fill="#eef2fb" stroke="#2f6fed" stroke-width="2"/>
+  <rect x="552" y="110" width="140" height="34" rx="12" fill="#2f6fed"/>
+  <rect x="552" y="130" width="140" height="14" fill="#2f6fed"/>
+  <text x="622" y="134" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Decision</text>
+  <text x="622" y="162" text-anchor="middle" fill="#2a3340" font-size="11">PD estimate</text>
+  <text x="622" y="178" text-anchor="middle" fill="#5b6472" font-size="11">Credit grade</text>
+  <text x="622" y="194" text-anchor="middle" fill="#5b6472" font-size="11">Loan / reject</text>
+  <text x="622" y="210" text-anchor="middle" fill="#5b6472" font-size="11">+ SHAP explanation</text>
+
+  <!-- Bottom caption -->
+  <text x="360" y="296" text-anchor="middle" fill="#5b6472" font-size="12">Text signals augment traditional financial ratios in credit scoring</text>
+</svg>

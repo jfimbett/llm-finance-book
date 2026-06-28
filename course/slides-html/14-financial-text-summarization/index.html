@@ -20,7 +20,7 @@
     <h1>Financial Text Summarization &amp; Information Extraction</h1>
     <div class="sub">Turning filings, calls, and reports into structured, faithful facts.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">MBA-friendly · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -322,7 +322,7 @@
       <strong>25–30%</strong> of CNN/DailyMail summaries; untuned financial models fare no better.
     </div>
     <p class="small frag"><strong>Recommendation:</strong> prefer extractive when faithfulness is paramount
-      (esp. numbers); use abstractive when fluency dominates. A <strong>hybrid</strong> (extract, then rephrase) is a useful middle ground.</p>
+      (esp. numbers); use abstractive when fluency dominates. A <strong>hybrid</strong> (extract, then rephrase) achieves a useful tradeoff (See et al., 2017).</p>
   </section>
 
   <section class="slide">
@@ -335,9 +335,14 @@
         <div class="bigpicture callout"><span class="callout-tag">why the MD&amp;A is the prize</span>
           The MD&amp;A is the densest section for an equity investor — management's interpretation and
           forward guidance. Its tone, readability, and length carry measurable signal about future
-          earnings and returns (Loughran–McDonald). Tone-preservation must be an <em>explicit</em>
-          constraint in any faithful prompt.
+          earnings and returns (Loughran &amp; McDonald, 2011). Tone-preservation must be an <em>explicit</em>
+          constraint in any faithful prompt (Lehner, 2024).
         </div>
+        <figure class="deckfig">
+          <img src="../assets/figures/14-financial-text-summarization/diagram.svg" alt="Summarization pipeline: 10-K to chunks to map-reduce to executive summary">
+          <figcaption><b>Figure.</b> Three-stage map-reduce summarization pipeline: a 10-K is chunked, each chunk is summarised independently (map), and the chunk summaries are aggregated into a final executive summary (reduce).
+            <span class="src">Source: Chapter 14 illustration.</span></figcaption>
+        </figure>
       </div>
       <div class="col">
         <div class="block"><div class="block-title">Three-stage pipeline</div>
@@ -384,7 +389,8 @@ Quote all numbers exactly as stated.
       </div>
       <div class="col">
         <ul>
-          <li class="frag"><strong>Earnings transcripts</strong> — 15,000–30,000 words; uneven density (prepared remarks dense; Q&amp;A mixes signal + boilerplate). <strong>ECTSum</strong>: 2,425 transcript–summary pairs, 3–6 abstractive bullets each.</li>
+          <li class="frag"><strong>Earnings transcripts</strong> — 15,000–30,000 words; uneven density (prepared remarks dense; Q&amp;A mixes signal + boilerplate). <strong>ECTSum</strong>: 2,425 transcript–summary pairs, 3–6 abstractive bullets each (Mukherjee et al., 2022). Local (on-premise) LLMs evaluated on bank earnings calls — tone, topics, sentiment, temporal orientation — provide a resource-conscious alternative (Cook &amp; Kazinnik, 2023).</li>
+          <li class="frag"><strong>Informational value is measurable</strong> — LLM contextual representations of earnings press releases and calls explain substantially more variation in short-window stock returns than dictionary methods (Siano, 2025); extracted tone/emotion signals predict corporate bond recovery rates in default (Ernstberger &amp; Nazemi, 2025).</li>
           <li class="frag"><strong>S-1 filings</strong> — a tech S-1 can exceed <strong>300,000 words</strong>.</li>
         </ul>
       </div>
@@ -442,6 +448,9 @@ Quote all numbers exactly as stated.
       <span class="callout-tag">coverage gap</span>
       Non-GAAP measures (adjusted EBITDA, organic growth, book-to-bill) and many footnotes are <em>not</em>
       XBRL-tagged. Combine XBRL for core figures with LLM/NLP extraction for the surrounding narrative.
+      Prompt-engineering frameworks achieve high accuracy on PDF-formatted unstructured sources (Li &amp; Gao, 2023);
+      sequential prompting of 10-K filings identifies non-recurring items and outperforms traditional
+      accounting metrics in forecasting persistent earnings (Shaffer &amp; Wang, 2024).
     </div>
   </section>
 
@@ -550,8 +559,10 @@ Quote all numbers exactly as stated.
     <div class="alert callout frag">
       <span class="callout-tag">but neither one measures truth</span>
       A summary inventing "revenue grew 15%" (true: 13%) can still score high if the surrounding language
-      matches the reference. And outputs can be inconsistent <em>across runs</em> — reproducibility itself is
-      a QA concern. Similarity metrics rank fluency and coverage, not facts.
+      matches the reference. And outputs can be inconsistent <em>across runs</em> — the first systematic
+      assessment of LLM output consistency on MD&amp;As, FOMC statements, and earnings transcripts finds
+      meaningful stochastic variation that undermines reliability in production systems (Wang &amp; Wang, 2025).
+      Similarity metrics rank fluency and coverage, not facts.
     </div>
   </section>
 

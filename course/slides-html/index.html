@@ -96,17 +96,17 @@ LECTURES.forEach(([slug, title, desc], i) => {
   const card = document.createElement("div");
   card.className = "card";
   const setupLink = slug === "01-intro"
-    ? `\n      <a class="go prac" href="${slug}/tech-requirements.html">Setup &amp; tech requirements</a>`
+    ? `\n      <a class="go prac" target="_blank" rel="noopener" href="${slug}/tech-requirements.html">Setup &amp; tech requirements</a>`
     : "";
   card.innerHTML = `<div class="num">Lecture ${n}</div><h3>${title}</h3><p>${desc}</p>
     <div class="links">
-      <a class="go" href="${slug}/index.html">Lecture slides <span class="arr">→</span></a>
-      <a class="go prac" href="${slug}/practical.html">Practical session</a>${setupLink}
+      <a class="go" target="_blank" rel="noopener" href="${slug}/index.html">Lecture slides <span class="arr">→</span></a>
+      <a class="go prac" target="_blank" rel="noopener" href="${slug}/practical.html">Practical session</a>${setupLink}
     </div>`;
-  // make the whole card open the lecture, except when a specific link is clicked
+  // make the whole card open the lecture in a new tab, except when a specific link is clicked
   card.addEventListener("click", (e) => {
     if (e.target.closest("a")) return;
-    location.href = slug + "/index.html";
+    window.open(slug + "/index.html", "_blank", "noopener");
   });
   card.style.cursor = "pointer";
   grid.appendChild(card);

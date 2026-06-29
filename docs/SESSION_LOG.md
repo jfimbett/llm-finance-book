@@ -292,3 +292,4 @@
 | 2026-06-29 | 758 files | Merge pull request #2 from jfimbett/fix/pages-nojekyll;fix(site): add .nojekyll to disable Jekyll on GitHub Pages;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 758 files | feat(lec02): add the tiny-GPT matrix walk-through to the slides;chore: session log 2026-06-29;Merge pull request #2 from jfimbett/fix/pages-nojekyll; | — |
 | 2026-06-29 | 3 files | feat(lec02): full 7-step matrix walk-through of the tiny GPT on the slides;chore: session log 2026-06-29;feat(lec02): add the tiny-GPT matrix walk-through to the slides; | — |
+| 2026-06-29 | 4 files | feat(site): build appendices volume and link it from the landing page;chore: session log 2026-06-29;feat(lec02): full 7-step matrix walk-through of the tiny GPT on the slides; | — |

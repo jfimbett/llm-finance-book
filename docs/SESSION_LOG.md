@@ -305,3 +305,4 @@
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;feat(lec01): add a Git & GitHub CLI section to the setup guide;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 2 files | feat(lec01): add Claude Code extension + explicit extension-install steps;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;feat(lec01): add Claude Code extension + explicit extension-install steps;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat(lec01): add Claude Code extension + explicit extension-install steps; | — |

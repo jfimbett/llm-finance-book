@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM in Finance — Course Slides</title>
+<link rel="stylesheet" href="assets/slides.css">
+<style>
+  body { overflow: auto; }
+  .home { max-width: 1180px; margin: 0 auto; padding: 0 24px 90px; }
+  .hero { padding: 92px 0 36px; }
+  .hero .kick { font-family: var(--sans); font-weight: 800; letter-spacing:.16em; text-transform: uppercase;
+    color: var(--narrativerule); font-size: 13px; }
+  .hero h1 { font-size: clamp(34px, 6vw, 68px); line-height: 1.02; margin: 12px 0 10px; color: var(--linkblue);
+    letter-spacing: -.02em; }
+  .hero p { font-size: clamp(17px, 2.1vw, 23px); color: var(--ink-soft); max-width: 62ch; margin:.2em 0; }
+  .hero .author { font-family: var(--sans); margin-top: 18px; color: var(--ink-soft); font-size: 15px; }
+  .hero .author b { color: var(--ink); }
+  .legend { display:flex; gap: 22px; flex-wrap: wrap; margin: 26px 0 0; font-family: var(--sans); font-size: 14px; color: var(--ink-soft); }
+  .legend .k { display:flex; align-items:center; gap:8px; }
+  .legend .sw { width: 26px; height: 16px; border-radius: 5px; display:inline-block; }
+  .sw.warm { background: var(--narrativebg); border:1px solid #e7d6ad; border-top:3px solid var(--narrativerule); }
+  .sw.blue { background: var(--deepdivebg); border:1px solid #cfe0f6; border-left:3px solid var(--linkblue); }
+
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(310px,1fr)); gap: 20px; margin-top: 30px; }
+  .card { display:block; text-decoration:none; color:inherit; background:#fff; border:1px solid var(--line);
+    border-radius: 18px; padding: 22px 22px 20px; box-shadow: var(--shadow); position: relative; overflow:hidden;
+    transition: transform .2s cubic-bezier(.2,.7,.2,1), box-shadow .2s; opacity:0; transform: translateY(18px); }
+  .card.in { opacity: 1; transform: none; }
+  .card:hover { transform: translateY(-5px); box-shadow: 0 18px 44px rgba(14,75,140,.20); border-color:#bcd3ee; }
+  .card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:5px;
+    background: linear-gradient(180deg, var(--linkblue), var(--steelblue)); }
+  .card .num { font-family: var(--sans); font-weight: 800; font-size: 13px; color: var(--narrativerule); letter-spacing:.06em; }
+  .card h3 { font-size: 20px; color: var(--linkblue); margin: 6px 0 8px; line-height: 1.16; }
+  .card p { font-size: 15px; color: var(--ink-soft); margin: 0; line-height: 1.42; }
+  .card .links { margin-top: 14px; display:flex; gap:18px; align-items:center; }
+  .card .go { font-family: var(--sans); font-size: 13.5px; font-weight: 700; color: var(--linkblue);
+    display:inline-flex; align-items:center; gap:6px; text-decoration:none; }
+  .card .go.prac { color: var(--narrativerule); font-weight: 600; }
+  .card .go:hover { text-decoration: underline; }
+  .card .go .arr { transition: transform .2s; }
+  .card:hover .go .arr { transform: translateX(4px); }
+  .foot { margin-top: 40px; font-family: var(--sans); font-size: 13.5px; color: var(--ink-soft); }
+  .pillrow { margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="home">
+  <header class="hero">
+    <div class="kick">Paris Dauphine – PSL University · Graduate Course</div>
+    <h1>Large Language Models in Finance</h1>
+    <p>From counting words in filings to agents that read, reason, and trade — the full arc, in seventeen lectures.</p>
+    <p class="pillrow">
+      <span class="pill b">plain-language narrative</span>
+      <span class="pill b">Math one click away</span>
+      <span class="pill g">Interactive HTML slides</span>
+      <span class="pill o">Keyboard-driven</span>
+    </p>
+    <div class="author">Lecturer &nbsp;<b>Juan F. Imbet</b> &nbsp;·&nbsp; juan.imbet@dauphine.psl.eu</div>
+    <div class="legend">
+      <div class="k"><span class="sw warm"></span> the bigger picture — the plain-language story</div>
+      <div class="k"><span class="sw blue"></span> under the hood — the math, expandable in place (press <b>&nbsp;m&nbsp;</b>)</div>
+    </div>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <div class="foot">
+    Open any lecture, then use <b>→ / ←</b> to move, <b>m</b> to reveal the math, <b>o</b> for an overview, <b>?</b> for help.
+  </div>
+</div>
+
+<script>
+const LECTURES = [
+  ["01-intro", "From Text to Signals in Finance", "How words in filings, calls, and headlines become numbers you can trade — and the toolkit before LLMs."],
+  ["02-llm-foundations", "How a Language Model Works", "From RNNs and LSTMs to the Transformer: attention, pre-training, and what makes GPT and BERT tick."],
+  ["03-llm-training-finetuning", "Training & Fine-Tuning LLMs", "Pre-training, fine-tuning, LoRA, and RLHF — how a general model becomes a finance specialist."],
+  ["04-llm-agents", "LLM Agents in Finance", "Tools, memory, and planning: turning a chatbot into an analyst that takes actions."],
+  ["05-business-valuation", "LLMs for Business Valuation", "Reading 10-Ks and building DCFs with language models — and where they go wrong."],
+  ["06-credit-risk", "LLMs for Credit Risk", "Scoring borrowers and counterparties from text, with the fairness and validation pitfalls."],
+  ["07-applications-future", "Applications & Future Trends", "A tour of where LLMs are reshaping finance — and what's coming next."],
+  ["08-domain-specific-llms", "Domain-Specific Financial LLMs", "When finance needs its own models: BloombergGPT, FinBERT, and the build-vs-buy call."],
+  ["09-financial-nlp-sentiment", "Financial NLP & Sentiment", "Treating language as financial data: sentiment, events, and signal construction."],
+  ["10-portfolio-quant-trading", "Portfolio & Quant Trading", "Signals, backtests, and risk: putting text-based alpha into a real strategy."],
+  ["11-regtech-compliance-aml", "RegTech, Compliance & AML", "LLMs for regulation, surveillance, and anti-money-laundering."],
+  ["12-xai-explainability", "Explainability & Interpretability", "Explainable AI for finance: making model decisions auditable and defensible."],
+  ["13-llm-limitations-evaluation", "Limitations & Evaluation", "When the model sounds right but is wrong — hallucination, bias, and rigorous testing."],
+  ["14-financial-text-summarization", "Summarization & Extraction", "Turning filings, calls, and reports into structured, faithful facts."],
+  ["15-privacy-local-models", "Privacy & Local Models", "Local deployment and text de-identification when data can't leave the building."],
+  ["16-ai-ml-finance-text", "AI/ML Foundations for Finance Text", "The machine-learning groundwork beneath everything else in the course."],
+  ["17-loops-goals-iterations", "Loops, Goals & Iterations", "Agents, skills, and hooks: orchestrating LLMs into repeatable workflows."],
+];
+const grid = document.getElementById("grid");
+LECTURES.forEach(([slug, title, desc], i) => {
+  const n = slug.slice(0,2);
+  const card = document.createElement("div");
+  card.className = "card";
+  const setupLink = slug === "01-intro"
+    ? `\n      <a class="go prac" href="${slug}/tech-requirements.html">Setup &amp; tech requirements</a>`
+    : "";
+  card.innerHTML = `<div class="num">Lecture ${n}</div><h3>${title}</h3><p>${desc}</p>
+    <div class="links">
+      <a class="go" href="${slug}/index.html">Lecture slides <span class="arr">→</span></a>
+      <a class="go prac" href="${slug}/practical.html">Practical session</a>${setupLink}
+    </div>`;
+  // make the whole card open the lecture, except when a specific link is clicked
+  card.addEventListener("click", (e) => {
+    if (e.target.closest("a")) return;
+    location.href = slug + "/index.html";
+  });
+  card.style.cursor = "pointer";
+  grid.appendChild(card);
+  setTimeout(() => card.classList.add("in"), 90 + i * 55);
+});
+</script>
+</body>
+</html>

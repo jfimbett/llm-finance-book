@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LLMs for Finance — Barcelona School of Economics Summer School</title>
+<meta name="description" content="Large Language Models in Finance — a Barcelona School of Economics Summer School course by Juan F. Imbet." />
+<style>
+  :root {
+    /* Barcelona School of Economics palette */
+    --bg: #ffffff;
+    --bg-soft: #f4f6f7;
+    --panel: #ffffff;
+    --border: #e2e6e9;
+    --text: #121212;
+    --muted: #5a646b;
+    --accent: #00859b;        /* BSE teal */
+    --accent-dark: #006b7d;
+    --accent-soft: #e6f3f5;
+    --gold: #f26c19;          /* BSE orange */
+    --maxw: 1080px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  header.hero {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(0,133,155,0.10), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(242,108,25,0.07), transparent 55%),
+      var(--bg);
+    border-bottom: 3px solid var(--accent);
+    padding: 72px 0 56px;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    border: 1px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-size: clamp(2.1rem, 5vw, 3.4rem);
+    line-height: 1.1;
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+  .subtitle { font-size: clamp(1.05rem, 2.2vw, 1.35rem); color: var(--muted); max-width: 720px; margin: 0 0 28px; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 10px 28px; color: var(--muted); font-size: 0.98rem; margin-bottom: 32px; }
+  .meta-row strong { color: var(--text); font-weight: 600; }
+  .cta { display: flex; flex-wrap: wrap; gap: 14px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 0.98rem;
+    border: 1px solid var(--border); transition: transform .12s ease, background .15s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-ghost { background: var(--panel); color: var(--text); }
+  .btn-ghost:hover { background: var(--bg-soft); }
+
+  /* Sections */
+  section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+  h2 { font-size: 1.7rem; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .lead { color: var(--muted); margin: 0 0 28px; max-width: 760px; }
+
+  .grid { display: grid; gap: 18px; }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+    box-shadow: 0 1px 3px rgba(18,18,18,0.04);
+  }
+  .card h3 { margin: 0 0 8px; font-size: 1.1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.96rem; }
+
+  /* Syllabus */
+  ol.syllabus { list-style: none; counter-reset: ch; margin: 0; padding: 0; display: grid; gap: 10px; }
+  ol.syllabus li {
+    counter-increment: ch;
+    display: flex; align-items: flex-start; gap: 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(18,18,18,0.04);
+  }
+  ol.syllabus li::before {
+    content: counter(ch, decimal-leading-zero);
+    font-variant-numeric: tabular-nums;
+    color: var(--accent); font-weight: 700; font-size: 0.95rem;
+    background: var(--accent-soft); border: 1px solid var(--accent-soft);
+    border-radius: 8px; min-width: 38px; text-align: center; padding: 4px 0;
+  }
+  ol.syllabus li .t { font-weight: 600; }
+  ol.syllabus li .d { color: var(--muted); font-size: 0.9rem; display: block; }
+  ol.syllabus li .mat { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.86rem; font-weight: 600; }
+  ol.syllabus li .mat a::after { content: " →"; }
+
+  /* Status pills */
+  .pill { display: inline-block; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 3px 10px; border-radius: 999px; vertical-align: middle; }
+  .pill.soon { background: rgba(242,108,25,0.10); color: var(--gold); border: 1px solid rgba(242,108,25,0.35); }
+  .pill.live { background: rgba(0,133,155,0.10); color: var(--accent); border: 1px solid rgba(0,133,155,0.4); }
+
+  .notice {
+    background: linear-gradient(180deg, rgba(242,108,25,0.07), transparent);
+    border: 1px solid rgba(242,108,25,0.3); border-radius: 14px; padding: 22px 24px;
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .notice .ic { font-size: 1.4rem; line-height: 1; }
+  .notice p { margin: 0; color: var(--muted); }
+  .notice strong { color: var(--text); }
+
+  footer { padding: 40px 0 48px; background: #121212; color: #aeb6bc; font-size: 0.92rem; border-top: 3px solid var(--accent); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+
+  @media (max-width: 820px) {
+    .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Barcelona School of Economics · Summer School</span>
+    <h1>Large Language Models for Finance</h1>
+    <p class="subtitle">
+      A hands-on graduate course on how large language models, agents, and modern NLP
+      are reshaping financial research and practice — from transformer foundations to
+      valuation, credit risk, trading, and compliance.
+    </p>
+    <div class="meta-row">
+      <span><strong>Instructor:</strong> Juan F. Imbet</span>
+      <span><strong>Host:</strong> Barcelona School of Economics</span>
+      <span><strong>Format:</strong> Summer School · lectures + Python labs</span>
+      <span><strong>Level:</strong> Graduate / professional</span>
+    </div>
+    <div class="cta">
+      <a class="btn btn-primary" href="book/main.pdf" target="_blank" rel="noopener">
+        Read the book (PDF) →
+      </a>
+      <a class="btn btn-ghost" href="course/slides-html/index.html">View the slides</a>
+      <a class="btn btn-ghost" href="https://github.com/jfimbett/llm-finance-book" target="_blank" rel="noopener">Code on GitHub →</a>
+    </div>
+  </div>
+</header>
+
+<section id="about">
+  <div class="wrap">
+    <h2>About the course</h2>
+    <p class="lead">
+      This course bridges the theory of large language models with their applied use in
+      finance. We start from the architecture and training of modern LLMs, then build toward
+      autonomous agents and concrete financial applications. Each topic pairs conceptual
+      depth with reproducible Python labs.
+    </p>
+    <div class="grid cols-3">
+      <div class="card">
+        <h3>Foundations</h3>
+        <p>Transformer architecture, tokenization, pre-training, fine-tuning, and what actually makes these models work.</p>
+      </div>
+      <div class="card">
+        <h3>Agents &amp; workflows</h3>
+        <p>Tool use, retrieval, loops, goals, and iterations — building LLM agents that act on financial tasks.</p>
+      </div>
+      <div class="card">
+        <h3>Applied finance</h3>
+        <p>Valuation, credit risk, sentiment, portfolio construction, RegTech, summarization, and explainability.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="syllabus">
+  <div class="wrap">
+    <h2>Syllabus</h2>
+    <p class="lead">
+      Seventeen modules spanning model internals and financial applications. Slides for the
+      first four modules are live below; the remaining materials are released progressively.
+    </p>
+    <ol class="syllabus">
+      <li><span><span class="t">Introduction <span class="pill live">Available</span></span><span class="d">Why LLMs matter for finance, and how the course is structured.</span><span class="mat"><a href="course/slides-html/01-intro/index.html">Lecture slides</a><a href="course/slides-html/01-intro/practical.html">Practical session</a><a href="course/slides-html/01-intro/tech-requirements.html">Setup guide</a></span></span></li>
+      <li><span><span class="t">LLM Architecture &amp; Practice <span class="pill live">Available</span></span><span class="d">Transformers, attention, tokenization, and the modern LLM stack.</span><span class="mat"><a href="course/slides-html/02-llm-foundations/index.html">Lecture slides</a><a href="course/slides-html/02-llm-foundations/practical.html">Practical session</a></span></span></li>
+      <li><span><span class="t">Training &amp; Fine-Tuning <span class="pill live">Available</span></span><span class="d">Pre-training, instruction tuning, LoRA, and adapting models to finance.</span><span class="mat"><a href="course/slides-html/03-llm-training-finetuning/index.html">Lecture slides</a><a href="course/slides-html/03-llm-training-finetuning/practical.html">Practical session</a></span></span></li>
+      <li><span><span class="t">LLM Agents in Finance <span class="pill live">Available</span></span><span class="d">Tool use, planning, and autonomous agents for financial tasks.</span><span class="mat"><a href="course/slides-html/04-llm-agents/index.html">Lecture slides</a><a href="course/slides-html/04-llm-agents/practical.html">Practical session</a></span></span></li>
+      <li><span><span class="t">Business Valuation</span><span class="d">Using LLMs to support and scale company valuation workflows.</span></span></li>
+      <li><span><span class="t">Credit Risk Analysis</span><span class="d">Language models for borrower assessment and default prediction.</span></span></li>
+      <li><span><span class="t">Applications &amp; Future Trends</span><span class="d">Emerging use cases across the financial industry.</span></span></li>
+      <li><span><span class="t">Domain-Specific Financial LLMs</span><span class="d">Building and evaluating finance-tuned models and corpora.</span></span></li>
+      <li><span><span class="t">Financial NLP &amp; Sentiment</span><span class="d">Lexicons, classifiers, and sentiment signals from financial text.</span></span></li>
+      <li><span><span class="t">Portfolio Optimization &amp; Trading</span><span class="d">LLM-driven signals for quantitative trading and allocation.</span></span></li>
+      <li><span><span class="t">RegTech, Compliance &amp; AML</span><span class="d">Regulation, monitoring, and anti-money-laundering pipelines.</span></span></li>
+      <li><span><span class="t">Explainability &amp; Interpretability</span><span class="d">Making model decisions transparent and auditable in finance.</span></span></li>
+      <li><span><span class="t">Limitations &amp; Rigorous Evaluation</span><span class="d">Hallucination, benchmarking, and trustworthy evaluation.</span></span></li>
+      <li><span><span class="t">Text Summarization &amp; Extraction</span><span class="d">Condensing filings, reports, and news into structured signals.</span></span></li>
+      <li><span><span class="t">Privacy &amp; Local Deployments</span><span class="d">On-prem models, de-identification, and data protection.</span></span></li>
+      <li><span><span class="t">AI, ML &amp; Text in Finance</span><span class="d">Situating LLMs within the broader machine-learning toolkit.</span></span></li>
+      <li><span><span class="t">Loops, Goals &amp; Iterations</span><span class="d">Agents, skills, and hooks — orchestrating reliable LLM systems.</span></span></li>
+    </ol>
+  </div>
+</section>
+
+<section id="materials">
+  <div class="wrap">
+    <h2>Course materials</h2>
+    <p class="lead">Everything you need to follow along, released progressively.</p>
+    <div class="grid cols-3">
+      <div class="card">
+        <h3>Setup &amp; tech requirements <span class="pill live">Available</span></h3>
+        <p>Install everything before the first session — Anaconda, VS Code, Node.js, Claude Code, Cline, and API keys, on Windows/macOS/Linux:
+          <a href="course/slides-html/01-intro/tech-requirements.html">Open the setup guide →</a></p>
+      </div>
+      <div class="card">
+        <h3>Lecture slides <span class="pill live">Available</span></h3>
+        <p>Interactive HTML decks — lecture and practical — for the first four modules are live, with the rest released progressively:
+          <a href="course/slides-html/index.html">Browse all slide decks →</a></p>
+      </div>
+      <div class="card">
+        <h3>The book (PDF) <span class="pill live">Available</span></h3>
+        <p>Read the full <em>Large Language Models in Finance</em> manuscript in your browser:
+          <a href="book/main.pdf" target="_blank" rel="noopener">View the book (PDF) →</a></p>
+      </div>
+      <div class="card">
+        <h3>Readings &amp; notes <span class="pill soon">Coming soon</span></h3>
+        <p>Chapter notes and reference material accompanying each lecture.</p>
+      </div>
+      <div class="card">
+        <h3>Code &amp; notebooks <span class="pill live">Available</span></h3>
+        <p>Python labs and figure-generation code live in the public repository:
+          <a href="https://github.com/jfimbett/llm-finance-book" target="_blank" rel="noopener">github.com/jfimbett/llm-finance-book</a>.</p>
+      </div>
+    </div>
+    <div style="height:24px"></div>
+    <div class="notice">
+      <span class="ic">🗓️</span>
+      <p><strong>Release in progress.</strong> The book PDF and the slide decks for the first four
+      modules are available now; the remaining modules and student handouts are being finalized
+      and will appear here ahead of the Summer School.</p>
+    </div>
+  </div>
+</section>
+
+<section id="code">
+  <div class="wrap">
+    <h2>Companion code</h2>
+    <p class="lead">
+      All notebooks, the shared <code>llmfin</code> Python package, and the scripts used to
+      generate the book's figures are open-source on GitHub.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/jfimbett/llm-finance-book" target="_blank" rel="noopener">
+        jfimbett/llm-finance-book →
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/jfimbett/llm-finance-book/tree/master/code" target="_blank" rel="noopener">
+        Browse the code directory
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Juan F. Imbet · Large Language Models for Finance</span>
+    <span>Barcelona School of Economics — Summer School</span>
+  </div>
+</footer>
+
+</body>
+</html>

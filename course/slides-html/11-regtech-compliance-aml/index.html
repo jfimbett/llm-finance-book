@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 11 — RegTech, Compliance, and Anti-Money Laundering</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 11 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 11 / Lecture 11</div>
+    <h1>RegTech, Compliance, and Anti-Money Laundering</h1>
+    <div class="sub">Where LLMs meet a world already saturated with rules — and how to deploy them without breaking those rules.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>The regulatory landscape</strong> — five overlapping frameworks an LLM must satisfy at once.</li>
+          <li class="frag"><strong>Anti-money laundering</strong> — breaking the false-positive crisis with agentic, RAG-based screening.</li>
+          <li class="frag"><strong>KYC &amp; sanctions</strong> — entity resolution, PEPs, and hidden beneficial owners.</li>
+          <li class="frag"><strong>Reporting automation</strong> — XBRL, SARs, stress narratives as drafts plus verification.</li>
+          <li class="frag"><strong>Governance &amp; audit</strong> — why oversight matters as much as the model.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          Compliance is the <em>oldest friction in finance</em>. AI did not arrive on a blank slate —
+          it walked into a room full of rules written before anyone imagined a neural network.
+          The whole lecture asks: <em>how do you make a language model useful here without making it a liability?</em>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>The regulatory landscape for AI in finance</h2>
+    <div class="secsub">Not too little guidance — too much, in five different vocabularies.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The starting condition</div>
+    <h2>Compliance is the oldest friction in finance</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Long before neural networks, banks employed armies of analysts to read news, cross-reference
+      sanctions lists, and write suspicious-activity reports. AI entered an environment
+      <em>already saturated</em> with rules — rules not written with AI in mind.
+    </div>
+    <p class="lead frag">The challenge is not too little guidance. It is too much. A single LLM for adverse-media
+      screening must satisfy several regimes at once:</p>
+    <ul>
+      <li class="frag"><strong>EU AI Act</strong> — risk classification &amp; conformity assessment</li>
+      <li class="frag"><strong>MiFID II</strong> — algorithmic governance &amp; suitability documentation</li>
+      <li class="frag"><strong>GDPR</strong> — automated processing &amp; data-minimisation constraints</li>
+      <li class="frag"><strong>FATF</strong> — the risk-based approach to AML/CFT</li>
+      <li class="frag"><strong>SR 11-7 / EBA</strong> — model risk management expectations</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the catch</span>
+      Each framework uses different vocabulary, evidence standards, and oversight ownership. Satisfying one
+      does not mean satisfying the others.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">EU AI Act · Reg. (EU) 2024/1689</div>
+    <h2>The law sorts every AI system into one of four risk tiers</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The first comprehensive horizontal AI law classifies systems by their risk to health,
+      safety, or fundamental rights — and the tier decides how much you must do.</p>
+    <table>
+      <tr><th>Tier</th><th>Examples</th><th>Status</th></tr>
+      <tr><td>Unacceptable</td><td>social scoring, biometric ID</td><td>Prohibited</td></tr>
+      <tr><td>High risk</td><td>creditworthiness, insurance (Annex III)</td><td>Mandatory requirements</td></tr>
+      <tr><td>Limited risk</td><td>chatbots, emotion recognition</td><td>Transparency</td></tr>
+      <tr><td>Minimal risk</td><td>spam filters, recommenders</td><td>Unregulated</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">the critical question for finance: Annex III?</span>
+      Creditworthiness assessment is <em>explicitly</em> listed. Adverse-media screening that
+      <em>determines</em> credit / insurance / payment access → high-risk. An LLM that merely
+      <em>summarises</em> an article for a human analyst → limited / minimal risk.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">High-risk = a build spec</div>
+    <h2>Each high-risk obligation maps to a concrete engineering choice</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The "high-risk" label is not just paperwork — it dictates how you architect the system.
+      Seven mandatory requirements, seven build decisions.</p>
+    <table>
+      <tr><th>Requirement</th><th>Engineering implication</th></tr>
+      <tr><td>Risk management (lifecycle)</td><td>drift monitoring, re-validation</td></tr>
+      <tr><td>Data governance</td><td>representative, proxy-free training data</td></tr>
+      <tr><td>Technical documentation</td><td>ex-post reviewable model cards</td></tr>
+      <tr><td>Automatic logging</td><td>audit-trail infrastructure</td></tr>
+      <tr><td>Transparency to deployers</td><td>instructions for use</td></tr>
+      <tr><td>Human oversight</td><td>analyst review-queue UI</td></tr>
+      <tr><td>Accuracy / robustness / security</td><td>benchmarking + red-teaming</td></tr>
+    </table>
+    <aside class="underhood" data-title="provider vs. deployer">
+      The seven obligations attach to the <em>provider</em> of the AI system. A bank that integrates a
+      third-party tool is a <em>deployer</em>, not a provider — but it inherits a parallel duty of care:
+      use the system within its stated scope, keep humans genuinely in the loop, and log outputs for
+      ex-post review. <strong>Third-party reliance does not eliminate regulatory liability.</strong>
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Three more regimes for models</div>
+    <h2>MiFID II, Basel III, and SR 11-7 each police the model differently</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Framework</th><th>What it requires of models</th></tr>
+      <tr><td>MiFID II</td><td>kill switches, pre/post-trade limits, annual self-assessment</td></tr>
+      <tr><td>Basel III (IRB)</td><td>supervisory validation, back-testing, stress testing</td></tr>
+      <tr><td>SR 11-7</td><td>inventory, independent validation, ongoing monitoring</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">What SR 11-7 calls a "model"</div>
+      A quantitative method that applies statistical / economic / mathematical theory to process input
+      data into quantitative estimates. Three pillars: <em>development</em>, <em>validation</em>, <em>governance</em>.
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">why LLMs strain SR 11-7</span>
+      Outputs are probabilistic; internals are not interpretable like a logistic coefficient; behaviour
+      shifts with prompt reformulation. The FSB (2024) flags "challenges for existing MRM frameworks" and
+      urges pre-deployment testing, benchmark monitoring, and adversarial-prompt scenario analysis.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">GDPR · the data-protection floor</div>
+    <h2>Four GDPR articles bind every LLM compliance pipeline</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Article</th><th>Constraint on LLM compliance systems</th></tr>
+      <tr><td>Art. 5 (minimisation)</td><td>retain only necessary data — tension with RAG chunks</td></tr>
+      <tr><td>Art. 9 (special data)</td><td>ethnicity, politics, convictions → legal basis: Art. 9(2)(g) (substantial public interest in AML compliance)</td></tr>
+      <tr><td>Art. 17 (erasure)</td><td>delete embeddings; can't "un-train" fine-tuned weights</td></tr>
+      <tr><td>Art. 22 (auto. decisions)</td><td>right to human review of solely-automated decisions</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Art. 22 in practice</div>
+      A neobank LLM scores <em>A. Petrov</em> at 0.87 (high risk) from articles about a
+      <em>phonetically similar</em> name in an Eastern-European fraud case, and auto-declines onboarding.
+      Art. 22 grants Petrov the right to human review, to state his view, and to contest. "Our AI said so"
+      is <em>not</em> a sufficient explanation — the pipeline must log which articles, passages, and risk
+      factors drove the score.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Anti-money laundering with LLMs</h2>
+    <div class="secsub">From a 95%-noise alert pipeline to context-aware, agentic screening.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The size of the prize</div>
+    <h2>Money laundering is a trillion-dollar problem we barely catch</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Money laundering moves criminal proceeds through the financial system to obscure their origin. FATF
+      estimates <strong>2–5% of global GDP</strong> (~\(\$\)800bn–\(\$\)2tn) is laundered annually — yet only a
+      very small fraction of illicit flows is ever seized or frozen.
+    </div>
+    <p class="lead frag">Why LLMs, why now? The explosion of sources — news, watchlists, beneficial-ownership
+      registries, court filings, social media — has outpaced human analytical capacity, while regulators
+      expect <em>comprehensive</em> monitoring.</p>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">where value lives</span>
+      The gap between the obligation (monitor everything) and the capability (limited analysts) is exactly
+      where LLMs add value. This section: false-positive crisis → agentic screening → RAG architecture →
+      a quantitative Adverse Media Index.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The 20-year status quo</div>
+    <h2>Keyword screening drowns analysts in false alarms</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The dominant paradigm: match name + date-of-birth + nationality against a watchlist, then
+      flag any fuzzy match above a threshold. The problem is what counts as a "match."</p>
+    <ul>
+      <li class="frag">Fuzzy matchers (Jaro–Winkler, Soundex) fire on any vaguely similar string</li>
+      <li class="frag">A name match in isolation carries almost no information</li>
+    </ul>
+    <aside class="underhood" data-title="false-positive rate &amp; precision">
+      Let \(\mathcal{P}\) = true matches, \(\mathcal{N}\) = true negatives, \(\hat P\) = the flagged set.
+      \[
+        \mathrm{FPR} = \frac{|\hat P \cap \mathcal{N}|}{|\mathcal{N}|}, \qquad
+        \mathrm{PPV} = \frac{|\hat P \cap \mathcal{P}|}{|\hat P|}.
+      \]
+      In production, AML screening runs at <strong>FPR 95–99%</strong> — fewer than 1 in 20 alerts is a
+      genuine match.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why noise is dangerous</div>
+    <h2>A flood of false positives makes banks miss the real ones</h2>
+    <div class="title-rule"></div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the cascade</span>
+      Alert noise trains staff to treat <em>all</em> alerts as noise → genuine matches get cleared without
+      scrutiny. Banks are fined both for <em>missing</em> laundering and (paradoxically) for generating
+      <em>excessive low-quality SARs</em>.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the key insight</span>
+      A name match in isolation is not evidence. What matters is whether the <em>contextual</em> evidence is
+      consistent with a launderer's profile — exactly what LLMs assess and keyword matching cannot.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The agentic alternative</div>
+    <h2>An LLM agent screens a subject in five autonomous steps</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Rather than an analyst querying a database, an <strong>agent</strong> is handed a subject
+      and runs a loop — searching, reading, disambiguating, and scoring on its own.</p>
+    <ol>
+      <li class="frag"><strong>Query formulation</strong> — generate searches, including local-language variants</li>
+      <li class="frag"><strong>Document retrieval</strong> — top-\(k\) articles, filtered by date + source tier</li>
+      <li class="frag"><strong>Relevance assessment</strong> — same individual? material? credible source?</li>
+      <li class="frag"><strong>Evidence extraction</strong> — offence type, jurisdiction, date, alleged vs. convicted</li>
+      <li class="frag"><strong>Risk scoring</strong> — structured tier (low/med/high/critical) + cited evidence</li>
+    </ol>
+    <div class="block frag"><div class="block-title">"Carlos Fernandez-Gutierrez, b. 1971, MX"</div>
+      The agent searches EN + ES ("corruption", "money laundering", firm name), reads top-\(k\) articles,
+      disambiguates the individual, extracts structured offence evidence, and emits an actionable risk
+      report — <strong>minutes, not hours</strong>.
+    </div>
+    <p class="small">Design choices: tool selection, memory across steps, error-handling for common-name
+      collisions. The ReAct loop comes from Lecture 4 (Yao et al., 2022). Ngam (2026) demonstrates a
+      <em>Perceive–Reason–Act</em> loop that converts regulatory text directly into executable AML
+      detection features, closing the traceability gap between rules and model outputs.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The architecture underneath</div>
+    <h2>Retrieval-augmented generation in five components</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The screening agent rests on a RAG pipeline: ingest documents, store them as searchable
+      vectors, retrieve the relevant ones, rank them, and format the answer.</p>
+    <table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td>Ingestion</td><td>chunk 200–400 tok (overlap), embed, store + metadata</td></tr>
+      <tr><td>Vector store</td><td>dense embeddings <em>and</em> BM25; incremental + deletable</td></tr>
+      <tr><td>Retriever</td><td>hybrid search; expand query with alias / transliterations</td></tr>
+      <tr><td>Reader / ranker</td><td>cross-encoder: disambiguate entity + classify relevance</td></tr>
+      <tr><td>Formatter</td><td>grammar-constrained JSON: tier, evidence, offences</td></tr>
+    </table>
+    <aside class="underhood" data-title="dataflow">
+      Ingestion \(\to\) vector store \(\to\) retriever \(\to\) reader/ranker \(\to\) formatter. The
+      "deletable" vector store matters for GDPR Art. 17 — you must be able to remove a person's data.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">production constraints</span>
+      Real-time onboarding: full pipeline &lt;30s (pre-built indices, cached embeddings). Batch re-screening:
+      latency relaxed, but throughput must scale to <em>millions of records/day</em>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Combining two kinds of search</div>
+    <h2>Hybrid retrieval: reward documents that two rankers agree on</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Dense search captures meaning; sparse search (BM25) captures exact terms like names and
+      firms. Reciprocal Rank Fusion blends them <em>without</em> learning any weights.</p>
+    <aside class="underhood" data-title="reciprocal rank fusion">
+      Dense (semantic) and sparse (BM25, exact terms) rankings are fused by
+      \[
+        \mathrm{RRF}(d) = \sum_{r \in R} \frac{1}{\kappa + \mathrm{rank}_r(d)},
+        \qquad \kappa = 60.
+      \]
+      Documents missed by a ranker get \(\mathrm{rank} = \infty\) (zero contribution).
+    </aside>
+    <div class="block frag"><div class="block-title">Why fusion is robust</div>
+      A passage ranked highly by <em>both</em> retrievers is promoted <em>above</em> one that any single
+      retriever ranks first. RRF rewards cross-signal agreement — the property that makes hybrid retrieval
+      beat either modality alone on legal / news documents.
+    </div>
+    <figure class="deckfig">
+      <img src="../assets/figures/11-regtech-compliance-aml/fig_rrf.png" alt="Reciprocal rank fusion applied to five candidate passages ranked by dense and sparse retrievers">
+      <figcaption><b>Figure.</b> RRF (κ = 60) applied to five candidate passages, each with its dense and sparse retriever rank. The fused order promotes passages ranked highly by <em>both</em> signals above any single-retriever winner.
+        <span class="src">Source: chapter.tex fig. 11.2, generated by gen_rrf_fusion.py.</span></figcaption>
+    </figure>
+    <p class="small">Worked numerically in the practical session (<code class="inline">gen_rrf_fusion.py</code> / <code class="inline">demo.ipynb</code>).</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From evidence to a number</div>
+    <h2>The Adverse Media Index turns text into a calibrated risk score</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A binary low/high label is too crude. We want a continuous, comparable, trackable score
+      between 0 and 1 — one that weights serious, recent, credible evidence more heavily.</p>
+    <aside class="underhood" data-title="the AMI score">
+      For documents \(D=\{d_1,\dots,d_n\}\) retrieved for subject \(s\), with relevance \(r_i\),
+      credibility \(c_i\), recency \(t_i = e^{-\lambda(T-T_i)}\), and offence indicators
+      \(\mathbf{e}_i \in \{0,1\}^K\):
+      \[
+        \mathrm{AMI}(s) = \sigma\!\left(\alpha + \sum_{i=1}^{n} r_i\, c_i\, t_i\,
+        \mathbf{w}^{\top}\mathbf{e}_i\right) \in [0,1].
+      \]
+      \(\mathbf{w}\) = offence-severity weights (terrorism financing \(\gg\) minor violation);
+      \(\lambda\) = temporal decay (recency vs. history).
+    </aside>
+    <ul>
+      <li class="frag"><strong>Calibrated</strong>: \(\mathbf{w}\) fit by logistic regression on "subject later a true positive in an enforcement action"</li>
+      <li class="frag"><strong>Actionable</strong>: the output is a probability → feeds the bank's risk-based customer rating, combined with transaction monitoring + KYC</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>KYC and sanctions screening</h2>
+    <div class="secsub">One hard problem underneath everything: are these two records the same person?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The central challenge</div>
+    <h2>KYC and sanctions reduce to entity resolution</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      KYC and sanctions screening reduce to one hard problem: do two imperfect, multilingual, sparse records
+      refer to the <em>same</em> real-world entity?
+    </div>
+    <p class="lead frag">Why it is hard:</p>
+    <ul>
+      <li class="frag"><strong>Transliteration variance</strong> — "Muammar Gaddafi" has dozens of renderings</li>
+      <li class="frag"><strong>Name changes</strong> — maiden / married / patronymic</li>
+      <li class="frag"><strong>Watchlist errors</strong> — typos and stale records</li>
+      <li class="frag"><strong>Common-name collisions</strong> — many people share a name in large populations</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How to solve it at scale</div>
+    <h2>Two stages: block fast, then score precisely</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You cannot compare every record against every other one. So first cheaply shrink the
+      candidate set, then run an expensive, accurate model on what survives.</p>
+    <aside class="underhood" data-title="pair classification + blocking">
+      Treat entity resolution as <em>pair classification</em>: given records \(x_1, x_2\), produce a
+      calibrated \(P(\hat y = 1 \mid x_1, x_2)\). Two-stage pipeline: fast approximate-nearest-neighbour
+      blocking (\(O(n^2) \to O(nk)\)), then a precise cross-encoder / LLM scorer — mirroring the
+      retriever–ranker pattern from the AML pipeline.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">threshold asymmetry</span>
+      For sanctions, set the threshold for <em>near-100% recall</em>: a missed true hit costs far more than a
+      false-positive review. LLMs add value by learning transliteration implicitly and resolving ambiguity
+      from auxiliary context.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two harder KYC tasks</div>
+    <h2>Finding politically exposed persons and hidden owners</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Politically Exposed Persons</div>
+          <ul>
+            <li class="frag">Heads of state, senior officials — <em>plus</em> family &amp; close associates (FaMCAs)</li>
+            <li class="frag">FATF requires enhanced due diligence: source-of-wealth, senior approval</li>
+            <li class="frag">Universe is large &amp; changing; commercial DBs are costly, patchy in lower-income jurisdictions</li>
+            <li class="frag">LLMs read Wikipedia / gov sites / news → self-updating PEP registry; relation extraction finds FaMCAs</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Beneficial Ownership</div>
+          <ul>
+            <li class="frag">Shells, trusts, nominees hide the ultimate beneficial owner (UBO)</li>
+            <li class="frag">FATF Rec. 24 + the Corporate Transparency Act require registries — but data is scattered</li>
+            <li class="frag">LLM extracts owners + stakes → a directed ownership graph → traverse to the UBO</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Meridian Capital Holdings (UK)</div>
+      UK PSC → Luxembourg entity → BVI company (no public registry). The LLM builds the graph, flags that
+      the chain terminates in two opacity jurisdictions, and cross-references adverse media — hours of
+      analyst work compressed to minutes.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Regulatory reporting automation</h2>
+    <div class="secsub">Hundreds of thousands of reports a year — all the same three-step shape.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A hidden common structure</div>
+    <h2>Every regulatory report is extract → classify → generate</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      A large bank files <em>hundreds of thousands</em> of regulatory reports a year. Despite apparent
+      heterogeneity, all share one shape: <strong>extract</strong> quantitative data → <strong>classify</strong>
+      into a taxonomy → <strong>generate</strong> explanatory prose. Each step suits a language model.
+    </div>
+    <table>
+      <tr><th>Report</th><th>Core LLM task</th><th>Key risk</th></tr>
+      <tr><td>XBRL filing</td><td>taxonomy concept tagging</td><td>20k+ labels, sparsity</td></tr>
+      <tr><td>SAR</td><td>narrative drafting</td><td>factual error misleads law enforcement</td></tr>
+      <tr><td>Stress test</td><td>narrative from numbers</td><td>numeric hallucination</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the non-negotiable</span>
+      Across all three: the LLM produces <em>drafts</em>; human review plus automated fact-checking are not optional.
+    </div>
+    <div class="block frag"><div class="block-title">Deployed examples</div>
+      Ioannides et al. (2023) present <em>Gracenote.ai</em> — an early GPT-4-based tool that automates
+      extraction of legal obligations and regulatory news feeds. ViracachaP (2024) surveys AI RegTech across GDPR, AML, and tax compliance; Anand (2025) covers BSA, Dodd-Frank, and SOX — both documenting efficiency gains alongside
+      unresolved transparency and privacy challenges.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">XBRL · 20,000 possible labels</div>
+    <h2>Tag filings by retrieving the right concept, not classifying</h2>
+    <div class="title-rule"></div>
+    <p class="lead">XBRL is a standardised machine-readable taxonomy (SEC since 2009; ESEF / iXBRL in the EU).
+      The core operation is tagging each line item with the correct concept — but there are too many concepts
+      to treat it as plain classification.</p>
+    <aside class="underhood" data-title="retrieval + LLM verification">
+      The US GAAP taxonomy has <strong>20,000+ elements</strong> ⇒ flat classification fails (label
+      sparsity). Frame it as retrieval + LLM verification:
+      \[
+        \hat c^* = \arg\max_{c \in \mathcal{C}}
+        \Big[\, \lambda\, \cos(\mathbf{v}_{\text{item}}, \mathbf{v}_c)
+           + (1-\lambda)\, P_{\text{LLM}}(c \mid \text{item}, \text{context}) \,\Big].
+      \]
+      \(\lambda\) interpolates embedding similarity vs. the LLM posterior; cross-validate on labelled
+      historical filings.
+    </aside>
+    <p class="small">Ambiguous items ("other comprehensive income") plus annual taxonomy changes make manual
+      tagging error-prone.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two prose-generation tasks</div>
+    <h2>Drafting SARs and stress-test narratives — with a fact-check</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">SAR drafting</div>
+          <ul>
+            <li class="frag">Filed with FinCEN / NCA / TRACFIN on suspicious activity</li>
+            <li class="frag">A skilled analyst spends <strong>2–4 hours</strong> per complex SAR</li>
+            <li class="frag">LLM drafts the narrative → analyst reviews / validates / supplements</li>
+            <li class="frag">A SAR mischaracterising activity misleads law enforcement → liability. Human review <em>non-negotiable</em>; flag weak-evidence passages</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Stress-test narratives</div>
+          <ul>
+            <li class="frag">Supervisory submissions run to <em>hundreds of pages</em> of prose</li>
+            <li class="frag">Quantitative results → template-constrained LLM commentary</li>
+            <li class="frag">RAG-ground in prior submissions for consistency</li>
+            <li class="frag">Stating "ratio fell 3pp" when output says 2.7pp is a <em>material</em> error → post-hoc fact-check pass</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">EU AI Act &amp; degree of automation</span>
+      An LLM that <em>assists</em> (pre-populates a template for human review) → limited-risk. An LLM that
+      <em>files</em> a SAR autonomously → almost certainly high-risk (full conformity assessment). Compliant
+      designs adopt the former.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Governance and audit trails</h2>
+    <div class="secsub">A modest model with strong oversight beats a brilliant one with none.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Governance ≈ technology</div>
+    <h2>Oversight can matter more than the model itself</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Compliance functions are governance structures, not just technical systems. A technically excellent
+      system with weak oversight <em>fails</em> regulatory review; a modest system with strong governance may
+      <em>pass</em>.
+    </div>
+    <p class="lead frag">Explainability serves two distinct audiences, and they want different things:</p>
+    <table>
+      <tr><th>Purpose</th><th>Explanation must be…</th></tr>
+      <tr><td>Regulatory (GDPR 22, FCRA)</td><td>lay-intelligible, actionable, top factors</td></tr>
+      <tr><td>Internal governance</td><td>precise, reproducible, validation-complete</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>Retrieval transparency</strong> — show top-3 grounding passages + scores</li>
+      <li class="frag"><strong>Chain-of-thought rationale</strong> — stored, auditable reasoning trace</li>
+      <li class="frag"><strong>Post-hoc attribution</strong> — SHAP on the risk-tier classifier; attention weights are only a <em>rough</em> guide, not standalone explanations</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The oversight trap</div>
+    <h2>Keep the human in the loop — but design against rubber-stamping</h2>
+    <div class="title-rule"></div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the failure mode</span>
+      Poor human-in-the-loop exhibits <em>automation bias</em>: reviewers rubber-stamp the model, especially
+      with large queues, short review time, and discouraged overrides — oversight in form, not substance.
+    </div>
+    <p class="lead frag">Four design dimensions counteract it:</p>
+    <ul>
+      <li class="frag"><strong>Task decomposition</strong> — give the human a task they do <em>better</em> than the model (geopolitical context, disambiguation, escalation calls)</li>
+      <li class="frag"><strong>Uncertainty communication</strong> — surface low-confidence items</li>
+      <li class="frag"><strong>Override facilitation + feedback</strong> — log override reasons; feed back into monitoring (systematic divergence ⇒ drift)</li>
+      <li class="frag"><strong>Queue design</strong> — order by risk severity × model confidence; bulk-clear confident low-risk cases with spot checks</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">SR 11-7 for LLMs</div>
+    <h2>Development and validation, extended for language models</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="SR 11-7's three pillars">
+      SR 11-7 defines three pillars — <em>development</em>, <em>validation</em>, <em>governance</em> — here
+      extended for LLM compliance systems.
+    </aside>
+    <div class="block frag"><div class="block-title">Development</div>
+      Document conceptual soundness — the model, why retrieval-generation fits, scope/limits (languages,
+      sources, entities), and <em>when not to use it</em>.
+    </div>
+    <div class="block frag"><div class="block-title">Validation (by an independent function)</div>
+      <ul>
+        <li>Benchmark: precision / recall / F1 on labelled historical cases</li>
+        <li>Adversarial: prompt injection, name-variation &amp; paraphrase evasion</li>
+        <li>Calibration, bias auditing (across nationalities / name types), robustness</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">SR 11-7 for LLMs · part two</div>
+    <h2>Governance and monitoring with hard alert thresholds</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The third pillar is the operational discipline: track the model in production, re-validate
+      after changes, and respond to incidents — with numbers that trigger action.</p>
+    <div class="block frag"><div class="block-title">Governance</div>
+      Model-inventory entry, change management (re-validate after LLM / corpus updates), monitoring
+      dashboard with alert thresholds, incident response.
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">deployed example thresholds</span>
+      Precision / recall tracked weekly on 200 senior-reviewed cases. <strong>Precision &lt;60%</strong> or
+      <strong>recall &lt;95%</strong> ⇒ automatic alert + root-cause review within 5 business days. Every
+      decision (docs, output, reviewer choice) retained <strong>7 years</strong> in a tamper-evident log.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Five takeaways — and where Practical 11 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li><strong>Frameworks overlap.</strong> EU AI Act, MiFID II, Basel III, SR 11-7, GDPR — map each application to the right tier; many compliance tools are high-risk. GDPR Art. 22 demands explanation + human review.</li>
+          <li><strong>LLMs break the false-positive crisis</strong> (FPR &gt;95%) by scoring <em>contextual</em> consistency — the Adverse Media Index turns text into a calibrated \([0,1]\) risk score.</li>
+          <li><strong>RAG is the architecture of choice</strong> — hybrid BM25 + dense + RRF, cross-encoder reader. Powers adverse media, entity resolution, PEP, UBO.</li>
+          <li><strong>Reporting is automatable with verification</strong> — XBRL, SAR, stress narratives as drafts + automated fact-checking against source data.</li>
+          <li><strong>Governance ≈ technology.</strong> HITL against automation bias, SR 11-7 adapted to LLMs, layered explainability.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Practical Session 11</div>
+          RRF by hand · an Adverse Media Index in Python · a governance design clinic.
+        </div>
+        <div class="bigpicture callout">
+          <span class="callout-tag">the throughline</span>
+          Every technique here is the same retriever–ranker–verify pattern, wrapped in a governance shell.
+          Get that shell right and the model is allowed to be useful.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extended RegTech &amp; AML material</h2>
+    <div class="secsub">RAG dataflow, AMI hyperparameters, the classic entity-resolution toolkit, and references.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the pipeline in detail</div>
+    <h2>The full RAG adverse-media dataflow</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li><strong>Feeds</strong> — news, court filings, press releases (continuous)</li>
+      <li><strong>Ingestion</strong> — chunk + embed (200–400 tok, overlap)</li>
+      <li><strong>Vector store</strong> — dense + BM25, metadata (URL, date, source tier, entities); incremental updates + selective deletion (GDPR 17)</li>
+      <li><strong>Retriever</strong> — subject query (+ alias variants) → hybrid + RRF → top-\(k\)</li>
+      <li><strong>Reader / ranker</strong> — cross-encoder reranking scores each passage against the query with full cross-attention (higher quality than the bi-encoder, higher latency)</li>
+      <li><strong>Output formatter</strong> — grammar-constrained decoding ⇒ always-parseable JSON (no brittle parsing downstream)</li>
+    </ol>
+    <div class="takeaway callout">
+      <span class="callout-tag">why metadata matters</span>
+      Metadata fields are critical: they enable post-retrieval filtering that reduces the LLM's ranking burden.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · calibrating the index</div>
+    <h2>AMI hyperparameters and how to fit them</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="AMI with temporal decay">
+      \[
+        \mathrm{AMI}(s) = \sigma\!\left(\alpha + \sum_{i=1}^{n} r_i\, c_i\, t_i\,
+        \mathbf{w}^{\top}\mathbf{e}_i\right), \qquad t_i = e^{-\lambda(T - T_i)}.
+      \]
+    </aside>
+    <ul>
+      <li><strong>\(\mathbf{w} \in \mathbb{R}^K\)</strong> — offence-severity weights; estimate by logistic regression on confirmed enforcement outcomes</li>
+      <li><strong>\(\lambda &gt; 0\)</strong> — decay rate (e.g. \(0.01\)/day). Aggressive decay emphasises recency; slow decay keeps historical evidence. Rehabilitated / acquitted subjects motivate decay</li>
+      <li><strong>\(\alpha\)</strong> — baseline intercept; \(\sigma\) maps to a probability of genuine AML risk, integrable into the customer risk rating</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · before the LLMs</div>
+    <h2>The traditional entity-resolution toolkit</h2>
+    <div class="title-rule"></div>
+    <p class="lead">LLMs did not invent entity resolution — they sit on top of decades of string-matching
+      machinery, and add two things that machinery lacked.</p>
+    <ul>
+      <li class="frag"><strong>String distance</strong> — edit distance, Jaro–Winkler</li>
+      <li class="frag"><strong>Phonetic normalisation</strong> — Soundex, Metaphone, Double Metaphone (non-English names)</li>
+      <li class="frag"><strong>Blocking</strong> — compare only records sharing first-two characters to bound the comparison space</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">what LLMs add</span>
+      (1) <em>Implicit</em> transliteration learned from multilingual corpora — generalises to scripts with no
+      hand-coded rules; (2) <em>context</em> resolves ambiguity ("Carlos Salinas" vs. "Carlos Salinas de
+      Gortari, former Mexican president"). Recommended reading: the Fellegi–Sunter probabilistic
+      record-linkage model and transformer-based blocking/matching.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · references</div>
+    <h2>Key references</h2>
+    <div class="title-rule"></div>
+    <ul class="small">
+      <li>EU AI Act — Reg. (EU) 2024/1689; Andhov &amp; Amparo (2024) fintech governance under EU AI Act; Passador (2024) EU AI Act obligations in banking; FSB (2024) AI in financial services</li>
+      <li>SR 11-7 — Fed / OCC model risk management guidance (2011)</li>
+      <li>FATF (2021) AI in AML/CFT; FinCEN (2020) AML guidance; Shirvanporzour (2025) ML/NLP for AML</li>
+      <li>Lewis et al. (2020) RAG; Cormack et al. (2009) reciprocal rank fusion; Gao et al. (2024) RAG survey; Reimers &amp; Gurevych (2019) cross-encoders; Willard &amp; Louf (2023) grammar-constrained decoding</li>
+      <li>Ngam (2026) Perceive–Reason–Act agentic AML; Ioannides et al. (2023) Gracenote.ai GPT-4 compliance tool; ViracachaP (2024) AI in RegTech; Anand (2025) NLP for compliance automation</li>
+      <li>Lundberg &amp; Lee (2017) SHAP; Clark et al. (2019) attention weights; Wei et al. (2022) chain-of-thought; Doshi-Velez &amp; Kim (2017) interpretability</li>
+      <li>Batarseh et al. (2021) automation bias; Lin et al. (2025) RiskTagger — LLM agent for crypto AML</li>
+      <li>Cross-refs: Lec. 4 (agents / ReAct — Yao et al. 2022), Lec. 6 (credit-risk GDPR &amp; SHAP), Lec. 12 (XAI)</li>
+    </ul>
+  </section>
+
+</div></div>
+</body>
+</html>

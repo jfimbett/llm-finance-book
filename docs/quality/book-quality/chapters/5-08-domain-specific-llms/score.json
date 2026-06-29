@@ -1,0 +1,194 @@
+{
+  "file": "book/chapters/08-domain-specific-llms/chapter.tex",
+  "reading_index": 5,
+  "slug": "08-domain-specific-llms",
+  "title": "Domain-Specific Financial Large Language Models",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:412-426 — def:ch08-dapt and eq:ch08-dapt are correct and re-derivable (reduced LR, catastrophic forgetting).",
+        "chapter.tex:220-241 — Araci vs Yang FinBERT correctly disambiguated.",
+        "chapter.tex:671-693 — contamination and hallucination caveats keep claims honest."
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:603-617 — execution-accuracy framed as epsilon-band; FinQA's standard metric is exact program-execution match (generalisation, mild overstatement)."
+      ],
+      "recommended_action": "Add one clause clarifying FinQA's standard exact-match metric; otherwise claims are sound."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:28-47, 367-380 — context boxes carry the big picture; deepdive-style detail in DAPT/benchmark sections.",
+        "chapter.tex:348-361 — remark gives operational encoder-vs-decoder heuristic separate from the theory."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 70,
+      "pass": false,
+      "evidence": [
+        "chapter.tex: no \\includegraphics; only tab:ch08-corpus-summary (523-543) and worked numeric examples.",
+        "tab:ch08-corpus-summary numbers are labelled approximate (~)."
+      ],
+      "blocking_issues": [
+        "MINOR · table/worked numbers are order-of-magnitude and unbacked by any regenerable artifact; paired notebook is a stub so no code validates the chapter's quantitative claims."
+      ],
+      "recommended_action": "Add a runnable notebook cell (FinBERT inference or cost-curve from eq:ch08-effective-cost) and, if a figure is produced, ensure it matches the prose."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 87,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:170-184 def:ch08-taxonomy precedes its use; def:ch08-register before register discussion.",
+        "Cross-refs ch:intro, ch:llm-foundations resolve (prior chapters in reading order)."
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:187-208 — taxonomy self-corrects: encoder-decoder family declared 'implicitly omitted' by the just-given definition.",
+        "NIT · chapter.tex:359,689,903 — forward refs to ch:llm-agents (pos 6) and ch:applications-future (pos 15)."
+      ],
+      "recommended_action": "Fold the encoder-decoder family into def:ch08-taxonomy so the taxonomy is complete on first statement."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:410 — explicit bridge to MLM/CLM in ch:intro and ch:llm-foundations.",
+        "Builds from motivation (why) -> taxonomy -> pre-training -> benchmarks -> deployment; smooth difficulty curve.",
+        "Learning objectives (4-22) set a clear arc matched by the sections."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:410 — MLM/CLM overlap with chs 01/02 is cross-referenced, not re-derived.",
+        "Loughran-McDonald introduced once (62-67) and reused by reference."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:50-105 — every technique motivated by a finance failure mode (jargon, numerics, tables).",
+        "chapter.tex:696-828 — deployment framed around licensing, GDPR/GLBA governance, SR 11-7 auditability."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:489-518 — central-bank corpus example is realistic and actionable.",
+        "chapter.tex:253-273 — FinBERT earnings-call sentiment example is grounded.",
+        "chapter.tex:808-828 — cost-optimal classifier example with explicit arithmetic."
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:808-828 — dollar/throughput/accuracy figures are invented for the example but not labelled as illustrative; reader could mistake them for benchmarked values.",
+        "Examples are not backed by a runnable artifact (notebook is a stub)."
+      ],
+      "recommended_action": "Label the cost example's numbers as illustrative and wire one example to the rebuilt notebook."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "All 38 \\cite keys resolve uniquely in book/bibliography.bib (verified by grep).",
+        "No duplicate keys; Araci vs Yang FinBERT are distinct entries."
+      ],
+      "blocking_issues": [
+        "MAJOR · bib shah2022flue — note='Needs verification before final release', author='... and others', no pages/venue detail.",
+        "MINOR · bib liu2018 — key says 2018 but year=2019 (RoBERTa, arXiv:1907.11692)."
+      ],
+      "recommended_action": "Resolve shah2022flue stub note + author list; normalise liu2018 key/year."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 82,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:285-298 — BloombergGPT 50B/708B/363B+345B figures match the commonly reported public numbers but source is an arXiv stub.",
+        "Descriptions of FinGPT/LoRA, FinMA/PIXIU, InvestLM, DAPT (gururangan2020dont) are accurate to the papers' known content."
+      ],
+      "blocking_issues": [
+        "Multiple precise numerics rest on arXiv stubs / SSRN working papers not locally verifiable: BloombergGPT corpus (285-298), FinBERT +15 F1 & 0.88/0.72/0.80 (226-228,630-639), FinQA 8281/68-72/55-60 (561-572), FinBen 36/24/5 (586-601), RahimikiaDrinkall '50x' (651-664)."
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — capped at 89; verify each numeric against the source and attribute reported figures inline."
+    },
+    {
+      "dimension": "completeness",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "Covers motivation, taxonomy, DAPT/TAPT, corpus design, benchmarks, scaling crossover, deployment, governance, hybrid/RAG; caveats for contamination and hallucination present.",
+        "Learning objectives all addressed by corresponding sections."
+      ],
+      "blocking_issues": [
+        "MINOR · taxonomy definition initially omits encoder-decoder family (patched later, 187-208).",
+        "MINOR · no explicit definition/caveat that the worked deployment cost numbers are illustrative."
+      ],
+      "recommended_action": "Integrate encoder-decoder into the taxonomy and flag illustrative numbers; near-complete otherwise."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "All \\ref targets resolve: ch:intro, ch:llm-foundations, ch:llm-agents, ch:applications-future labels exist (verified).",
+        "Equation/def labels (eq:ch08-dapt, eq:ch08-effective-cost, def:ch08-*) are unique and used consistently.",
+        "Chapter refs use \\ref{ch:...}, not hard-coded numbers (lines 359,410,689,903)."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 55,
+      "pass": false,
+      "evidence": [
+        "code/notebooks/08-domain-specific-llms/demo.ipynb — only imports numpy/pandas and prints a string; demonstrates no chapter concept.",
+        "book/chapters/08-domain-specific-llms/figures/ — contains only .gitkeep; chapter has no figures.",
+        "exercises.ipynb present (10.5KB) but no executed/seeded artifact backs the chapter's numbers."
+      ],
+      "blocking_issues": [
+        "BLOCKER · paired demo notebook is a placeholder; no figure or worked-code artifact is regenerable."
+      ],
+      "recommended_action": "Replace demo.ipynb with a real, seeded notebook (FinBERT inference or cost-model figure) and regenerate any produced figure into figures/."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "Learning Objectives remark (4-22) sets concrete outcomes matched by sections.",
+        "Terms defined for the mixed audience: DAPT, TAPT, MLM/CLM, register, execution accuracy.",
+        "context boxes give intuition, definitions/remarks give precision; difficulty curve is smooth."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    }
+  ],
+  "pass": false,
+  "notes": "Audit only, no edits. Chapter is well-written and finance-first (strong on orientation, separation, pedagogy, progression) but fails the 90 gate on 8 dimensions, driven by (1) a stub paired notebook + no regenerable artifacts (reproducibility 55, code_figure 70), (2) verification debt on BloombergGPT/FinBERT/FinQA/FinBen/RahimikiaDrinkall numerics from arXiv-stub and SSRN @unpublished sources (citation_accuracy 82, NEEDS_EXTERNAL_VERIFICATION cap 89), (3) a shah2022flue bib stub note + liu2018 key/year mismatch (citation_hygiene 84), and (4) a self-correcting taxonomy that omits the encoder-decoder family on first statement (concept_ordering 87, completeness 89). correctness 86 from the epsilon-band execution-accuracy generalisation. BOOK_WIDE: 4 items (working-paper verification debt; shah2022flue stub; liu2018 key/year; stub-notebook pattern)."
+}

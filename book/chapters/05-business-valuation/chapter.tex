@@ -82,7 +82,7 @@ The \textbf{income approach} values a firm by the present value of the economic 
 it will generate for its owners. The canonical implementation is the
 \emph{discounted cash flow} (DCF) model. Let $\mathrm{FCF}_t$ denote the free cash
 flow generated in period $t$, $n$ the explicit forecast horizon, and $\mathrm{WACC}$
-the weighted-average cost of capital (weighted-average cost of capital: $\mathrm{WACC} = w_E r_E + w_D r_D(1-\tau)$, where $w_E, w_D$ are equity and debt weights and $r_E, r_D$ their costs). The enterprise value is
+the weighted-average cost of capital (\Cref{def:wacc}). The enterprise value is
 
 \begin{equation}
 \label{eq:dcf}
@@ -103,6 +103,30 @@ Equation~\eqref{eq:terminal-value} is sensitive to both $\mathrm{WACC}$ and $g$:
 100-basis-point change in either parameter typically alters the terminal value by
 20--40\% for a firm with moderate growth, which is why scenario analysis, discussed
 in Section~\ref{sec:bv-scenarios}, is indispensable.
+
+The discount rate $\mathrm{WACC}$ is itself a model output, not a market observable; the
+cost of equity $r_E$ is the single most consequential input. The standard estimator is
+the Capital Asset Pricing Model (CAPM).
+
+\begin{definition}[Weighted-Average Cost of Capital and CAPM]
+\label{def:wacc}
+Let a firm be financed by equity and debt with market values $E$ and $D$, and let
+$w_E = E/(E+D)$ and $w_D = D/(E+D)$ be the corresponding weights. The
+\emph{weighted-average cost of capital} is
+\begin{equation}
+\label{eq:wacc}
+\mathrm{WACC} = w_E\, r_E + w_D\, r_D (1-\tau),
+\end{equation}
+where $r_E$ is the cost of equity, $r_D$ the pre-tax cost of debt, and $\tau$ the
+marginal tax rate (the factor $1-\tau$ reflects the tax deductibility of interest).
+The cost of equity is estimated by the \emph{Capital Asset Pricing Model}:
+\begin{equation}
+\label{eq:capm}
+r_E = r_f + \beta\,\bigl(\mathbb{E}[r_m] - r_f\bigr) = r_f + \beta\,\mathrm{ERP},
+\end{equation}
+where $r_f$ is the risk-free rate, $\beta$ the equity's sensitivity to the market
+return $r_m$, and $\mathrm{ERP} = \mathbb{E}[r_m]-r_f$ the equity risk premium.
+\end{definition}
 
 The \textbf{market approach} values a firm by reference to the prices at which comparable
 businesses have been bought and sold. The most common implementation uses \emph{trading
@@ -208,7 +232,8 @@ content of all EDGAR filings:
 
 \begin{verbatim}
 https://efts.sec.gov/LATEST/search-index?q="goodwill impairment"
-    &dateRange=custom&startdt=2022-01-01&enddt=2023-12-31&forms=10-K
+    &dateRange=custom&startdt=2022-01-01
+    &enddt=2023-12-31&forms=10-K
 \end{verbatim}
 
 Since 2009, the SEC has required filers to \emph{tag} financial data using the XBRL
@@ -227,7 +252,7 @@ The following code illustrates a minimal but complete pipeline for retrieving a 
 filing. It first resolves a ticker symbol to a CIK, then fetches the filing index to
 locate the primary document, and finally downloads it for parsing.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 Several engineering considerations deserve attention. The SEC's EDGAR data services
 require the \texttt{User-Agent} header to identify the requesting party; requests that
@@ -260,7 +285,7 @@ table using a lightweight parser such as BeautifulSoup. Convert the table to a c
 plain-text representation---preserving column headers and indentation but stripping
 HTML tags. Then send this representation to an LLM with a structured extraction prompt:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The structured output approach---requesting JSON directly rather than free-form
 text---reduces post-processing effort and enables automatic validation against a schema.
@@ -413,7 +438,7 @@ Given a structured financial data object produced by the extraction pipeline
 algebraic operation. The following function takes the standardised JSON output
 and returns FCFF for each available period:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 A production implementation applies this function across a time series of annual or
 quarterly observations, producing a vector of historical FCFFs that seeds the
@@ -528,7 +553,7 @@ A well-designed CoT forecasting prompt structures the reasoning in four stages:
 (1) characterise the macro environment, (2) assess industry dynamics, (3) evaluate
 firm-specific factors, and (4) synthesise into a numerical projection.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The separation of reasoning from numerical output is not merely cosmetic: it enables
 downstream validation. If the reasoning step contains an internally inconsistent claim
@@ -642,7 +667,7 @@ degrades rapidly with problem complexity. Empirical studies find that GPT-4 achi
 near-perfect accuracy on single-digit multiplication and simple percentage calculations
 but makes errors with non-trivial frequency on multi-step financial calculations
 involving chained operations, unit conversions, and percentage changes over long
-formulas \cite{frieder2023large}.
+formulas \cite{frieder2023mathematical}.
 
 For business valuation this is a serious limitation. A five-year DCF model involves
 approximately fifteen to twenty distinct arithmetic operations, each conditional on
@@ -664,7 +689,7 @@ prediction loss.
 
 The code interpreter pattern for DCF computation looks as follows:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The advantage of generating Python over performing mental arithmetic is not merely
 accuracy: the generated code is an auditable artefact. A human reviewer can inspect
@@ -675,9 +700,9 @@ essential in any regulated or high-stakes financial context.
 \subsection{ReAct and Tool-Use Patterns in Valuation Workflows}
 \label{subsec:bv-tools-react}
 
-\citet{yao2022react} proposed the ReAct (Reason + Act) framework, which interleaves
-chain-of-thought reasoning with tool invocations in a structured loop. Each iteration
-consists of three phases:
+The ReAct (Reason + Act) framework of \citet{yao2022react}, introduced in
+\Cref{ch:llm-agents}, interleaves chain-of-thought reasoning with tool invocations in a
+structured loop. Recall that each iteration consists of three phases:
 
 \begin{enumerate}
   \item \textbf{Thought}: The agent articulates its current understanding and decides
@@ -690,7 +715,7 @@ consists of three phases:
 
 Applied to DCF valuation, a ReAct loop might unfold as follows:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The ReAct pattern makes the reasoning transparent and auditable while offloading all
 arithmetic to a reliable executor. The agent's role is to formulate the calculation
@@ -770,7 +795,7 @@ LLMs are valuable at this stage not for numerical computation but for
 model can assess whether the numbers are consistent with the described business
 environment and flag contradictions. An example prompt:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 \subsection{Monte Carlo Simulation Orchestrated by Agents}
 \label{subsec:bv-scenarios-montecarlo}
@@ -798,7 +823,7 @@ for enterprise value.
 
 A practical Monte Carlo implementation for valuation, invoked by an agent, is:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 Typical parameterisation in a mid-cap equity context might use
 $\mu_\mathrm{WACC} = 0.09$, $\sigma_\mathrm{WACC} = 0.015$,
@@ -828,29 +853,34 @@ investment write-up that would otherwise take an analyst several hours.
   \caption{DCF sensitivity heatmap for Apple Inc.\ (AAPL).
            Each cell shows the implied enterprise value in \$B from the Gordon
            Growth terminal value formula $\mathrm{EV} = \mathrm{FCF}(1+g)/(\mathrm{WACC}-g)$,
-           evaluated at the most recently reported free cash flow.
+           evaluated at a fixed FY2024 free cash flow.
            Colour encodes value on a green (high) to red (low) scale.
            The heatmap reveals the non-linear sensitivity of terminal value to
            the WACC--$g$ spread: small changes near the lower-right corner
            (low WACC, high growth) produce large swings in enterprise value.
-           (Based on AAPL approximate FY2024 free cash flow; values are illustrative and depend on the filing date used. See companion notebook for live computation via \texttt{yfinance}.)}
+           (Based on AAPL's FY2024 free cash flow of \$108.8B from its 10-K. The heatmap is
+           generated deterministically by \texttt{gen\_dcf\_sensitivity.py}; it depends only
+           on this fixed base FCF and the Gordon-Growth formula, not on any live data.)}
 
   \label{fig:ch05-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: DCF Sensitivity Analysis]
+\begin{illustration}[DCF Sensitivity Analysis]
 \label{ex:ch05-illustration}
-Using Apple's most recent free cash flow retrieved via \texttt{yfinance}, reproduce
-Figure~\ref{fig:ch05-illustration} with WACC ranging over $[6\%, 14\%]$ and
-terminal growth rate $g$ over $[1\%, 4\%]$.
-(\textit{a})~Identify the cell with the highest sensitivity to a 1\,pp change
-in WACC (i.e.\ the largest row-to-row value difference) and explain intuitively
-why sensitivity is highest in that region.
-(\textit{b})~Extend the grid to WACC $\in [4\%, 18\%]$ and find the
-$(\mathrm{WACC}, g)$ pair that matches AAPL's current market capitalisation.
-See \texttt{code/notebooks/05-business-valuation/exercises.ipynb},
+The script \texttt{gen\_dcf\_sensitivity.py} reproduces Figure~\ref{fig:ch05-illustration}
+deterministically from Apple's fixed FY2024 free cash flow (\$108.8B), with WACC
+ranging over $[6\%, 14\%]$ and terminal growth rate $g$ over $[1\%, 4\%]$.
+It identifies the cell with the highest sensitivity to a 1\,pp change in WACC
+(the largest row-to-row value difference) and shows why sensitivity is highest
+in that region: near the lower-right corner, where the WACC--$g$ spread is
+smallest, the terminal value denominator approaches zero and enterprise value
+swings sharply. Extending the grid to WACC $\in [4\%, 18\%]$, the notebook then
+locates the $(\mathrm{WACC}, g)$ pair that matches AAPL's current market
+capitalisation, illustrating how the implied discount rate can be backed out
+from an observed price.
+See \texttt{code/practicals/05-business-valuation/},
 Illustration Exercise.
-\end{exercise}
+\end{illustration}
 
 % --- Section: Comparable Selection Using LLMs ---
 
@@ -895,7 +925,7 @@ LLMs can identify peer companies from a natural-language description of the targ
 firm's business model, without relying on rigid classification codes. A zero-shot
 prompt simply describes the target and requests comparable firms:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The instruction ``Do NOT invent tickers or company names'' is necessary but not
 sufficient: hallucinated comparables occur with non-trivial frequency even with
@@ -915,18 +945,10 @@ similarity between financial text representations.
 
 An \emph{embedding} is a function $\phi: \mathcal{D} \to \mathbb{R}^d$ that maps a document to a dense vector produced by a neural encoder.
 
-\begin{definition}[Cosine Similarity]
-\label{def:cosine-similarity}
-For two embedding vectors $\mathbf{a}, \mathbf{b} \in \mathbb{R}^d$, the
-\emph{cosine similarity} is
-\begin{equation}
-\label{eq:cosine-sim}
-\mathrm{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \in [-1, 1].
-\end{equation}
-A value near $+1$ indicates that the two vectors point in the same direction---that is,
-the two documents occupy the same region of the embedding space---while a value near
-$0$ or $-1$ indicates orthogonality or opposition.
-\end{definition}
+Peer similarity is measured by the cosine similarity between embeddings
+(\Cref{eq:cosine-sim}), $\mathrm{sim}(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\|\,\|\mathbf{b}\|} \in [-1, 1]$:
+a value near $+1$ indicates that the two embedded documents occupy the same region of
+the embedding space, while a value near $0$ or $-1$ indicates orthogonality or opposition.
 
 The MD\&A section of the 10-K is the most semantically rich source for business-model
 characterisation: it describes in management's own words the company's products,
@@ -934,13 +956,13 @@ markets, competitive position, and strategy. Embedding the MD\&A of all companie
 a universe and indexing them in a vector database allows efficient nearest-neighbour
 retrieval.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/05-business-valuation/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
-Empirical studies using MD\&A embeddings find that cosine-similarity-based peers
-outperform SIC-code-based peers on several metrics: the comparable set has lower
-inter-quartile range of EV/EBITDA multiples (indicating more internally consistent
-peers), and valuations derived from embedding-based comparables exhibit lower
-absolute deviation from subsequent transaction prices \cite{shen2023nlp}.
+The rationale for MD\&A embeddings is that firms with similar described business models
+should trade on similar multiples. Where this is measured, cosine-similarity-based peer
+sets tend to show a tighter inter-quartile range of EV/EBITDA multiples than
+SIC-code-based sets---an indicator of more internally consistent comparables---which in
+turn narrows the valuation range implied by the comparables method.
 
 \subsection{Hybrid Methods: LLM-Filtered and Embedding-Ranked Comparables}
 \label{subsec:bv-comparables-hybrid}
@@ -1018,7 +1040,7 @@ The pipeline above can be implemented as a monolithic script, but this design is
 brittle: a failure in step 6 requires rerunning all prior steps. A more robust
 design uses an \emph{orchestrator agent} that maintains state and dispatches to
 specialist sub-agents, analogous to the multi-agent patterns described in
-Chapter~\ref{ch:llm-agents}.
+\Cref{ch:llm-agents}.
 
 The orchestrator receives the target ticker and valuation objective (e.g., ``enterprise
 value for M\&A due diligence''), decomposes the task into sub-problems, and routes
@@ -1086,6 +1108,41 @@ draws with $\sigma_\mathrm{WACC} = 1.5\%$ and $\sigma_g = 1\%$) produces an EV
 distribution with a mean of \$17.2B and a 10th--90th percentile range of
 \$12.5B--\$24.1B, providing quantified uncertainty alongside the point estimate.
 \end{context}
+
+\begin{remark}[Companion exercise: a reproducible AAPL valuation]
+\label{rem:valuation-companion}
+The case study above uses a synthetic SaaS firm so that every input is inspectable.
+A complete, agent-orchestrated valuation of a \emph{real} company---Apple Inc.\ as of
+its FY2024 close (28~September 2024)---is provided as a companion exercise under
+\texttt{exercises/valuation\_example/}. There, a team of sub-agents fetches the FY2024
+10-K from SEC EDGAR, estimates the cost of equity by CAPM (\Cref{eq:capm}) from
+$r_f = 3.78\%$, $\beta = 1.24$, and an equity risk premium of $4.23\%$, giving
+$r_E \approx 9.0\%$, and combines it with an after-tax cost of debt of $2.2\%$ at the
+firm's market capital-structure weights to obtain $\mathrm{WACC} \approx 8.84\%$
+(\Cref{eq:wacc}). A two-stage DCF then yields an intrinsic value of about
+\$225/share, and an EV/EBITDA comparables cross-check about \$217/share; the
+$50/50$ triangulation of \$221.04/share lies within $2.6\%$ of the \$226.84 market
+price---inside the exercise's $\pm 10\%$ acceptance tolerance. (The exercise computes
+free cash flow from the primary EDGAR filing, \$108.8B, which differs from the \$98.8B
+returned by the \texttt{yfinance} convenience API used for the sensitivity heatmap of
+\Cref{fig:ch05-illustration}; such gaps between data vendors are routine and are one
+reason to source valuation inputs from primary filings.)
+
+\textbf{Exercise.} Treat the sub-agent pipeline as the object of study, not the
+valuation arithmetic (which you already know). \emph{(a)}~Inspect the agent's
+extraction trace and identify the single free-cash-flow line item whose value an
+LLM is most likely to misread from the primary 10-K---recall the \$108.8B vs.\
+\$98.8B gap above---and explain the textual feature (sign convention, units,
+parenthesised negatives, or footnote scope) that causes the error. \emph{(b)}~Inject
+that plausible extraction error into \texttt{data/wacc.json}, re-run the agent's
+two-stage DCF, and report how far the triangulated estimate moves from the \$226.84
+reference: does a single mis-extracted field push it outside the $\pm 10\%$ acceptance
+tolerance? \emph{(c)}~Add a verification sub-agent that cross-checks each extracted
+figure against a second source and flags disagreements beyond a set threshold; state
+the threshold you would use and why. The point is to quantify how LLM \emph{extraction}
+reliability---not the discounting formula---governs the trustworthiness of an
+automated valuation.
+\end{remark}
 
 % --- Section: Efficiency and Accuracy in LLM-Assisted Valuation ---
 
@@ -1235,49 +1292,3 @@ that quantifies how extraction and forecast errors translate into valuation unce
 Together, these components form a production-oriented reference architecture for
 LLM-augmented equity valuation.
 \end{remark}
-
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch05-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Revenue and Earnings Time Series from EDGAR]\label{ex:ch05-edgar-b}
-\textbf{[B]} Fetch ten years of annual \texttt{Revenues} and
-\texttt{NetIncomeLoss} for Apple Inc.\ (\texttt{AAPL}) from the EDGAR XBRL API.
-(\textit{a})~Plot both series on a dual-axis line chart (revenue on the left
-axis in \$B; net income on the right axis in \$B).
-(\textit{b})~Compute and report the compound annual growth rate (CAGR) for
-each series over the available period.
-See \texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Free Cash Flow and Gordon Growth Model]\label{ex:ch05-edgar-i}
-\textbf{[I]} Using EDGAR XBRL data, compute Apple's free cash flow (FCF) as
-$\mathrm{FCF} = \text{Operating CF} - \text{CapEx}$, where
-Operating CF is \texttt{NetCashProvidedByUsedInOperatingActivities} and
-CapEx is \texttt{PaymentsToAcquirePropertyPlantAndEquipment}.
-(\textit{a})~Plot the FCF time series over the most recent five years.
-(\textit{b})~Apply the Gordon Growth Model
-$\mathrm{EV} = \mathrm{FCF}(1+g)/(\mathrm{WACC}-g)$ with the most recent
-FCF on a $(9 \times 7)$ grid of
-$\mathrm{WACC} \in [6\%,14\%]$ and $g \in [1\%,4\%]$, and display the
-result as a colour-coded heatmap.
-(\textit{c})~Compare the heatmap's implied enterprise value to Apple's
-current market capitalisation retrieved via \texttt{yfinance}.
-See \texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Five-Company DCF Comparison]\label{ex:ch05-edgar-a}
-\textbf{[A]} Extend the FCF analysis to five large-cap technology companies:
-AAPL, MSFT, GOOGL, AMZN, and META.
-(\textit{a})~Use company-specific WACCs (AAPL and MSFT: 9\,\%; GOOGL: 10\,\%;
-AMZN and META: 11\,\%) and a uniform terminal growth rate of 3\,\%.
-(\textit{b})~For each company, compute the implied enterprise value and compare
-it to the current market capitalisation (from \texttt{yfinance}).
-(\textit{c})~Plot a horizontal bar chart showing implied EV versus
-market cap, and discuss which companies appear over- or under-valued under
-these assumptions.
-See \texttt{code/notebooks/05-business-valuation/exercises.ipynb}, Data Lab section.
-\end{exercise}

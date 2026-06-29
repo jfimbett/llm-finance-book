@@ -48,7 +48,7 @@ The subject matter, audience, and quality settings are defined in `TOPIC.md`.
 .claude/skills/     Workflow scripts — follow step by step
 .claude/hooks/      Shell hooks — do not modify unless updating hook behavior
 book/               LaTeX source — compile from book/ directory: cd book && pdflatex main.tex && biber main && pdflatex main.tex
-course/             Lecture materials — markdown + Beamer
+course/             Lecture materials — markdown notes + HTML slide decks (course/slides-html/)
 code/               Python package + Jupyter notebooks
 docs/quality/       JSON score reports — read these to see what needs improvement
 docs/STATUS.md      Auto-generated chapter status table
@@ -85,6 +85,14 @@ Common entry points:
 - `/topic-status` — print the status of all chapters
 - `/ssrn-enrich [chNN]` — search SSRN for recent working papers and weave them into the chapter
 - `/audit-hallucinations` — detect fabricated content and synthetic data across all chapters in parallel
+- `/audit-chapter-quality [chNN]` — multi-agent 14-dimension (0–100) audit of one chapter (no edits)
+- `/audit-book-quality` — book-wide fan-out audit in `main.tex` reading order + book-level reports (no edits)
+- `/audit-slides-coverage [chNN]` — parallel audit of HTML slide decks vs. book chapters: flags load-bearing concepts a slides-only student would miss (no edits)
+- `/iterate-book-quality [chNN]` — editor→chapter-surgeon→re-score loop until ≥90 on every dimension
+- `/book-quality-regression` — final gate: build + bib + cross-ref + ordering + repetition + score roll-up
+
+The book-quality goal system is anchored by `docs/quality/RUBRIC.md` and
+`docs/quality/BOOK_QUALITY_GOAL.md` (target: every chapter ≥90/100 on all 14 dimensions).
 
 ---
 

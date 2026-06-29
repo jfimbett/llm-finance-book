@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 8 — Practical: Building &amp; Choosing Financial LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 8 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 8 / Lecture 8 · Practical</div>
+    <h1>Domain-Specific Financial Large Language Models</h1>
+    <div class="sub">Hands-on: budgeting a domain-adaptation run, finding the cheapest human-in-the-loop mix, and watching a finance model out-read a general one.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Session overview &amp; recap</h2>
+    <div class="secsub">One hour, four exercises, two formulas you will lean on the whole way through.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How the hour runs</div>
+    <h2>The plan: 50 minutes of work, 10 of debrief</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Today is hands-on. We size a training run, optimise a cost trade-off, run real models in Python, then argue architecture choices for live business briefs.</p>
+    <div class="block"><div class="block-title">Timed agenda</div>
+      <ol>
+        <li class="frag"><strong>Recap</strong> (8 min) — the domain-adaptation idea and the effective-cost formula.</li>
+        <li class="frag"><strong>Problem 1</strong> (12 min) — size a domain-adaptation corpus for a FinBERT-scale encoder.</li>
+        <li class="frag"><strong>Problem 2</strong> (15 min) — find the cost-optimal human-routing fraction \(\rho\) for a filing classifier.</li>
+        <li class="frag"><strong>Case study</strong> (15 min) — run a FinBERT-style vs. general sentiment comparison in Python.</li>
+        <li class="frag"><strong>Discussion</strong> (10 min) — choose an architecture for three real briefs.</li>
+      </ol>
+    </div>
+    <p class="small">Notebook home: <code class="inline">code/practicals/08-domain-specific-llms/</code></p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · formula 1 of 2</div>
+    <h2>Domain-adaptive pre-training: keep teaching the model, on your text</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Take a general model that already speaks English, then keep training it on a pile of financial documents so it picks up the vocabulary and register of the domain. That is <strong>DAPT</strong>.</p>
+    <aside class="underhood" data-title="the DAPT objective">
+      Starting from general weights \(\theta_0\), continue pre-training on a domain corpus \(\mathcal{D}_{\text{domain}}\):
+      \[ \theta^\star = \arg\min_\theta \mathcal{L}_{\text{PT}}(\theta;\mathcal{D}_{\text{domain}}),
+         \qquad \mathcal{L}_{\text{PT}} \in \{\text{MLM},\ \text{CLM}\}, \]
+      run at a reduced learning rate (\(\sim 10\times\) smaller) to limit catastrophic forgetting of general language.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">rule of thumb</span>
+      Encoders need <strong>1–5B</strong> domain tokens; the first \(\sim\)1B buys most of the gain — classic diminishing returns.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · formula 2 of 2</div>
+    <h2>Effective cost: what one <em>correct</em> answer really costs you</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A cheap model that is often wrong is not actually cheap. Send the hard cases to a human reviewer, and the right metric is cost per <em>correct</em> output — not cost per query.</p>
+    <aside class="underhood" data-title="effective cost per correct output">
+      \[ C_{\text{eff}}(m,\rho) = \frac{c_m + \rho\,c_h}{p_m + \rho(1-p_m)}, \]
+      where \(c_m\) = model cost/query, \(c_h\) = human-review cost, \(p_m\) = model correctness, and \(\rho\) = fraction routed to review. Constraint: \(p_m + \rho(1-p_m) \ge p^\star\).
+    </aside>
+    <div class="block frag"><div class="block-title">How to read it</div>
+      The top is what you pay per query — the model always, the human only on the routed fraction \(\rho\). The bottom is the accuracy you achieve. Routing more to humans raises both; the optimisation finds the <em>smallest</em> \(\rho\) that still clears your target \(p^\star\).
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Guided problems</h2>
+    <div class="secsub">Two pencil-and-paper exercises: budget a training run, then price a human-in-the-loop pipeline.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · the brief</div>
+    <h2>How much financial text should you train on?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You will domain-adapt a BERT-base encoder (110M parameters) for SEC-filing named-entity recognition, then fine-tune. Three data sources are on the table:</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Data on hand</div>
+          <ul>
+            <li>SEC EDGAR — \(\sim\)50B tokens, open</li>
+            <li>Reuters TRC2 — \(\sim\)2B, licensed</li>
+            <li>General replay (the Pile) — effectively unlimited</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the real question</span>
+          More data feels safer, but training is a budget. Where is the point past which extra EDGAR tokens stop earning their compute?
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Corpus sizes — visualised</div>
+    <h2>Where your data sources sit on the scale of available text</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before picking a token budget, it helps to see how EDGAR and Reuters TRC2 compare to general web text — and why the gap justifies DAPT rather than building from scratch.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/08-domain-specific-llms/fig_corpus.png" alt="Log-scale bar chart of token counts across major financial corpus sources">
+      <figcaption><b>Figure.</b> Token counts (log scale) of major financial pre-training corpus sources. EDGAR (~50 B tokens) and Reuters TRC2 (~2 B) appear far to the left of general web text (~800 B). Use this perspective to calibrate your DAPT token budget in Problem 1.
+        <span class="src">Source: Chapter 8, Figure 8.1 (generated deterministically from corpus table figures).</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · your tasks</div>
+    <h2>Four decisions to defend</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>A — Budget.</strong> Given diminishing returns, what domain-token budget do you target, and why not just use all 50B?</li>
+      <li class="frag"><strong>B — Forgetting.</strong> You worry about catastrophic forgetting. Propose a <em>replay</em> ratio (general:domain) and justify it.</li>
+      <li class="frag"><strong>C — Learning rate.</strong> Should the DAPT learning rate sit above or below the original pre-training rate? By roughly how much, and what failure does this prevent?</li>
+      <li class="frag"><strong>D — TAPT.</strong> Would task-adaptive pre-training help here? What additional data would it require?</li>
+    </ol>
+    <p class="small frag">Work it through before flipping to the solution — the reasoning matters more than the numbers.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · the brief</div>
+    <h2>The cheapest way to hit 95% accuracy</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A FinBERT classifier is cheap but imperfect. A human reviewer is expensive but reliable. Mix them — and find the mix that meets your accuracy target for the least money.</p>
+    <div class="statrow">
+      <div class="stat"><div class="num">\(\$\)0.0002</div><div class="lbl">model cost / query \(c_m\)</div></div>
+      <div class="stat"><div class="num">0.88</div><div class="lbl">model accuracy \(p_m\)</div></div>
+      <div class="stat"><div class="num">\(\$\)2.00</div><div class="lbl">human review / query \(c_h\)</div></div>
+      <div class="stat"><div class="num">0.95</div><div class="lbl">target accuracy \(p^\star\)</div></div>
+    </div>
+    <p class="small">Assume human review fixes every error it sees.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · your tasks</div>
+    <h2>Solve for the routing fraction \(\rho\)</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>A.</strong> Write achieved accuracy as a function of \(\rho\) and find the <em>minimum</em> \(\rho\) that meets \(p^\star\).</li>
+      <li class="frag"><strong>B.</strong> Evaluate \(C_{\text{eff}}\) at that \(\rho\).</li>
+      <li class="frag"><strong>C.</strong> Compare against routing <em>everything</em> to the human (\(\rho=1\)). What is the cost ratio?</li>
+      <li class="frag"><strong>D.</strong> Qualitatively: if DAPT lifted \(p_m\) to 0.95, what happens to the required \(\rho\) and to \(C_{\text{eff}}\)?</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">hint</span>
+      Achieved accuracy \(= p_m + \rho(1-p_m)\), because review recovers the \((1-p_m)\) errors on the routed fraction.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Python case study</h2>
+    <div class="secsub">FinBERT vs. a general sentiment model — watch polarity flip on four finance sentences.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the goal</div>
+    <h2>One experiment, one point: finance words carry finance sentiment</h2>
+    <div class="title-rule"></div>
+    <p class="lead">We demonstrate <strong>polarity inversion</strong> — the single clearest reason finance needs its own models — on a handful of labelled financial sentences.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The stack</div>
+          <ul>
+            <li><code class="inline">transformers</code> to load <code class="inline">ProsusAI/finbert</code> (the Araci FinBERT) and a general sentiment model</li>
+            <li>A few finance sentences where plain-English polarity misleads</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">prerequisites</span>
+          <code class="inline">pip install transformers torch</code>. First run downloads weights (\(\sim\)440MB for FinBERT). No GPU needed for a few sentences.
+        </div>
+      </div>
+    </div>
+    <p class="small">Notebook: <code class="inline">code/practicals/08-domain-specific-llms/</code></p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · code 1 of 2</div>
+    <h2>Setup: two pipelines, four sentences</h2>
+    <div class="title-rule"></div>
+    <pre class="code">from transformers import pipeline
+
+# Domain-specific encoder (Araci FinBERT) vs. general sentiment
+finbert = pipeline("text-classification", model="ProsusAI/finbert")
+general = pipeline("sentiment-analysis")  # default SST-2 model
+
+SENTENCES = [
+    "The firm took on additional liability to fund the acquisition.",
+    "We are cautiously optimistic but flag meaningful headwinds.",
+    "Leverage increased to 3.2x following the debt issuance.",
+    "Unprecedented demand drove revenue above guidance.",
+]</pre>
+    <p class="small">Two pipelines; four sentences chosen so general-English polarity is misleading. The comparison loop is next.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · code 2 of 2</div>
+    <h2>The comparison loop</h2>
+    <div class="title-rule"></div>
+    <pre class="code">for s in SENTENCES:
+    f = finbert(s)[0]
+    g = general(s)[0]
+    print(f"{s[:48]:48s} | FinBERT={f['label']:8s} "
+          f"| General={g['label']}")</pre>
+    <p class="small">Run it, then fill in the table — where do the two models disagree, and who is right for a financial reader?</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>What the disagreements tell you</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Q1.</strong> For "additional <em>liability</em>" and "<em>leverage</em> increased", what does the general model predict vs. FinBERT? Which is right for a financial reader, and why does the general model err?</li>
+      <li class="frag"><strong>Q2.</strong> "<em>Cautiously optimistic</em> but … headwinds" — which label is appropriate? Connect this to the FinBERT-tone earnings-call example from the lecture.</li>
+      <li class="frag"><strong>Q3.</strong> "<em>Unprecedented</em> demand …" is genuinely positive here. Does FinBERT over-correct? What does that say about the <em>context</em>-dependence of financial polarity?</li>
+    </ol>
+    <div class="block frag"><div class="block-title">Q4 — tie to the chapter</div>
+      Of the four general-model failure modes (polarity inversion, numerical hallucination, table-parsing, regulatory ambiguity), which one does this experiment isolate? Which <em>cannot</em> be diagnosed by a sentence-level sentiment test, and why?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion</h2>
+    <div class="secsub">Three real briefs — pick the model family and training strategy, and defend the trade-offs.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · the exercise</div>
+    <h2>Pick an architecture for each brief</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each, state the model family + training strategy, and justify it on accuracy, cost, latency, governance, and traceability.</p>
+    <ol>
+      <li class="frag"><strong>Surveillance.</strong> A bank must label <strong>50,000 headlines/day</strong> as material / non-material for insider-trading surveillance. Latency \(&lt;\)50ms; 10k labelled examples.</li>
+      <li class="frag"><strong>FOMC tone.</strong> A research desk needs <strong>hawkish/dovish</strong> scoring of every new FOMC statement, with the precise monetary-policy vocabulary.</li>
+      <li class="frag"><strong>Audit-grade Q&amp;A.</strong> A compliance team must answer questions about <strong>any 10-K</strong> in a 2,000-name portfolio, citing the exact source paragraph for audit.</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">frame your answer</span>
+      Encoder vs. decoder? From-scratch vs. DAPT vs. fine-tune-only? Single model vs. hybrid routing vs. RAG? Where does the LM-dictionary / register argument bite?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 — SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Worked answers — read after you have committed to your own.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>Sizing the DAPT corpus</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">A — Budget</div>
+          Target \(\sim\)<strong>3–5B</strong> EDGAR tokens. Most of the gain is in the first \(\sim\)1B; beyond \(\sim\)5B the marginal downstream improvement for a 110M encoder is small — not worth the compute or the added forgetting risk.
+        </div>
+        <div class="block frag"><div class="block-title">B — Replay</div>
+          Mix in \(\sim\)<strong>5–10%</strong> general (Pile) tokens: enough to preserve broad language ability, small enough that the domain still dominates the update.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">C — Learning rate</div>
+          <em>Below</em> the original PT rate, by \(\sim 10\times\). A large LR would overwrite the general representations DAPT is meant to <em>reuse</em> — that is catastrophic forgetting.
+        </div>
+        <div class="block frag"><div class="block-title">D — TAPT</div>
+          Yes: a further continued-PT pass on the <em>unlabelled</em> text of the NER dataset (same distribution as the labelled set), before supervised fine-tuning. Needs task-distribution unlabelled data — which here we have.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>The optimal routing fraction</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The hybrid pipeline hits 95% accuracy at roughly <strong>1.6× lower cost</strong> than sending everything to a human — and improving the model pays off mostly through the review bill it eliminates.</p>
+    <aside class="underhood" data-title="the four-part computation">
+      <strong>A — Required \(\rho\).</strong> Achieved accuracy \(= p_m + \rho(1-p_m) = 0.88 + 0.12\rho\). Set \(\ge 0.95\):
+      \[ 0.88 + 0.12\rho \ge 0.95 \;\Rightarrow\; \rho \ge \tfrac{0.07}{0.12} \approx \mathbf{0.583}. \]
+      <strong>B — \(C_{\text{eff}}\) at \(\rho=0.583\):</strong>
+      \[ C_{\text{eff}} = \frac{0.0002 + 0.583\cdot 2.00}{0.88 + 0.583\cdot 0.12}
+         = \frac{1.1662}{0.95} \approx \mathbf{\$1.23}\ \text{per correct output.} \]
+      <strong>C — All-human (\(\rho=1\)):</strong> \(C_{\text{eff}} = (0.0002+2.00)/1.0 \approx \$2.00\). Hybrid is \(\approx\)<strong>1.6× cheaper</strong> at the same 95% target.
+      <strong>D — If DAPT lifts \(p_m\) to 0.95:</strong> required \(\rho = 0\) (target already met), so \(C_{\text{eff}} \approx c_m/p_m = 0.0002/0.95 \approx \$0.0002\) — four orders of magnitude cheaper.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the punchline</span>
+      Investing in the model collapses the human-review bill. The model's correctness, not its sticker price, drives total cost.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What this session showed — and where Lecture 9 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Today</h3>
+        <ul>
+          <li><strong>Problem 1:</strong> DAPT is a budgeting exercise — a few billion domain tokens, a reduced LR, a small replay ratio. More data is not always better.</li>
+          <li><strong>Problem 2:</strong> hybrid routing meets an accuracy target at a fraction of all-human cost; model improvement pays off via review savings.</li>
+          <li><strong>Case study:</strong> polarity inversion is real and visible in four sentences — the cleanest motivation for domain-specific models.</li>
+          <li><strong>Discussion:</strong> architecture follows the task's label space, vocabulary sensitivity, latency, and auditability.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Next — Financial NLP &amp; sentiment</h3>
+        <ul>
+          <li>Fine-tuning FinBERT end-to-end</li>
+          <li>Benchmarking it against zero-shot frontier models</li>
+        </ul>
+        <div class="block"><div class="block-title">Carry forward</div>
+          The cost and governance lenses from today reappear every time you choose between a small specialised model and a large general one.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">Two harder briefs for after the core session: benchmark contamination and RAG vs. a bigger model.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Stretch problem 1</div>
+    <h2>The 0.97 F1 that should make you suspicious</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A vendor claims their 70B model scores 0.97 F1 on Financial PhraseBank — above any published FinBERT.</p>
+    <ol>
+      <li class="frag">Why is this number <em>not</em> immediately trustworthy?</li>
+      <li class="frag">Design a contamination-controlled evaluation: what temporal property must the test set satisfy relative to the model's knowledge cutoff?</li>
+      <li class="frag">PhraseBank predates almost every frontier model. What kind of held-out set would you build instead, and from what source?</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">key idea</span>
+      A benchmark in the pre-training corpus measures memorisation, not generalisation. Require test data that postdates the model's cutoff.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Stretch problem 2</div>
+    <h2>Grounded-and-small vs. big-and-ungrounded</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A 7B decoder + EDGAR retrieval (RAG) vs. a 50B ungrounded decoder, both asked to "extract the FY revenue from this 10-K".</p>
+    <ol>
+      <li class="frag">On which axis does RAG win even if the 50B model is slightly more accurate ungrounded? (Hint: SR 11-7.)</li>
+      <li class="frag">Sketch why grounding reduces <em>numerical</em> hallucination specifically.</li>
+      <li class="frag">Give one task where the 50B model would still be preferable, and say why retrieval does not help there.</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">expected</span>
+      RAG wins on traceability and cost; grounding pins figures to retrieved text; the big model still wins on open-ended reasoning no single passage supports.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

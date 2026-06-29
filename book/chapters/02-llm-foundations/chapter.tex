@@ -21,23 +21,23 @@ After completing this chapter, the reader should be able to:
 
 This chapter builds the technical and practical foundations for applying large language
 models in finance.
-It begins where Chapter~1 left off --- individual token embeddings --- and shows how
+It begins where \Cref{ch:intro} left off --- individual token embeddings --- and shows how
 those embeddings are aggregated into document-level representations (Section~\ref{sec:doc-repr}).
 It then traces the evolution of sequence models from vanilla RNNs through LSTMs to the
 Transformer (Sections~\ref{sec:sequential}--\ref{sec:transformer}), establishes the
-pre-training and tokenisation machinery that underlies every modern LLM
-(Sections~\ref{sec:pretraining}--\ref{sec:tokenisation}), and turns to the production
+pre-training and fine-tuning machinery that underlies every modern LLM
+(Section~\ref{sec:transformer-pretrain}), and turns to the production
 concerns that dominate practical deployment: the LLM landscape, sampling strategies,
 structured generation, API usage, retrieval-augmented generation, model compression,
-hallucination mitigation, and regulatory constraints
-(Sections~\ref{sec:llm-landscape}--\ref{sec:regulatory}).
+hallucination mitigation, and responsible use
+(Sections~\ref{sec:landscape}--\ref{sec:limitations}).
 Readers who are already comfortable with document-level representations may proceed
 directly to Section~\ref{sec:sequential}.
 
-\begin{remark}[Notation inherited from Chapter~\ref{ch:intro}]
+\begin{remark}[Notation inherited from \Cref{ch:intro}]
 \label{rem:ch2-notation}
 Throughout this chapter, $\mathcal{V}$ denotes the token vocabulary and a token is an
-atomic unit of text (sub-word piece), as formally defined in Chapter~\ref{ch:intro}
+atomic unit of text (sub-word piece), as formally defined in \Cref{ch:intro}
 (Definition~\ref{def:corpus-vocab}).
 \end{remark}
 
@@ -63,7 +63,7 @@ The simplest aggregation is the unweighted arithmetic mean.
 
 \begin{definition}[Mean Embedding]
 \label{def:mean-embedding}
-Let $\varphi : \mathcal{V} \to \mathbb{R}^d$ be a word embedding (see Chapter~\ref{ch:intro}, Definition~\ref{def:word-embedding}).
+Let $\varphi : \mathcal{V} \to \mathbb{R}^d$ be a word embedding (see \Cref{ch:intro}, Definition~\ref{def:word-embedding}).
 Let $d = (w_1, w_2, \dots, w_n)$ be a document of $n$ tokens.
 The \emph{mean embedding} of $d$ is
 \begin{equation}
@@ -157,7 +157,7 @@ frequent in the document and down-weighting common uninformative words.
 \begin{definition}[TF-IDF Weighted Embedding]
 \label{def:tfidf-embedding}
 Let $\text{tfidf}(w_i, d)$ denote the TF-IDF weight of token $w_i$
-in document $d$ (see Section~\ref{sec:classical-tfidf} of Chapter~1).  The
+in document $d$ (see Section~\ref{sec:classical-tfidf} of \Cref{ch:intro}).  The
 \emph{TF-IDF weighted embedding} is
 \begin{equation}
   \boldsymbol{\varphi}_{\mathrm{tfidf}}(d)
@@ -343,7 +343,7 @@ benchmark all three on their specific downstream task.
 
 \begin{deepdive}
 
-The representations developed in Chapter~1 (Section~\ref{sec:embeddings}) and
+The representations developed in \Cref{ch:intro} (Section~\ref{sec:embeddings}) and
 Section~\ref{sec:doc-repr} of this chapter treat documents as \emph{bags} of tokens:
 order is either ignored or captured only crudely through $n$-gram features.
 Financial text, however, is inherently sequential.
@@ -434,7 +434,7 @@ is the standard remedy for explosion, but there is no analogous in-architecture 
 for vanishing gradients in the vanilla RNN.
 \end{remark}
 
-These theoretical constraints have concrete consequences for financial text. An S\&P~500 earnings-call transcript is typically 8,000--12,000 tokens.
+These theoretical constraints have concrete consequences for financial text. An S\&P~500 earnings-call transcript is on the order of ten thousand tokens.
 Management guidance on page~20 may negate a claim on page~3.
 Proposition~\ref{thm:vanish-explode} implies the gradient from position $t = 100$
 contributes essentially nothing to $W_h$ after $T - t \approx 9{,}900$ BPTT
@@ -646,135 +646,154 @@ structural failures of the architectures traced in Section~\ref{sec:sequential}:
 The Transformer eliminates all three bottlenecks simultaneously: it replaces the
 recurrent loop with \emph{self-attention}, a mechanism in which every token
 computes a weighted sum over every other token in a single parallel operation.
-Figure~\ref{fig:ch02-transformer-pipeline} shows the full processing pipeline
-on the financial phrase \textit{``Revenue fell sharply''}, contrasting the
-Transformer's all-to-all connectivity with the RNN's sequential chain.
+
+Before dissecting the mathematics, it helps to see how the pieces fit together.
+Figure~\ref{fig:ch02-transformer-pipeline} reproduces the canonical
+\emph{encoder--decoder} design of \citet{vaswani2017attention} --- the template
+from which BERT, GPT, and the financial LLMs of later chapters all descend.
+The model has two halves:
+\begin{itemize}
+  \item The \textbf{encoder} (left) reads the whole input sequence at once and
+        maps it to a sequence of context-aware vectors $H$.  Each of its $N$
+        identical layers applies multi-head \emph{self-attention} --- every
+        input token attends to every other input token --- followed by a
+        position-wise feed-forward network.  Because the encoder sees the entire
+        input, its attention is \emph{bidirectional}: when encoding
+        \texttt{fell} it already ``knows'' that \texttt{sharply} follows.
+  \item The \textbf{decoder} (right) generates the output one token at a time,
+        left to right.  Each of its $N$ layers has \emph{three} sub-layers
+        rather than two: (i) \emph{masked} self-attention, in which a position
+        may attend only to tokens already generated (a causal mask,
+        Section~\ref{sec:transformer-selfattn}, stops the model from peeking at
+        the answer); (ii) \emph{cross-attention}, in which the partially
+        generated output attends back to the encoder vectors $H$ --- the channel
+        through which information crosses from input to output; and (iii) a
+        feed-forward network.
+\end{itemize}
+Every sub-layer is wrapped in a residual connection and layer normalisation
+--- the ``Add~\& Norm'' bars in the figure --- and the decoder is capped by a
+linear projection and a softmax that convert the final vector into a probability
+distribution over the next token.
+The rest of this section constructs each component in turn --- self-attention
+(Section~\ref{sec:transformer-selfattn}), multi-head attention
+(Section~\ref{sec:transformer-mha}), and positional encoding
+(Section~\ref{sec:transformer-pos}) --- and then reassembles them into the
+encoder and decoder layers (Section~\ref{sec:transformer-encdec}).
+
+Not every model keeps both halves: BERT-style models retain only the encoder,
+GPT-style models only the decoder, and sequence-to-sequence models (T5, BART)
+use the full stack --- a distinction Section~\ref{sec:transformer-pretrain} ties
+to specific financial tasks.
+The toy example in Figure~\ref{fig:ch02-transformer-pipeline} --- rewriting the
+input \textit{``Revenue fell sharply''} as the generated phrase
+\textit{``Sales dropped''} --- is a sequence-to-sequence task that exercises both
+halves at once.
 
 \end{deepdive}
 
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}[
-    node distance = 0.55cm and 1.5cm,
-    tok/.style    = {rectangle, draw=blue!60, fill=blue!8, rounded corners=3pt,
-                     minimum width=2.0cm, minimum height=0.65cm,
-                     font=\small\ttfamily},
-    emb/.style    = {rectangle, draw=green!50!black, fill=green!10,
-                     rounded corners=3pt, minimum width=2.0cm,
-                     minimum height=0.55cm, font=\scriptsize},
-    mha/.style    = {rectangle, draw=orange!70!black, fill=orange!12,
-                     rounded corners=3pt, minimum width=7.2cm,
-                     minimum height=0.8cm, font=\small, align=center},
-    ffn/.style    = {rectangle, draw=purple!60, fill=purple!8,
-                     rounded corners=3pt, minimum width=2.0cm,
-                     minimum height=0.55cm, font=\scriptsize},
-    ctx/.style    = {rectangle, draw=red!60, fill=red!8, rounded corners=3pt,
-                     minimum width=2.0cm, minimum height=0.65cm,
-                     font=\scriptsize},
-    rnnbox/.style = {rectangle, draw=gray!70, fill=gray!8, rounded corners=3pt,
-                     minimum width=1.3cm, minimum height=0.65cm,
-                     font=\scriptsize\ttfamily},
-    lbl/.style    = {font=\scriptsize\itshape, text=gray!70!black},
-    arr/.style    = {->, >=stealth, thick},
-    attn/.style   = {->, >=stealth, dashed, blue!50},
+    >=stealth,
+    font=\small,
+    block/.style = {rectangle, draw=black!70, rounded corners=2pt,
+                    minimum width=3.0cm, minimum height=0.8cm, align=center,
+                    font=\small},
+    attn/.style  = {block, fill=orange!12, draw=orange!75!black},
+    ffn/.style   = {block, fill=purple!10, draw=purple!60},
+    an/.style    = {rectangle, draw=black!45, fill=black!6, rounded corners=1pt,
+                    minimum width=3.0cm, minimum height=0.42cm, font=\scriptsize,
+                    align=center},
+    emb/.style   = {block, fill=green!12, draw=green!50!black, minimum height=0.7cm,
+                    font=\scriptsize},
+    io/.style    = {font=\scriptsize\itshape, text=black!75, align=center},
+    top/.style   = {block, fill=blue!10, draw=blue!60, minimum height=0.6cm,
+                    minimum width=2.2cm, font=\scriptsize},
+    flow/.style  = {->, thick, black!70},
+    cross/.style = {->, thick, red!65!black, dashed},
   ]
-  % ---- LEFT PANEL: Transformer ----
-  % Row 0: input tokens
-  \node[tok] (t1) {Revenue};
-  \node[tok, right=of t1] (t2) {fell};
-  \node[tok, right=of t2] (t3) {sharply};
-  \node[lbl, left=0.25cm of t1] {tokens};
 
-  % Row 1: embeddings
-  \node[emb, above=of t1] (e1) {$\mathbf{x}_1$};
-  \node[emb, above=of t2] (e2) {$\mathbf{x}_2$};
-  \node[emb, above=of t3] (e3) {$\mathbf{x}_3$};
-  \node[lbl, left=0.25cm of e1] {embed};
+  % ============ ENCODER (left column) ============
+  \node[io] (enc_in) {Inputs\\\ttfamily\footnotesize ``Revenue fell sharply''};
+  \node[emb, above=0.45cm of enc_in] (enc_emb) {Input Embedding\\+ Positional Encoding};
+  \node[attn, above=0.55cm of enc_emb] (enc_attn) {Multi-Head\\Self-Attention};
+  \node[an,   above=0.30cm of enc_attn] (enc_an1) {Add \& Norm};
+  \node[ffn,  above=0.30cm of enc_an1] (enc_ffn) {Feed Forward};
+  \node[an,   above=0.30cm of enc_ffn] (enc_an2) {Add \& Norm};
 
-  \draw[arr] (t1)--(e1); \draw[arr] (t2)--(e2); \draw[arr] (t3)--(e3);
+  \draw[flow] (enc_in)  -- (enc_emb);
+  \draw[flow] (enc_emb) -- (enc_attn);
+  \draw[flow] (enc_attn)-- (enc_an1);
+  \draw[flow] (enc_an1) -- (enc_ffn);
+  \draw[flow] (enc_ffn) -- (enc_an2);
 
-  % Row 2: Multi-head self-attention (one wide box)
-  \node[mha, above=0.9cm of e2] (mha) {Multi-Head Self-Attention\\
-    \scriptsize(every token attends to every other token in parallel)};
-  \node[lbl, left=0.25cm of mha.west, xshift=-0.1cm, align=right]
-    {attention};
+  % encoder stack box
+  \coordinate (enc_bl) at ($(enc_attn.south west)+(-0.30,-0.18)$);
+  \coordinate (enc_tr) at ($(enc_an2.north east)+(0.30,0.18)$);
+  \draw[black!55, rounded corners=3pt] (enc_bl) rectangle (enc_tr);
+  \node[rotate=90, font=\scriptsize\bfseries, anchor=south, text=black!60]
+    at ($(enc_bl)!0.5!(enc_bl |- enc_tr)+(-0.18,0)$) {$N\times$};
 
-  % Feeds into MHA
-  \draw[arr] (e1.north) -- ++(0,0.35) -| (mha.south west);
-  \draw[arr] (e2.north) -- (mha.south);
-  \draw[arr] (e3.north) -- ++(0,0.35) -| (mha.south east);
+  % ============ DECODER (right column) ============
+  \node[io, right=4.0cm of enc_in] (dec_in) {Outputs (shifted right)\\\ttfamily\footnotesize ``$\langle$s$\rangle$ Sales dropped''};
+  \node[emb, above=0.45cm of dec_in] (dec_emb) {Output Embedding\\+ Positional Encoding};
+  \node[attn, above=0.55cm of dec_emb] (dec_attn) {Masked Multi-Head\\Self-Attention};
+  \node[an,   above=0.30cm of dec_attn] (dec_an1) {Add \& Norm};
+  \node[attn, above=0.30cm of dec_an1] (dec_cross) {Multi-Head\\Cross-Attention};
+  \node[an,   above=0.30cm of dec_cross] (dec_an2) {Add \& Norm};
+  \node[ffn,  above=0.30cm of dec_an2] (dec_ffn) {Feed Forward};
+  \node[an,   above=0.30cm of dec_ffn] (dec_an3) {Add \& Norm};
 
-  % Attention weight arrows between embeddings (curved, thickness encodes weight)
-  \draw[attn, line width=1.8pt, bend left=35]
-    (e1.north east) to node[above, font=\tiny, text=blue!70] {0.71}
-    (e3.north west);
-  \draw[attn, line width=0.8pt, bend right=25]
-    (e2.north) to node[right, font=\tiny, text=blue!70] {0.21}
-    (e1.north east);
-  \draw[attn, line width=0.4pt, bend left=20]
-    (e2.north) to node[right, font=\tiny, text=blue!70] {0.08}
-    (e3.north west);
+  \draw[flow] (dec_in)   -- (dec_emb);
+  \draw[flow] (dec_emb)  -- (dec_attn);
+  \draw[flow] (dec_attn) -- (dec_an1);
+  \draw[flow] (dec_an1)  -- (dec_cross);
+  \draw[flow] (dec_cross)-- (dec_an2);
+  \draw[flow] (dec_an2)  -- (dec_ffn);
+  \draw[flow] (dec_ffn)  -- (dec_an3);
 
-  % Row 3: per-token FFN
-  \node[ffn, above=0.9cm of mha.north west, xshift=1.0cm] (f1) {FFN};
-  \node[ffn, right=of f1] (f2) {FFN};
-  \node[ffn, right=of f2] (f3) {FFN};
-  \node[lbl, left=0.25cm of f1] {FFN};
+  % decoder stack box
+  \coordinate (dec_bl) at ($(dec_attn.south west)+(-0.30,-0.18)$);
+  \coordinate (dec_tr) at ($(dec_an3.north east)+(0.30,0.18)$);
+  \draw[black!55, rounded corners=3pt] (dec_bl) rectangle (dec_tr);
+  \node[rotate=90, font=\scriptsize\bfseries, anchor=north, text=black!60]
+    at ($(dec_tr)!0.5!(dec_tr |- dec_bl)+(0.18,0)$) {$N\times$};
 
-  \draw[arr] (mha.north west) ++(1.0cm,0) -- (f1.south);
-  \draw[arr] (mha.north)                  -- (f2.south);
-  \draw[arr] (mha.north east) ++(-1.0cm,0) -- (f3.south);
+  % top head
+  \node[top, above=0.40cm of dec_an3] (lin) {Linear};
+  \node[top, above=0.28cm of lin] (soft) {Softmax};
+  \node[io, above=0.32cm of soft] (probs) {Output Probabilities\\\ttfamily\footnotesize $p(\text{next token})$};
+  \draw[flow] (dec_an3) -- (lin);
+  \draw[flow] (lin) -- (soft);
+  \draw[flow] (soft) -- (probs);
 
-  % Row 4: contextual output
-  \node[ctx, above=of f1] (o1) {$\mathbf{z}_1$};
-  \node[ctx, above=of f2] (o2) {$\mathbf{z}_2$};
-  \node[ctx, above=of f3] (o3) {$\mathbf{z}_3$};
-  \node[lbl, left=0.25cm of o1] {output};
+  % cross-attention link: encoder output -> decoder cross-attention (keys, values)
+  \draw[cross] (enc_an2.east) -- ++(0.45,0) |- (dec_cross.west);
+  \node[font=\scriptsize, text=red!65!black, anchor=south]
+    at ($(enc_an2.east |- dec_cross.west)!0.5!(dec_cross.west)+(0,0.06)$)
+    {keys \& values $H$};
 
-  \draw[arr] (f1)--(o1); \draw[arr] (f2)--(o2); \draw[arr] (f3)--(o3);
-
-  % ---- RIGHT PANEL: RNN contrast ----
-  \node[rnnbox, right=2.2cm of t3] (r1) {$h_1$};
-  \node[rnnbox, above=of r1]       (r2) {$h_2$};
-  \node[rnnbox, above=of r2]       (r3) {$h_3$};
-
-  \node[font=\scriptsize\bfseries, above=0.2cm of r3, align=center]
-    {RNN\\chain};
-  \node[font=\tiny, below=0.15cm of r1, text=gray] {\textit{Revenue}};
-  \node[font=\tiny, right=0.05cm of r2, text=gray] {\textit{fell}};
-  \node[font=\tiny, right=0.05cm of r3, text=gray] {\textit{sharply}};
-
-  \draw[arr, gray] (r1)--(r2) node[midway, right, font=\tiny, text=gray]
-    {copy};
-  \draw[arr, gray] (r2)--(r3) node[midway, right, font=\tiny, text=gray]
-    {copy};
-
-  % Brace showing "T steps to reach sharply"
-  \draw[decorate,
-        decoration={brace, amplitude=5pt, mirror, raise=4pt},
-        gray!60]
-    (r1.west) -- (r3.west)
-    node[midway, left=10pt, font=\tiny, text=gray, align=right]
-    {$T$ steps\\to bridge};
-
-  % Dividing rule between panels
-  \draw[gray!40, dashed] ($(t3.north east)+(0.8cm,-0.3cm)$) --
-                          ($(o3.south east)+(0.8cm, 0.5cm)$);
-
-  % Panel labels
-  \node[font=\small\bfseries, below=0.4cm of t2] {Transformer};
-  \node[font=\small\bfseries, below=0.4cm of r1] {RNN};
+  % column captions (placed safely below the input/output tokens)
+  \node[font=\small\bfseries, below=0.30cm of enc_in] {Encoder};
+  \node[font=\small\bfseries, below=0.30cm of dec_in] {Decoder};
 
   \end{tikzpicture}
-  \caption{Processing the phrase \textit{``Revenue fell sharply''} through a
-    Transformer encoder (left) versus an RNN (right).
-    In the Transformer, every token simultaneously attends to every other token;
-    dashed arrows show the attention weights that \texttt{Revenue} places on each
-    peer when computing its contextual representation $\mathbf{z}_1$
-    (thickness $\propto$ weight).
-    In the RNN, information about \texttt{Revenue} must propagate through
-    $T$ hidden states before reaching \texttt{sharply}, accumulating
-    gradient decay at every step.}
+  \caption{The canonical Transformer encoder--decoder architecture of
+    \citet{vaswani2017attention}, drawn on a sequence-to-sequence financial
+    example.  The \textbf{encoder} (left) maps the input
+    \textit{``Revenue fell sharply''} to context vectors $H$ through $N$ stacked
+    layers, each combining bidirectional multi-head self-attention with a
+    position-wise feed-forward network.  The \textbf{decoder} (right) generates
+    the output left to right; relative to the encoder, each of its $N$ layers
+    adds two things: a \emph{masked} self-attention sub-layer, so a position
+    attends only to tokens already produced, and a \emph{cross-attention}
+    sub-layer (red link) that reads the encoder output $H$ as its keys and
+    values --- the bridge from input to output.  ``Add~\& Norm'' denotes a
+    residual connection followed by layer normalisation; a final
+    linear-plus-softmax head turns the top vector into a distribution over the
+    next token.  Encoder-only models (BERT) keep only the left stack;
+    decoder-only models (GPT) keep only the right stack with cross-attention
+    removed.}
   \label{fig:ch02-transformer-pipeline}
 \end{figure}
 
@@ -949,6 +968,8 @@ which embed the rotation directly into query--key dot products.
 \subsection{Encoder--Decoder Structure}
 \label{sec:transformer-encdec}
 
+We now assemble the components of the previous three subsections into the full
+encoder and decoder layers sketched in Figure~\ref{fig:ch02-transformer-pipeline}.
 The encoder layer transforms its input through self-attention followed by a feed-forward network. Let $X^{(\ell)} \in \mathbb{R}^{n \times d_{\mathrm{model}}}$ be the layer-$\ell$ input.
 With residual connections \cite{he2016resnet} % [CITE: He et al. 2016, Deep Residual Learning for Image Recognition]
 and Layer Normalisation \cite{ba2016layernorm}: % [CITE: Ba et al. 2016, Layer Normalization]
@@ -999,6 +1020,374 @@ feed-forward network; and (iv) a linear projection to vocabulary logits followed
 by softmax.  The base model uses $L = 6$ layers; the large model uses $L = 24$.
 Modern LLMs use $L = 32$--$96$.
 \end{remark}
+
+% ---
+\subsection{Special Tokens}
+\label{sec:special-tokens}
+
+Before tracing a forward pass it is worth pausing on a detail that the input
+\texttt{<s> revenue fell} already hints at.  Alongside the word-pieces of the text,
+every LLM reserves a handful of \emph{special tokens} that carry structural rather
+than lexical meaning.  They are appended to the vocabulary $\mathcal{V}$ and embedded
+through the same matrix $E$ as ordinary tokens --- the model simply learns to treat
+their vectors as control signals.  The most common are:
+\begin{itemize}
+  \item \texttt{<s>} (also written \texttt{<bos>}) --- \emph{beginning of sequence}:
+        prepended to every input so that the first real prediction has something to
+        condition on.  Our walk-through uses \texttt{<s>} in exactly this role.
+  \item \texttt{</s>} / \texttt{<eos>} --- \emph{end of sequence}: the token a
+        generative model emits to declare that it is finished; decoding stops when it
+        is sampled.
+  \item \texttt{[CLS]} --- a summary slot prepended in BERT-style encoders whose final
+        hidden state feeds the classification head
+        (Section~\ref{sec:transformer-pretrain}).
+  \item \texttt{[SEP]} --- a separator marking the boundary between two segments, such
+        as a question and a passage, or sentence $A$ and sentence $B$.
+  \item \texttt{[MASK]} --- the placeholder that masked-language-model pre-training
+        asks the encoder to reconstruct (Section~\ref{sec:transformer-pretrain}).
+  \item \texttt{<pad>} --- filler appended so that all sequences in a batch share one
+        length; an attention mask (cf.\ Definition~\ref{def:sbert-pool}) zeroes its
+        contribution so padding never influences the output.
+  \item \texttt{<unk>} --- a fallback emitted for any input piece absent from
+        $\mathcal{V}$.
+\end{itemize}
+These tokens are not cosmetic: in a financial pipeline a misplaced \texttt{<eos>} can
+truncate a generated risk disclosure mid-sentence, failing to mask \texttt{<pad>}
+tokens biases a sentiment score, and a retrieval system that splices context into a
+prompt must respect the model's special-token conventions or the model silently
+misreads where the document boundaries lie.
+
+% ---
+\subsection{A Numerical Walk-Through: One Forward Pass of a Tiny GPT}
+\label{sec:transformer-walkthrough}
+
+The preceding subsections defined every component of the Transformer in isolation.
+This subsection runs them end to end on a deliberately tiny decoder-only model --- a
+``GPT in miniature'' --- so that the reader can follow the data as it is transformed
+from raw text into a probability distribution over the next token, matrix by matrix.
+We trace the right-hand (decoder) path of Figure~\ref{fig:ch02-transformer-pipeline}:
+the model reads the prefix \textit{``\texttt{<s> revenue fell}''} and must predict the
+word that comes next.
+
+\begin{remark}[Configuration of the toy model]
+\label{rem:tinygpt-config}
+To keep every matrix small enough to print, we shrink all dimensions drastically:
+\begin{itemize}
+  \item a vocabulary of $V = 6$ tokens, indexed
+        $0\!:\!\texttt{<s>}$, $1\!:\!\texttt{revenue}$, $2\!:\!\texttt{fell}$,
+        $3\!:\!\texttt{sharply}$, $4\!:\!\texttt{rose}$, $5\!:\!\texttt{.}$\;;
+  \item model width $d_{\mathrm{model}} = 4$ and input length $n = 3$;
+  \item a \emph{single} decoder block with one attention head
+        ($d_k = d_v = 4$) and feed-forward width $d_{\mathrm{ff}} = 6$;
+  \item post-layer-norm with $\boldsymbol{\gamma} = \mathbf{1}$,
+        $\boldsymbol{\beta} = \mathbf{0}$, and output (un-embedding) weights
+        \emph{tied} to the embedding matrix, $W_U = E^{\top}$, as in GPT.
+\end{itemize}
+Three simplifications keep the arithmetic legible.  First, the weights below are
+chosen by hand for illustration, \emph{not} trained --- so the token that ends up
+with highest probability reflects our choice of numbers, not learned financial
+knowledge.  Second, we set $W^Q = W^K = I$, so the queries and keys are simply the
+input rows themselves.  Third, a production GPT differs in scale, not in kind: it uses
+byte-pair tokens, $d_{\mathrm{model}}$ in the thousands, $d_{\mathrm{ff}} = 4\,
+d_{\mathrm{model}}$, dozens of heads, and $L = 32$--$96$ stacked copies of the block
+traced here.
+\end{remark}
+
+\begingroup
+\setlength{\arraycolsep}{3.5pt}
+
+\paragraph{Step 1 --- Tokenise and embed.}
+The three input tokens have ids $(0, 1, 2)$.  Embedding lookup is, quite literally,
+multiplication of a \emph{one-hot} matrix by the embedding table
+(Proposition~\ref{thm:mean-embed-is-bow}): stack the one-hot row vectors of the three
+ids into $O \in \{0,1\}^{3 \times 6}$ and multiply by the learned token-embedding
+matrix $E \in \mathbb{R}^{6 \times 4}$.  Each one-hot row holds a single $1$ that
+\emph{selects} the matching row of $E$.  Throughout the trace we shade the
+\texttt{fell} token --- position $3$, whose next-token prediction is the whole point of
+the exercise --- so that it can be followed from one matrix to the next:
+\begin{equation*}
+  O =
+  \left[\begin{array}{cccccc}
+    1 & 0 & 0 & 0 & 0 & 0\\
+    0 & 1 & 0 & 0 & 0 & 0\\
+    \rowcolor{blue!14} 0 & 0 & 1 & 0 & 0 & 0
+  \end{array}\right]\!\!
+  \begin{array}{l}
+    \scriptstyle\texttt{<s>}\\[-1pt]\scriptstyle\texttt{revenue}\\[-1pt]
+    \scriptstyle\texttt{fell}
+  \end{array}
+  \qquad
+  E =
+  \left[\begin{array}{cccc}
+    1 & 0 & 0 & 0\\
+    0 & 1 & 0 & 1\\
+    \rowcolor{blue!14} 1 & 0 & 1 & 0\\
+    0 & 1 & 1 & 0\\
+    1 & 1 & 0 & 0\\
+    0 & 0 & 0 & 1
+  \end{array}\right]\!\!
+  \begin{array}{l}
+    \scriptstyle\texttt{<s>}\\[-1pt]\scriptstyle\texttt{revenue}\\[-1pt]
+    \scriptstyle\texttt{fell}\\[-1pt]\scriptstyle\texttt{sharply}\\[-1pt]
+    \scriptstyle\texttt{rose}\\[-1pt]\scriptstyle\texttt{.}
+  \end{array}
+\end{equation*}
+Multiplying out, $O E$ keeps exactly the selected row of $E$ at each input position:
+\begin{equation*}
+  X^{(\mathrm{emb})} = O\,E =
+  \left[\begin{array}{cccc}
+    1 & 0 & 0 & 0\\
+    0 & 1 & 0 & 1\\
+    \rowcolor{blue!14} 1 & 0 & 1 & 0
+  \end{array}\right]
+  \begin{array}{l}
+    \scriptstyle\leftarrow\texttt{<s>}\\[-1pt]\scriptstyle\leftarrow\texttt{revenue}\\[-1pt]
+    \scriptstyle\leftarrow\texttt{fell}
+  \end{array}.
+\end{equation*}
+
+\paragraph{Step 2 --- Add positional encoding.}
+Self-attention is permutation-equivariant, so position must be injected explicitly.
+Using the sinusoidal scheme of Definition~\ref{def:positional-encoding} for
+$n = 3$, $d_{\mathrm{model}} = 4$ (values rounded to two decimals), and adding it to
+the embeddings gives the block input $X^{(0)}$:
+\begin{align*}
+  \mathrm{PE} &=
+  \begin{bmatrix}
+    0.00 & 1.00 & 0.00 & 1.00\\
+    0.84 & 0.54 & 0.01 & 1.00\\
+    0.91 & -0.42 & 0.02 & 1.00
+  \end{bmatrix},\\[3pt]
+  X^{(0)} = X^{(\mathrm{emb})} + \mathrm{PE} &=
+  \left[\begin{array}{cccc}
+    1.00 & 1.00 & 0.00 & 1.00\\
+    0.84 & 1.54 & 0.01 & 2.00\\
+    \rowcolor{blue!14} 1.91 & -0.42 & 1.02 & 1.00
+  \end{array}\right].
+\end{align*}
+Row $t$ of $X^{(0)}$ is the representation of the token at position $t$; the model now
+forgets the words and works entirely with these vectors.
+
+\paragraph{Step 3 --- Form queries, keys, and values.}
+Each row is projected into a query, a key, and a value
+(Definition~\ref{def:scaled-dot-product-attn}).  With $W^Q = W^K = I$ we have
+$Q = K = X^{(0)}$, while $W^V$ mixes the coordinates:
+\begin{equation*}
+  W^V =
+  \begin{bmatrix}
+    0 & 1 & 0 & 0\\
+    1 & 0 & 0 & 1\\
+    0 & 0 & 1 & 0\\
+    0 & 1 & 0 & 1
+  \end{bmatrix},
+  \qquad
+  V = X^{(0)} W^V =
+  \begin{bmatrix}
+    1.00 & 2.00 & 0.00 & 2.00\\
+    1.54 & 2.84 & 0.01 & 3.54\\
+    -0.42 & 2.91 & 1.02 & 0.58
+  \end{bmatrix}.
+\end{equation*}
+
+\paragraph{Step 4 --- Scaled scores, causal mask, and softmax.}
+The score matrix is $S = QK^{\top}/\sqrt{d_k}$ with $\sqrt{d_k} = 2$; entry $(i,j)$
+measures how strongly token $i$ attends to token $j$.  Because this is a
+\emph{decoder}, the causal mask of~\eqref{eq:causal-mask} sets every above-diagonal
+entry to $-\infty$ so that a token cannot attend to its own future.  A row-wise
+softmax then turns each masked row into attention weights $A$:
+\begin{equation*}
+  \setlength{\arraycolsep}{2pt}
+  S =
+  \begin{bmatrix}
+    1.50 & 2.19 & 1.25\\
+    2.19 & 3.54 & 1.49\\
+    1.25 & 1.49 & 2.93
+  \end{bmatrix}
+  \xrightarrow{\text{mask}}
+  \begin{bmatrix}
+    1.50 & -\infty & -\infty\\
+    2.19 & 3.54 & -\infty\\
+    1.25 & 1.49 & 2.93
+  \end{bmatrix}
+  \xrightarrow{\text{softmax}}
+  A =
+  \left[\begin{array}{ccc}
+    1.00 & 0.00 & 0.00\\
+    0.21 & 0.79 & 0.00\\
+    \rowcolor{blue!14} 0.13 & 0.17 & 0.70
+  \end{array}\right].
+\end{equation*}
+The first token can only attend to itself ($A_{1,1} = 1$); the last token,
+\texttt{fell} (shaded row), spreads its attention as $0.13/0.17/0.70$ over the three
+positions, weighting itself most heavily.  Each row of $A$ is a probability distribution
+(Proposition~\ref{thm:attention-prob}).
+
+\paragraph{Step 5 --- Attention output and the first ``Add \& Norm''.}
+The new representation of each token is the attention-weighted average of the value
+rows, $\mathrm{Att} = A V$.  Following~\eqref{eq:enc-layer-z} we add the residual
+input and apply layer normalisation, $Z = \mathrm{LayerNorm}\!\left(X^{(0)} +
+\mathrm{Att}\right)$:
+\begin{equation*}
+  \mathrm{Att} = AV =
+  \left[\begin{array}{cccc}
+    1.00 & 2.00 & 0.00 & 2.00\\
+    1.43 & 2.67 & 0.01 & 3.22\\
+    \rowcolor{blue!14} 0.09 & 2.78 & 0.72 & 1.26
+  \end{array}\right],
+  \qquad
+  Z =
+  \left[\begin{array}{cccc}
+    0.00 & 0.82 & -1.63 & 0.82\\
+    -0.33 & 0.64 & -1.46 & 1.15\\
+    \rowcolor{blue!14} -0.36 & 1.12 & -1.46 & 0.70
+  \end{array}\right].
+\end{equation*}
+The shaded \texttt{fell} row shows the thread continuing: its attention weights
+($0.13/0.17/0.70$) combine the value rows into a new representation, which the residual
+connection and layer normalisation then rescale.  Layer normalisation acts on each
+\emph{row} (zero mean, unit variance), which is why every row of $Z$ sums to zero.
+
+\paragraph{Step 6 --- The position-wise feed-forward network.}
+The same little two-layer neural network of~\eqref{eq:ffn},
+$\mathrm{FFN}(\mathbf{z}) = \max(0,\, \mathbf{z} W_1) W_2$, is applied independently
+to each row of $Z$ (Figure~\ref{fig:ch02-tinygpt-ffn}).  It widens the 4-vector to a
+6-dimensional hidden layer, applies the ReLU nonlinearity, then projects back to four
+dimensions:
+\begin{equation*}
+  W_1 =
+  \begin{bmatrix}
+     0 & 0 & -1 & 1 & -1 & 0\\
+     1 & 0 & 0 & -1 & 0 & 0\\
+    -1 & -1 & -1 & 0 & -1 & 1\\
+     0 & 0 & 0 & 0 & 0 & 0
+  \end{bmatrix},
+  \qquad
+  W_2 =
+  \begin{bmatrix}
+     0 & 0 & 1 & -1\\
+    -1 & 0 & 0 & 0\\
+     0 & 0 & 0 & 0\\
+     1 & 1 & -1 & 0\\
+     0 & -1 & -1 & 0\\
+    -1 & 0 & 1 & 1
+  \end{bmatrix}.
+\end{equation*}
+Multiplying $Z W_1$ and clipping negatives to zero gives the hidden activations $H$;
+note that hidden units $4$ and $6$ receive a negative pre-activation at \emph{every}
+position and are switched off by the ReLU (the grey nodes in
+Figure~\ref{fig:ch02-tinygpt-ffn}).  Projecting back down with $W_2$ then gives $F$:
+\begin{align*}
+  H &= \max(0,\, Z W_1) =
+  \begin{bmatrix}
+    2.45 & 1.63 & 1.63 & 0 & 1.63 & 0\\
+    2.11 & 1.46 & 1.80 & 0 & 1.80 & 0\\
+    2.58 & 1.46 & 1.82 & 0 & 1.82 & 0
+  \end{bmatrix},\\[4pt]
+  F &= H W_2 =
+  \begin{bmatrix}
+    -1.63 & -1.63 & 0.82 & -2.45\\
+    -1.46 & -1.80 & 0.31 & -2.11\\
+    -1.46 & -1.82 & 0.76 & -2.58
+  \end{bmatrix}.
+\end{align*}
+A second residual-and-norm step, $X^{(1)} = \mathrm{LayerNorm}(Z + F)$
+(Equation~\eqref{eq:enc-layer-out}), produces the block output:
+\begin{equation*}
+  X^{(1)} =
+  \left[\begin{array}{cccc}
+    -1.00 & 1.00 & 1.00 & -1.00\\
+    -1.67 & 0.35 & 0.35 & 0.98\\
+    \rowcolor{blue!14} -0.95 & 1.00 & 1.00 & -1.05
+  \end{array}\right].
+\end{equation*}
+
+\begin{center}
+  \begin{tikzpicture}[
+    >=stealth, font=\scriptsize,
+    inn/.style  = {circle, draw=green!55!black, fill=green!12, minimum size=0.62cm, inner sep=0pt},
+    hid/.style  = {circle, draw=orange!75!black, fill=orange!14, minimum size=0.62cm, inner sep=0pt},
+    hoff/.style = {circle, draw=black!45, fill=black!8, minimum size=0.62cm, inner sep=0pt, text=black!55},
+    onode/.style= {circle, draw=purple!60, fill=purple!10, minimum size=0.62cm, inner sep=0pt},
+    edge/.style = {-, black!20, line width=0.3pt},
+    lyr/.style  = {font=\scriptsize\bfseries},
+  ]
+  \foreach \i/\lab in {1/{z_1},2/{z_2},3/{z_3},4/{z_4}}
+    {\node[inn] (i\i) at (0, -\i*0.95) {$\lab$};}
+  \foreach \j in {1,2,3,5} {\node[hid]  (h\j) at (3, -\j*0.74-0.1) {};}
+  \foreach \j in {4,6}     {\node[hoff] (h\j) at (3, -\j*0.74-0.1) {$0$};}
+  \foreach \k/\lab in {1/{f_1},2/{f_2},3/{f_3},4/{f_4}}
+    {\node[onode] (o\k) at (6, -\k*0.95) {$\lab$};}
+  \foreach \i in {1,2,3,4}{\foreach \j in {1,2,3,4,5,6}{\draw[edge] (i\i)--(h\j);}}
+  \foreach \j in {1,2,3,4,5,6}{\foreach \k in {1,2,3,4}{\draw[edge] (h\j)--(o\k);}}
+  \node[lyr, above=0.32cm of i1] {input $\mathbf{z}\in\mathbb{R}^{4}$};
+  \node[lyr, above=0.28cm of h1] (hl) {hidden $\mathbb{R}^{6}$};
+  \node[font=\scriptsize, below=0.04cm of hl] {ReLU};
+  \node[lyr, above=0.32cm of o1] {output $\mathbf{f}\in\mathbb{R}^{4}$};
+  \node[font=\scriptsize\itshape, text=black!65, fill=white, inner sep=1pt]
+    at (1.5,-2.45) {$W_1$ ($4{\times}6$)};
+  \node[font=\scriptsize\itshape, text=black!65, fill=white, inner sep=1pt]
+    at (4.5,-2.45) {$W_2$ ($6{\times}4$)};
+  \end{tikzpicture}
+  \captionof{figure}{The position-wise feed-forward sub-layer of the toy block, drawn
+    as a fully connected two-layer network.  The same weights ($W_1$, then ReLU, then
+    $W_2$) are applied to each token's 4-vector independently.  In this example
+    hidden units~4 and~6 (grey) receive a negative pre-activation at every position
+    and are clipped to zero by the ReLU --- a concrete instance of the sparsity that
+    ReLU induces.  A real Transformer uses $d_{\mathrm{ff}} = 4\,d_{\mathrm{model}}$
+    hidden units rather than the six shown here.}
+  \label{fig:ch02-tinygpt-ffn}
+\end{center}
+
+\paragraph{Step 7 --- Project to vocabulary logits and predict.}
+Finally the output rows are mapped back to the vocabulary.  With tied weights the
+logit matrix is $\mathrm{logits} = X^{(1)} E^{\top} \in \mathbb{R}^{3 \times 6}$, and a
+row-wise softmax yields, at each position, a probability distribution over the next
+token:
+\begin{equation*}
+  \mathrm{logits} =
+  \left[\begin{array}{ccc>{\columncolor{orange!16}}ccc}
+    -1.00 & 0.00 & 0.00 & 2.00 & 0.00 & -1.00\\
+    -1.67 & 1.32 & -1.32 & 0.70 & -1.32 & 0.98\\
+    -0.95 & -0.05 & 0.05 & \cellcolor{orange!42}\mathbf{2.00} & 0.05 & -1.05
+  \end{array}\right],
+  \quad
+  P = \mathrm{softmax}(\mathrm{logits}).
+\end{equation*}
+The shaded column is the \texttt{sharply} logit at each position; the darker cell is the
+prediction we care about --- the score \texttt{fell} assigns to \texttt{sharply}.
+Only the \emph{last} row matters for generation, since it predicts the token that
+follows \texttt{fell}.  Its logit for \texttt{sharply} is the dot product of the final
+vector $X^{(1)}_3 = (-0.95,\,1.00,\,1.00,\,-1.05)$ with \texttt{sharply}'s embedding
+$(0,1,1,0)$, namely $1.00 + 1.00 = 2.00$ --- the largest entry in the row.  After the
+softmax,
+\begin{equation*}
+  P_3 =
+  \bigl(\underbrace{0.03}_{\texttt{<s>}},\;
+        \underbrace{0.08}_{\texttt{revenue}},\;
+        \underbrace{0.09}_{\texttt{fell}},\;
+        \underbrace{\mathbf{0.66}}_{\texttt{sharply}},\;
+        \underbrace{0.09}_{\texttt{rose}},\;
+        \underbrace{0.03}_{\texttt{.}}\bigr),
+\end{equation*}
+so the tiny GPT completes \textit{``revenue fell''} with \textbf{\texttt{sharply}}
+(probability $0.66$) --- the very phrase that opened this section and that anchors
+Figure~\ref{fig:ch02-transformer-pipeline}.
+
+\begin{remark}[From one block to a real model]
+\label{rem:tinygpt-scale}
+Three differences separate this trace from a working GPT.  (i)~\emph{Depth and
+width}: real models stack $L$ blocks and run $h$ heads in parallel, repeatedly
+refining the row vectors; nothing in the computation above changes except that the
+matrices grow and the block repeats.  (ii)~\emph{Training}: the weights $E$, $W^V$,
+$W_1$, $W_2$ are not hand-picked but learned by minimising the causal
+language-modelling loss~\eqref{eq:clm-loss}, which rewards placing high probability on
+the token that \emph{actually} follows each prefix in a large corpus.  (iii)~\emph{
+Parallelism}: during training the model computes all three rows of $P$ at once and is
+scored on every next-token prediction simultaneously (teacher forcing), which is
+exactly the parallelism the recurrent models of Section~\ref{sec:sequential} could not
+exploit.
+\end{remark}
+\endgroup
 
 % ---
 \subsection{Pre-training, Fine-tuning, and BERT vs.\ GPT}
@@ -1088,9 +1477,8 @@ The name ``FinBERT'' designates two related but independently trained models.
 released the first variant: a BERT-base model further pre-trained on Reuters/Bloomberg
 news, 10-K filings, and earnings call transcripts.
 On the Financial PhraseBank dataset \cite{malo2014phrasebank} % [CITE: Malo et al. 2014, Good Debt or Bad Debt: Detecting Semantic Orientations in Economic Texts]
-(all-agree split), this model achieves over $97\%$ accuracy on financial phrase
-sentiment classification, outperforming general BERT-base by approximately 8
-percentage points.  A second, independently trained model by \citet{huang2023finbert}
+(all-agree split), this model achieves high accuracy on financial phrase
+sentiment classification, outperforming general BERT-base by a clear margin.  A second, independently trained model by \citet{huang2023finbert}
 fine-tunes BERT on analyst report sentences labelled by domain experts, achieving
 state-of-the-art performance on three financial sentiment benchmarks and demonstrating
 that contextual embeddings substantially outperform the Loughran--McDonald dictionary
@@ -1133,24 +1521,39 @@ for practitioners.
   \label{fig:ch02-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: Sinusoidal Positional Encoding]
+\begin{illustration}[Sinusoidal Positional Encoding]
 \label{ex:ch02-illustration}
-\textbf{[I]} Reproduce Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$
-and sequence length 50.
-(\textit{a})~Extract the encoding vectors for positions 5 and 10 and compute
-their cosine similarity; repeat for positions 5 and 45. Interpret the difference.
-(\textit{b})~Regenerate the heatmap for $d_{\mathrm{model}} \in \{32, 128\}$
-and describe how the frequency pattern changes with model dimension.
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb},
-Illustration Exercise.
-\end{exercise}
+The deterministic script \texttt{\seqsplit{gen\_positional\_encoding.py}} reproduces
+Figure~\ref{fig:ch02-illustration} for $d_{\mathrm{model}} = 64$ and sequence length 50
+(no data or network dependence), and the encoding's geometry can be probed in two ways.
+First, extracting the encoding vectors for positions 5 and 10 and computing their cosine
+similarity gives $\cos(\mathrm{PE}_5,\mathrm{PE}_{10}) \approx 0.73$, versus
+$\cos(\mathrm{PE}_5,\mathrm{PE}_{45}) \approx 0.48$ for the more distant pair: nearby
+positions have more similar encodings, so cosine similarity decays as positional
+separation grows.  Second, regenerating the heatmap for
+$d_{\mathrm{model}} \in \{32, 128\}$ shows how the frequency pattern changes with model
+dimension---higher dimensions add slower-varying frequency bands that let the encoding
+distinguish positions over longer ranges.
+See \texttt{code/figures/02-llm-foundations/gen\_positional\_encoding.py}
+for the deterministic figure generator, and \texttt{\seqsplit{code/practicals/02-llm-foundations/practical.ipynb}}
+for a hands-on reimplementation.
+
+\smallskip
+\noindent\textbf{Self-check.}
+(B)~Why does the scaled dot-product attention score divide by $\sqrt{d_k}$ rather than by
+$d_k$? \;
+(I)~Using \eqref{eq:rnn-jacobian}, compute the gradient-decay factor across
+$T-t = 50$ steps when the recurrent Jacobian has spectral radius $\rho = 0.9$. \;
+(I)~Predict, without running the code, whether $\cos(\mathrm{PE}_{5},\mathrm{PE}_{10})$ or
+$\cos(\mathrm{PE}_{10},\mathrm{PE}_{45})$ is larger, and explain why.
+\end{illustration}
 
 \section{The Modern LLM Landscape}
 \label{sec:landscape}
 
 \begin{context}
 
-In November 2022, a chatbot launched with almost no fanfare.  It reportedly reached a hundred million users in approximately two months, making it one of the fastest-growing consumer applications on record.  ChatGPT did not introduce any fundamentally new technology; the
+In November 2022, a chatbot launched with almost no fanfare.  It achieved unusually rapid mainstream adoption, becoming one of the fastest-growing consumer applications on record.  ChatGPT did not introduce any fundamentally new technology; the
 Transformer architecture had existed since 2017, GPT-3 since 2020.  What it
 introduced was \emph{interface}: a fluent, patient, conversational layer over a
 raw language model that made the underlying capability legible to people who had
@@ -1247,7 +1650,7 @@ is \$310 million, and we expect \$150 million in synergies within three years.  
 current weighted average cost of capital is 8.5\%.''
 \end{quote}
 
-A standard generative model (GPT-4o, temperature $= 0$) reads the excerpt and
+A standard generative model (GPT-5.6, temperature $= 0$) reads the excerpt and
 directly outputs a one-paragraph assessment, typically noting that the EV/EBITDA
 multiple is approximately $13.5\times$ and characterising the deal as
 \emph{``strategically sound given the synergy guidance.''}  This response is often
@@ -1275,27 +1678,28 @@ Table~\ref{tab:model-families} provides a structured overview of the major model
 families referenced throughout this book.
 
 \begin{center}
-\small
-\begin{tabular}{llllll}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X l l l X l}
 \hline
 \textbf{Model} & \textbf{Organisation} & \textbf{Arch.} & \textbf{Params} &
 \textbf{Training Data} & \textbf{Finance} \\
 \hline
-GPT-4 / GPT-4o   & OpenAI        & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
-Claude 3.x/4.x   & Anthropic     & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
-Llama 3 (405B)   & Meta          & Decoder-only & 405B             & 15T tokens       & No  \\
-Gemini 1.5 Pro   & Google DM     & Multimodal   & Undisclosed      & Multimodal web   & No  \\
+GPT-5.6          & OpenAI        & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
+Claude Opus 4.8  & Anthropic     & Decoder-only & Undisclosed      & Web + RLHF       & No  \\
+Llama 4 (Maverick) & Meta        & Decoder-only & 400B (MoE)       & Multimodal web   & No  \\
+Gemini 3 Pro     & Google DM     & Multimodal   & Undisclosed      & Multimodal web   & No  \\
 FinBERT          & Araci (2019)  & Encoder      & 110M             & Financial news   & Yes \\
 BloombergGPT     & Bloomberg     & Decoder-only & 50B              & 363B fin.\ tok.  & Yes \\
 \hline
-\end{tabular}
-\captionof{table}{Major language model families relevant to financial NLP (as of 2024--2025).
+\end{tabularx}
+\captionof{table}{Major language model families relevant to financial NLP (as of 2026).
 Parameter counts are approximate.  ``Finance'' indicates whether the model was
 trained or fine-tuned specifically on financial corpora.}
 \label{tab:model-families}
 \end{center}
 
-The most capable models (GPT-4o, Claude 4, Gemini 1.5 Pro) are proprietary: their
+The most capable models (GPT-5, Claude Opus 4.8, Gemini 3 Pro) are proprietary: their
 weights are not released, and access is mediated through pay-per-token APIs.
 Early empirical evidence that general-purpose LLMs encode actionable financial
 knowledge comes from \citet{LopezLiraTang2023}, who show that ChatGPT sentiment
@@ -1325,7 +1729,7 @@ that domain-specific pre-training on financial text was feasible at scale.
 Subsequent benchmarks revealed a nuanced picture.  On tasks requiring deep financial
 \emph{knowledge} (entity recognition in financial news, financial sentiment on
 FinancialPhraseBank), BloombergGPT outperforms same-size general-purpose baselines.
-But general-purpose models at significantly larger scale---GPT-4 or Claude 3---often
+But general-purpose models at significantly larger scale---GPT-5 or Claude Opus 4.8---often
 match or exceed BloombergGPT on the same benchmarks, because scale compensates for
 domain specificity.  This is an instance of the \emph{emergent capability} effect:
 beyond a threshold of model scale and training compute, models acquire domain knowledge
@@ -1333,7 +1737,7 @@ implicitly, even without targeted domain training \citep{wei2022emergent}.
 The practical implication is that \emph{task-specific fine-tuning of a general-purpose
 model} often outperforms a domain-pre-trained model of the same size, and
 \emph{prompt engineering} applied to a large general model often outperforms
-both---a theme developed extensively in Chapter~3 (LLM Training and Fine-Tuning).
+both---a theme developed extensively in \Cref{ch:llm-training}.
 \citet{niszczota2023gpt} provide an independent calibration of this point: in a
 standardised financial literacy test, GPT-4 achieves a near-perfect score of 99\%
 against a population of college students, confirming that frontier LLMs have absorbed
@@ -1361,7 +1765,7 @@ experiments in subsequent chapters.
 
 \begin{center}
 \small
-\begin{tabular}{lllll}
+\begin{tabularx}{\linewidth}{l X l l X}
 \hline
 \textbf{Benchmark} & \textbf{Task} & \textbf{Size} & \textbf{Metric} &
 \textbf{Reference} \\
@@ -1372,7 +1776,7 @@ ECTSum              & Earnings call summ.  & 2,425 docs        & ROUGE-L        
 FinQA               & Numerical reasoning  & 8,281 Q\&A pairs  & Execution acc. & \cite{chen2021finqa} \\
 FLUE                & Multi-task fin.\ NLU & Multi-task        & Task-specific  & \cite{shah2022flue} \\
 \hline
-\end{tabular}
+\end{tabularx}
 \captionof{table}{Major financial NLP benchmarks and datasets.  ``Size'' is approximate.
 ``Metric'' is the primary evaluation metric used in the literature.}
 \label{tab:benchmarks}
@@ -1399,7 +1803,7 @@ retrieval-augmented generation systems discussed in Section~\ref{sec:rag}.
 
 The ECTSum dataset of \citet{mukherjee2022ectsum} provides 2,425 earnings call
 transcript--summary pairs, where the reference summaries were written by domain experts
-and verified for factual consistency.  It is the primary benchmark for Chapter~14
+and verified for factual consistency.  It is the primary benchmark for \Cref{ch:financial-text-summarization}
 (Financial Text Summarisation and Information Extraction) and is used to evaluate
 both extractive and abstractive summarisation methods.
 
@@ -1419,9 +1823,9 @@ single-number evaluation framework for general financial NLP capability.
 
 \begin{remark}
 All five benchmarks described above were constructed primarily from English-language,
-North American financial documents.  Chapter~13 discusses the implications of this
+North American financial documents.  \Cref{ch:llm-limitations-evaluation} discusses the implications of this
 distributional bias for evaluating models intended for European or Asian financial
-markets, and Chapter~12 highlights specific challenges that arise when FLUE-trained
+markets, and \Cref{ch:xai-explainability} highlights specific challenges that arise when FLUE-trained
 models are applied to MiFID~II or IFRS filings.
 \end{remark}
 
@@ -1578,7 +1982,7 @@ recommendations for five common financial NLP tasks.
 
 \begin{center}
 \small
-\begin{tabular}{lllp{5cm}}
+\begin{tabularx}{\linewidth}{X l l X}
 \toprule
 \textbf{Task} & \textbf{Temperature} & \textbf{Sampling} & \textbf{Rationale} \\
 \midrule
@@ -1609,7 +2013,7 @@ Extractive summarisation / ROUGE evaluation
   & Deterministic output maximises $n$-gram overlap with reference texts;
     less suitable for open-ended or factual generation. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \captionof{table}{Recommended sampling strategies for financial NLP tasks.}
 \label{tab:sampling-strategies}
 \end{center}
@@ -1684,7 +2088,7 @@ the model produced the right fields, the developer declares a Pydantic model, co
 it to a JSON Schema, passes that schema as a tool definition, and receives a typed
 Python object in return.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 Note the \texttt{tool\_choice} parameter: setting it to a specific tool name forces the
 model to invoke that tool rather than choosing between text response and tool call.
@@ -1710,7 +2114,7 @@ The listing below demonstrates EBNF-constrained generation with \texttt{outlines
 for a minimal financial reporting record containing a company ticker, a numeric
 earnings figure, and a currency code.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 \subsection{Why Structured Generation Is Critical in Finance}
 \label{sec:structured-gen-finance}
@@ -1808,12 +2212,12 @@ representation of position $t$.  Any input exceeding $L_{\max}$ tokens must be
 truncated or split across multiple calls.
 \end{definition}
 
-Context windows grew rapidly in the 2022--2024 period: GPT-3 offered 4,096 tokens;
-GPT-4-turbo extended this to 128,000 tokens; Gemini 1.5 Pro supports 1,000,000
-tokens; Claude 3/4 supports up to 200,000 tokens with plans to expand further.  For
+Context windows grew rapidly: GPT-3 offered 4,096 tokens; GPT-4-turbo extended
+this to 128,000 tokens; and Gemini 1.5 Pro reached 1,000,000 tokens.  Current frontier
+models (GPT-5, Claude Opus 4.8) reach 1M tokens, and Gemini 3 Pro exceeds it.  For
 financial NLP, the context window determines whether an entire 10-K filing (which may
 exceed 100,000 tokens) can be processed in a single call---a question with significant
-implications for retrieval-augmented generation architectures (Chapter~5).
+implications for retrieval-augmented generation architectures (\Cref{ch:business-valuation}).
 
 The three principal sampling hyperparameters are temperature $\tau$, nucleus threshold
 $p$, and top-$k$ cutoff.  Their mathematical definitions and finance-specific selection
@@ -1835,7 +2239,7 @@ The OpenAI Python SDK follows a \emph{chat completion} model: the user submits a
 of messages (with roles \texttt{system}, \texttt{user}, and \texttt{assistant}), and
 the API returns a completion.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 The Anthropic SDK separates the \texttt{system} prompt from the \texttt{messages}
 list, passing it as a top-level argument rather than as the first message.  This
@@ -1843,21 +2247,21 @@ is a first-class API design choice: the system turn is processed as a distinct
 input type, enabling finer-grained prefix caching and system-level instruction
 enforcement at the inference layer, independent of conversation history.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 FinBERT \cite{araci2019finbert} % [CITE: araci2019finbert Araci (2019)]
 is a BERT-based encoder fine-tuned on financial news for three-class sentiment
 classification.  It runs locally without any API key or per-token cost.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 Table~\ref{tab:api-comparison} summarises the key structural differences across the three ecosystems.
 
 \begin{center}
-\small
-\begin{tabular}{llll}
+\footnotesize
+\begin{tabularx}{\linewidth}{l X X X}
 \hline
-\textbf{Feature} & \textbf{OpenAI (GPT-4o)} & \textbf{Anthropic (Claude)} &
+\textbf{Feature} & \textbf{OpenAI (GPT-5.6)} & \textbf{Anthropic (Claude)} &
 \textbf{HuggingFace (FinBERT)} \\
 \hline
 System prompt   & First message (\texttt{"system"}) & Top-level \texttt{system=} arg & N/A \\
@@ -1867,7 +2271,7 @@ Cost model      & Per input/output token & Per input/output token & Compute only
 Context window  & 128K tokens & 200K tokens & 512 tokens \\
 Task type       & Generative / reasoning & Generative / reasoning & Classification \\
 \hline
-\end{tabular}
+\end{tabularx}
 \captionof{table}{Comparison of LLM API designs for financial NLP tasks.}
 \label{tab:api-comparison}
 \end{center}
@@ -1883,33 +2287,33 @@ API providers charge separately for input tokens (the prompt) and output tokens
 \end{equation}
 where $N_{\text{in}}$, $N_{\text{out}}$ are token counts and $c_{\text{in}}$,
 $c_{\text{out}}$ are the provider's per-token prices.
-Table~\ref{tab:api-costs} gives approximate 2024 prices in USD per million tokens.
+Table~\ref{tab:api-pricing} gives approximate mid-2026 prices in USD per million tokens.
 
 \begin{center}
 \small
-\begin{tabular}{llll}
+\begin{tabularx}{\linewidth}{l l l X}
 \hline
 \textbf{Model} & \textbf{Input (\$/MTok)} & \textbf{Output (\$/MTok)} &
 \textbf{Notes} \\
 \hline
-GPT-4o                 & \$5.00       & \$15.00       & OpenAI, proprietary \\
-Claude 3 Sonnet        & \$3.00       & \$15.00       & Anthropic, proprietary \\
-Claude 3 Haiku         & \$0.25       & \$1.25        & Smaller, faster \\
-Llama 3 70B (via API)  & \$0.59       & \$0.79        & E.g.\ Together AI \\
-Llama 3 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
+GPT-5.6 Sol            & \$5.00       & \$30.00       & OpenAI, proprietary \\
+Claude Sonnet 4.6      & \$3.00       & \$15.00       & Anthropic, proprietary \\
+Claude Haiku 4.5       & \$1.00       & \$5.00        & Smaller, faster \\
+Llama 4 (via API)      & \$0.59       & \$0.79        & E.g.\ Together AI \\
+Llama 4 (self-hosted)  & $\approx$\$0 & $\approx$\$0  & GPU cost only \\
 \hline
-\end{tabular}
-\captionof{table}{Approximate 2024 API pricing.  Prices in USD per million tokens (MTok).
+\end{tabularx}
+\captionof{table}{Approximate mid-2026 API pricing.  Prices in USD per million tokens (MTok).
 Verify current prices on provider websites before budgeting.}
-\label{tab:api-costs}
+\label{tab:api-pricing}
 \end{center}
 
 To make this concrete, suppose a compliance team needs to process $N = 10{,}000$ earnings call transcripts,
 each approximately 5,000 words.  At 1.3 tokens per word (see
 Example~\ref{ex:bpe}), each transcript is $\approx 6{,}500$ input tokens.  Adding a
 500-token system prompt and $\approx 400$ output tokens, applying
-\eqref{eq:cost-model} gives $\text{cost}_{\text{GPT-4o}} \approx \$410$.
-The same workload on Claude 3 Haiku costs approximately \$20---a twenty-fold
+\eqref{eq:cost-model} gives $\text{cost}_{\text{GPT-5.6}} \approx \$410$ (illustrative).
+The same workload on Claude Haiku 4.5 costs approximately \$90---a more than four-fold
 reduction.  This illustrates the core cost-optimisation decision in financial NLP
 pipelines: a small, cheap model handles straightforward extraction tasks, while a
 large model is reserved for complex reasoning steps.
@@ -1998,11 +2402,12 @@ query and passage into the same embedding space; the relevance score between que
 $q$ and passage $d_i$ is
 \begin{equation}
   s_{\text{dense}}(q, d_i) = \frac{\phi(q) \cdot \phi(d_i)}{\|\phi(q)\| \|\phi(d_i)\|},
-  \label{eq:cosine-sim}
+  \label{eq:dense-retrieval}
 \end{equation}
-where $\phi : \text{text} \to \mathbb{R}^m$ is the encoder.
+the cosine similarity (\Cref{eq:cosine-sim}) between the two embeddings, where
+$\phi : \text{text} \to \mathbb{R}^m$ is the encoder.
 
-Computing \eqref{eq:cosine-sim} exhaustively over a corpus of millions of passages
+Computing \eqref{eq:dense-retrieval} exhaustively over a corpus of millions of passages
 is infeasible at query time.  In practice, approximate nearest-neighbour (ANN)
 search is used.  The FAISS library \citep{johnson2019billion} provides efficient
 ANN search via the inverted file index (IVF) and hierarchical navigable small-world
@@ -2066,18 +2471,18 @@ scores via a MaxSim operator, and achieves cross-encoder-level accuracy at
 bi-encoder-level latency.
 
 \subsection{RAG for Financial Documents}
-\label{sec:rag-finance}
+\label{sec:rag-finance-foundations}
 
 The following listing implements a minimal but production-relevant RAG pipeline for
 answering questions about a 10-K filing.  It uses FAISS for dense retrieval and
 the Anthropic API for generation.  Citation of passage numbers in the system prompt
 enables answer verification.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/02-llm-foundations/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter practical \texttt{code/practicals/02-llm-foundations/practical.ipynb}.}
 
 Three features of this design merit emphasis.  First, normalising the embeddings
 before adding them to the FAISS \texttt{IndexFlatIP} (inner product) index converts
-the inner product to cosine similarity, so the retrieval score is \eqref{eq:cosine-sim}
+the inner product to cosine similarity, so the retrieval score is \eqref{eq:dense-retrieval}
 exactly.  Second, the system prompt constrains the model to answer only from the
 provided passages; pairing this with low temperature ($\tau = 0$) makes hallucination
 outside the retrieved context extremely unlikely.  Third, requiring the model to cite
@@ -2177,19 +2582,12 @@ which is infeasible on most academic or practitioner hardware.
 instead of updating the full weight matrix, it injects a pair of low-rank matrices
 whose product approximates the update.
 
-\begin{definition}[Low-Rank Adaptation (LoRA)]
-\label{def:lora}
-For a pre-trained weight matrix $W_0 \in \mathbb{R}^{d \times k}$, LoRA
-parameterises the weight update as
-\begin{equation}
-  W = W_0 + \Delta W = W_0 + BA,
-  \label{eq:lora}
-\end{equation}
-where $B \in \mathbb{R}^{d \times r}$, $A \in \mathbb{R}^{r \times k}$,
-and $r \ll \min(d, k)$ is the \emph{rank}.  During training, $W_0$ is frozen
-and only $A$ and $B$ are updated.  The number of trainable parameters
-reduces from $dk$ to $r(d + k)$.
-\end{definition}
+The idea is to freeze the pre-trained weight matrix $W_0 \in \mathbb{R}^{d \times k}$
+and learn only a low-rank update $\Delta W = BA$, with $B \in \mathbb{R}^{d \times r}$,
+$A \in \mathbb{R}^{r \times k}$, and rank $r \ll \min(d, k)$, reducing the trainable
+parameters of the layer from $dk$ to $r(d + k)$. We give the formal definition,
+including the $\alpha/r$ scaling factor and initialisation, where parameter-efficient
+fine-tuning is treated in full (\Cref{def:lora}).
 
 For a typical attention layer with $d = k = 4096$ and $r = 16$, LoRA reduces the
 trainable parameters from $16.8\text{M}$ to $131\text{K}$---a reduction by a factor
@@ -2272,19 +2670,15 @@ deployed before any LLM touches a production financial system.
 \subsection{A Taxonomy of Hallucinations}
 \label{sec:hallucinations-taxonomy}
 
-\begin{definition}[Hallucination]
-\label{def:hallucination}
-A language model \emph{hallucination} is an output that is (a) presented with apparent
-confidence, yet (b) is not supported by---or actively contradicts---the model's input
-or the external world.  Following \citet{maynez2020faithfulness},
-hallucinations are classified as:
-\begin{enumerate}
-  \item \emph{Intrinsic hallucinations:} the output contradicts information
-    explicitly present in the input document.
-  \item \emph{Extrinsic hallucinations:} the output introduces information not
-    present in the input that cannot be verified from any accessible source.
-\end{enumerate}
-\end{definition}
+Recall the definition of an LLM hallucination (\Cref{def:hallucination}): a fluent,
+confident output that is unsupported by, or contradicts, the input or the external world.
+A second, orthogonal axis classifies hallucinations by their relationship to the input.
+Following \citet{maynez2020faithfulness}, \emph{intrinsic} hallucinations contradict
+information explicitly present in the input document, whereas \emph{extrinsic}
+hallucinations introduce information not present in the input that cannot be verified
+from any accessible source. This intrinsic/extrinsic distinction matters for detection:
+intrinsic errors can be caught by comparing the output against the source, while
+extrinsic errors require an external knowledge base or retrieval check.
 
 Within financial NLP, three sub-types deserve particular attention.
 Numerical hallucination occurs when the model outputs a figure---a ratio, a revenue
@@ -2438,7 +2832,7 @@ necessary regardless of model type.
 \begin{context}
 
 In 2024, the EU's AI Act came into force, classifying certain AI applications in
-finance---credit scoring, insurance pricing, certain forms of algorithmic
+finance---credit scoring, insurance pricing, certain forms of algo\-rithmic
 trading---as high-risk.  The regulation does not ban these applications.  It
 requires documentation, explainability, human oversight, and ongoing monitoring.
 These requirements are not obstacles to using LLMs in finance; they are the
@@ -2495,8 +2889,8 @@ obligations under the General Data Protection Regulation \citep{gdpr2016} (GDPR,
 Key issues include: (a) whether training on personal data requires explicit consent;
 (b) the right to erasure and whether a model trained on a data subject's information
 can comply with an erasure request without full retraining; (c) data-transfer
-restrictions if API calls route personal data to non-EU servers.  Chapter~3
-(Fine-Tuning) and Chapter~11 (RegTech and Compliance) discuss technical mitigations
+restrictions if API calls route personal data to non-EU servers.  \Cref{ch:llm-training}
+(Fine-Tuning) and \Cref{ch:regtech-compliance-aml} discuss technical mitigations
 including federated learning, differential privacy, and on-premises deployment.
 
 General-purpose LLMs are trained predominantly on English-language data from North
@@ -2513,7 +2907,7 @@ instruments.  As a consequence:
   \item Regulatory knowledge embedded in LLM weights is heavily biased toward US/EU
     rules; extrapolation to other jurisdictions should be treated with extreme caution.
 \end{itemize}
-Chapter~13 quantifies these biases empirically using cross-lingual evaluation of
+\Cref{ch:llm-limitations-evaluation} quantifies these biases empirically using cross-lingual evaluation of
 FLUE-equivalent tasks in French, German, and Chinese.
 
 The deepest ethical question for financial LLM applications is whether a system that
@@ -2521,89 +2915,11 @@ generates investment recommendations---even as decision-support rather than auto
 execution---triggers fiduciary obligations and, if so, who bears them.  Current legal
 consensus is that the \emph{human adviser} (or firm) deploying the AI retains full
 fiduciary responsibility for its outputs, making thorough testing, documentation, and
-human oversight essential rather than optional.  Chapter~4 (LLM Agents and Finance Applications) returns to this question in the
+human oversight essential rather than optional.  \Cref{ch:llm-agents} returns to this question in the
 context of agentic systems that take actions---executing trades, sending
 communications---rather than merely producing text.
 
 \end{context}
-
-% ---------------------------------------------------------------
-\section{Exercises}
-\label{sec:ch2-exercises}
-
-\begin{exercise}[Scaled dot-product attention: numerical example]
-\label{ex:ch02-attn-b}
-\textbf{[B]} Let $d_k = 4$.  A single-head attention block receives one query
-$\mathbf{q} = [1, 0, 1, 0]^{\top}$ and two key--value pairs:
-$\mathbf{k}_1 = [1, 1, 0, 0]^{\top}$, $\mathbf{v}_1 = [1, 0]^{\top}$;
-$\mathbf{k}_2 = [0, 0, 1, 1]^{\top}$, $\mathbf{v}_2 = [0, 1]^{\top}$.
-(\textit{a})~Compute the scaled scores $s_i = \mathbf{q}^{\top}\mathbf{k}_i / \sqrt{d_k}$.
-(\textit{b})~Apply softmax to obtain attention weights $(\alpha_1, \alpha_2)$.
-(\textit{c})~Compute the context vector $\mathbf{c} = \alpha_1\mathbf{v}_1 + \alpha_2\mathbf{v}_2$.
-(\textit{d})~Explain intuitively why the $\sqrt{d_k}$ scaling improves gradient flow.
-\end{exercise}
-
-\begin{exercise}[Temperature and sampling strategy selection]
-\label{ex:ch02-sampling-b}
-\textbf{[B]} A compliance team at a hedge fund is building two LLM-assisted tools:
-(i) an extractor that pulls covenant triggers from loan agreements into a structured
-JSON record, and (ii) a scenario generator that produces plausible macroeconomic
-stress narratives for risk committee reports.
-(\textit{a})~Recommend a temperature $\tau$ and sampling strategy (greedy, top-$k$,
-or top-$p$) for each tool, with a one-sentence justification for each choice.
-(\textit{b})~For the extractor, explain why a constrained decoding approach
-(Section~\ref{sec:structured-gen}) provides additional safety beyond low temperature alone.
-\end{exercise}
-
-\begin{exercise}[LoRA parameter budget]
-\label{ex:ch02-lora-i}
-\textbf{[I]} A practitioner fine-tunes a decoder-only LLM with $d_{\text{model}} = 4{,}096$
-using LoRA with rank $r = 16$ applied to the query and value projection matrices of each
-of the $L = 32$ transformer layers.  Each projection has shape $d_{\text{model}} \times d_{\text{model}}$.
-(\textit{a})~Compute the number of trainable parameters introduced by LoRA.
-(\textit{b})~Compare this to the number of parameters in the full query and value projection
-matrices and express the reduction as a percentage.
-(\textit{c})~If the original model has 7 billion parameters total, what fraction of parameters
-are being trained under LoRA?
-(\textit{d})~Explain why even this small fraction is sufficient to achieve domain adaptation
-on financial text.
-\end{exercise}
-
-\begin{exercise}[SBERT embedding pipeline for earnings similarity]
-\label{ex:ch02-sbert-i}
-\textbf{[I]} You wish to retrieve the three most similar historical earnings call
-transcripts for a given query transcript using SBERT mean-pooling embeddings.
-(\textit{a})~Write pseudo-code (or Python using \texttt{sentence-transformers}) for
-a pipeline that: (i) encodes a corpus of 5,000 transcripts; (ii) builds a FAISS
-\texttt{IndexFlatIP} over the $\ell_2$-normalised embeddings; (iii) retrieves the
-top-3 nearest neighbours for a new query.
-(\textit{b})~Why is $\ell_2$ normalisation required when using inner-product search
-to approximate cosine similarity?
-(\textit{c})~Estimate the memory required to store 5,000 embeddings of dimension 768
-at 32-bit precision.  Would 16-bit precision be safe here, and why?
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.
-\end{exercise}
-
-\begin{exercise}[Hallucination audit of a RAG pipeline]
-\label{ex:ch02-rag-hallucination-a}
-\textbf{[A]} You are auditing a RAG pipeline used to answer questions about public
-company financials.  The pipeline retrieves the top-3 passages from a corpus of
-10-K filings (BM25 retrieval) and generates answers with a 7B-parameter open-weight
-model at temperature 0.
-(\textit{a})~Describe two distinct hallucination failure modes that can occur even
-when the retriever returns the correct passage.
-(\textit{b})~Design an automated hallucination-detection protocol using SelfCheckGPT
-or FActScore (Section~\ref{sec:hallucinations-detection}) that produces a per-answer
-confidence score without ground-truth labels.
-(\textit{c})~The pipeline occasionally returns a retrieved passage that contains a
-look-ahead data point (e.g.\ a 10-K filed on 2024-01-15 that references full-year
-2023 figures, while the query date is 2023-10-01).  Propose a metadata filtering
-strategy to prevent this form of temporal data leakage.
-(\textit{d})~Under the EU AI Act framework (Section~\ref{sec:limitations-ethics}),
-what transparency obligations apply when this pipeline is used to generate a report
-that informs a client investment decision?
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}.
-\end{exercise}
 
 % ---------------------------------------------------------------
 \section{Chapter Summary}
@@ -2615,7 +2931,7 @@ vectors through recurrent architectures to the Transformer, deriving the mathema
 of self-attention, positional encoding, and the encoder--decoder structure.
 We surveyed the modern LLM landscape, distinguishing standard autoregressive models
 from reasoning models trained to produce explicit chains of thought.  We introduced
-the major model families (GPT-4o, Claude, Llama, FinBERT, BloombergGPT) and the
+the major model families (GPT-5, Claude, Llama 4, FinBERT, BloombergGPT) and the
 principal financial NLP benchmarks (FinancialPhraseBank, FiQA, ECTSum, FinQA, FLUE)
 against which models are evaluated throughout the book.  We covered the practical
 mechanics of LLM APIs---tokenisation, context windows, sampling parameters, and cost
@@ -2628,56 +2944,20 @@ tasks (sentiment analysis, information extraction) to frontier applications (mul
 trading systems, regulatory technology), and from single-model pipelines to complex
 multi-agent workflows.
 
-\subsection{Chapter-by-Chapter Overview}
-
-\begin{table}[htbp]
-\centering
-\caption{Overview of book chapters and their relationship to Chapter~2 foundations.}
-\label{tab:roadmap}
-\small
-\begin{tabular}{cll}
-\hline
-\textbf{Ch.} & \textbf{Title} & \textbf{Key Connection to Ch.~2} \\
-\hline
-3  & Sentiment Analysis
-   & FinancialPhraseBank; temperature; FinBERT vs.\ GPT-4o \\
-4  & Information Extraction from Filings
-   & FinQA; grounding and citation to reduce hallucination \\
-5  & Earnings Calls and Transcripts
-   & ECTSum; context-window limits; cost model \\
-6  & Retrieval-Augmented Generation
-   & RAG as hallucination mitigation; context-window architecture \\
-7  & Fine-tuning LLMs on Financial Data
-   & Instruction tuning; RLHF; GDPR considerations \\
-8  & AI Agents in Finance
-   & Reasoning models; agentic loops; fiduciary questions \\
-9  & Multi-Agent Systems and Workflows
-   & Chain-of-thought; multi-agent coordination protocols \\
-10 & Risk and Compliance Applications
-   & EU AI Act; hallucination auditing; on-premises deployment \\
-11 & Portfolio Construction with LLMs
-   & Cost-latency trade-offs; structured output from LLMs \\
-12 & Trading Systems and Execution
-   & Real-time latency; reasoning vs.\ generative model choice \\
-13 & Regulatory Technology
-   & Geographic bias; MiFID~II / IFRS; GDPR in practice \\
-14 & Evaluation and Benchmarking
-   & FLUE; cross-lingual evaluation; bias quantification \\
-15 & Frontiers and Future Directions
-   & Scaling laws; multimodal models; next-generation reasoning \\
-\hline
-\end{tabular}
-\end{table}
-
-Each chapter is self-contained enough to be read independently, but the sequence is
-deliberate.  Chapter~3 deepens the technical toolkit with LLM training and fine-tuning
-strategies.  Chapter~4 extends the single-model paradigm to agentic systems capable of
-multi-step reasoning and autonomous action.  Chapters~5--9 apply these foundations to
-domain-specific tasks: business valuation, credit risk, quantitative trading,
-domain-adapted LLMs, and financial NLP\@.  Chapters~10--13 address RegTech and
-compliance, explainability, and rigorous evaluation of model limitations.
-Chapters~14--15 close with applied techniques in financial text summarisation,
-information extraction, and privacy-preserving local deployment.
+Each subsequent chapter is self-contained enough to be read independently, but the
+sequence is deliberate.  \Cref{ch:llm-training} deepens the technical toolkit with LLM
+training and fine-tuning strategies, and \Cref{ch:llm-agents} extends the single-model
+paradigm to agentic systems capable of multi-step reasoning and autonomous action. The
+remaining chapters apply these foundations to domain-specific finance tasks---among them
+financial sentiment (\Cref{ch:financial-nlp-sentiment}), text summarisation and
+information extraction (\Cref{ch:financial-text-summarization}), business valuation
+(\Cref{ch:business-valuation}), credit risk (\Cref{ch:credit-risk}), and quantitative
+trading (\Cref{ch:portfolio-quant-trading})---and then turn to governance and reliability:
+RegTech and compliance (\Cref{ch:regtech-compliance-aml}), explainability
+(\Cref{ch:xai-explainability}), the evaluation of model limitations
+(\Cref{ch:llm-limitations-evaluation}), and privacy-preserving local deployment
+(\Cref{ch:privacy-local-models}). A consolidated map of techniques to applications appears
+in \Cref{ch:applications-future}.
 
 The thread running through all chapters is the one introduced here: language models
 are powerful but imperfect tools, and the financial practitioner's task is to deploy
@@ -2685,46 +2965,4 @@ them in ways that harness their strengths---scale, speed, and breadth of
 knowledge---while managing their risks through careful system design, rigorous
 evaluation, and meaningful human oversight.
 
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch02-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Token Budget Audit]\label{ex:ch02-edgar-b}
-\textbf{[B]} Fetch Microsoft's (\texttt{MSFT}) most recent 10-K from EDGAR and
-strip all HTML tags.
-(\textit{a})~Count whitespace-separated tokens, total characters, and sentences
-(split on \texttt{[.!?]}).
-(\textit{b})~Estimate the number of GPT-4 tokens (approximately 4 characters per
-token) and determine whether the full filing would fit in a 128\,000-token context
-window.
-(\textit{c})~Produce a summary table: \{document, tokens, chars, sentences,
-estimated LLM tokens, fits in 128K\}.
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Chunking Strategy Comparison]\label{ex:ch02-edgar-i}
-\textbf{[I]} Using the MSFT MD\&A text from Exercise~\ref{ex:ch02-edgar-b},
-implement and compare three chunking strategies:
-(\textit{a})~Fixed windows of 512 tokens with no overlap.
-(\textit{b})~Fixed windows of 256 tokens with 128-token overlap.
-(\textit{c})~Sentence-level chunks.
-For each strategy, plot a histogram of chunk sizes (in tokens) and report
-mean, standard deviation, and the number of chunks produced.
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Type-Token Ratio Across Companies]\label{ex:ch02-edgar-a}
-\textbf{[A]} Download the MD\&A section from the most recent 10-K for ten
-companies spanning technology, finance, and energy sectors.
-(\textit{a})~Compute the type-token ratio
-$\mathrm{TTR} = |\text{unique tokens}| / |\text{total tokens}|$ for each.
-(\textit{b})~Plot TTR as a horizontal bar chart sorted by sector, and add a
-vertical reference line at $\mathrm{TTR} = 0.12$ (a typical value for news text).
-(\textit{c})~Discuss: does financial MD\&A text exhibit higher or lower lexical
-diversity than general news, and what does this imply for LLM tokeniser design?
-See \texttt{code/notebooks/02-llm-foundations/exercises.ipynb}, Data Lab section.
-\end{exercise}
 

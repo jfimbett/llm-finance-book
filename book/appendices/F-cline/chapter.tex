@@ -483,38 +483,3 @@ and proceed with the analysis---all in a single session.
         and review their source code before connecting them to sessions that
         handle sensitive financial data.
 \end{enumerate}
-
-\begin{exercise}[First Cline session]
-\label{ex:cline-b}
-\textbf{[B]} Install Cline, configure it with an Anthropic or OpenAI API key,
-and create a \texttt{.clinerules} file for a hypothetical finance research project.
-Submit the following task in Plan Mode: ``Write a Python function that retrieves
-the five most recent 10-K filings for a given ticker from EDGAR and returns a
-list of (date, accession\_number) tuples.''  Review the plan and describe in
-one paragraph what Cline proposed to do and what you would verify before
-approving.
-\end{exercise}
-
-\begin{exercise}[Checkpoint recovery]
-\label{ex:cline-i}
-\textbf{[I]} Start a Cline session in Act Mode with auto-approve enabled for
-write operations.  Ask Cline to add type hints to all functions in a Python
-module of your choice.  After it completes, identify one type annotation that
-is incorrect or imprecise (e.g.\ \texttt{Any} where a more specific type
-applies), use the checkpoint viewer to locate the specific tool call that
-introduced it, and restore the checkpoint to the state before that tool call.
-Then re-submit the task with an explicit instruction to avoid the
-imprecision you identified.
-\end{exercise}
-
-\begin{exercise}[Multi-provider cost comparison]
-\label{ex:cline-a}
-\textbf{[A]} Configure Cline with two providers: Claude Sonnet and DeepSeek-V3.
-Run identical sessions---same task, same project, same \texttt{.clinerules}---with
-each provider.  Record the token counts (input and output) reported by Cline's
-cost tracker for each session.  Evaluate the quality of the outputs on three
-criteria: correctness of generated code (does it run and pass tests?), adherence
-to \texttt{.clinerules} conventions, and appropriateness of the generated
-commit message.  Present a cost-quality trade-off analysis and recommend a
-provider configuration for a research group with a \$50/month AI budget.
-\end{exercise}

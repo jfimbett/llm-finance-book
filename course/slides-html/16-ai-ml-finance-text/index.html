@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 16 — AI, Machine Learning, and Text in Finance</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 16 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 16 / Lecture 16</div>
+    <h1>Artificial Intelligence, Machine Learning, and Text in Finance</h1>
+    <div class="sub">Where AI, ML, and LLMs sit in one hierarchy — and why financial text is the place they earn their keep.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>What "AI" even means</strong> — a moving target, and a working hierarchy: AI ⊃ ML ⊃ DL ⊃ LLM.</li>
+          <li class="frag"><strong>How machines learn</strong> — from data, not hand-coded rules; the cost is distribution shift.</li>
+          <li class="frag"><strong>Where AI creates value in finance</strong> — beliefs, decisions, and the twist of reflexivity.</li>
+          <li class="frag"><strong>Why text is the frontier</strong> — and the road from bag-of-words to transformers and LLMs.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          Finance is awash in language — filings, calls, news — and most of it goes unread. This lecture
+          frames the toolkit that turns that text into decisions, and sets up the rest of the book.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Artificial intelligence: definitions and scope</h2>
+    <div class="secsub">From a 1956 coinage to a working hierarchy — and from hand-coded rules to learning from data.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The moving target</div>
+    <h2>What do we even mean by "artificial intelligence"?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">John McCarthy coined "AI" in 1956: making machines do tasks that <em>would require intelligence
+      if a human did them</em>. The trouble is, the goalposts keep moving.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the AI effect</span>
+      The boundary of "AI" is socially constructed: once a machine does something reliably, we shrug and call
+      it "mere computation." The field is forever chasing a target that retreats as it succeeds.
+    </div>
+    <div class="block">
+      <div class="block-title">Our working hierarchy for the book</div>
+      <ul>
+        <li class="frag"><strong>AI</strong> — the broad enterprise of building systems that perform cognitive tasks.</li>
+        <li class="frag"><strong>Machine learning</strong> — the dominant contemporary methodology.</li>
+        <li class="frag"><strong>Deep learning / LLMs</strong> — particular implementations of that methodology.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Learning objectives</div>
+    <h2>What you should be able to do by the end</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">By the end of this lecture you should be able to</div>
+      <ul>
+        <li class="frag">Place AI / ML / DL / LLM in a nested hierarchy.</li>
+        <li class="frag">Contrast symbolic vs. statistical AI.</li>
+        <li class="frag">Identify where AI creates value in finance.</li>
+        <li class="frag">Categorise the sources of financial text.</li>
+        <li class="frag">Trace NLP from bag-of-words to transformers.</li>
+        <li class="frag">State scaled dot-product attention.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A historical pivot</div>
+    <h2>Why we stopped writing rules and started learning from data</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">1956–1980s · Expert systems</div>
+          <ul>
+            <li>Hand-crafted "if–then" rules encoding domain knowledge</li>
+            <li>A 1980s credit system: hundreds of rules for "high-risk applicant"</li>
+            <li><span class="pill g">strength</span> transparent — every decision traces to a rule</li>
+            <li><span class="pill r">weakness</span> brittle — rules proliferate, fail on the unanticipated</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Late 1980s on · Induced from data</div>
+          <ul>
+            <li>Intelligence <em>learned</em> from data, not <em>encoded</em> by hand</li>
+            <li>Bigger datasets + faster hardware made empirical evaluation feasible</li>
+            <li>By the mid-2000s, data-driven methods overtook symbolic ones wherever labeled data existed: speech, vision, spam, eventually NLP</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the shift in one sentence</span>
+      The brittleness of rule-based systems pushed the field toward knowledge that is
+      <em>induced from data rather than encoded by hand</em>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two ways to build a mind</div>
+    <h2>Symbolic vs. statistical AI — and why finance uses both</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Symbolic AI</div>
+          Represents the world through discrete, human-readable <strong>symbols</strong>; reasons by applying
+          explicit <strong>rules</strong>. Knowledge is encoded by experts <em>before</em> deployment and stays
+          static as new data arrive.<br><span class="small"><em>Home:</em> logic programming, semantic networks, knowledge graphs.</span>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Statistical AI</div>
+          Represents the world through numerical <strong>parameters</strong> estimated from data; predicts by
+          evaluating a <strong>learned function</strong>. Knowledge is implicit in the parameters and
+          <em>changes</em> on retraining.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">not mutually exclusive — the finance hybrid</span>
+      A statistical model flags an anomalous transaction; a <em>deterministic</em> compliance rule decides the
+      regulatory report. We lean statistical (markets are data-rich) but return to symbolic methods for
+      interpretability and regulatory constraints.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>The AI–ML–deep-learning hierarchy</h2>
+    <div class="secsub">Nesting the boxes: learning from data, three supervisory regimes, depth, and LLMs as a special case.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The nested taxonomy</div>
+    <h2>AI ⊃ ML ⊃ DL ⊃ NLP ⊃ LLM: five boxes, one hierarchy</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each box is a proper subset of the one above it. Understanding the nesting tells you exactly what
+      distinguishes LLMs from earlier AI — and why they represent a qualitative step forward, not just a bigger model.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/16-ai-ml-finance-text/diagram.svg" alt="Nested set diagram: AI ⊃ ML ⊃ DL ⊃ NLP ⊃ LLM with text-as-data flow arrows">
+      <figcaption><b>Figure.</b> The five-level nesting from broad AI down to large language models, with the
+        text-as-data pipeline that routes financial documents — filings, news, earnings calls — through each
+        layer to the model.
+        <span class="src">Source: Chapter 16 — AI, Machine Learning, and Text in Finance.</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The core idea</div>
+    <h2>Machine learning is getting better at a task through experience</h2>
+    <div class="title-rule"></div>
+    <p class="lead">ML = algorithms that improve at a task by being exposed to data (Goodfellow et al., 2016). The whole point is
+      <strong>generalization</strong>: perform well not just on data you've seen, but on new inputs drawn from the
+      same world.</p>
+    <aside class="underhood" data-title="supervised learning, formally">
+      <strong>Supervised learning.</strong> Given a training set \(\{(\mathbf{x}_i, y_i)\}_{i=1}^n\),
+      learn \(f_\theta:\mathcal{X}\to\mathcal{Y}\) by minimizing
+      \[ \mathcal{L}(\theta) = \frac{1}{n}\sum_{i=1}^{n}\ell\big(f_\theta(\mathbf{x}_i), y_i\big), \]
+      with per-sample loss \(\ell\) (cross-entropy, squared error). This covers <em>classification</em> and
+      <em>regression</em> — the two workhorses of quant finance.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Don't memorise the training set — learn the pattern that survives outside it. Generalization is the
+      one yardstick every method in this book is judged against.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Three flavours of supervision</div>
+    <h2>The same goal under three different learning regimes</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The generalization goal recurs in three forms, each mapping to a different class of financial problem.</p>
+    <ul>
+      <li class="frag"><strong>Supervised</strong> — credit scoring, default prediction, factor estimation: learn from labeled \((\mathbf{x}_i, y_i)\) pairs.</li>
+      <li class="frag"><strong>Unsupervised</strong> — clustering trades into market regimes: find structure without labels.</li>
+      <li class="frag"><strong>Reinforcement</strong> — trading, rebalancing: maximise cumulative reward, learning from interaction.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The catch</div>
+    <h2>The price of learning from data: distribution shift</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A model only knows the world it was trained on. When that world changes, the model can be
+      confidently, dangerously wrong.</p>
+    <div class="alert callout">
+      <span class="callout-tag">why the learning paradigm matters in finance</span>
+      A supervised credit model needs <em>labeled historical defaults</em> and is locked to its training period.
+      Fit on a benign credit cycle, it can badly <strong>underestimate tail risk</strong> in a crisis — a
+      <strong>distribution shift</strong> with practical <em>and regulatory</em> consequences.
+    </div>
+    <div class="block">
+      <div class="block-title">Practical implications threaded through the book</div>
+      <ul>
+        <li class="frag">Generalization challenges pervade financial ML</li>
+        <li class="frag">They motivate careful cross-validation (purging look-ahead bias)</li>
+        <li class="frag">Reference: <em>Advances in Financial Machine Learning</em> (Lopez de Prado, 2018)</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When the network gets deep</div>
+    <h2>Deep learning: let the model invent its own features</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Deep learning is ML with neural networks deep enough that the model <em>learns intermediate
+      representations automatically</em> — nobody hand-specifies the features.</p>
+    <aside class="underhood" data-title="universal approximation &amp; the value of depth">
+      <strong>Universal approximation:</strong> hierarchical compositions of simple nonlinear functions can
+      represent arbitrarily complex mappings given enough width/depth (Goodfellow et al., 2016). <em>Depth</em> confers a specific advantage:
+      <ul>
+        <li>Lower layers: general, transferable features (edges, phonemes, collocations).</li>
+        <li>Higher layers: task-specific combinations.</li>
+      </ul>
+      This is why <strong>transfer learning</strong> is efficient: pre-train broadly, then fine-tune on a narrow
+      task with far fewer labeled examples.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">An analogy worth keeping</div>
+    <h2>A deep network aggregates information the way a market does</h2>
+    <div class="title-rule"></div>
+    <div class="bigpicture callout">
+      <span class="callout-tag">deep nets ↔ markets</span>
+      Both aggregate information hierarchically across many interacting units / layers, and both are hard to
+      interpret from the outside — which is exactly what motivates the explainability methods later in the book.
+    </div>
+    <div class="block">
+      <div class="block-title">Why depth matters in finance</div>
+      The same hierarchy that makes deep nets powerful — transferable low-level features composed into
+      task-specific representations — is what makes a single pre-trained backbone reusable across many
+      financial text tasks, the theme of the pre-training and transfer-learning slides ahead.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The hierarchy's newest box</div>
+    <h2>An LLM is just a very large next-word predictor</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Strip away the hype and a language model is a network that, given the words so far, predicts
+      the next one — trained at enormous scale until that simple skill becomes surprisingly general.</p>
+    <aside class="underhood" data-title="tokens, vocabulary, next-token objective">
+      A <strong>token</strong> is the atomic unit of text; the <strong>vocabulary</strong> \(\mathcal{V}\) is the
+      finite set of such units. An LLM is a network with <em>billions</em> of parameters, trained on
+      <em>hundreds of billions</em> of tokens, that assigns probabilities to token sequences. The canonical
+      objective is next-token prediction:
+      \[ \mathcal{L}_{\mathrm{LM}} = -\sum_{t=1}^{T}\log P_\theta\big(x_t \mid x_1,\dots,x_{t-1}\big). \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why this box is different</div>
+    <h2>What actually makes LLMs special: emergence</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Scale + architecture buys more than smoother predictions — at some size, brand-new abilities
+      appear that weren't there before (Wei et al., 2022).</p>
+    <ul>
+      <li class="frag"><strong>Multi-step reasoning</strong> and instruction following.</li>
+      <li class="frag"><strong>In-context learning</strong> — adapt to a task from a few prompt examples, with no parameter update.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">consequence for finance</span>
+      A <em>single</em> LLM becomes a flexible substrate for earnings-call summarization, regulatory parsing,
+      and strategy explanation — e.g. BloombergGPT (Wu et al., 2023).
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>AI applications in finance</h2>
+    <div class="secsub">Beliefs and decisions, the reflexivity twist, forecasting / risk / alpha, and the compliance frontier.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What finance actually is</div>
+    <h2>Finance is decision-making under uncertainty — AI helps at two levels</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Form beliefs about future states, then act subject to constraints. AI sharpens both halves
+      of that sentence.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Quality of beliefs</div>
+          Better forecasts; richer models of uncertainty.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Quality of decisions</div>
+          Portfolio optimization, dynamic programming, reinforcement learning.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">reflexivity — finance is not medical imaging</span>
+      The decision procedure can <em>reshape</em> the market and <em>invalidate</em> the forecast that produced it.
+      AI systems in finance are <strong>actors within the market</strong>, not mere observers — a strategic
+      dimension with no analogue in most prediction problems.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Reflexivity, made concrete</div>
+    <h2>The market maker that changes the market it trades in</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">A deep-RL market maker</div>
+      An agent quotes bid/ask at high frequency, earning the spread while managing inventory risk. A
+      <strong>deep reinforcement learning</strong> agent (a neural-network policy maximising cumulative reward)
+      trains across millions of simulated episodes, learning to adapt to changing liquidity.
+    </div>
+    <p class="lead">The catch is a feedback loop the agent is part of:</p>
+    <aside class="underhood" data-title="the feedback loop">
+      \[ \text{agent's actions} \longrightarrow \text{order book} \longrightarrow
+         \text{signals the agent conditions on} \longrightarrow \dots \]
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">design lesson</span>
+      The loop must be modeled <em>explicitly</em> in the training environment — otherwise the policy looks great
+      in simulation but <strong>destabilizes in live markets</strong>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The classic quant trio</div>
+    <h2>Forecasting, risk, and alpha — all transformed, all fragile</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The common enemy is a brutal <strong>signal-to-noise ratio</strong>: returns are near-unpredictable
+      short-horizon, risk models extrapolate into rare tails, and alpha erodes once discovered.</p>
+    <table>
+      <tr><th>Problem</th><th>ML contribution</th><th>Care required</th></tr>
+      <tr><td>Return forecasting</td><td>High-dim feature spaces; no pre-specified interactions</td><td>Purge look-ahead bias; control multiple comparisons</td></tr>
+      <tr><td>Risk estimation</td><td>Richer distributions; regime switching; cross-asset learning</td><td>Tails rarely observed; stress periods break Gaussian VaR</td></tr>
+      <tr><td>Alpha / signals</td><td>Text-based signals add info absent from price &amp; volume</td><td>Genuine alpha erodes fast once public</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">where text comes in</span>
+      Variance–covariance VaR assumes Gaussian returns and stable correlations — assumptions that fail
+      <em>precisely under stress</em>. Language models parse narrative risk disclosures, turning qualitative
+      uncertainty into quantitative signals.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Beyond the trading desk</div>
+    <h2>Where AI guards the firm: compliance and fraud</h2>
+    <div class="title-rule"></div>
+    <p class="lead">AML, sanctions screening, KYC, real-time fraud — all the same problem: spot <em>rare, anomalous</em>
+      patterns in high-volume streams, a natural fit for classifiers trained on labeled historical incidents.</p>
+    <div class="block">
+      <div class="block-title">Why language models add particular value here</div>
+      Much of the relevant information is <em>textual</em>: suspicious-activity reports, correspondence, filings,
+      analyst opinions. An LLM can surface unusual phrasing, flag narrative-vs-quantitative discrepancies, or help
+      interpret new guidance.
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">regulation constrains design</span>
+      The EU AI Act and GDPR's "right to explanation" can make <strong>opaque models inadmissible</strong> for
+      certain decisions <em>regardless of accuracy</em> — the recurring performance-vs-interpretability tension.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>The textual nature of financial data</h2>
+    <div class="secsub">Structured numbers are backward-looking; the edge increasingly hides in unread language.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two kinds of data</div>
+    <h2>Structured vs. unstructured — and why the numbers aren't enough</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Structured data</div>
+          Rows &amp; columns; well-defined types; each row a known entity at a time. Prices, accounting items,
+          volumes. Served well by regression, factor models, and time series <em>since the 1960s</em>.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Unstructured data</div>
+          No pre-defined schema — text, audio, images, video. Needs a <em>pipeline</em> to turn raw content into
+          statistical features.
+        </div>
+      </div>
+    </div>
+    <p class="frag"><strong>Limits of structured data:</strong> backward-looking; it captures <em>outcomes</em>
+      (prices, earnings) not the reasoning or sentiment behind them; and everyone observes it simultaneously,
+      so the informational edge is limited.</p>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the processing bottleneck</span>
+      A large institution may see <strong>tens of thousands of documents per day</strong> — too voluminous to read
+      systematically. That bottleneck is a persistent opportunity for ML methods that scale.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Where the words live</div>
+    <h2>Three sources of financial text — and the evidence they carry</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Source</th><th>Content &amp; evidence</th></tr>
+      <tr><td>Corporate filings</td><td>SEC EDGAR: 10-K, 10-Q, 8-K — narrative MD&amp;A, Risk Factors, forward-looking statements. <strong>Loughran–McDonald (2011):</strong> 10-K sentiment (finance lexicon) predicts post-filing returns.</td></tr>
+      <tr><td>News &amp; wires</td><td>High-frequency public information. <strong>Tetlock (2007):</strong> pessimistic WSJ "Abreast of the Market" language predicts downward pressure, then mean-reversion.</td></tr>
+      <tr><td>Earnings calls</td><td>Live: scripted remarks <em>plus</em> unscripted Q&amp;A. Tone, question types, hedging, even speech pace carry information beyond the reported numbers (Loughran–McDonald, 2020).</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">signal hidden in text</span>
+      EPS \(\$\)1.20 <em>beats</em> the \(\$\)1.15 consensus — looks positive. But Risk Factors grew <strong>30% YoY</strong>,
+      three new risks concern a politically sensitive supply chain, and the CEO said "challenging"
+      <strong>eleven times</strong> — a record. The headline reader misses the signal.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Not just unread — genuinely hard</div>
+    <h2>Why financial text resists naive reading</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Ambiguous.</strong> Meaning depends on author, time, context. "Uncertainty" in a Fed
+        statement ≠ in a founder's letter; "positive outlook" is bullish in equity research but <em>cautious</em>
+        in credit ratings. About <strong>3/4</strong> of Harvard-Inquirer "negative" words are neutral/positive in
+        filings (Loughran–McDonald) — hence a domain lexicon.</li>
+      <li class="frag"><strong>High-dimensional &amp; sparse.</strong> A 50k-word vocabulary gives a document-term
+        matrix with far more dimensions than observations — needs dimensionality reduction (topic models,
+        embeddings, LM encoders).</li>
+      <li class="frag"><strong>Strategically produced.</strong> Disclosures are written by lawyers and comms teams
+        aware of liability and market reaction. Taking text at face value gets you <strong>systematically misled</strong>.</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">context is a first-class variable</span>
+      Bullish vs. bearish, compliant vs. misleading, consistent vs. contradictory — all need a rich representation
+      of entity, time, regime, and genre. This long-range contextual reasoning is exactly what
+      <strong>transformers</strong> are built to do.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>From bag-of-words to large language models</h2>
+    <div class="secsub">The arc of financial NLP: counting words, then topics, then the attention mechanism that changed everything.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The starting point</div>
+    <h2>Early NLP in finance: counting words and looking them up</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Bag-of-Words (BoW) + tf-idf</div>
+      A document becomes a vector of word counts; <em>all</em> order and grammar are discarded. tf-idf up-weights
+      rare, informative words. Applied to filings since the 1990s for tone and readability (Kearney &amp; Liu, 2014).
+    </div>
+    <div class="block">
+      <div class="block-title">Dictionary sentiment</div>
+      Map words to sentiment scores; net sentiment = (positive − negative) frequency. The
+      <strong>Loughran–McDonald lexicon</strong> — about <strong>2,700 words</strong> in six categories (negative,
+      positive, uncertainty, litigious, strong/weak modal) — is still a benchmark (Loughran–McDonald, 2020).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">One step deeper, same ceiling</div>
+    <h2>Topic models go further — but hit the same wall</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">Topic models (LSA / LDA)</div>
+      Learn representations from <em>co-occurrence</em> — each document is a mixture over latent themes
+      (e.g. operational efficiency vs. regulatory risk).
+    </div>
+    <div class="alert callout">
+      <span class="callout-tag">the shared limitation</span>
+      <strong>Shallow semantics:</strong> words are atomic, meanings are context-<em>independent</em>, and word
+      order carries no information at all.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The turning point</div>
+    <h2>2017: "Attention Is All You Need" rewrote NLP</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Vaswani et al. (2017) triggered the largest transition in NLP history. The key move:
+      <strong>self-attention</strong> lets every position look directly at every other position.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Self-attention resolves long-range dependencies — a pronoun to its antecedent, a Risk Factor to a
+      financial-statement figure — that recurrent nets, plagued by vanishing gradients over long contexts,
+      could not handle reliably.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The mechanism itself</div>
+    <h2>Scaled dot-product attention, in one equation</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each word, attention builds a weighted blend of all the other words — the weights say
+      "how much should I listen to you?" — and a scaling factor keeps the math well-behaved.</p>
+    <aside class="underhood" data-title="scaled dot-product attention">
+      For each position \(i\), a weighted sum of value vectors:
+      \[ \mathrm{Attention}(\mathbf{Q},\mathbf{K},\mathbf{V})
+         = \mathrm{softmax}\!\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}, \]
+      with \(\mathbf{Q},\mathbf{K}\) the query/key projections (dimension \(d_k\)) and \(\mathbf{V}\) the value
+      projection. The \(\sqrt{d_k}\) scaling keeps dot products from pushing the softmax into a saturated,
+      vanishing-gradient regime. Multiple <strong>heads</strong> attend to different aspects (syntax, coreference)
+      in parallel.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The economics of pre-training</div>
+    <h2>Pre-train once, fine-tune cheaply many times</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Pre-trained transformers — BERT, GPT, RoBERTa and successors — combine self-attention with
+      <em>unsupervised pre-training</em> on very large corpora.</p>
+    <div class="block">
+      <div class="block-title">The transfer-learning economics</div>
+      Rich, context-sensitive representations mean you can fine-tune on downstream tasks with
+      <em>relatively small</em> labeled datasets. Tasks that once needed <strong>thousands</strong> of labeled
+      examples now need <strong>hundreds</strong> — lowering the barrier for financial applications where labels
+      are expensive.
+    </div>
+    <ul>
+      <li class="frag">Lower layers learn transferable structure; higher layers specialise.</li>
+      <li class="frag">The same backbone serves sentiment, NER, similarity, summarization, and Q&amp;A.</li>
+      <li class="frag">Full attention derivation &amp; financial NLP implications: the LLM-foundations chapter.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why this matters for finance specifically</div>
+    <h2>Four reasons LLMs fit financial text — and one warning</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Long-document reasoning.</strong> Context windows of tens-to-hundreds of thousands of
+        tokens process a whole 10-K or call transcript in one pass — no information loss from chunking.</li>
+      <li class="frag"><strong>In-context learning.</strong> Supply three examples of suspicious patterns, then
+        evaluate a new transaction — <em>few-shot</em>, valuable where labels are scarce.</li>
+      <li class="frag"><strong>World knowledge.</strong> Geopolitics, supply chains, governance norms let the model
+        contextualise a disclosure. BloombergGPT shows finance pre-training helps, but general frontier models
+        already do well.</li>
+      <li class="frag"><strong>Natural-language interface.</strong> "Summarize the key risks in this 10-K and flag
+        changes from last year" — no code, democratising text analysis.</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">LLMs are not a panacea</span>
+      They <strong>hallucinate</strong> (confident but wrong), are <strong>prompt-sensitive</strong>, reason
+      <strong>opaquely</strong>, and may be <strong>poorly calibrated</strong> on rare, high-stakes events.
+      Deploy carefully — evaluation, monitoring, human oversight.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 6 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Roadmap: how to read this book</h2>
+    <div class="secsub">Three parts — foundations, applications, deployment — and the conventions that run throughout.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The map of the book</div>
+    <h2>What the rest of the book covers</h2>
+    <div class="title-rule"></div>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block"><div class="block-title">Part I — Foundations</div>
+          Transformer architecture; training &amp; fine-tuning (SFT, RLHF, LoRA); multi-agent systems; business
+          valuation (DCF, comparables).
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Part II — Applications</div>
+          Credit risk; frontier applications; domain-specific LLMs; financial NLP / sentiment; portfolio &amp;
+          quant trading; RegTech &amp; AML; explainability. <em>Read independently.</em>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Part III — Deploy</div>
+          LLM limitations &amp; evaluation; financial text summarization; privacy-preserving / local models.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">reading conventions</span>
+      <em>Context</em> boxes ("the bigger picture") give intuition; <em>Deep Dive</em> boxes ("under the hood")
+      give the mechanism — skippable without loss. Exercises tagged <strong>[B] / [I] / [A]</strong>. Companion
+      Python notebooks throughout.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What we covered — and where the next lecture goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Today</h3>
+        <ul>
+          <li><strong>Definitions &amp; hierarchy:</strong> AI ⊃ ML ⊃ DL ⊃ LLM; symbolic vs. statistical; expert systems → learning from data</li>
+          <li><strong>ML mechanics:</strong> loss minimization, generalization, distribution shift, deep representation, next-token objective, emergence &amp; in-context learning</li>
+          <li><strong>Finance applications:</strong> beliefs vs. decisions, reflexivity, forecasting / risk / alpha, AML / KYC / fraud, regulation constrains design</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Also today &amp; next</h3>
+        <ul>
+          <li><strong>Text:</strong> structured vs. unstructured; filings / news / calls; ambiguity, sparsity, strategic production; context as a first-class variable</li>
+          <li><strong>BoW → LLMs:</strong> tf-idf, LM dictionary, LDA; self-attention + \(\sqrt{d_k}\); pre-training / transfer; four finance-suited properties; <em>not a panacea</em></li>
+        </ul>
+        <div class="block"><div class="block-title">Next</div>
+          Into the transformer architecture from the ground up (LLM-foundations) — attention, pre-training
+          objectives, tokenization.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — definitions, derivations, and secondary material</h2>
+    <div class="secsub">Reference detail: the AI effect, formal definitions, the \(\sqrt{d_k}\) scaling, and the regulatory frameworks.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · context</div>
+    <h2>The AI effect: why the definition keeps shifting</h2>
+    <div class="title-rule"></div>
+    <div class="block">
+      <div class="block-title">The AI effect (a ratchet)</div>
+      Tasks once seen as hallmarks of intelligence — chess, diagnosis, translation — get reclassified as "mere
+      computation" once machines do them reliably. So the <em>boundary</em> of AI is socially constructed as much
+      as it is technically defined, and the field perpetually chases a moving target.
+    </div>
+    <p>Our pragmatic convention for the book: AI = building systems that perform cognitive tasks; ML = the dominant
+      methodology; DL and LLMs = particular implementations. It avoids endless definitional debate while staying
+      precise enough to work.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · reference</div>
+    <h2>Formal definitions, collected</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="supervised learning">
+      Input space \(\mathcal{X}\), output space \(\mathcal{Y}\), parameters \(\theta\in\Theta\), per-sample loss
+      \(\ell:\mathcal{Y}\times\mathcal{Y}\to\mathbb{R}_{\geq0}\). Minimise
+      \(\mathcal{L}(\theta)=\frac1n\sum_i \ell(f_\theta(\mathbf{x}_i),y_i)\); the goal is generalization to unseen inputs.
+    </aside>
+    <aside class="underhood" data-title="large language model">
+      A network with billions of parameters, trained on hundreds of billions of tokens, assigning probabilities to
+      token sequences; objective \(\mathcal{L}_{\mathrm{LM}}=-\sum_t \log P_\theta(x_t\mid x_{&lt;t})\).
+    </aside>
+    <div class="block">
+      <div class="block-title">Structured vs. unstructured</div>
+      Structured = relational rows/columns, typed fields, a known entity-at-time. Unstructured = no schema
+      (text, audio, image, video); needs a feature pipeline.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · derivation</div>
+    <h2>Why divide by \(\sqrt{d_k}\)? And what multi-head buys</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="the variance argument">
+      <strong>Why scale by \(\sqrt{d_k}\)?</strong> If query/key components are \(\sim(0,1)\) i.i.d., then
+      \(\mathrm{Var}(\mathbf{q}^\top\mathbf{k})=d_k\). Large logits push the softmax into a saturated regime where
+      gradients vanish; dividing by \(\sqrt{d_k}\) normalises the variance back to \(1\).
+    </aside>
+    <p><strong>Multi-head:</strong> run \(h\) heads in parallel subspaces, then concatenate and project. One head may
+      track <em>syntactic agreement</em> while another tracks <em>coreference</em>. In the standard single-head
+      presentation \(d_v=d_k\); multi-head implementations may differ.</p>
+    <div class="block">
+      <div class="block-title">Standard configuration (base Transformer)</div>
+      \(h=8\) heads, \(d_k=d_v=64\), \(d_{\text{model}}=512\), \(L=6\) layers
+      <span class="small">[Vaswani et al., 2017 — cited in this chapter; exact numbers not stated in ch. 16 text]</span>.
+      Modern large models vary widely in depth and width
+      <span class="small">[figures from outside this chapter]</span>.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · reference</div>
+    <h2>The regulatory frameworks that constrain financial AI</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li><strong>EU AI Act</strong> — high-risk categories (credit scoring, insurance pricing); conformity
+        assessment, human oversight, transparency.</li>
+      <li><strong>GDPR right to explanation</strong> — opaque models may be inadmissible for certain decisions
+        regardless of accuracy.</li>
+    </ul>
+    <div class="block">
+      <div class="block-title">Application areas (treated in depth later)</div>
+      AML, sanctions screening, KYC, transaction fraud — rare-event detection over high-volume streams, much of it
+      textual (suspicious-activity reports, correspondence, filings). See the RegTech &amp; AML chapter.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

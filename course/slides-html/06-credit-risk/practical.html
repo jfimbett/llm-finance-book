@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 6 — Practical: LLMs for Credit Risk</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 6 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 6 / Lecture 6 · Practical</div>
+    <h1>LLMs for Credit Risk Analysis</h1>
+    <div class="sub">From class imbalance to calibration to a compliant scoring pipeline — by hand, then in Python.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Overview · 60 minutes</div>
+    <h2>How this session runs</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — the formulas you'll need at your fingertips</li>
+          <li class="frag"><strong>Problem 1</strong> (10 min) — class imbalance &amp; balanced weights</li>
+          <li class="frag"><strong>Problem 2</strong> (10 min) — constrained generation &amp; calibration</li>
+          <li class="frag"><strong>Problem 3</strong> (10 min) — AUROC, KS, and Gini by hand</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="5">
+          <li class="frag"><strong>Case Study</strong> (15 min) — design an LLM credit-scoring pipeline</li>
+          <li class="frag"><strong>Discussion</strong> (5 min) — human-in-the-loop &amp; regulation</li>
+          <li class="frag"><strong>Solutions</strong> (5 min) — worked answers</li>
+        </ol>
+        <div class="block frag"><div class="block-title">Materials needed</div>
+          Pen and paper for the calculations; Python (<code class="inline">NumPy</code>, <code class="inline">scikit-learn</code>) for the case study.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 — RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap: the formulas you'll use today</h2>
+    <div class="secsub">Six tools — re-weighting, constrained decoding, calibration, ranking metrics, fairness, drift.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · the full pipeline</div>
+    <h2>Text → features → PD model → decision: four stages to calibrate</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before doing any arithmetic, make sure you can sketch the pipeline from memory.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/06-credit-risk/diagram.svg" alt="PD pipeline: text and structured features to PD model to credit decision">
+      <figcaption><b>Figure.</b> The credit PD pipeline: text and structured inputs are embedded,
+        a fine-tuned LLM produces a raw PD, calibration anchors it to empirical default rates,
+        and the calibrated PD drives the credit decision with SHAP reason codes for FCRA compliance.
+        <span class="src">Source: author illustration.</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · fixing the class imbalance</div>
+    <h2>When 97% of loans are good, tell the model to care about the 3%</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Defaults are rare, so a model can score well by ignoring them. <strong>Balanced class weights</strong>
+      multiply each example's loss so the rare defaulters count as much as the common good loans.</p>
+    <div class="block"><div class="block-title">In plain words</div>
+      Each defaulter is up-weighted, each good loan is down-weighted, so neither class can be ignored during training.
+      This is architecture-agnostic and works directly on the LLM fine-tuning objective.
+    </div>
+    <aside class="underhood" data-title="balanced class weight">
+      With \(n\) total examples, \(n_+\) positives (defaults) and \(n_-\) negatives,
+      \[ w_+ = \frac{n}{2\,n_+}, \qquad w_- = \frac{n}{2\,n_-}. \]
+      Each class's total weight equals \(n/2\), so the loss splits its attention evenly regardless of how skewed the data is.
+      In PyTorch: pass \(w_+\) as <code>pos_weight</code> to <code>BCEWithLogitsLoss</code>.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · forcing a clean answer</div>
+    <h2>Make the LLM return a number, not a paragraph</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A credit decision needs a probability, not prose. <strong>Constrained decoding</strong> blocks every
+      token that would break the required format, renormalising over only the legal next tokens.</p>
+    <aside class="underhood" data-title="constrained decoding probability (Willard et al., 2023)">
+      At step \(t\), restrict the softmax to the valid token set \(\mathcal{V}_{\text{valid}}\):
+      \[ P_{\text{constrained}}(v \mid x_{1:t}) = \frac{\exp(\ell_v)\,\mathbf{1}[v \in \mathcal{V}_{\text{valid}}]}
+         {\sum_{u \in \mathcal{V}_{\text{valid}}} \exp(\ell_u)}. \]
+      Illegal tokens get probability zero; the legal ones are renormalised to sum to one.
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">a number is not a probability</span>
+      Constrained decoding guarantees the <em>format</em>, never the <em>calibration</em>. That comes next.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · making the number honest</div>
+    <h2>Calibration: when the model says 30%, do 30% actually default?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A raw LLM score is often too extreme. <strong>Platt scaling</strong> fits a small logistic curve that
+      stretches or shrinks scores so the stated probability matches the realised default rate.</p>
+    <aside class="underhood" data-title="Platt scaling (Platt, 1999)">
+      Fit two parameters \(a,b\) on a held-out calibration set:
+      \[ \hat{p}_{\text{Platt}}(x) = \sigma\!\big(a\, f(x) + b\big) = \frac{1}{1 + \exp\!\big(-(a f(x) + b)\big)}. \]
+      \(a &lt; 1\) shrinks over-confident scores toward the mean; \(a &gt; 1\) stretches under-confident ones.
+      \(b\) shifts the whole curve (e.g. for TTC cycle position adjustment).
+      Evaluate using Expected Calibration Error (ECE) and Brier score.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · grading the ranking</div>
+    <h2>Three numbers that say how well risk is sorted</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Credit models are judged on <em>ranking</em>: do riskier borrowers score higher? AUROC, KS, and
+      Gini all measure that separation — and they're tied together by exact identities.</p>
+    <aside class="underhood" data-title="AUROC, Gini, KS">
+      \[ \text{AUROC} = P(S_+ > S_-), \qquad \text{Gini} = 2\cdot\text{AUROC} - 1, \qquad
+         \text{KS} = \sup_s \,\lvert F_+(s) - F_-(s)\rvert. \]
+      AUROC is the chance a random defaulter outscores a random non-defaulter; KS is the widest gap between the
+      two cumulative score distributions. Gini = 2·AUROC − 1 is exact (not an approximation), from the CAP/ROC relationship.
+    </aside>
+    <aside class="underhood" data-title="SHAP, DIR &amp; PSI (used in the case study)">
+      SHAP efficiency: per-feature attributions reconstruct the prediction gap,
+      \[ \sum_{j \in \mathcal{F}} \phi_j(x) = f(x) - \mathbb{E}[f(x)]. \]
+      Disparate impact ratio (four-fifths rule):
+      \[ \mathrm{DIR} = \frac{P(\text{approve}\mid A=\text{protected})}{P(\text{approve}\mid A=\text{reference})} \geq 0.8. \]
+      Population Stability Index flags distribution shift,
+      \[ \text{PSI} = \sum_{b=1}^{B} (p_b - q_b)\,\ln\!\left(\frac{p_b}{q_b}\right). \]
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 2 — PROBLEM 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problem 1: class imbalance &amp; balanced weights</h2>
+    <div class="secsub">800,000 applications, 24,000 defaults. Make the model notice them.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · the setup</div>
+    <h2>A lender with 800,000 loans and only 3% defaults</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A retail lender fine-tunes an LLM on 800,000 applications: 24,000 defaulted (positive class),
+      776,000 did not.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Parts A &amp; B</div>
+          <ul>
+            <li class="frag"><strong>A</strong> — compute the balanced weights \(w_+\) and \(w_-\).</li>
+            <li class="frag"><strong>B</strong> — a model that always predicts "non-default" scores 97% accuracy. In one sentence, why is that misleading?</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Parts C &amp; D</div>
+          <ul>
+            <li class="frag"><strong>C</strong> — why is SMOTE oversampling less practical for LLM fine-tuning than for gradient boosting?</li>
+            <li class="frag"><strong>D</strong> — at \(t=0.5\) the minority class still underperforms. Name one post-hoc fix that needs <em>no retraining</em>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">how to work</span>
+      Individually for 8 minutes, then compare with your neighbour.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 — PROBLEM 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Problem 2: constrained generation &amp; calibration</h2>
+    <div class="secsub">The model emits <code class="inline">{"pd": &lt;float&gt;}</code>. Is the number trustworthy?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · reading a reliability diagram</div>
+    <h2>The model emits a clean PD — but is it over-confident?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM uses constrained decoding to output <code class="inline">{"pd": &lt;float&gt;}</code>. For 1,000 borrowers
+      you have the raw \(\hat{p}\) and realised labels \(y \in \{0,1\}\).</p>
+    <table>
+      <tr><th>Score bin</th><th>Mean \(\hat{p}\)</th><th>Observed default rate</th></tr>
+      <tr><td>\([0.0, 0.1)\)</td><td>0.05</td><td>0.02</td></tr>
+      <tr><td>\([0.1, 0.2)\)</td><td>0.15</td><td>0.09</td></tr>
+      <tr><td>\([0.2, 0.4)\)</td><td>0.30</td><td>0.22</td></tr>
+      <tr><td>\([0.4, 1.0]\)</td><td>0.55</td><td>0.48</td></tr>
+    </table>
+    <p class="frag"><strong>Part A</strong> — Is the model over- or under-confident? How can you tell?</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · fixing the number</div>
+    <h2>Reading Platt parameters, and when to switch methods</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Part B</div>
+          You fit Platt scaling and get \(\hat{a}=0.72\), \(\hat{b}=-0.08\).
+          What does \(\hat{a} &lt; 1\) imply about the model's raw scores?
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Part C</div>
+          When would you prefer isotonic regression over Platt scaling?
+          State one advantage and one disadvantage.
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Calibration is a tiny, cheap model bolted onto a huge one — and it's the step that turns an LLM's
+      confident-sounding score into a number a regulator will accept for expected loss and capital calculations.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 — PROBLEM 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Problem 3: AUROC, KS, and Gini — by hand</h2>
+    <div class="secsub">Five borrowers, two defaulters. Compute every metric from first principles.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · the portfolio</div>
+    <h2>Five borrowers, sorted by score</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Rank</th><th>Score \(s\)</th><th>Default \(Y\)</th></tr>
+      <tr><td>1</td><td>0.82</td><td>1</td></tr>
+      <tr><td>2</td><td>0.61</td><td>0</td></tr>
+      <tr><td>3</td><td>0.45</td><td>1</td></tr>
+      <tr><td>4</td><td>0.30</td><td>0</td></tr>
+      <tr><td>5</td><td>0.12</td><td>0</td></tr>
+    </table>
+    <p class="small">\(n_+ = 2\) defaulters, \(n_- = 3\) non-defaulters.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Part A</div>
+          Using \(\text{AUROC}=P(S_+&gt;S_-)\), enumerate all \(2\times3=6\) (defaulter, non-defaulter) pairs and compute AUROC directly.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Part B</div>
+          Compute KS: show the cumulative defaulter and non-defaulter fractions at each unique score and find the maximum gap.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · finishing up</div>
+    <h2>From AUROC to Gini, then the verdict</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Same portfolio: scores \(\{0.82, 0.61, 0.45, 0.30, 0.12\}\) with defaults \(\{1,0,1,0,0\}\)
+      (\(n_+=2\), \(n_-=3\)).</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Part C</div>
+          Compute Gini from your AUROC using \(\text{Gini} = 2\cdot\text{AUROC} - 1\).
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Part D</div>
+          Does the model clear the "good" retail-credit bar of KS \(&gt; 0.40\) and Gini \(&gt; 0.40\)?
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 — CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Case Study: design an LLM credit-scoring pipeline</h2>
+    <div class="secsub">A European consumer lender, GDPR Article 22, ECOA — architecture is compliance.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the brief</div>
+    <h2>Build a compliant LLM credit scorer in three steps</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A European consumer lender wants to score personal-loan applications using both bureau data and
+      free-text loan-purpose statements — and must satisfy <strong>GDPR Article 22</strong> and <strong>ECOA</strong>.</p>
+    <ol>
+      <li class="frag"><strong>Step 1</strong> (5 min) — sketch the architecture: name the five core subsystems and each one's role.</li>
+      <li class="frag"><strong>Step 2</strong> (5 min) — remediate two flagged issues:
+        <ul>
+          <li>adverse-action rate is 12% higher when the loan purpose mentions geography ("moving to a new city");</li>
+          <li>outputs change a lot when the order of input fields is shuffled.</li>
+        </ul>
+      </li>
+      <li class="frag"><strong>Step 3</strong> (5 min) — design the human-in-the-loop workflow: three tiers and the routing criteria.</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · code (1 of 2)</div>
+    <h2>Set up a constrained-decoding generator</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Complete the code so the model is <em>forced</em> to emit a JSON object with a float <code class="inline">"pd"</code> in [0, 1].</p>
+    <pre class="code">import outlines
+import outlines.models as models
+
+model = models.transformers("bert-base-uncased")
+# TODO: define a generator that constrains output to a JSON object
+# with key "pd" and a float value in [0.0, 1.0]
+
+generator = outlines.generate.json(
+    model,
+    # TODO: fill in the schema
+    ???
+)</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · code (2 of 2)</div>
+    <h2>Run it on a borrower and pull out the PD</h2>
+    <div class="title-rule"></div>
+    <pre class="code">profile = """Age 34. Employment: full-time, 6 years. Income: &#36;58,000.
+Loan purpose: debt consolidation. Bureau score: 672. Delinquencies 24m: 1.
+Assess default risk:"""
+
+result = generator(profile)
+print(f"Implied PD: {result['pd']:.3f}")</pre>
+    <div class="block frag"><div class="block-title">Questions</div>
+      <ol>
+        <li>What JSON schema definition constrains <code class="inline">"pd"</code> to a float in [0, 1]?</li>
+        <li>After obtaining \(\hat{p}\), what is the next step before using it in a regulatory credit decision?</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 6 — DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Discussion: human-in-the-loop trade-offs</h2>
+    <div class="secsub">An SR 11-7 "Moderate" rating, in production, with a mandatory Tier-2 review.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · small groups, 5 min</div>
+    <h2>Three judgment calls a risk committee actually faces</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Your SR 11-7 validation gives the model a "Moderate" rating: it passes performance thresholds but
+      shows non-trivial prompt sensitivity. It ships with mandatory Tier-2 review for borderline cases
+      (predicted PD within 5 pp of the threshold).</p>
+    <ol>
+      <li class="frag"><strong>Automation bias</strong> — the interface shows the model's recommendation <em>before</em> the reviewer's independent assessment. What change would you prioritise, and why?</li>
+      <li class="frag"><strong>Prompt governance</strong> — the team wants to add two few-shot examples to lift commercial-credit performance. Does that require a new SR 11-7 validation? Justify.</li>
+      <li class="frag"><strong>GDPR vs. accuracy</strong> — dropping the loan-purpose field (to cut geographic proxy risk and bring the DIR above 0.80) lowers AUROC by 0.04. How do you frame that trade-off to senior risk?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 7 — SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">07</div>
+    <h2>Solutions: worked answers</h2>
+    <div class="secsub">Numbers first, intuition alongside. Don't peek until you've tried.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 1</div>
+    <h2>Balanced weights, and why accuracy lies</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <p class="frag"><strong>A.</strong> The minority defaulters get ~16.7× the weight of a single majority-class loan.</p>
+        <p class="frag"><strong>B.</strong> Accuracy is dominated by the majority class — a trivial "always non-default" model hits 97% yet discriminates nothing.</p>
+      </div>
+      <div class="col">
+        <p class="frag"><strong>C.</strong> SMOTE interpolates in feature space; for an LLM the "features" are high-dimensional token embeddings, so interpolation yields no meaningful synthetic borrower. Cost-sensitive loss acts on the objective directly and is architecture-agnostic.</p>
+        <p class="frag"><strong>D.</strong> Lower the decision threshold \(t\) below 0.5 to raise minority recall (trading precision); pick \(t\) from the business cost of false negatives vs. false positives.</p>
+      </div>
+    </div>
+    <aside class="underhood" data-title="Part A — the arithmetic">
+      \[ n = 800{,}000,\quad n_+ = 24{,}000,\quad n_- = 776{,}000. \]
+      \[ w_+ = \frac{800{,}000}{2 \times 24{,}000} = \frac{800{,}000}{48{,}000} \approx 16.67,
+         \qquad w_- = \frac{800{,}000}{2 \times 776{,}000} \approx 0.516. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 2</div>
+    <h2>The model is over-confident — and Platt knows it</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>2A.</strong> <em>Over-confident</em>: predicted probabilities exceed observed default rates in every bin (e.g. 0.55 predicted vs. 0.48 observed). A calibrated model would show predicted = observed.</li>
+      <li class="frag"><strong>2B.</strong> \(\hat{a}=0.72 &lt; 1\) confirms over-confidence: the raw scores are too extreme, and Platt scaling shrinks them toward the centre.</li>
+      <li class="frag"><strong>2C.</strong> Isotonic regression is more flexible (no parametric form) but needs more calibration data and cannot extrapolate beyond the observed score range. Prefer Platt for small sets (hundreds), isotonic for large ones (thousands).</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 3</div>
+    <h2>AUROC = 5/6, KS = 0.67, Gini = 0.67 — a "good" model</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>3A.</strong> Of the 6 (defaulter, non-defaulter) pairs, the defaulter outscores in 5 → AUROC \(= 5/6 \approx 0.833\).</li>
+      <li class="frag"><strong>3B.</strong> The widest gap between cumulative fractions is at \(s=0.45\) → KS \(= 0.67\).</li>
+      <li class="frag"><strong>3C.</strong> Gini \(= 2\times0.833 - 1 = \mathbf{0.667}\).</li>
+      <li class="frag"><strong>3D.</strong> KS \(=0.67&gt;0.40\) and Gini \(=0.67&gt;0.40\): both bars cleared — well within the "good" retail-credit range.</li>
+    </ul>
+    <aside class="underhood" data-title="3A &amp; 3B — the enumeration">
+      AUROC pairs (defaulter \(&gt;\) non-defaulter?):
+      \((0.82,0.61)\,\checkmark\); \((0.82,0.30)\,\checkmark\); \((0.82,0.12)\,\checkmark\);
+      \((0.45,0.61)\,\times\); \((0.45,0.30)\,\checkmark\); \((0.45,0.12)\,\checkmark\) → AUROC \(= 5/6\).
+      <br><br>
+      KS — cumulative fractions (sorted high→low score):
+      \[ \begin{array}{llll}
+        s=0.82\,(Y{=}1): & \hat{F}_+(0.82)=1/2, & \hat{F}_-(0.82)=0/3, & \text{diff }0.50 \\
+        s=0.61\,(Y{=}0): & \hat{F}_+(0.61)=1/2, & \hat{F}_-(0.61)=1/3, & \text{diff }0.17 \\
+        s=0.45\,(Y{=}1): & \hat{F}_+(0.45)=2/2, & \hat{F}_-(0.45)=1/3, & \text{diff }\mathbf{0.67} \\
+        s=0.30\,(Y{=}0): & \hat{F}_+(0.30)=2/2, & \hat{F}_-(0.30)=2/3, & \text{diff }0.33 \\
+        s=0.12\,(Y{=}0): & \hat{F}_+(0.12)=2/2, & \hat{F}_-(0.12)=3/3, & \text{diff }0
+      \end{array} \]
+      where \(\hat{F}_+(s)\) = fraction of defaulters at or above score \(s\), computed top-down.
+      Maximum gap = 0.67 at \(s=0.45\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Case study (1 of 2)</div>
+    <h2>Five subsystems, and two targeted remediations</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Step 1 — architecture (five subsystems)</div>
+      <strong>Feature Store</strong> (point-in-time inputs) · <strong>Inference API</strong> (versioned JSON endpoint) ·
+      <strong>LLM Serving</strong> (self-hosted for GDPR) · <strong>Decision Record DB</strong> (append-only) ·
+      <strong>Monitoring</strong> (PSI + embedding drift + AUROC by vintage).
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Geographic proxy risk (DIR &lt; 0.80)</div>
+          Compute DIR by geography reference in purpose text. Add a fairness post-processor that flags
+          applications where purpose text mentions location. Longer term: adversarial debiasing on the
+          loan-purpose field, or remove the geographic proxy and accept the AUROC cost if DIR cannot
+          be brought above the four-fifths threshold.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Prompt sensitivity</div>
+          Standardise a fixed input template with deterministic field ordering; test deployed prompts
+          against a sensitivity suite in CI/CD; add field-order permutation to the SR 11-7 validation battery.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Case study (2 of 2)</div>
+    <h2>Three review tiers, escalating with risk</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><span class="pill g">Tier 1</span> PD well below threshold, no adverse flags → random quality-control sampling only.</li>
+      <li class="frag"><span class="pill o">Tier 2</span> PD within 10% of threshold, or a SHAP value \(&gt;0.05\) on a disputed field → full human review <em>before</em> the decision is communicated.</li>
+      <li class="frag"><span class="pill r">Tier 3</span> Borrower exercises GDPR Art. 22 or FCRA appeal → reviewer opens the full decision record with the SHAP waterfall and writes an independent assessment.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">automation bias fix</span>
+      Show the model's recommendation only <em>after</em> the reviewer has formed an independent assessment;
+      require documented reasoning before they see the model's output.
+    </div>
+  </section>
+
+  <!-- ============================ TAKEAWAYS ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Six things to carry out of this session</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Class imbalance is problem #1.</strong> Balanced weights drop straight into the LLM fine-tuning loss. SMOTE doesn't work in token-embedding space.</li>
+          <li class="frag"><strong>Constrained generation extracts a number, not a guarantee.</strong> Always calibrate (Platt or isotonic) before regulatory use.</li>
+          <li class="frag"><strong>AUROC, KS, Gini are the minimal toolkit.</strong> Compute them from scratch; \(\text{Gini} = 2\cdot\text{AUROC}-1\) is exact.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="4">
+          <li class="frag"><strong>Architecture is compliance.</strong> Feature store, versioned API, append-only DB, monitoring are SR 11-7 / GDPR requirements.</li>
+          <li class="frag"><strong>Prompt changes are model changes.</strong> Any prompt or few-shot edit goes through change management and triggers SR 11-7 revalidation.</li>
+          <li class="frag"><strong>SHAP → plain language → consumer explanation.</strong> Three distinct stages; the DIR / four-fifths rule is the fairness gate alongside discrimination metrics.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problem</h2>
+    <div class="secsub">Point-in-time vs. through-the-cycle calibration. Attempt only if you finished early.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Stretch · PIT vs. TTC</div>
+    <h2>Why a benign-economy model under-reserves capital</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM trained on 2017–2019 originations produces point-in-time (PIT) PDs. Basel III Pillar 1
+      wants through-the-cycle (TTC) PDs — long-run average default rates over a full credit cycle (7–10 years).</p>
+    <ol>
+      <li class="frag"><strong>A.</strong> Explain why a PIT model trained only on good-times data <em>understates</em> TTC PD, and what that implies for regulatory capital.</li>
+      <li class="frag"><strong>B.</strong> You recalibrate via Platt scaling over a full 7–10 year cycle and get \(\hat{a}=0.85\), \(\hat{b}=0.30\). Which parameter corrects over-confidence, and which shifts for cycle position?</li>
+      <li class="frag"><strong>C.</strong> Monitoring reports PSI \(=0.31\) on the bureau-score feature between training and current applicants. What action does that threshold trigger, and is it concept drift or population drift?</li>
+    </ol>
+    <aside class="underhood" data-title="Platt recalibration for TTC">
+      \[ \hat{p}_{\text{TTC}} = \sigma\!\big(a\, f(x) + b\big). \]
+      \(\hat{a}=0.85&lt;1\) shrinks over-confident PIT scores (overconfidence correction);
+      \(\hat{b}=0.30&gt;0\) shifts the level upward to reflect the long-run average cycle position.
+      PSI \(=0.31 &gt; 0.25\): significant shift — model review required. PSI flags
+      <em>population</em> drift (input distribution shift), not concept drift (feature–label relationship shift).
+    </aside>
+  </section>
+
+</div></div>
+</body>
+</html>

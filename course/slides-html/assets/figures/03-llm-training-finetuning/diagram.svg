@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="system-ui, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#2f6fed"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="36" text-anchor="middle" fill="#2a3340" font-size="18" font-weight="600">LLM Training Pipeline</text>
+
+  <!-- Stage 1: Pretraining -->
+  <rect x="40" y="110" width="170" height="140" rx="12" fill="#eef2fb" stroke="#2f6fed" stroke-width="2"/>
+  <rect x="40" y="110" width="170" height="34" rx="12" fill="#2f6fed"/>
+  <rect x="40" y="130" width="170" height="14" fill="#2f6fed"/>
+  <text x="125" y="134" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Pretraining</text>
+  <text x="125" y="162" text-anchor="middle" fill="#2a3340" font-size="12">Next-token prediction</text>
+  <text x="125" y="180" text-anchor="middle" fill="#5b6472" font-size="11">Corpus: web, books,</text>
+  <text x="125" y="196" text-anchor="middle" fill="#5b6472" font-size="11">code, filings</text>
+  <text x="125" y="218" text-anchor="middle" fill="#2a3340" font-size="12" font-style="italic">→ base LLM</text>
+
+  <!-- Arrow 1→2 -->
+  <line x1="210" y1="180" x2="258" y2="180" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 2: SFT -->
+  <rect x="260" y="110" width="200" height="140" rx="12" fill="#eef2fb" stroke="#B48228" stroke-width="2"/>
+  <rect x="260" y="110" width="200" height="34" rx="12" fill="#B48228"/>
+  <rect x="260" y="130" width="200" height="14" fill="#B48228"/>
+  <text x="360" y="134" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Supervised Fine-Tuning</text>
+  <text x="360" y="162" text-anchor="middle" fill="#2a3340" font-size="12">Human-labelled Q&amp;A pairs</text>
+  <text x="360" y="180" text-anchor="middle" fill="#5b6472" font-size="11">Instruction-following</text>
+  <text x="360" y="196" text-anchor="middle" fill="#5b6472" font-size="11">demonstrations</text>
+  <text x="360" y="218" text-anchor="middle" fill="#2a3340" font-size="12" font-style="italic">→ instruction LLM</text>
+
+  <!-- Arrow 2→3 -->
+  <line x1="460" y1="180" x2="508" y2="180" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 3: RLHF -->
+  <rect x="510" y="110" width="170" height="140" rx="12" fill="#eef2fb" stroke="#2a3340" stroke-width="2"/>
+  <rect x="510" y="110" width="170" height="34" rx="12" fill="#2a3340"/>
+  <rect x="510" y="130" width="170" height="14" fill="#2a3340"/>
+  <text x="595" y="134" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">RLHF</text>
+  <text x="595" y="162" text-anchor="middle" fill="#2a3340" font-size="12">Reward model from</text>
+  <text x="595" y="180" text-anchor="middle" fill="#5b6472" font-size="11">human preferences</text>
+  <text x="595" y="196" text-anchor="middle" fill="#5b6472" font-size="11">PPO / DPO alignment</text>
+  <text x="595" y="218" text-anchor="middle" fill="#2a3340" font-size="12" font-style="italic">→ aligned LLM</text>
+
+  <!-- Bottom label row -->
+  <text x="125" y="286" text-anchor="middle" fill="#5b6472" font-size="11">Trillions of tokens</text>
+  <text x="360" y="286" text-anchor="middle" fill="#5b6472" font-size="11">Thousands of examples</text>
+  <text x="595" y="286" text-anchor="middle" fill="#5b6472" font-size="11">Human feedback loop</text>
+
+  <!-- Flow line at bottom -->
+  <line x1="60" y1="300" x2="660" y2="300" stroke="#eef2fb" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="360" y="330" text-anchor="middle" fill="#5b6472" font-size="11">Each stage inherits the previous model's weights</text>
+</svg>

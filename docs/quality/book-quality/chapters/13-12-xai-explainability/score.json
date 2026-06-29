@@ -1,0 +1,208 @@
+{
+  "file": "book/chapters/12-xai-explainability/chapter.tex",
+  "reading_index": 13,
+  "slug": "12-xai-explainability",
+  "title": "Explainability and Interpretability of LLMs in Finance",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:206-243 — Shapley value definition and Efficiency/Symmetry/Dummy axioms are correct and re-derivable",
+        "chapter.tex:320-333 — LIME objective (locality-weighted fidelity + complexity penalty) correct",
+        "chapter.tex:365-385 — Jain/Wiegreffe/Jacovi attention debate and faithfulness/plausibility distinction stated correctly",
+        "chapter.tex:714-748 — sufficiency/comprehensiveness metrics correct; per-method analysis sound"
+      ],
+      "blocking_issues": [
+        "MAJOR citation_accuracy spillover: chapter.tex:393 attributes Integrated Gradients to the wrong Sundararajan paper (factual error in the prose claim about what that reference is)"
+      ],
+      "recommended_action": "Cite the correct Integrated Gradients paper (Sundararajan, Taly & Yan 2017); optionally add a one-line IG definition."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:28-38 — context box used for big-picture framing",
+        "chapter.tex:172-182 — remark used for the Rudin caveat",
+        "No deepdive boxes despite heavy under-the-hood content (Shapley combinatorics, KernelSHAP marginalisation)"
+      ],
+      "blocking_issues": [
+        "MINOR: intuition and internals are interleaved in body prose; no deepdive box separates the technical layer for readers who want intuition only"
+      ],
+      "recommended_action": "Wrap the Shapley combinatorics / KernelSHAP marginalisation discussion in a deepdive box; keep prose intuition in context."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "book/chapters/12-xai-explainability/figures/ contains only .gitkeep; chapter has no \\includegraphics or figure environment",
+        "Worked numeric tables/examples (chapter.tex:266-280 SHAP table; 573-578 attribution feed) are internally consistent and labelled illustrative",
+        "exercises.ipynb LOO waterfall plot is correct and runnable"
+      ],
+      "blocking_issues": [
+        "MINOR: a chapter about attribution VISUALISATION ships no figure (no SHAP waterfall / attention heatmap)"
+      ],
+      "recommended_action": "Add at least one regenerated figure (SHAP waterfall or attention heatmap) from a notebook."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:318 — LIME proximity kernel defined before use in def:lime-objective",
+        "chapter.tex:465 — input/output spaces defined before counterfactual definition",
+        "chapter.tex:263 — KernelSHAP forward-refers to def:lime-objective (defined later at 320)"
+      ],
+      "blocking_issues": [
+        "MAJOR book-wide: SHAP/Shapley used and defined in ch06 (read #10) three chapters before this designated SSOT (read #13)",
+        "MINOR local: KernelSHAP forward reference to LIME"
+      ],
+      "recommended_action": "Add forward \\Cref from ch06 to ch:xai-explainability for the formal Shapley definition; soften the KernelSHAP forward gloss."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:185-195 — classical XAI introduced before LLM-native methods; explicit build-up",
+        "chapter.tex:400-407 — explicit bridge from post-hoc (black-box) to LLM-native mechanisms",
+        "chapter.tex:886-892 — Further Reading bridges to ch:credit-risk and ch:llm-agents",
+        "Smooth curve: legal motivation -> classical methods -> native methods -> case studies -> evaluation"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:206-243 vs 06-credit-risk/chapter.tex:793-841 — SHAP definition and the same Efficiency/Symmetry/Dummy axioms appear in full in both chapters",
+        "11-regtech-compliance-aml/chapter.tex:439 defers SHAP depth to ch06, not to this chapter — SSOT is ambiguous"
+      ],
+      "blocking_issues": [
+        "MAJOR book-repetition: one concept (SHAP) derived in full twice; no cross-reference between the two derivations"
+      ],
+      "recommended_action": "Designate this chapter the SHAP SSOT; replace ch06's axiom re-derivation with a forward \\Cref and keep only its credit waterfall example."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:28-45 — every technique motivated by a regulated-finance decision problem (ECOA adverse action)",
+        "chapter.tex:58-100 — EU AI Act / SR 11-7 / ECOA / GDPR Art.22 frame the entire chapter",
+        "chapter.tex:531-701 — three finance case studies (credit, ECOA letters, MiFID II) anchor the methods"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:254-289 — SHAP credit attribution example, values tied to ECOA statement",
+        "chapter.tex:553-590 — hybrid 3-stage credit pipeline with concrete guarded prompt",
+        "chapter.tex:673-701 — MiFID II suitability example; 0.3% revision rate explicitly hedged as illustrative"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE — optionally wire a runnable companion so examples are reproducible end-to-end."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "All 31 \\cite keys used in chapter.tex resolve in book/bibliography.bib (verified)",
+        "SSRN working-paper entries are well-formed @unpublished with url and note",
+        "book/bibliography.bib has a duplicate key wei2022emergent, but it is NOT cited by this chapter"
+      ],
+      "blocking_issues": [
+        "MINOR (book-level, not local): duplicate key wei2022emergent in the shared .bib"
+      ],
+      "recommended_action": "Book-wide: de-duplicate wei2022emergent. No local hygiene defect in this chapter's cited keys."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 60,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:393 — Integrated Gradients cited as \\cite{sundararajan2020shapley}, but that key (bibliography.bib:2480) is Sundararajan & Najmi (2020) 'The Many Shapley Values for Model Explanation' — NOT the Integrated Gradients paper (Sundararajan, Taly & Yan 2017)",
+        "chapter.tex:511-520, 639-647 — eight SSRN/CFA claims cannot be verified against sources from the repo"
+      ],
+      "blocking_issues": [
+        "BLOCKER: wrong paper cited for Integrated Gradients (misattribution)",
+        "Multiple unverifiable working-paper descriptions -> NEEDS_EXTERNAL_VERIFICATION (caps at 89 even after the misattribution is fixed)"
+      ],
+      "recommended_action": "Cite Sundararajan, Taly & Yan (2017) for Integrated Gradients; then NEEDS_EXTERNAL_VERIFICATION for the SSRN/CFA descriptive claims."
+    },
+    {
+      "dimension": "completeness",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:291-297 — correlational-not-causal SHAP caveat present",
+        "chapter.tex:489-496 — counterfactual feasibility/non-discrimination caveat present",
+        "chapter.tex:393-397 — Integrated Gradients recommended as audit-grade but never defined"
+      ],
+      "blocking_issues": [
+        "MINOR: IG introduced as the preferred faithful method but undefined; small asymmetry vs the rigorous SHAP/LIME treatment"
+      ],
+      "recommended_action": "Add a one-line IG definition or mark it explicitly out of scope."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 55,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:890 — \\ref{ch:responsible-llms} has NO matching \\label anywhere in book/chapters/",
+        "chapter.tex:135 — grammar artifact 'The According to the CFA Institute'",
+        "All other \\ref/\\eqref targets resolve (ch:credit-risk, ch:llm-agents, ch:llm-foundations, in-chapter def:/sec:/eq: labels verified)"
+      ],
+      "blocking_issues": [
+        "BLOCKER: dangling \\ref{ch:responsible-llms} -> '??' in PDF"
+      ],
+      "recommended_action": "Retarget to an existing chapter (e.g. \\Cref{ch:credit-risk}) or create the missing responsible-AI chapter; fix the stray 'The'."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 65,
+      "pass": false,
+      "evidence": [
+        "code/notebooks/12-xai-explainability/demo.ipynb is a 2-cell stub (imports + a print); demonstrates no chapter method",
+        "exercises.ipynb is real and substantial (EDGAR fundamentals, logistic regression, LOO attribution, model card) and honestly notes LOO != SHAP",
+        "chapter.tex:588 claims text-SHAP is 'reproducible given the random seed' with no runnable companion",
+        "figures/ empty — nothing to regenerate"
+      ],
+      "blocking_issues": [
+        "MAJOR: companion demo notebook is a placeholder; no in-chapter table/figure is regenerable from code"
+      ],
+      "recommended_action": "Fill demo.ipynb with a runnable KernelSHAP/LOO attribution demo, or delete it and point readers to exercises.ipynb."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-22 — clear, measurable Learning Objectives",
+        "chapter.tex:28-38, 113-147 — strong scaffolding via concrete scenarios for the mixed academic/industry reader",
+        "chapter.tex:810-848 — five-point Summary; 851-892 Further Reading with reading guidance",
+        "chapter.tex:435-441 — over-nested 'counterfactually faithful' parenthetical hampers readability"
+      ],
+      "blocking_issues": [
+        "MINOR: no figure for a visualisation-centric chapter; a couple of dense nested parentheticals"
+      ],
+      "recommended_action": "Add a worked visual; de-nest def:explanation-trace; tighten the hedged CFA overreliance claim."
+    }
+  ],
+  "pass": false,
+  "notes": "Audit only — no edits applied. Strong, finance-first, technically careful chapter. Fails the 90 floor on 9 of 14 dimensions, driven by 2 blockers (dangling \\ref{ch:responsible-llms} at chapter.tex:890; Integrated Gradients cited to the wrong Sundararajan paper at chapter.tex:393) plus book-wide SHAP double-derivation against ch06 (read #10) and a placeholder demo.ipynb. AUROC half of the prompt's use-before-definition hypothesis does NOT reproduce: AUROC is self-contained in ch06. citation_accuracy capped at 89 by NEEDS_EXTERNAL_VERIFICATION for 8 SSRN/CFA descriptive claims even after the misattribution fix. Book-level duplicate key wei2022emergent noted (not cited here)."
+}

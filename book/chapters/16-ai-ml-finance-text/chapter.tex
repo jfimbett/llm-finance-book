@@ -111,7 +111,7 @@ follows a deterministic rule specified in compliance policy.  Throughout
 this book we lean toward statistical methods because the data richness of
 financial markets makes learning from evidence more reliable than encoding
 rules by hand, but we return to the symbolic perspective when discussing
-interpretability (Chapter~12) and regulatory constraints.
+interpretability (\Cref{ch:xai-explainability}) and regulatory constraints.
 
 % -----------------------------------------------------------------------
 % --- Section: AI-ML-DL Hierarchy ---
@@ -193,7 +193,7 @@ computation, and both are difficult to interpret from the outside:
 understanding why a market price moved to a particular level is as
 challenging as understanding why a deep network produced a particular
 output.  This parallel motivates the explainability methods discussed in
-Chapter~12.
+\Cref{ch:xai-explainability}.
 \end{context}
 
 \subsection{Large Language Models as a Special Case}
@@ -281,7 +281,6 @@ actions, however, affect the order book, which in turn affects the signals
 on which the agent conditions its decisions.  This feedback loop must be
 modeled explicitly in the training environment to avoid policies that
 perform well in simulation but destabilize in live markets.
-% [CITE: high-frequency trading AI applications, market impact models]
 \end{example}
 
 \subsection{Forecasting, Risk, and Alpha Generation}
@@ -335,7 +334,7 @@ correspondence, legal and regulatory filings, and analyst opinions.  An
 LLM can surface unusual phrasing in a client communication, flag
 discrepancies between a filing's narrative risk disclosures and its
 quantitative exhibits, or assist compliance officers in interpreting
-newly issued regulatory guidance.  Chapter~11 treats these applications
+newly issued regulatory guidance.  \Cref{ch:regtech-compliance-aml} treats these applications
 in depth.
 
 The regulatory context also introduces obligations that constrain the
@@ -523,7 +522,7 @@ models represent each document as a vector of word counts, discarding
 all information about word order and grammar.  Combined with tf-idf
 weighting --- which up-weights rare, informative words and down-weights
 common ones --- BoW models can classify documents, measure similarity,
-and track the frequency of concept-related terms over time.  These
+and track the frequency of concept-related terms over time.
 Researchers applied these approaches to financial filings as early as
 the 1990s to measure changes in management tone and document readability
 \parencite{kearney2014textual}.
@@ -588,7 +587,7 @@ vanish.  Multiple attention heads operating in parallel subspaces allow
 the model to jointly attend to different aspects of the context --- one
 head might track syntactic agreement while another tracks coreference.
 The full derivation and financial NLP implications are developed in
-Chapter~2.
+\Cref{ch:llm-foundations}.
 \end{deepdive}
 
 Pre-trained Transformer models --- BERT, GPT, RoBERTa, and their
@@ -655,107 +654,6 @@ be poorly calibrated because such events are underrepresented in
 pre-training data.  These limitations are not reasons to avoid LLMs
 in finance, but they are reasons to deploy them carefully and to
 invest seriously in evaluation, monitoring, and human oversight.
-Chapter~13 is dedicated to these issues.
+\Cref{ch:llm-limitations-evaluation} is dedicated to these issues.
 \end{remark}
 
-% -----------------------------------------------------------------------
-% --- Section: Roadmap ---
-\section{Roadmap: What This Book Covers and How to Read It}
-\label{sec:book-roadmap}
-
-The remainder of this book is organized in three parts, each building on
-the conceptual scaffolding erected in the present chapter.
-
-The first part builds the technical foundations.  The next chapter
-develops the architecture of transformer-based language models from the
-ground up, deriving the attention mechanism, the pre-training objectives,
-and the tokenization schemes that underlie all modern LLMs.  The chapters
-that follow cover training and fine-tuning --- how language models are
-adapted to specific tasks and domains using supervised fine-tuning,
-reinforcement learning from human feedback, and parameter-efficient
-methods such as LoRA --- and extend the single-model view to multi-agent
-systems, examining how LLMs can be composed into pipelines that plan,
-use tools, and interact with external data sources.  The final chapter
-of the first part applies these foundations to business valuation,
-showing how LLMs can assist in extracting and synthesizing the inputs to
-discounted-cash-flow and comparable-company analyses.
-
-The second part covers the primary application domains in finance.
-Successive chapters treat credit risk, emerging and frontier applications,
-domain-specific language models trained or adapted for finance, financial
-NLP and sentiment analysis, portfolio construction and quantitative
-trading, regulatory technology and anti-money laundering, and
-explainability.  The application chapters are designed to be read
-independently once the technical foundations are in place; a reader
-with a specific use case --- say, compliance automation or sentiment
-analysis --- can proceed directly to the relevant chapter after
-completing the foundational part.
-
-The third part turns to evaluation, deployment, and operational concerns.
-It provides a systematic treatment of LLM limitations and evaluation
-methodology, covers financial text summarization, and examines
-privacy-preserving and locally deployed models, addressing the
-data-residency and confidentiality concerns that constrain the use of
-cloud-hosted models in financial institutions.
-
-Throughout the book, formal definitions and examples are set off from
-the main text in the environments the reader has already encountered in
-this chapter.  \emph{Context} boxes provide broader perspective --- on
-connections to economic theory, institutional practice, or adjacent
-fields --- that enriches the main argument without interrupting its
-flow.  \emph{Deep Dive} boxes provide technical derivations and
-implementation details for readers who want them, and can be skipped
-without loss of continuity by those who do not.  Exercises at the end of
-each chapter are tagged by difficulty: \textbf{[B]} for beginner,
-\textbf{[I]} for intermediate, and \textbf{[A]} for advanced.  Python
-code implementing the examples is available in the companion repository
-and in the Jupyter notebooks distributed with the book.
-
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch16-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/16-ai-ml-finance-text/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Uncertainty Word Frequency Trend]\label{ex:ch16-edgar-b}
-\textbf{[B]} For Microsoft (\texttt{MSFT}), download the five most recent
-annual 10-K filings from EDGAR.
-Count the frequency per thousand words of the following uncertainty-word set:
-\{\textit{uncertain, uncertainty, unpredictable, volatility, fluctuate,
-unclear, approximate, depend, contingent, may, might, could, estimate}\}.
-(\textit{a})~Plot the total uncertainty-word frequency as a line chart over years.
-(\textit{b})~Overlay a hardcoded annual VIX series (use approximate annual
-averages: 2019:15.4, 2020:29.2, 2021:19.7, 2022:25.6, 2023:17.5).
-(\textit{c})~Compute the Pearson correlation between uncertainty frequency and VIX.
-See \texttt{code/notebooks/16-ai-ml-finance-text/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Gunning Fog Index vs.\ Firm Size]\label{ex:ch16-edgar-i}
-\textbf{[I]} For ten companies with varying total assets, compute the
-Gunning Fog readability index on each firm's MD\&A section:
-$\mathrm{Fog} = 0.4 \times (W/S + 100 \times H/W)$,
-where $W$ = total words, $S$ = sentence count,
-$H$ = count of words with seven or more characters (syllable proxy).
-Fetch total assets from EDGAR XBRL (\texttt{Assets} concept).
-(\textit{a})~Plot Fog Index vs.\ $\log_{10}(\text{Total Assets})$.
-(\textit{b})~Fit an OLS regression line (implement in NumPy) and report the slope.
-(\textit{c})~Discuss whether larger firms write more complex disclosures.
-See \texttt{code/notebooks/16-ai-ml-finance-text/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Text-and-Ratio Return Predictor]\label{ex:ch16-edgar-a}
-\textbf{[A]} For ten companies, compute six features from EDGAR and the
-MD\&A text:
-(\textit{i})~LM negative-word frequency,
-(\textit{ii})~uncertainty-word frequency,
-(\textit{iii})~Gunning Fog Index,
-(\textit{iv})~leverage,
-(\textit{v})~return on equity,
-(\textit{vi})~revenue growth.
-Predict whether each firm's next-year excess return (over S\&P~500) is positive,
-using LOO-CV logistic regression (NumPy sigmoid + gradient descent).
-(\textit{a})~Report accuracy, the coefficient vector, and the most predictive feature.
-(\textit{b})~Discuss the multiple-comparisons and overfitting problem with $n = 10$.
-See \texttt{code/notebooks/16-ai-ml-finance-text/exercises.ipynb}, Data Lab section.
-\end{exercise}

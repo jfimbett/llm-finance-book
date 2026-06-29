@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 2 — Large Language Models: Architecture and Practice</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 2 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 2 / Lecture 2</div>
+    <h1>Large Language Models: Architecture and Practice</h1>
+    <div class="sub">How a model learns to read a 100-page filing — from recurrent networks to the Transformer, and how to actually use one.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>From sequences to attention</strong> — why reading word-by-word breaks down, and the idea that fixed it.</li>
+          <li class="frag"><strong>The Transformer</strong> — the architecture behind every modern LLM.</li>
+          <li class="frag"><strong>Pre-training &amp; the landscape</strong> — BERT vs. GPT, reasoning models, and who builds what.</li>
+          <li class="frag"><strong>Sampling &amp; structured output</strong> — turning a model into a reliable tool.</li>
+          <li class="frag"><strong>APIs, RAG &amp; hallucinations</strong> — cost, grounding, and the failure modes that matter in finance.</li>
+          <li class="frag"><strong>Model compression</strong> — distillation, LoRA, and quantisation for deployment.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          Lecture 1 turned words into static vectors. Today we build the machine that reads a
+          <em>sequence</em> in context — so "earnings did not decline" no longer reads like "earnings declined" —
+          and then learn how to run it responsibly on real financial documents.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>From sequences to attention</h2>
+    <div class="secsub">Document representations, polysemy, and the architecture evolution that handles both.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">First problem: documents are long</div>
+    <h2>How do you turn a 100-page filing into one vector?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Earnings calls run about 10,000 words; 10-K filings about 100,000. Three ways to
+      compress all those word-vectors into a single document representation — each with a catch.</p>
+    <table>
+      <tr><th>Method</th><th>Idea</th><th>Weakness</th></tr>
+      <tr><td>Mean embedding</td><td>Average every word's vector</td><td>No word order; permutation-invariant</td></tr>
+      <tr><td>TF-IDF weighted</td><td>Average, weight rare/distinctive words more</td><td>Still bag-of-words</td></tr>
+      <tr><td>SBERT (contextual)</td><td>A BERT fine-tuned to embed whole sentences</td><td>Compute cost at encoding</td></tr>
+    </table>
+    <aside class="underhood" data-title="the three formulas">
+      Mean pooling and TF-IDF pooling of word embeddings \(\varphi(w_i)\):
+      \[ \bar{\varphi}(d) = \frac{1}{n}\sum_{i=1}^n \varphi(w_i), \qquad
+         \varphi_{\text{tfidf}}(d) = \frac{\sum_i \text{tfidf}(w_i)\,\varphi(w_i)}{\sum_i \text{tfidf}(w_i)}. \]
+      SIF (Arora et al., 2017) weights by \(a/(a+p(w_i))\) and removes the first principal component — matches supervised baselines at negligible cost.
+      SBERT (Reimers &amp; Gurevych, 2019) uses a Siamese BERT fine-tuned on NLI pairs; search at query time requires only one forward pass per document (offline), then \(O(1)\) ANN lookup via FAISS (Johnson et al., 2019) or HNSW.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">why order matters</span>
+      Under mean pooling, "Revenue rose, costs fell" \(\equiv\) "Costs rose, revenue fell" — identical vectors,
+      opposite meaning. <strong>SBERT advantage:</strong> cross-encoding \(N\) documents with vanilla BERT
+      takes \(O(N)\) forward passes; SBERT bi-encoding needs only \(O(1)\) at query time.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Second problem: words mean different things</div>
+    <h2>One word, many meanings — static embeddings pick one and ignore the rest</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Word2Vec and GloVe assign a single fixed vector to each word. In finance, polysemy — one word, multiple meanings — is everywhere and consequential.</p>
+    <ul>
+      <li class="frag"><strong>bank</strong> — financial institution OR a river's edge; a sentiment model trained on finance incorrectly transfers positive sentiment to sentences about river flooding</li>
+      <li class="frag"><strong>yield</strong> — bond yield, crop yield, or to give way</li>
+      <li class="frag"><strong>default</strong> — failure to repay a debt OR a software setting</li>
+      <li class="frag"><strong>position</strong> — a long/short holding OR a physical location</li>
+    </ul>
+    <aside class="underhood" data-title="contextual embeddings — ELMo and BERT">
+      ELMo (Peters et al., 2018) introduced deep contextual word embeddings from a bidirectional language model.
+      BERT (Devlin et al., 2019) generalised this: the representation of <em>bank</em> at layer \(\ell\) is a function of the entire input sentence, so it differs in "The Federal Reserve Bank raised rates" vs. "The river bank flooded."
+      Sentence-BERT (Reimers &amp; Gurevych, 2019) fine-tunes BERT with a Siamese architecture on NLI pairs to produce sentence embeddings optimised for cosine similarity — the solution to polysemy at document level.
+      BERT imposes a 512-token context limit; long documents require: (i) <em>truncation</em> — only first 512 tokens; (ii) <em>chunking</em> — overlapping 512-token windows aggregated by mean pooling; (iii) <em>hierarchical encoding</em> — sentence encoder + document-level aggregator (LSTM or second transformer). Longformer (Beltagy et al., 2020) extends to 4,096+ tokens with sparse attention.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the fix</span>
+      Contextual embeddings (BERT, SBERT) assign different vectors depending on surrounding context.
+      The same token <em>bank</em> gets different representations in "central bank" vs. "river bank."
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Reading in order · the first neural attempt</div>
+    <h2>RNNs read word by word — and forget the beginning</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A recurrent network passes a running "memory" forward as it reads each word.
+      The flaw: over a long document that memory signal fades exponentially, so the network can't
+      connect something on page 3 to something on page 20.</p>
+    <aside class="underhood" data-title="recurrence &amp; the vanishing-gradient proposition">
+      Vanilla RNN recurrence and its backprop-through-time gradient:
+      \[ \mathbf{h}_t = \sigma\!\left(W_h\,\mathbf{h}_{t-1} + W_x\,\mathbf{x}_t + \mathbf{b}\right), \qquad
+         \frac{\partial \mathcal{L}}{\partial \mathbf{h}_t}
+         = \sum_{s=t}^{T} \frac{\partial \ell_s}{\partial \mathbf{h}_s}
+           \prod_{k=t}^{s-1} \frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}. \]
+      <strong>Proposition (vanishing &amp; exploding gradients).</strong> With \(\rho = \|W_h\|_2\) and
+      \(M_\sigma = \sup_z |\sigma'(z)|\),
+      \[ \Big\|\prod_{k=t}^{T-1}\tfrac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}\Big\|_2
+         \;\leq\; (M_\sigma\,\rho)^{T-t}. \]
+      For logistic sigmoid \(M_\sigma = \tfrac{1}{4}\); if \(M_\sigma\rho &lt; 1\) the gradient vanishes exponentially in sequence length. Gradient clipping (Pascanu et al., 2013) fixes explosion; there is no in-architecture fix for vanishing.
+    </aside>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the finance implication</span>
+      A 10,000-token earnings call makes long-range dependencies — a guidance number on page 3 tied to a
+      caveat on page 20 — practically unlearnable for a plain RNN.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The first fix · LSTM</div>
+    <h2>LSTMs add a memory "conveyor belt" that doesn't fade</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The LSTM keeps a separate cell state that information can ride along almost untouched, with
+      learned gates deciding what to <em>forget</em>, what to <em>add</em>, and what to <em>output</em>.</p>
+    <ul>
+      <li class="frag"><strong>Forget gate</strong> \(\mathbf{f}_t\) — what to drop from memory; clears irrelevant preamble as a transcript shifts to core earnings figures</li>
+      <li class="frag"><strong>Input gate</strong> \(\mathbf{i}_t\) — what new information to write; filters boilerplate language in 10-K filings</li>
+      <li class="frag"><strong>Output gate</strong> \(\mathbf{o}_t\) — what to expose as the hidden state</li>
+    </ul>
+    <aside class="underhood" data-title="the six LSTM equations (Hochreiter &amp; Schmidhuber, 1997)">
+      \[ \begin{aligned}
+        \mathbf{f}_t &= \sigma(W_f[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_f) &&\text{forget gate}\\
+        \mathbf{i}_t &= \sigma(W_i[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_i) &&\text{input gate}\\
+        \mathbf{g}_t &= \tanh(W_g[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_g) &&\text{candidate cell}\\
+        \mathbf{c}_t &= \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \mathbf{g}_t &&\text{cell state (additive!)}\\
+        \mathbf{o}_t &= \sigma(W_o[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_o) &&\text{output gate}\\
+        \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{c}_t) &&\text{hidden state}
+      \end{aligned} \]
+      The additive cell update is the <em>constant error carousel</em>: cell-state gradient
+      \(\partial\mathcal{L}/\partial\mathbf{c}_t = (\partial\mathcal{L}/\partial\mathbf{c}_{t+1})\odot\mathbf{f}_{t+1} + \ldots\)
+      flows back undamped when \(\mathbf{f}_{t+1}\approx\mathbf{1}\), mitigating vanishing gradients (Hochreiter &amp; Schmidhuber, 1997).
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the lighter sibling — GRU (Cho et al., 2014)</span>
+      GRU merges cell state and hidden state into 4 equations, ~25% fewer parameters than LSTM.
+      GRUs match LSTMs on most tasks; LSTMs outperform on very long-range dependencies (Chung et al., 2014). Prefer GRUs under compute constraints.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Bidirectional RNNs — and their limits</div>
+    <h2>Read left-to-right AND right-to-left — but you're still bottlenecked by a fixed vector</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A bidirectional LSTM runs two passes and concatenates them, giving every token access to both past and future context. It dominated financial NLP before Transformers arrived.</p>
+    <ul>
+      <li class="frag"><strong>Forward pass</strong> \(\overrightarrow{\mathbf{h}}_t\) — reads \(x_1,\ldots,x_t\)</li>
+      <li class="frag"><strong>Backward pass</strong> \(\overleftarrow{\mathbf{h}}_t\) — reads \(x_T,\ldots,x_t\)</li>
+      <li class="frag"><strong>Combined</strong> \(\mathbf{h}_t = [\overrightarrow{\mathbf{h}}_t;\overleftarrow{\mathbf{h}}_t]\) — full context at each position</li>
+    </ul>
+    <aside class="underhood" data-title="BiLSTM (Schuster &amp; Paliwal, 1997)">
+      \[ \mathbf{h}_t = [\,\overrightarrow{\mathbf{h}}_t;\,\overleftarrow{\mathbf{h}}_t\,], \quad
+         \overrightarrow{\mathbf{h}}_t = \mathrm{LSTM}_{\mathrm{fwd}}(\mathbf{x}_1,\ldots,\mathbf{x}_t), \quad
+         \overleftarrow{\mathbf{h}}_t = \mathrm{LSTM}_{\mathrm{bwd}}(\mathbf{x}_T,\ldots,\mathbf{x}_t). \]
+    </aside>
+    <div class="cols">
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">financial applications pre-2019</span>
+          BiLSTMs were the dominant architecture for financial NER and sentiment classification:
+          credit-event extraction from news (Araci, 2019),
+          earnings-surprise prediction from analyst reports.
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">why Transformers won</span>
+          Three RNN failures: (1) vanishing gradients; (2) sequential computation blocks parallelism; (3) a fixed-size vector must compress everything. Transformers fix all three simultaneously.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The breakthrough idea · attention</div>
+    <h2>What if the model could look at every word at once?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The bottleneck in older translation models: the encoder had to squeeze the whole input into
+      one fixed vector. Bahdanau et al. (2015) let the decoder instead <em>look back</em> at every input
+      word and weight the ones it needs right now.</p>
+    <aside class="underhood" data-title="Bahdanau (additive) attention">
+      For decoder state \(\mathbf{s}_t\) and each encoder state \(\mathbf{h}_i\), an alignment score:
+      \[ e_{t,i} = \mathbf{v}^\top \tanh\!\left(W_s\,\mathbf{s}_t + U_h\,\mathbf{h}_i\right). \]
+      Attention weights form a probability distribution:
+      \[ \alpha_{t,i} = \frac{\exp(e_{t,i})}{\sum_j \exp(e_{t,j})}, \qquad
+         \mathbf{c}_t = \sum_{i} \alpha_{t,i}\,\mathbf{h}_i. \]
+      The context vector \(\mathbf{c}_t\) is a convex combination of encoder states.
+    </aside>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">a usable intuition</span>
+      "Attention" is just a learned, soft lookup: <em>given what I'm doing now, which parts of the input
+      should I read most carefully?</em> A decoder generating "net income" puts high weight exactly on
+      the transcript tokens where income figures appear. Attention is interpretable.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the move that follows</span>
+      Apply attention <em>within a single sequence</em> — every word attending to every other word — and you get
+      self-attention, the heart of the Transformer.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>The Transformer</h2>
+    <div class="secsub">Self-attention, many heads, positional encoding, and the encoder block that stacks into every modern LLM.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Self-attention, mechanically</div>
+    <h2>Every word asks every other word: "are you relevant to me?"</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each word produces three roles — a <em>query</em> (what I'm looking for), a <em>key</em>
+      (what I offer), and a <em>value</em> (what I'd contribute). Matching queries to keys decides how much of
+      each value to pull in.</p>
+    <aside class="underhood" data-title="scaled dot-product attention (Vaswani et al., 2017)">
+      From input \(X \in \mathbb{R}^{n \times d_{\text{model}}}\), project to queries, keys, values:
+      \[ Q = XW^Q,\quad K = XW^K,\quad V = XW^V, \]
+      then
+      \[ \text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V. \]
+      \(QK^\top \in \mathbb{R}^{n \times n}\) with entry \((i,j) = \mathbf{q}_i^\top\mathbf{k}_j\); row-wise
+      softmax gives weights \(A_{ij} > 0,\ \sum_j A_{ij}=1\); token \(i\)'s output is \(\sum_j A_{ij}\,\mathbf{v}_j\).
+      Dividing by \(\sqrt{d_k}\) normalises pre-softmax variance to 1 (see Appendix for proof).
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">the causal mask</span>
+      In a generative (decoder) model we set \(\tilde{S}_{ij} = -\infty\) for \(j>i\), so a token can never
+      "see" words that come after it — otherwise it would cheat at predicting the next word.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">parallelism</span>
+      Unlike an RNN, all \(n\) tokens are processed simultaneously. Training a 100B-parameter model on financial
+      filings becomes feasible in weeks, not years.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Many heads</div>
+    <h2>Run attention several times in parallel — each head a different lens</h2>
+    <div class="title-rule"></div>
+    <p class="lead">One attention pattern can only capture one kind of relationship. Multi-head attention runs
+      several in parallel, then concatenates them — so different heads can track grammar, co-reference, and figures at once.</p>
+    <aside class="underhood" data-title="multi-head attention (Vaswani et al., 2017)">
+      \[ \text{head}_i = \text{Attention}(XW^Q_i,\,XW^K_i,\,XW^V_i), \qquad
+         \text{MultiHead}(X) = \text{Concat}(\text{head}_1,\ldots,\text{head}_h)\,W^O. \]
+      Original Transformer: \(h = 8\), \(d_k = d_v = 64\), \(d_{\text{model}} = 512\).
+      Complexity \(O(n^2 d_{\text{model}})\) per layer. At \(n = 4{,}096\) tokens, \(h=8\) attention matrices
+      require \(\approx\)134M values per layer — motivating FlashAttention (Dao et al., 2022).
+      Kernel interpretation (Tsai et al., 2019): \(\text{Attention}(Q,K,V)_i \propto \sum_j k(\mathbf{q}_i,\mathbf{k}_j)\mathbf{v}_j\)
+      with \(k(\mathbf{q},\mathbf{k})=\exp(\mathbf{q}^\top\mathbf{k}/\sqrt{d_k})\); motivates random-feature approximations reducing \(O(n^2)\to O(n)\).
+    </aside>
+    <h3>What do heads learn? (Clark et al., 2019)</h3>
+    <ul>
+      <li class="frag"><strong>Lower layers</strong> — syntax: subject–verb agreement, negation scope</li>
+      <li class="frag"><strong>Deeper layers</strong> — semantics: entity co-reference, temporal relations</li>
+      <li class="frag"><strong>Financial models</strong> — heads specialise on "last quarter" → figures, entity linking</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">the cost of looking everywhere</span>
+      Complexity is \(O(n^2 d_{\text{model}})\) per layer. At \(n = 4{,}096\) tokens that's \(\approx\)134M values per layer —
+      which is why FlashAttention (Dao et al., 2022) exists.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Positional encoding — injecting order</div>
+    <h2>Self-attention is order-blind — so position is injected explicitly</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Self-attention treats the input as a set: shuffle the words and the math is unchanged. A sinusoidal positional encoding tags each token with its location so the model can recover order.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/02-llm-foundations/fig_illustration.png" alt="Sinusoidal positional-encoding heatmap: 50 positions by 64 dimensions, low-indexed dimensions oscillate rapidly">
+      <figcaption><b>Figure.</b> Sinusoidal positional-encoding matrix for \(d_{\text{model}}=64\) and sequence length 50.
+        Low-indexed dimensions oscillate rapidly (short period, fine position); high-indexed dimensions change slowly (coarse position).
+        Any fixed positional offset \(\Delta\) can be expressed as a linear transformation of the encoding — relative positions are linearly decodable.
+        <span class="src">Source: generated by <code>gen_positional_encoding.py</code> (deterministic; no data dependency).</span></figcaption>
+    </figure>
+    <aside class="underhood" data-title="sinusoidal PE &amp; rotation property (Vaswani et al., 2017; Shaw et al., 2018)">
+      \[ \text{PE}_{(\text{pos},2i)} = \sin\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right), \quad
+         \text{PE}_{(\text{pos},2i+1)} = \cos\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right). \]
+      <strong>Rotation property:</strong> for any fixed offset \(k\),
+      \[ \begin{pmatrix} \text{PE}_{(\text{pos}+k,2i)} \\ \text{PE}_{(\text{pos}+k,2i+1)} \end{pmatrix}
+         = \begin{pmatrix}\cos\omega_i k & -\sin\omega_i k \\ \sin\omega_i k & \cos\omega_i k\end{pmatrix}
+           \begin{pmatrix} \text{PE}_{(\text{pos},2i)} \\ \text{PE}_{(\text{pos},2i+1)} \end{pmatrix}, \]
+      where \(\omega_i=10000^{-2i/d}\) depends only on \(k\), not absolute position.
+      <strong>Modern variant — RoPE (Su et al., 2024):</strong> bakes the rotation into query–key dot products. Used in Llama, Mistral, Qwen. Models with RoPE generalise better to sequences longer than those seen in training.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Special tokens — the scaffolding of LLMs</div>
+    <h2>Every LLM reserves a few tokens for structure, not words</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Alongside word-pieces, LLMs keep a handful of tokens that carry structural rather than lexical meaning — and getting them wrong breaks financial pipelines in subtle ways.</p>
+    <table>
+      <tr><th>Token</th><th>Role</th><th>Financial consequence if misused</th></tr>
+      <tr><td><code>[CLS]</code></td><td>BERT summary slot; final hidden state feeds classifier</td><td>Wrong features → bad sentiment scores</td></tr>
+      <tr><td><code>[SEP]</code></td><td>Segment boundary (question | passage)</td><td>Model misreads where document ends</td></tr>
+      <tr><td><code>[MASK]</code></td><td>MLM training placeholder</td><td>Accidentally masking at inference breaks extraction</td></tr>
+      <tr><td><code>&lt;pad&gt;</code></td><td>Batch-padding filler</td><td>Unmasked padding biases pooled embeddings</td></tr>
+      <tr><td><code>&lt;eos&gt;</code></td><td>End-of-sequence; decoding stops on this token</td><td>Misplaced EOS truncates a risk disclosure mid-sentence</td></tr>
+      <tr><td><code>&lt;unk&gt;</code></td><td>Out-of-vocabulary fallback</td><td>Rare tickers → UNK → entity extraction fails</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">RAG splicing pitfall</span>
+      A retrieval pipeline that splices retrieved passages into a prompt must respect the model's special-token
+      conventions — otherwise the model silently misreads where document boundaries lie.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Putting it together</div>
+    <h2>One Transformer block: attend, then think, with safety rails</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A block does two things — mix information across words (attention), then process each word
+      on its own (a small feed-forward network) — each wrapped in a "shortcut" that keeps training stable.</p>
+    <aside class="underhood" data-title="encoder and decoder layers (He et al., 2016; Ba et al., 2016)">
+      <strong>Encoder layer:</strong>
+      \[ Z^{(\ell)} = \text{LayerNorm}\!\left(X^{(\ell)} + \text{MultiHead}(X^{(\ell)})\right), \]
+      \[ X^{(\ell+1)} = \text{LayerNorm}\!\left(Z^{(\ell)} + \text{FFN}(Z^{(\ell)})\right), \]
+      with \(\text{FFN}(\mathbf{z}) = \max(0,\mathbf{z}W_1+\mathbf{b}_1)W_2+\mathbf{b}_2\), \(d_{\text{ff}}=4d_{\text{model}}\).
+      Later variants use GELU (Hendrycks &amp; Gimpel, 2016) instead of ReLU.
+      <strong>Decoder layer</strong> adds (i) masked self-attention (causal mask) and (ii) cross-attention, where the decoder provides queries and encoder output provides keys and values:
+      \[ \text{CrossAttn}(Y, H) = \text{MultiHead}(YW^Q,\;HW^K,\;HW^V). \]
+      Base Transformer: \(L=6\) layers. Modern LLMs: \(L=32\)–\(96\), \(d_{\text{model}}=4{,}096\)–\(8{,}192\).
+    </aside>
+    <div class="block">
+      <div class="block-title">Why residual connections are critical</div>
+      They give gradients a direct pathway from output back to input, eliminating the multiplicative
+      vanishing-gradient problem across layer depth — the same disease that crippled RNNs, now cured by design.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">encoder vs decoder vs both</span>
+      BERT-style: encoder only (bidirectional, best for classification). GPT-style: decoder only (causal, best for generation). T5/BART: full encoder–decoder for summarisation and translation.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Tracing a forward pass</div>
+    <h2>Seven steps from tokens to next-word probability — in miniature</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A toy GPT (6-word vocab, \(d_\text{model}=4\), one decoder block) reads <em>"revenue fell"</em>
+      and predicts the next word. The same seven steps run inside every production LLM — just with larger matrices.</p>
+    <ol>
+      <li class="frag"><strong>Embed</strong> — look up each token's row in the embedding table \(E\)</li>
+      <li class="frag"><strong>Add positional encoding</strong> — inject sinusoidal signals so the model recovers order</li>
+      <li class="frag"><strong>Form Q, K, V</strong> — project each row to a query, key, and value vector</li>
+      <li class="frag"><strong>Score, mask, softmax</strong> — dot-product scores, causal \(-\infty\) mask, row-wise softmax → attention weights \(A\)</li>
+      <li class="frag"><strong>Attention output + Add &amp; Norm</strong> — weighted average of values, then residual + LayerNorm</li>
+      <li class="frag"><strong>Feed-forward + Add &amp; Norm</strong> — position-wise FFN (widen → ReLU → project), then residual + LayerNorm</li>
+      <li class="frag"><strong>Un-embed + softmax</strong> — multiply final row by \(E^\top\) to get logits; softmax gives \(P(\text{next token})\)</li>
+    </ol>
+    <aside class="underhood" data-title="numeric trace — 'revenue fell → sharply' (chapter §3.6)">
+      Tiny GPT config (hand-picked weights, not trained): \(V=6\), \(d_\text{model}=4\), \(d_\text{ff}=6\),
+      one head (\(d_k=4\)), \(W^Q=W^K=I\).
+      After steps 1–2 the <code>fell</code> row is \(X^{(0)}_3=(1.91,\,-0.42,\,1.02,\,1.00)\).
+      After causal masking and row-wise softmax (step 4), <code>fell</code> attends with weights
+      \((0.13,\;0.17,\;0.70)\) — weighting its own position most.
+      After FFN and second Add &amp; Norm (steps 5–6) the block output row is
+      \(X^{(1)}_3=(-0.95,\,1.00,\,1.00,\,-1.05)\).
+      Un-embedding (step 7): dot product with <code>sharply</code>'s embedding \((0,1,1,0)\) gives logit
+      \(1.00+1.00=2.00\) — the largest in the row. After softmax:
+      \[ P_3=\bigl(0.03,\;0.08,\;0.09,\;\mathbf{0.66},\;0.09,\;0.03\bigr) \]
+      for the six tokens
+      \((\langle s\rangle,\;\text{revenue},\;\text{fell},\;\mathbf{sharply},\;\text{rose},\;.\,)\).
+      The model assigns 66% probability to <code>sharply</code> — the intended completion.
+      A real GPT differs only in scale: BPE vocab ≈100K, \(d_\text{model}=4{,}096\text{–}8{,}192\),
+      32–96 stacked blocks. The data flow is identical.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the key insight</span>
+      The causal mask (step 4) makes autoregressive training efficient: a single forward pass on a
+      sequence of length \(n\) simultaneously trains the model on all \(n\) prefixes in parallel.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Pre-training and the LLM landscape</h2>
+    <div class="secsub">Two ways to learn from raw text, reasoning models, RLHF, and who ships what.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recipe 1 · BERT</div>
+    <h2>BERT learns by playing fill-in-the-blank</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Hide 15% of the words in a sentence and train the model to guess them from the words on
+      <em>both</em> sides. Reading in both directions makes it a powerful <em>reader</em> — but not a writer.</p>
+    <aside class="underhood" data-title="masked language modelling objective (Devlin et al., 2019)">
+      BERT = Bidirectional Encoder Representations from Transformers. Mask a set
+      \(\mathcal{M}\) of tokens and predict the originals:
+      \[ \mathcal{L}_{\text{MLM}}(\theta) = -\sum_{i \in \mathcal{M}} \log p_\theta\!\left(w_i \mid \mathbf{x}_{\setminus \mathcal{M}}\right). \]
+      Masking protocol: 80% replaced with <code class="inline">[MASK]</code>, 10% random token, 10% unchanged.
+      Architecture: encoder-only, fully bidirectional attention.
+      BERT also trained on Next Sentence Prediction (NSP), later shown to be unhelpful; RoBERTa (Liu et al., 2019) removed it and achieved better performance.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">best for</span>
+      Classification (sentiment, credit rating), token-level extraction (NER, metric extraction), and semantic
+      similarity. <strong>Not for text generation.</strong>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recipe 2 · GPT</div>
+    <h2>GPT learns by always guessing the next word</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Read left to right and predict what comes next, over and over. That single skill, at scale,
+      becomes fluent generation — and it's why one architecture can draft, answer, and reason.</p>
+    <aside class="underhood" data-title="causal language modelling objective (Radford et al., 2018)">
+      \[ \mathcal{L}_{\text{CLM}}(\theta) = -\sum_{t=1}^{T} \log p_\theta(w_t \mid w_1,\ldots,w_{t-1}). \]
+      Autoregressive factorisation: \(P(x_1,\ldots,x_n) = \prod_{t=1}^n P(x_t \mid x_1,\ldots,x_{t-1})\).
+      The causal mask enforces \(j \leq i\) only, giving natural autoregressive generation.
+      KV-cache: at inference, previously computed key/value pairs are cached so each new token needs only one forward pass through the new position — not a full \(n\)-token pass.
+    </aside>
+    <h3>Which architecture for which job?</h3>
+    <table>
+      <tr><th>Task</th><th>Architecture</th><th>Why</th></tr>
+      <tr><td>Sentiment classification</td><td>Encoder (BERT)</td><td>Full bidirectional context</td></tr>
+      <tr><td>NER in filings</td><td>Encoder (BERT)</td><td>Token-level labels</td></tr>
+      <tr><td>Earnings-call summarisation</td><td>Enc–Dec (T5/BART)</td><td>Seq2seq; full input read</td></tr>
+      <tr><td>Report drafting, Q&amp;A</td><td>Decoder (GPT)</td><td>Generative by design</td></tr>
+      <tr><td>Numerical reasoning (FinQA)</td><td>Decoder + CoT</td><td>Multi-step generation</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Reasoning models</div>
+    <h2>Chain-of-thought + RL reward: the next frontier beyond standard generation</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Standard LLMs generate tokens one step at a time with no backtracking. Reasoning models are trained to produce an explicit thinking trace before committing to an answer — dramatically improving multi-step financial tasks.</p>
+    <ul>
+      <li class="frag"><strong>Standard generation</strong> — one autoregressive pass; fast but commits to the most plausible next token without deliberation</li>
+      <li class="frag"><strong>Chain-of-thought prompting</strong> (Wei et al., 2022) — instruct the model to show its steps; each step independently verifiable</li>
+      <li class="frag"><strong>Reasoning models (o1, o3, DeepSeek-R1)</strong> — trained via RL with verifiable rewards to generate a latent trace \(\mathbf{r}\) before producing answer \(\mathbf{a}\)</li>
+    </ul>
+    <aside class="underhood" data-title="reasoning model definition; self-consistency (Wang et al., 2022)">
+      A reasoning model samples a latent trace \(\mathbf{r}=(r_1,\ldots,r_m)\) before answer tokens \(\mathbf{a}\):
+      \[ P(\mathbf{a} \mid \mathbf{x}) = \sum_{\mathbf{r}} P(\mathbf{a}\mid\mathbf{x},\mathbf{r})\,P(\mathbf{r}\mid\mathbf{x}). \]
+      In practice a single sample \(\hat{\mathbf{r}}\) is drawn — a Monte Carlo approximation.
+      Self-consistency (Wang et al., 2022): draw \(K\) chains at \(\tau>0\) and majority-vote to approximate the full marginal.
+      <strong>Merger valuation contrast:</strong> a standard GPT-5.6 model outputs "strategically sound" without verifying NPV; a reasoning model computes implied EV/EBITDA, discounts synergy stream at WACC, and makes each step auditable.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">not a silver bullet</span>
+      Reasoning models reduce hallucination on tasks with verifiable steps (FinQA), but extrinsic hallucination on obscure regulatory facts persists. All mitigation techniques (Section 05) remain necessary.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From raw model to assistant</div>
+    <h2>Instruction tuning + RLHF: teaching a model to follow orders</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A raw pre-trained model completes text; it doesn't follow instructions. Two extra training stages turn it into a reliable assistant that respects structured output formats and financial conventions.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block">
+          <div class="block-title">Stage 1 — Instruction tuning</div>
+          Fine-tune on curated (instruction, response) pairs. The model learns to follow natural-language directives and produce structured outputs (JSON, Markdown tables) that downstream pipelines depend on.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block">
+          <div class="block-title">Stage 2 — RLHF (Ouyang et al., 2022)</div>
+          Train a reward model on pairwise human rankings; optimise the language model via PPO to maximise human-preferred completions. Result: the "chat" or "instruct" model you actually call via API.
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why this matters for finance</span>
+      LopezLira &amp; Tang (2023): ChatGPT sentiment scores for news headlines significantly predict next-day stock returns — and predictability increases monotonically with model size. Return predictability is an <em>emergent</em> property of scale, not explicit financial training (Wei et al., 2022).
+      General frontier models at large scale often match BloombergGPT on financial benchmarks.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The market map</div>
+    <h2>Who builds the models you'll actually call?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A handful of general frontier models plus a few finance-specific ones. Context length (how much
+      text it can read at once) and open vs. closed weights matter as much as raw size.</p>
+    <table>
+      <tr><th>Model</th><th>Org.</th><th>Arch.</th><th>Params</th><th>Context</th><th>Finance</th></tr>
+      <tr><td>GPT-5.6</td><td>OpenAI</td><td>Decoder</td><td>n/d</td><td>400K</td><td>No</td></tr>
+      <tr><td>Claude Opus 4.8</td><td>Anthropic</td><td>Decoder</td><td>n/d</td><td>1M</td><td>No</td></tr>
+      <tr><td>Llama 4 (Maverick)</td><td>Meta</td><td>Decoder</td><td>400B MoE</td><td>10M</td><td>No</td></tr>
+      <tr><td>Gemini 3 Pro</td><td>Google DM</td><td>Multimodal</td><td>n/d</td><td>1M+</td><td>No</td></tr>
+      <tr><td>FinBERT</td><td>Araci 2019 / Huang 2023</td><td>Encoder</td><td>110M</td><td>512</td><td>Yes</td></tr>
+      <tr><td>BloombergGPT</td><td>Bloomberg</td><td>Decoder</td><td>50B</td><td>2K</td><td>Yes</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>FinBERT:</strong> two independently trained models share the name — Araci (2019) on Reuters/Bloomberg/10-K; Huang (2023) on analyst-labelled sentences. Do not conflate in benchmarks.</li>
+      <li class="frag"><strong>BloombergGPT</strong> (Wu et al., 2023): 363B finance + 345B general tokens. Outperforms same-size general models on FinancialPhraseBank and ConvFinQA. Large frontier models often match it via scale.</li>
+      <li class="frag">Open-weight models (Llama family) enable on-premises deployment — no data-privacy risk. 405B at 16-bit requires ~810 GB GPU memory.</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Sampling and structured generation</h2>
+    <div class="secsub">The dials that control creativity vs. determinism — and how to force clean, machine-readable output.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The creativity dial</div>
+    <h2>One knob decides whether the model plays it safe or improvises</h2>
+    <div class="title-rule"></div>
+    <p class="lead">At each step the model has a probability over possible next words. <em>Temperature</em>,
+      <em>nucleus</em>, top-\(k\), and <em>beam search</em> are different rules for picking from that distribution.</p>
+    <ul>
+      <li class="frag"><strong>Temperature</strong> — low = predictable, high = adventurous</li>
+      <li class="frag"><strong>Top-\(k\)</strong> — only sample from the \(k\) highest-probability words</li>
+      <li class="frag"><strong>Nucleus (top-\(p\))</strong> — only sample from the smallest set of words covering probability \(p\) (Holtzman et al., 2020); adapts vocabulary size to model confidence</li>
+      <li class="frag"><strong>Beam search</strong> — keep the \(B\) best partial sentences; deterministic; prone to degeneration on open-ended tasks</li>
+    </ul>
+    <aside class="underhood" data-title="temperature, nucleus, top-k, and beam search formulas">
+      Temperature scaling of logits \(z_i\):
+      \[ p_i(\tau) = \frac{\exp(z_i/\tau)}{\sum_j \exp(z_j/\tau)}. \]
+      \(\tau\to 0\): greedy (deterministic); \(\tau = 1\): standard; \(\tau\to\infty\): uniform.
+      Top-\(k\): \(\tilde{p}_i(\tau) \propto p_i(\tau)\cdot\mathbf{1}[i \in \mathcal{V}_k]\).
+      Nucleus (top-\(p\)): \(\mathcal{V}_p = \arg\min_S\!\{|S|:\sum_{i\in S} p_i(\tau)\geq p\}\); common defaults \(p=0.9\)–\(0.95\).
+      Beam search: at step \(t\), expand \(B\) hypotheses over \(|\mathcal{V}|\) tokens; retain top \(B\) by accumulated log-probability. Prone to degeneration — repetitive, generic prose on open-ended tasks.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">beam search degeneration</span>
+      Beam search dominated neural machine translation and is still preferred for ROUGE/BLEU tasks with reference texts, but produces repetitive, generic prose on open-ended generation. Nucleus sampling replaced it for conversational use.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Choosing the dial in finance</div>
+    <h2>If a machine reads the output, set temperature to zero</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The right setting depends entirely on whether you want one correct answer or a range of ideas.</p>
+    <table>
+      <tr><th>Task</th><th>Temperature</th><th>Sampling</th></tr>
+      <tr><td>Structured extraction (earnings, covenants)</td><td>\(\tau = 0\) (greedy)</td><td>—</td></tr>
+      <tr><td>Sentiment labelling</td><td>\(\tau \approx 0.1\)</td><td>greedy / top-\(k\)</td></tr>
+      <tr><td>Document summarisation</td><td>\(\tau \approx 0.3\text{–}0.5\)</td><td>top-\(p\) = 0.9</td></tr>
+      <tr><td>Regulatory Q&amp;A / compliance</td><td>\(\tau \approx 0.1\)</td><td>greedy + RAG</td></tr>
+      <tr><td>Scenario / stress-test narrative</td><td>\(\tau \approx 0.7\text{–}1.0\)</td><td>top-\(p\) = 0.95</td></tr>
+      <tr><td>Extractive summarisation (ROUGE)</td><td>N/A</td><td>Beam search (\(B=4\))</td></tr>
+    </table>
+    <div class="block">
+      <div class="block-title">Rule of thumb</div>
+      If the output feeds a downstream system or is compared to ground truth: \(\tau = 0\).
+      If a human analyst values breadth and novelty: \(\tau \in [0.5, 1.0]\) with nucleus.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">self-consistency</span>
+      Run \(K\) samples at \(\tau > 0\) and take the majority vote (Wang et al., 2022) — especially effective for multi-step
+      numerical reasoning (FinQA-type tasks).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Forcing clean output</div>
+    <h2>How to make a model return data, not prose</h2>
+    <div class="title-rule"></div>
+    <p class="lead">To extract figures into a database you need valid JSON every time. Constrained decoding blocks
+      any token that would break the required schema <em>before</em> the model can pick it.</p>
+    <aside class="underhood" data-title="validity mask &amp; grammar-based generation">
+      A binary mask over the vocabulary at step \(t\):
+      \[ M_t[i] = \mathbf{1}\!\left[\text{token } i \text{ can extend } x_{&lt;t} \text{ to a string in } \mathcal{L}(\mathcal{G})\right]. \]
+      Invalid tokens receive \(-\infty\) log-probability <em>before</em> softmax, so they can never be sampled.
+      Parsing the partial output against the grammar uses incremental parsers (Earley or pushdown automata) in \(O(|\mathcal{V}|)\) per step.
+      Grammar-based generation (outlines library, Willard &amp; Louf 2023; llama.cpp GBNF): EBNF grammars for nested financial hierarchies, XBRL taxonomies, MiFID II transaction reporting formats — zero-shot structured extraction without fine-tuning.
+    </aside>
+    <pre class="code">class EarningsReport(BaseModel):
+    revenue_bn: Optional[float] = None
+    net_income_bn: Optional[float] = None
+    eps: Optional[float] = None
+
+client.messages.create(
+  tools=[{"name": "record_earnings",
+          "input_schema": EarningsReport.model_json_schema()}],
+  tool_choice={"type": "tool", "name": "record_earnings"},
+  ...
+)</pre>
+    <p class="small">Anthropic tool use + Pydantic: the schema defines exactly what fields come back. <code class="inline">tool_choice</code> forces the tool call — no silent fallback to free text.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Even valid output can be wrong</div>
+    <h2>Three failure modes constrained decoding does NOT fix</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Guaranteeing the <em>shape</em> of the answer says nothing about whether the numbers inside it are right.</p>
+    <ol>
+      <li class="frag"><strong>Numerically wrong-but-valid</strong> — a clean number that's simply incorrect (pair with \(\tau=0\) + RAG)</li>
+      <li class="frag"><strong>Silent field omission</strong> — model emits explicit <code class="inline">null</code>; detectable but requires required/optional field discipline in the schema</li>
+      <li class="frag"><strong>Unit confusion</strong> — millions vs. billions; requires application-level validation with canonical units in the Pydantic model</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">the lesson</span>
+      Schema validity is necessary, not sufficient. Always validate values against the source and expected units.
+      Structured generation is an architectural requirement in any production financial NLP pipeline.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>APIs, RAG, and hallucinations</h2>
+    <div class="secsub">What it costs to run these models, how to ground them in real documents, and where they lie.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What you actually pay for</div>
+    <h2>Models bill by the token — and token math decides your budget</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before processing, text is chopped into sub-word "tokens" (BPE). You pay per token in and per
+      token out, so the same job can cost wildly different amounts across providers.</p>
+    <aside class="underhood" data-title="BPE tokenisation &amp; the cost model (Sennrich et al., 2016)">
+      BPE builds vocabulary iteratively: (1) start with individual characters; (2) count adjacent pairs; (3) merge most frequent; (4) repeat to target size (32K–100K).
+      Rule of thumb: 1 English word \(\approx\) 1.3 tokens. "EBITDA" \(\to\) ["EB","IT","DA"]; rare tickers fragment more.
+      Cost model: \(\text{cost} = N_{\text{in}} \cdot c_{\text{in}} + N_{\text{out}} \cdot c_{\text{out}}\).
+      Context window: max tokens in one forward pass. GPT-3: 4K; GPT-4-turbo: 128K; GPT-5 / Claude Opus 4.8: up to 1M; Gemini 3 Pro: 1M+. A full 10-K exceeds 100K tokens — chunking or a long-context model is required.
+    </aside>
+    <table>
+      <tr><th>Model</th><th>Input (\(\$\)/MTok)</th><th>Output (\(\$\)/MTok)</th></tr>
+      <tr><td>GPT-5.6 Sol</td><td>\(\$\)5.00</td><td>\(\$\)30.00</td></tr>
+      <tr><td>Claude Haiku 4.5</td><td>\(\$\)1.00</td><td>\(\$\)5.00</td></tr>
+      <tr><td>Llama 4 self-hosted</td><td>≈\(\$\)0</td><td>≈\(\$\)0</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">worked example</span>
+      10,000 transcripts × (7,000 input + 400 output tokens): GPT-5.6 Sol ≈ \(\$\)470; Claude Haiku 4.5 ≈ \(\$\)90 (≈5× cheaper). <strong>Prompt caching</strong> a shared system-prompt prefix cuts up to 90% of cost (Anthropic prefix caching; OpenAI ≥1,024-token contexts).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Grounding the model</div>
+    <h2>RAG: don't trust the model's memory — hand it the document</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Retrieval-Augmented Generation fetches the most relevant passages first, then asks the model to
+      answer <em>using only those</em> — so every claim traces back to a real source.</p>
+    <aside class="underhood" data-title="the three RAG stages; dense, sparse, hybrid, and re-ranking">
+      \[ \textbf{1. Retrieval:}\ \text{return top-}k\ \mathcal{R}(q); \quad
+         \textbf{2. Augmentation:}\ \tilde{q} = [d_{(1)},\ldots,d_{(k)},q]; \quad
+         \textbf{3. Generation:}\ a \sim P_\theta(\cdot\mid\tilde{q}). \]
+      Dense: cosine similarity \(s(q,d_i) = \phi(q)\cdot\phi(d_i)/(\|\phi(q)\|\|\phi(d_i)\|)\) with SBERT + FAISS.
+      Chunking: split at paragraph/section boundaries; cap at 512 tokens with 50-token overlap.
+      BM25 (Robertson et al., 2009): sparse lexical; strong on CUSIPs, clause references, tickers.
+      Hybrid via Reciprocal Rank Fusion: \(\text{RRF}(d)=\sum_r 1/(60+\text{rank}_r(d))\); no learned weights.
+      Re-ranking: retrieve top-100 with fast retriever; re-rank with cross-encoder for top-5. ColBERT (Khattab &amp; Zaharia, 2020): token-level MaxSim — cross-encoder accuracy at bi-encoder latency.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">why RAG for finance</span>
+      Update the knowledge base by adding new filings — no retraining. Every factual claim traces back to a
+      retrieved passage (auditability). It's the dominant architecture for production document Q&amp;A.
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">FinanceBench lesson (Zhang et al., 2024)</span>
+      GPT-4-Turbo with a retrieval system <em>incorrectly answers or refuses</em> 81% of questions from SEC filings.
+      Naive RAG is insufficient for high-stakes financial QA; advanced chunking, re-ranking, and verification are necessary.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The core danger</div>
+    <h2>Hallucination: fluent, confident, and wrong</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A hallucination is output that sounds authoritative but isn't supported by the input or the
+      real world. In finance, three kinds do the most damage.</p>
+    <ul>
+      <li class="frag"><span class="pill r">numerical</span> D/E ratio of 1.8 reported as 0.8 — indistinguishable from correct figures downstream</li>
+      <li class="frag"><span class="pill o">entity</span> wrong company or regulatory body substituted</li>
+      <li class="frag"><span class="pill b">citation</span> a fabricated regulation, ruling, or standard (Ji et al., 2023)</li>
+    </ul>
+    <aside class="underhood" data-title="detection methods">
+      <strong>Intrinsic hallucination:</strong> contradicts information in the input document — detectable by source comparison.
+      <strong>Extrinsic hallucination:</strong> introduces unverifiable information — requires external knowledge or retrieval check.
+      <strong>SelfCheckGPT (Manakul et al., 2023):</strong> draw \(N\) samples at \(\tau>0\); NLI consistency score:
+      \(\text{score}_\text{SelfCheck}(s)=\frac{1}{N}\sum_n(1-P_\text{NLI}(s\mid\text{sample}_n))\). No external knowledge base needed.
+      <strong>FActScore (Min et al., 2023):</strong> decompose output into atomic claims; verify each against retrieved source; report fraction supported.
+      <strong>Inner confidence (Chen et al., 2024):</strong> entropy-based confidence from token-level probabilities; high-confidence LLM signals achieve Sharpe ratio +20% vs. unconditional benchmark in financial news.
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">root cause</span>
+      Models are trained to produce <em>plausible</em> text. Setting \(\tau = 0\) removes randomness but
+      <strong>not</strong> hallucination — the most probable completion can still be false (Kang et al., 2023).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The defense</div>
+    <h2>No single fix — stack six defenses together</h2>
+    <div class="title-rule"></div>
+    <p class="lead">In production you layer complementary techniques; none is sufficient alone.</p>
+    <ol>
+      <li class="frag"><strong>RAG</strong> — ground answers in verified passages; model rarely fabricates figures absent from retrieved text</li>
+      <li class="frag"><strong>Self-consistency sampling</strong> — \(K\) chains at \(\tau>0\), majority vote; best for multi-step numerical reasoning (Wang et al., 2022)</li>
+      <li class="frag"><strong>Chain-of-thought</strong> (Wei et al., 2022) — force explicit steps; each independently verifiable; reasoning models implement this natively</li>
+      <li class="frag"><strong>Claim decomposition (FActScore)</strong> — break output into atomic claims; flag unsupported ones before human review</li>
+      <li class="frag"><strong>Confidence elicitation + abstention</strong> — model flags uncertainty; calibrate thresholds against accuracy; confidence-gating for production pipelines</li>
+      <li class="frag"><strong>Prompted self-critique</strong> — a second pass re-checks every claim against the source and retracts unsupported ones; the inference-time analogue of Constitutional AI (Bai et al., 2022), and the one defense a closed-API user can deploy without model weights</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">reasoning models help, but don't close the gap</span>
+      They reduce hallucination on tasks with verifiable steps (FinQA), but extrinsic hallucination on obscure
+      regulatory facts persists. All six techniques remain necessary.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Using these responsibly</div>
+    <h2>The legal and ethical traps practitioners must know</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Beyond accuracy, deploying LLMs in finance runs into regulation, contaminated back-tests, privacy
+      law, and built-in geographic bias.</p>
+    <ul>
+      <li class="frag"><strong>EU AI Act</strong> (Reg. 2024/1689, in force Aug 2024) — credit scoring, insurance pricing, AI-assisted securities pricing are high-risk: conformity assessments, human oversight, transparency to regulators</li>
+      <li class="frag"><strong>Look-ahead bias</strong> (Didisheim et al., 2025) — LLMs can reconstruct historical time series from memory, producing spurious back-test predictability; memorised data is contaminated data</li>
+      <li class="frag"><strong>GDPR</strong> (EU 2016/679) — fine-tuning or RAG on client personal data triggers right-to-erasure; a model trained on personal data can't satisfy erasure without retraining; data-transfer restrictions on non-EU API routing</li>
+      <li class="frag"><strong>Geographic bias</strong> — all five major benchmarks are North American / English; US-trained sentiment models may misread Japanese, Chinese, or Indian financial contexts</li>
+      <li class="frag"><strong>US / fiduciary duty</strong> — SEC posture holds the human adviser fully responsible for AI-generated outputs; whether an LLM answer counts as a "recommendation" is unsettled, but "the model said so" is not a defense</li>
+    </ul>
+  </section>
+
+  <!-- ============================ SECTION 6 — MODEL COMPRESSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Model compression</h2>
+    <div class="secsub">Distillation, LoRA, and quantisation — deploying frontier-quality models on production hardware.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The deployment problem</div>
+    <h2>A 70B model is too large for real-time trading — compression bridges the gap</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A 70B model at 16-bit precision needs ~140 GB of GPU memory and has latency measured in seconds — incompatible with risk monitoring or order routing. Three complementary techniques shrink the model without gutting accuracy.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block">
+          <div class="block-title">Knowledge distillation (Hinton et al., 2015)</div>
+          A large <em>teacher</em> trains a smaller <em>student</em> via soft labels — the teacher's probability distribution over all tokens, not just the correct one. Soft labels expose inter-class similarity invisible in hard one-hot targets.
+          <em>Finance use:</em> 70B teacher + curated financial corpus → 7B student with similar accuracy at inference-feasible cost.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block">
+          <div class="block-title">LoRA: fine-tune on a single GPU (Hu et al., 2022)</div>
+          Freeze pre-trained weights \(W_0\); learn only a low-rank update \(\Delta W = BA\),
+          \(B\in\mathbb{R}^{d\times r},\; A\in\mathbb{R}^{r\times k},\; r\ll\min(d,k)\).
+          At \(d=k=4096,\,r=16\): 131K trainable params vs. 16.8M — a 128× reduction.
+          Only adapters \(A,B\) accumulate gradients; \(W_0\) needs no optimizer state.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="KD loss &amp; QLoRA details">
+      Knowledge distillation loss:
+      \[ \mathcal{L}_\text{KD} = \alpha\,\mathcal{L}_\text{CE}(\mathbf{p}_S, y) + (1{-}\alpha)\,\tau^2\,\text{KL}(\mathbf{p}_T^{(\tau)}\|\mathbf{p}_S^{(\tau)}). \]
+      The forward KL is mean-seeking — the student is penalised for assigning low probability to any token the teacher assigns non-negligible probability, encouraging broad coverage. The \(\tau^2\) factor restores gradient magnitude after temperature softening.
+      <strong>QLoRA (Dettmers et al., 2023):</strong> frozen weights stored in 4-bit NF4 quantisation (~4 GB for 7B vs. 14 GB in BF16); adapters in BF16 for training stability. A finance team with a single A100 can fine-tune a 7B model on a proprietary 10-K corpus in under a day.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Quantisation and pruning</div>
+    <h2>Trading bits for bytes: deploy a 70B model on two consumer GPUs</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Quantisation reduces weight precision from 16-bit float to 4–8-bit integer, cutting memory 2–4× with negligible accuracy loss on most tasks — without any retraining.</p>
+    <table>
+      <tr><th>Method</th><th>Idea</th><th>Result</th></tr>
+      <tr><td>GPTQ (Frantar et al., 2022)</td><td>Layer-wise second-order PTQ: minimise quantisation error propagated forward</td><td>INT4 models match FP16 perplexity; no retraining required</td></tr>
+      <tr><td>AWQ (Lin et al., 2023)</td><td>Protect the 1% of weight channels with highest activations from aggressive quantisation</td><td>Better accuracy–compression than GPTQ on most tasks</td></tr>
+      <tr><td>Pruning</td><td>Zero low-magnitude weights (unstructured) or remove full heads/blocks (structured)</td><td>Structured pruning: dense, hardware-efficient models</td></tr>
+    </table>
+    <aside class="underhood" data-title="quantisation details &amp; the lottery ticket hypothesis">
+      Post-training quantisation (PTQ) applies after training without gradient updates — works on models you don't own (downloaded from a hub).
+      A 70B model at INT4 fits on two consumer GPUs (~80 GB combined VRAM) with small accuracy degradation; validate on domain tasks (FinancialPhraseBank, FinQA) before production deployment.
+      <strong>Lottery ticket hypothesis (Frankle &amp; Carlin, 2019):</strong> dense networks contain sparse "winning ticket" subnetworks that can be trained in isolation. In practice, iterative magnitude pruning is too costly at LLM scale; quantisation + LoRA offers a better trade-off.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the practical deployment stack</span>
+      QLoRA to fine-tune on proprietary data → AWQ to quantise for deployment → serve on-premises.
+      This stack brings frontier-class quality to a single A100 with no data-privacy exposure.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What we covered — and where Lecture 3 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Architecture arc</h3>
+        <ul>
+          <li>Mean/TF-IDF/SBERT; polysemy; long-document strategies (truncation/chunking/hierarchical)</li>
+          <li>RNN vanishing gradient → LSTM additive cell state → GRU → BiLSTM → Bahdanau attention → self-attention → Transformer</li>
+          <li>Scaled dot-product, multi-head, positional encoding (sinusoidal + RoPE), residual + LayerNorm, causal mask, cross-attention, special tokens</li>
+          <li>BERT (MLM) vs. GPT (CLM); reasoning models (CoT + RL); RLHF; FinBERT; BloombergGPT</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Engineering &amp; safety</h3>
+        <ul>
+          <li>Temperature / nucleus / top-k / beam; sampling table; constrained decoding + tool use; grammar-based generation</li>
+          <li>BPE, cost model, prompt caching, RAG (dense + sparse + hybrid + re-rank), FinanceBench</li>
+          <li>Hallucination taxonomy; SelfCheckGPT; FActScore; inner confidence (+20% Sharpe); 6-layer mitigation</li>
+          <li>Distillation; LoRA / QLoRA; GPTQ / AWQ; pruning; EU AI Act; look-ahead bias; GDPR; SEC fiduciary duty</li>
+        </ul>
+        <div class="block"><div class="block-title">Next lecture</div>
+          Lecture 3 — Sentiment Analysis in Finance: applying these foundations to FinancialPhraseBank,
+          FinBERT fine-tuning, and LLM-based sentiment extraction at scale.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extended derivations &amp; benchmarks</h2>
+    <div class="secsub">The √dₖ variance proof, financial benchmarks, and retrieval internals. Beyond the core lecture.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · the missing √dₖ</div>
+    <h2>Why divide attention scores by √dₖ?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Without scaling, dot-product scores grow with dimension, the softmax saturates, and gradients
+      die — reintroducing the very problem attention was meant to solve.</p>
+    <aside class="underhood" data-title="the variance proof">
+      Suppose \(q_\ell, k_\ell \overset{\text{i.i.d.}}{\sim} (0,1)\) for \(\ell = 1,\ldots,d_k\).
+      <strong>Step 1.</strong> Variance of the dot product:
+      \[ \text{Var}\!\left(\mathbf{q}_i^\top \mathbf{k}_j\right) = \sum_{\ell=1}^{d_k} \text{Var}(q_\ell k_\ell) = d_k. \]
+      <strong>Step 2.</strong> For large \(d_k\), logits concentrate near \(\pm\sqrt{d_k}\), where the softmax
+      gradient \(\sigma(z)(1-\sigma(z)) \approx 0\).
+      <strong>Step 3.</strong> Dividing by \(\sqrt{d_k}\) renormalises:
+      \[ \text{Var}\!\left(\frac{\mathbf{q}_i^\top \mathbf{k}_j}{\sqrt{d_k}}\right) = 1. \]
+    </aside>
+    <div class="block">
+      <div class="block-title">Consequence</div>
+      Without scaling, the softmax saturates and gradients vanish — the same problem LSTMs were designed to fix,
+      now reappearing inside the attention layer.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · how progress is measured</div>
+    <h2>The benchmarks that define financial NLP</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Benchmark</th><th>Task</th><th>Size</th><th>Metric</th></tr>
+      <tr><td>FinancialPhraseBank (Malo et al., 2014)</td><td>Sentiment (3-class)</td><td>4,840 sent.</td><td>Accuracy</td></tr>
+      <tr><td>FiQA SA / QA (Maia et al., 2018)</td><td>Opinion mining; Q&amp;A</td><td>~1,200</td><td>F1, NDCG</td></tr>
+      <tr><td>ECTSum (Mukherjee et al., 2022)</td><td>Earnings-call summarisation</td><td>2,425 docs</td><td>ROUGE-L</td></tr>
+      <tr><td>FinQA (Chen et al., 2021)</td><td>Numerical reasoning</td><td>8,281 Q&amp;A</td><td>Exec. acc.</td></tr>
+      <tr><td>FLUE (Shah et al., 2022)</td><td>Multi-task financial NLU</td><td>Multi-task</td><td>Task-specific</td></tr>
+    </table>
+    <p class="small">FinQA requires multi-step arithmetic over tables — reasoning models dominate.
+      ECTSum evaluates abstractive summarisation against expert-written gold summaries.</p>
+    <div class="alert callout">
+      <span class="callout-tag">geographic bias</span>
+      All five benchmarks are built from English-language, North American sources. Do not assume generalisation
+      to European or Asian financial contexts.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · retrieval internals</div>
+    <h2>Dense, sparse, or hybrid: how RAG finds passages</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Dense retrieval matches <em>meaning</em>; sparse (BM25) matches <em>exact strings</em> like
+      CUSIPs and tickers; hybrid fuses both. The combination is the production default.</p>
+    <aside class="underhood" data-title="scores &amp; reciprocal rank fusion">
+      Dense (cosine of bi-encoder embeddings):
+      \[ s_{\text{dense}}(q, d_i) = \frac{\phi(q)\cdot\phi(d_i)}{\|\phi(q)\|\,\|\phi(d_i)\|}, \]
+      with SBERT bi-encoder + FAISS / HNSW for ANN search.
+      BM25 (Robertson et al., 2009):
+      \[ \text{BM25}(q,d) = \sum_{t\in q}\text{IDF}(t)\cdot\frac{f(t,d)(k_1+1)}{f(t,d)+k_1(1-b+b|d|/\text{avgdl})}. \]
+      Hybrid via Reciprocal Rank Fusion:
+      \[ \text{RRF}(d) = \sum_{r \in \{\text{dense},\,\text{sparse}\}} \frac{1}{60 + \text{rank}_r(d)}, \]
+      robust to score-scale differences with no learned weighting parameter.
+    </aside>
+    <table>
+      <tr><th>Method</th><th>Strength</th><th>Weakness</th></tr>
+      <tr><td>Dense</td><td>Semantic similarity</td><td>Exact-match failures</td></tr>
+      <tr><td>BM25</td><td>Exact-match recall</td><td>Misses paraphrases</td></tr>
+      <tr><td>Hybrid</td><td>Both</td><td>Slightly slower</td></tr>
+      <tr><td>Re-ranker (ColBERT)</td><td>High precision</td><td>Higher latency</td></tr>
+    </table>
+  </section>
+
+</div></div>
+</body>
+</html>

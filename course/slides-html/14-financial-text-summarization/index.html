@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 14 — Financial Text Summarization &amp; Information Extraction</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 14 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 14 / Lecture 14</div>
+    <h1>Financial Text Summarization and Information Extraction</h1>
+    <div class="sub">Turning filings, calls, and reports into structured, faithful facts.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>The extraction problem</strong> — why reading, not facts, is the bottleneck in finance.</li>
+          <li class="frag"><strong>Named-entity recognition</strong> — finding the firms, figures, and clauses in the text.</li>
+          <li class="frag"><strong>Summarization</strong> — condensing long documents without lying about the numbers.</li>
+          <li class="frag"><strong>Tables &amp; numbers</strong> — XBRL, table parsing, and consistency checking.</li>
+          <li class="frag"><strong>Evaluation</strong> — how you know a summary is actually any good.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          Tens of thousands of filings and transcripts land every day. The question of this lecture:
+          <em>how do you turn that flood of text into structured, trustworthy facts you can act on?</em>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>The information-extraction problem in finance</h2>
+    <div class="secsub">Why the cost of reading — not the absence of facts — is the binding constraint.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The scale problem</div>
+    <h2>Markets don't lack information — they lack time to read it</h2>
+    <div class="title-rule"></div>
+    <p class="lead frag">Tens of thousands of filings, transcripts, and analyst notes are released daily.
+      The bottleneck is the <strong>cost of reading, interpreting, and routing</strong> — not the lack of facts.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Who hits the wall</div>
+          <ul>
+            <li>A PM cannot read every 10-K from the 6,000+ firms in the Russell 3000</li>
+            <li>A compliance officer cannot scan every contract in a merger data room</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Three coupled IE sub-tasks</div>
+          <ol>
+            <li><strong>Entity recognition</strong> — who/what the text refers to</li>
+            <li><strong>Fact / relation extraction</strong> — how entities relate, what numbers they carry</li>
+            <li><strong>Summarization</strong> — condense long documents, faithfully</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the dependency chain</span>
+      NER quality <em>caps</em> relation-extraction accuracy; faithful summarization <em>requires</em>
+      accurate entity and fact extraction underneath. Get the bottom of the stack wrong and everything above it inherits the error.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Know your raw material</div>
+    <h2>Structured, semi-structured, or unstructured — and why it dictates the tool</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before you pick a model, ask how much schema the document already carries. That answer decides whether you query a database or unleash full language understanding.</p>
+    <table>
+      <tr><th>Tier</th><th>Examples</th><th>Strategy</th></tr>
+      <tr><td>Structured</td><td>XBRL filings, tick data, options chains</td><td>Database query</td></tr>
+      <tr><td>Semi-structured</td><td>10-K / 10-Q, transcripts, proxies</td><td>Tables + NLP</td></tr>
+      <tr><td>Unstructured</td><td>News, social media, analyst notes, contracts</td><td>Full NLU</td></tr>
+    </table>
+    <aside class="underhood" data-title="the structure spectrum, defined">
+      A document is <strong>structured</strong> if every element can be queried programmatically via a
+      published schema (no natural language needed); <strong>semi-structured</strong> if it mixes
+      schema-conformant sections with free-form narrative; <strong>unstructured</strong> if its content
+      lives in natural language with no imposed schema.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">practitioner rule</span>
+      Start with structured sources (low noise, low cost). But unstructured text holds the
+      <em>forward-looking</em> signal — guidance, qualitative risk, interpretation — absent from the tables.
+      The best pipelines combine both.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">What you're hunting for</div>
+    <h2>The four entity types financial text is built from</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Organisations</strong> — most frequent, most ambiguous. "Apple" (firm vs. fruit), "Morgan" (J.P. Morgan vs. Morgan Stanley). Resolution = <em>entity linking</em> to LEI / CUSIP / EDGAR CIK.</li>
+          <li class="frag"><strong>Temporal expressions</strong> — "next quarter", "FY2024", "within 30 days of the trigger". Normalise fiscal + calendar terms to dates.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Monetary figures &amp; metrics</strong> — \(\$\) amounts, %, EPS, EBITDA margin, D/E. Resolve units (M vs. B), parenthesised negatives, and which entity/period each figure describes.</li>
+          <li class="frag"><strong>Legal / contractual</strong> — covenants in loan agreements and bond indentures that can trigger default; classify and extract threshold values.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Earnings-call excerpt → extracted records</div>
+      "In Q3 2023, <strong>Microsoft</strong> reported revenue of <strong>\(\$\)56.5 billion</strong>, up
+      <strong>13%</strong> YoY. CEO <strong>Satya Nadella</strong> noted <strong>Azure</strong> grew <strong>29%</strong>…"
+      <div class="small" style="margin-top:6px">
+        <span class="pill o">ORG</span> Microsoft (CIK 789019) ·
+        <span class="pill o">PERSON</span> Nadella/CEO ·
+        <span class="pill b">DATE</span> Q3'23 → 2023-07-01..09-30 ·
+        <span class="pill g">MONEY</span> \(\$\)56.5B (total rev) ·
+        <span class="pill g">METRIC</span> +13% rev, +29% Azure
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two jobs, not one</div>
+    <h2>Extraction fills a form; summarization writes a paragraph</h2>
+    <div class="title-rule"></div>
+    <p class="lead">They look similar but are fundamentally different tasks — with different outputs, different models, and different ways to fail.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Information Extraction (IE)</div>
+          <em>Schema-driven.</em> Structure specified information into a <strong>predefined schema</strong>.
+          Output = typed records (entities, attributes, relations). Models are <strong>discriminative</strong>:
+          classify whether a span fills a slot.
+          <p class="small">"What happened to whom, when, by how much?" → populates databases.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Summarization</div>
+          <em>Content-driven.</em> Produce a shorter coherent text capturing the salient content.
+          Output = a <strong>natural-language string</strong>. Models are <strong>generative</strong>;
+          "salient" is learned from reference summaries.
+          <p class="small">"What should I know without reading it all?" → serves readers.</p>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">why the distinction matters</span>
+      Different evaluation criteria and failure modes. A quant trading earnings surprises needs IE; an
+      investment committee reviewing a note needs summarization; a covenant monitor needs IE <em>then</em>
+      a human-readable summary.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Named-entity recognition in finance</h2>
+    <div class="secsub">Labelling the firms, figures, and clauses — the foundational layer everything else rests on.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The foundational task</div>
+    <h2>Why four entity classes aren't enough for finance</h2>
+    <div class="title-rule"></div>
+    <p class="lead">NER labels each word with its entity type. The general-purpose schema everyone starts from was never designed for the language of filings.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      The standard CoNLL-2003 schema — Person, Location, Organisation, Misc — is <em>inadequate</em> for
+      finance. Documents add specialised types: <strong>financial instruments</strong>,
+      <strong>economic indicators</strong>, <strong>legal clauses</strong>, <strong>corporate roles</strong>.
+    </div>
+    <div class="block frag"><div class="block-title">Three finance-specific annotation challenges</div>
+      <ol>
+        <li><strong>Context-dependent type</strong> — "Apple" = org (portfolio) vs. product (supply chain)</li>
+        <li><strong>Nested entities</strong> — "Goldman Sachs Investment Banking Division" = org + unit</li>
+        <li><strong>Implicit entities</strong> — "the issuer" refers to a firm named earlier</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The data that trains the models</div>
+    <h2>The benchmark datasets for financial NER and relations</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Dataset</th><th>Type</th><th>Scale / scope</th><th>Use case</th></tr>
+      <tr><td>FINER-139</td><td>NER, 139 types</td><td>SEC filings + news</td><td>Fine-grained NER</td></tr>
+      <tr><td>FinNER</td><td>NER, doc-level</td><td>10-K / 10-Q</td><td>Coreference chains</td></tr>
+      <tr><td>FinRE</td><td>Relations</td><td>(e\(_1\), rel, e\(_2\)) triples</td><td>Ownership graphs</td></tr>
+      <tr><td>EDGAR-Corpus</td><td>Pretraining</td><td>6M+ filings, ~6.5B tok</td><td>Domain pretraining</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>FINER-139</strong> — hierarchical taxonomy (Org → Public Company, ETF, Interest Rate…). "Company" is <em>not</em> monolithic; conflating PE firms with listed banks creates systematic graph errors.</li>
+      <li class="frag"><strong>FinRE relations</strong> — <code class="inline">Subsidiary-Of</code>, <code class="inline">Acquired-By</code>, <code class="inline">Founded-By</code>, <code class="inline">Announced-Transaction</code>.</li>
+      <li class="frag"><strong>EDGAR-Corpus</strong> — 10-K/10-Q from 1993–2020. Models pretrained on it <em>systematically</em> beat general-domain models on financial NER.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How a model learns to tag</div>
+    <h2>Teaching a transformer to label every word</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You bolt a small classification layer onto a pretrained language model and ask it, for each word, "which entity type is this?" — then train it on annotated examples.</p>
+    <aside class="underhood" data-title="token classification head">
+      Token classification on a pretrained encoder. For tokens \(\mathbf{x}=(x_1,\dots,x_T)\) with
+      contextual states \(\mathbf{h}_i \in \R^d\):
+      \[ P(y_i \mid \mathbf{x}) = \mathrm{softmax}(\mathbf{W}\mathbf{h}_i + \mathbf{b}),
+         \quad \mathbf{W}\in\R^{C\times d}. \]
+      Labels follow <strong>BIO</strong>: \(\{B\text{-}e, I\text{-}e, O\}\). Train end-to-end on token
+      cross-entropy \(\mathcal{L}=-\sum_t \log p(\hat y_t = y_t)\).
+    </aside>
+    <div class="block frag"><div class="block-title">Encoder choice matters</div>
+      FinBERT &gt; vanilla BERT; <strong>SEC-BERT</strong> (pretrained only on EDGAR) is state-of-the-art on
+      SEC-domain NER — it has seen "Regulation S-K Item 1A" thousands of times.
+    </div>
+    <ul>
+      <li class="frag"><strong>Segmentation</strong> — docs exceed 512 tokens → sliding windows (≥64-token overlap) or Longformer</li>
+      <li class="frag"><strong>Label imbalance</strong> — O is 85–95% of tokens → focal / weighted loss</li>
+      <li class="frag"><strong>Post-processing</strong> — a CRF + Viterbi layer enforces valid BIO transitions</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A concrete recipe</div>
+    <h2>Fine-tuning SEC-BERT on FINER-139, end to end</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A production-grade recipe that runs in about 20 minutes on a single GPU — and beats the baseline exactly where it's hardest.</p>
+    <div class="block"><div class="block-title">The steps</div>
+      <ol>
+        <li>Download FINER-139 splits (~900 annotated training sentences)</li>
+        <li>Initialise from SEC-BERT checkpoint (MLM-pretrained on millions of SEC sentences)</li>
+        <li>Linear head of dimension \(C = 2\times 139 + 1 = 279\) (BIO for 139 types + O)</li>
+        <li>AdamW (\(\beta_1{=}0.9,\beta_2{=}0.999\), wd 0.01), linear warmup 10%, peak LR \(2\times10^{-5}\), 10 epochs</li>
+      </ol>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">where domain pretraining pays off</span>
+      ~20 min on one A100; macro-F\(_1\) <em>substantially</em> exceeds the FinBERT baseline on rare types
+      (&lt;50 training examples) — exactly the long tail where general models fall apart.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">From entities to facts</div>
+    <h2>Relation extraction: how the entities connect</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An entity list is just a vocabulary. The meaning is in the links between them — who acquired whom, who runs what, what collateralises which loan.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      Microsoft <em>acquired</em> Activision; Buffett <em>is CEO of</em> Berkshire; a loan is
+      <em>collateralised by</em> specific assets. These relations feed knowledge graphs, earnings
+      attribution, and corporate-hierarchy databases.
+    </div>
+    <aside class="underhood" data-title="scoring span pairs">
+      Joint entity-and-relation models (e.g. DyGIE++) score ordered span pairs:
+      \[ s(e_i, r, e_j) = f\bigl(\mathbf{h}_{e_i}, \mathbf{h}_{e_j}, \mathbf{r}\bigr), \]
+      with span reps \(\mathbf{h}_{e}\) (mean/endpoint of encoder states), a learned relation embedding
+      \(\mathbf{r}\in\R^{d_r}\), and a bilinear/FFN scorer \(f\); predict
+      \(r \in \mathcal{R}\cup\{\text{None}\}\).
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">the hard case</span>
+      <em>Cross-sentence</em> relations are far harder than within-sentence ones. Document-level models
+      (DocRED-style) that encode the full context win — taxonomy: Subsidiary-Of, Acquired-By, Employed-At,
+      Board-Member-Of, Issued-By, Secured-By, Reported-Value.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Financial document summarization</h2>
+    <div class="secsub">Condensing 100-page filings into a paragraph — without inventing the numbers.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The core tradeoff</div>
+    <h2>Copy sentences, or write new ones? The faithfulness tradeoff</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Every summarizer sits on one of two sides: it either reuses the author's exact words, or it writes fresh prose. The choice trades safety against fluency.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Extractive</div>
+          Select a subset of sentences/spans <strong>verbatim</strong> from the source. Faithfulness is
+          <strong>guaranteed by construction</strong> — every sentence was written by the original author.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Abstractive</div>
+          Generate <strong>new text</strong> that paraphrases and synthesises. More concise and fluent —
+          but susceptible to <strong>hallucination</strong>: plausible-sounding but factually wrong statements.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">why hallucination is consequential in finance</span>
+      Summarising "revenue of \(\$\)57B" when the truth was \(\$\)56.5B is small in % but can be <em>material
+      misinformation</em> in a decision. SOTA abstractive models hallucinate factual errors in
+      <strong>25–30%</strong> of CNN/DailyMail summaries; untuned financial models fare no better.
+    </div>
+    <p class="small frag"><strong>Recommendation:</strong> prefer extractive when faithfulness is paramount
+      (esp. numbers); use abstractive when fluency dominates. A <strong>hybrid</strong> (extract, then rephrase) achieves a useful tradeoff (See et al., 2017).</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The flagship document</div>
+    <h2>How you summarize a 100,000-word 10-K</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A typical 10-K runs <strong>50,000–150,000 words</strong>: business, risk factors, legal proceedings, MD&amp;A, financial statements, notes. You cannot feed it to a model whole.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="bigpicture callout"><span class="callout-tag">why the MD&amp;A is the prize</span>
+          The MD&amp;A is the densest section for an equity investor — management's interpretation and
+          forward guidance. Its tone, readability, and length carry measurable signal about future
+          earnings and returns (Loughran &amp; McDonald, 2011). Tone-preservation must be an <em>explicit</em>
+          constraint in any faithful prompt (Lehner, 2024).
+        </div>
+        <figure class="deckfig">
+          <img src="../assets/figures/14-financial-text-summarization/diagram.svg" alt="Summarization pipeline: 10-K to chunks to map-reduce to executive summary">
+          <figcaption><b>Figure.</b> Three-stage map-reduce summarization pipeline: a 10-K is chunked, each chunk is summarised independently (map), and the chunk summaries are aggregated into a final executive summary (reduce).
+            <span class="src">Source: Chapter 14 illustration.</span></figcaption>
+        </figure>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Three-stage pipeline</div>
+          <ol>
+            <li><strong>Section extraction &amp; routing</strong> — parse the TOC, route each section to a sub-model (table extractor vs. text summariser)</li>
+            <li><strong>Chunk-level summarization</strong> — 512-tok chunks (64 overlap) for BERT; whole MD&amp;A in one pass for 8K–128K decoders</li>
+            <li><strong>Hierarchical aggregation</strong> — second-pass or retrieval-based merge of chunk summaries into a document summary</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A prompt-engineering move</div>
+    <h2>One sentence in the prompt that cuts number errors</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The simplest defence against a model inventing numbers is to tell it, explicitly, not to. "Quote all numbers exactly as stated" is a real, measurable technique.</p>
+    <pre class="code">You are a senior equity analyst. Summarise the following earnings
+release in no more than 150 words, covering: (1) revenue and EPS
+vs. consensus, (2) the single most important forward guidance
+statement, and (3) one key risk mentioned by management.
+Quote all numbers exactly as stated.
+
+[EARNINGS RELEASE TEXT]</pre>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">illustrative finding (varies by corpus/model)</span>
+      The constrained prompt cut number errors by ~40% vs. an unconstrained paraphrase prompt; ~8% of
+      cases still showed paraphrase errors on nuanced guidance — which is exactly why we add
+      <em>factual-consistency</em> checks later.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When documents won't fit</div>
+    <h2>Analyst notes, transcripts, and the length problem</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Analyst-note condensation</strong> — reports run 10–40 pp with a predictable macro-structure (thesis in para 1, target price standardised). Template-aware parsing exploits this.</li>
+          <li class="frag"><strong>Change / delta summarization</strong> — a PM wants <em>what changed</em>, not what they already know — requires report history + reasoning over diffs.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Earnings transcripts</strong> — 15,000–30,000 words; uneven density (prepared remarks dense; Q&amp;A mixes signal + boilerplate). <strong>ECTSum</strong>: 2,425 transcript–summary pairs, 3–6 abstractive bullets each (Mukherjee et al., 2022). Local (on-premise) LLMs evaluated on bank earnings calls — tone, topics, sentiment, temporal orientation — provide a resource-conscious alternative (Cook &amp; Kazinnik, 2023).</li>
+          <li class="frag"><strong>Informational value is measurable</strong> — LLM contextual representations of earnings press releases and calls explain substantially more variation in short-window stock returns than dictionary methods (Siano, 2025); extracted tone/emotion signals predict corporate bond recovery rates in default (Ernstberger &amp; Nazemi, 2025).</li>
+          <li class="frag"><strong>S-1 filings</strong> — a tech S-1 can exceed <strong>300,000 words</strong>.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the common thread</span>
+      No single context window fits these documents, so the <em>architecture</em> — not just the prompt —
+      must handle length.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Three ways to beat the context window</div>
+    <h2>Strategies for documents that don't fit in one pass</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When a document is longer than any model can read at once, you have three engineering options — each with a different cost-and-coverage profile.</p>
+    <aside class="underhood" data-title="extreme-length strategies">
+      <ul>
+        <li><strong>Two-stage hierarchical</strong>: each section → 200–400 words, then a second-pass model over the concatenated section summaries.</li>
+        <li><strong>Retrieval-augmented summarization</strong>: dense-retrieve the top-\(k\) passages for a query, summarise only those (summarization as RAG).</li>
+        <li><strong>Long-context models</strong>: Longformer; 128K–1M-token models (e.g. Gemini 1.5 Pro) process an entire S-1 in one pass — cost-bound.</li>
+      </ul>
+    </aside>
+    <div class="block"><div class="block-title">In plain words</div>
+      Either <strong>chop</strong> the document and summarise the summaries, <strong>search</strong> for the
+      relevant passages and ignore the rest, or <strong>buy</strong> a model big enough to swallow it whole.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Table and numerical data extraction</h2>
+    <div class="secsub">The numbers live in grids — and getting them right is a different problem from reading prose.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The free, accurate shortcut</div>
+    <h2>When the filing already tagged its own numbers: XBRL</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For U.S. filings, the most reliable way to extract a financial figure involves no language model at all — the filer already machine-tagged it.</p>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      A table is a 2-D grid where each cell's meaning depends on its row header (<em>what measure</em>)
+      <em>and</em> column header (<em>what period/entity</em>). Reliable table extraction underpins database
+      population and consistency checking.
+    </div>
+    <div class="block frag"><div class="block-title">Inline XBRL — mandated for U.S. domestic filers since 2020</div>
+      Every figure is tagged with a U.S.-GAAP concept (e.g. <code class="inline">us-gaap:Revenues</code>), a
+      context (entity + period), and units — machine-readable <em>and</em> browser-readable. The EDGAR XBRL
+      API returns a figure with full provenance for a (CIK, concept, year) query. Accuracy is guaranteed by
+      the filer and its auditors — <strong>no NLP</strong>.
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">coverage gap</span>
+      Non-GAAP measures (adjusted EBITDA, organic growth, book-to-bill) and many footnotes are <em>not</em>
+      XBRL-tagged. Combine XBRL for core figures with LLM/NLP extraction for the surrounding narrative.
+      Prompt-engineering frameworks achieve high accuracy on PDF-formatted unstructured sources (Li &amp; Gao, 2023);
+      sequential prompting of 10-K filings identifies non-recurring items and outperforms traditional
+      accounting metrics in forecasting persistent earnings (Shaffer &amp; Wang, 2024).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When there's no XBRL</div>
+    <h2>Reading tables the hard way — and why generation beats retrieval</h2>
+    <div class="title-rule"></div>
+    <p class="lead">International filings, private docs, and pre-XBRL legacy have no tags. The tables must be parsed from raw HTML/PDF — merged cells, multi-row headers, embedded footnotes, non-standard layouts.</p>
+    <aside class="underhood" data-title="FinQA: numerical reasoning over tables">
+      <strong>FinQA</strong> benchmarks multi-step numerical reasoning over tables:
+      <ul>
+        <li>Baseline cell-retrieval models: ~50% exact-match.</li>
+        <li>Fine-tuned models that <em>generate a Python-like calc program</em>: &gt;70%.</li>
+      </ul>
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">why generation wins</span>
+      Financial table questions chain several operations (subtract prior year, divide, express as %). A model
+      that emits an explicit calculation program externalises that reasoning and routes the arithmetic to a
+      deterministic interpreter.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The table-parsing pipeline</div>
+    <h2>Four stages from pixels to GAAP concepts</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When you must parse a table yourself, it breaks into four sequential jobs — and the last principle is the one that saves you from wrong numbers.</p>
+    <div class="block"><div class="block-title">Four-stage LLM pipeline</div>
+      <ol>
+        <li><strong>Layout parsing</strong> (LayoutLM / PDF parser) → cells with row/col coordinates</li>
+        <li><strong>Header disambiguation</strong> → LLM labels each cell with (row-hdr, col-hdr)</li>
+        <li><strong>Value normalisation</strong> → units, parenthesised negatives, % vs. absolute</li>
+        <li><strong>Schema mapping</strong> → map to GAAP taxonomy concepts</li>
+      </ol>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">arithmetic reliability — the ReAct principle</span>
+      LLMs are unreliable calculators. <strong>Route all arithmetic to a code interpreter</strong>: the LLM
+      decides <em>what</em> to compute; Python <em>actually</em> computes it. This separation dramatically cuts
+      numerical errors.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A quality gate that catches lies</div>
+    <h2>Do the numbers in the prose match the numbers in the tables?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The same revenue figure shows up in the tables, the press release, and the MD&amp;A. Consistency checking verifies they agree — catching both extraction errors and genuine, possibly material, disclosure inconsistencies.</p>
+    <div class="block"><div class="block-title">Three-step procedure</div>
+      <ol>
+        <li><strong>Multi-source extraction</strong> — pull every occurrence of each metric (revenue, op. income, EPS) from tables, press release, MD&amp;A, footnotes</li>
+        <li><strong>Normalisation</strong> — common unit &amp; sign; "\(\$\)56.5B" → \(\$\)56,500M; all sources should agree</li>
+        <li><strong>Cross-reference</strong> — flag any pair disagreeing beyond tolerance (e.g. 0.1% for rounding); report with source attribution</li>
+      </ol>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">it works both ways</span>
+      "Net income grew 25% YoY" can be verified against extracted current/prior figures — a powerful quality
+      gate for <em>both</em> document pipelines and LLM-generated summaries, where hallucinated numbers are a
+      known failure mode.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Evaluation and benchmarks</h2>
+    <div class="secsub">How you actually know a summary is good — and why overlap scores aren't the answer.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The default metric</div>
+    <h2>ROUGE: how much of the reference did you reproduce?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The most widely used summarization metric asks a simple question: of the words in the human-written reference summary, how many did the machine's version also use? A recall-oriented overlap score.</p>
+    <aside class="underhood" data-title="ROUGE-N, formally">
+      ROUGE-\(N\) = \(n\)-gram recall of candidate \(c\) against references \(\mathcal{R}\)
+      (\(\mathcal{G}_N(s)\) = \(n\)-grams of \(s\)):
+      \[ \text{ROUGE-}N=\frac{\sum_{s\in\mathcal{R}}\sum_{g\in\mathcal{G}_N(s)}
+         \mathrm{Count}_{\text{match}}(g,c)}
+         {\sum_{s\in\mathcal{R}}\sum_{g\in\mathcal{G}_N(s)}\mathrm{Count}(g)}. \]
+      ROUGE-L uses the longest common subsequence instead of exact \(n\)-grams.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">limitation: lexical, not semantic</span>
+      "net income declined 12%" → "profit fell 12%" deserves full credit but scores <strong>zero</strong>
+      ROUGE-1 on the substituted words. Conversely, copying irrelevant source sentences can score
+      <em>high</em> ROUGE without being informative. Treat ROUGE as a coarse recall proxy, not a quality verdict.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A semantic upgrade</div>
+    <h2>BERTScore: matching meaning, not just words</h2>
+    <div class="title-rule"></div>
+    <p class="lead">BERTScore fixes ROUGE's blind spot: a candidate word counts as a match when its <em>meaning</em> aligns with a reference word — even if the surface spelling is completely different.</p>
+    <aside class="underhood" data-title="cosine of contextual embeddings">
+      Cosine similarity of contextual embeddings for candidate token \(\hat r_j\) and reference token \(r_i\):
+      \[ \mathrm{sim}(r_i,\hat r_j)=
+         \frac{\mathbf{h}_{r_i}^\top \mathbf{h}_{\hat r_j}}
+         {\|\mathbf{h}_{r_i}\|\,\|\mathbf{h}_{\hat r_j}\|}. \]
+      Precision/recall/F\(_1\) via greedy token matching in both directions. With a <em>financial</em>
+      encoder (FinBERT), it captures domain-specific similarity better.
+    </aside>
+    <div class="alert callout frag">
+      <span class="callout-tag">but neither one measures truth</span>
+      A summary inventing "revenue grew 15%" (true: 13%) can still score high if the surrounding language
+      matches the reference. And outputs can be inconsistent <em>across runs</em> — the first systematic
+      assessment of LLM output consistency on MD&amp;As, FOMC statements, and earnings transcripts finds
+      meaningful stochastic variation that undermines reliability in production systems (Wang &amp; Wang, 2025).
+      Similarity metrics rank fluency and coverage, not facts.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Measuring truth directly</div>
+    <h2>Factual consistency and the human gold standard</h2>
+    <div class="title-rule"></div>
+    <p class="lead">If overlap scores can't tell you whether a summary is true, you need metrics that check entailment against the source — and, ultimately, expert humans.</p>
+    <div class="block"><div class="block-title">Factual-consistency metrics</div>
+      <strong>FactCC</strong> trains an NLI classifier (entailment / contradiction / neutral) to predict whether
+      each candidate claim is <em>entailed</em> by the source. For finance, strengthen it by
+      <strong>grounding numerical claims against extracted XBRL</strong>: any claim that cannot be verified
+      against structured data is flagged.
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Human evaluation — by domain professionals</div>
+          A crowdworker cannot judge GAAP vs. non-GAAP revenue. Assess four dimensions:
+          <ul>
+            <li><strong>Factual accuracy</strong> (most critical; mark each claim verified / unverifiable / incorrect)</li>
+            <li><strong>Completeness</strong> — all material disclosures covered?</li>
+            <li><strong>Conciseness</strong> — no redundancy?</li>
+            <li><strong>Fluency / readability</strong></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="inter-annotator agreement">
+          Report agreement (Cohen's \(\kappa\) / Krippendorff's \(\alpha\)): typically <em>low</em> on
+          completeness (analysts value different facts), <em>high</em> on factual accuracy (errors are
+          objective) \(\Rightarrow\) accuracy is the tractable automatic target.
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Pick the right yardstick</div>
+    <h2>No single benchmark covers the whole domain</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Dataset</th><th>Document type</th><th>Scale</th><th>Primary task</th></tr>
+      <tr><td>ECTSum</td><td>Earnings transcripts</td><td>2,425 pairs (~7k words ea.)</td><td>Long-doc summarization</td></tr>
+      <tr><td>EDGAR-Corpus</td><td>SEC filings</td><td>6M+ filings</td><td>Domain pretraining</td></tr>
+      <tr><td>FINER-139</td><td>SEC filings + news</td><td>139 entity types</td><td>Fine-grained NER</td></tr>
+      <tr><td>FinSBD</td><td>Financial text</td><td>annotated</td><td>Sentence boundary detection</td></tr>
+      <tr><td>FinQA</td><td>Tables + text</td><td>multi-step Q&amp;A</td><td>Numerical reasoning</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">read "SOTA" with the benchmark in mind</span>
+      A model that tops ECTSum (summarization) may fail on FinQA (table reasoning). Match the dataset to your
+      document type and task — and construct a <em>held-out</em> test set from documents outside any public
+      benchmark before deploying.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Five takeaways — and where Practical 14 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Financial text is heterogeneous</strong> — structured (query) to unstructured (full NLU). Production pipelines combine both, anchored on structured sources.</li>
+          <li class="frag"><strong>Financial NER needs domain data &amp; models</strong> — general NER is inadequate for the 139-class taxonomy. Pretrain on EDGAR, fine-tune on FINER-139.</li>
+          <li class="frag"><strong>Abstractive summarization carries hallucination risk</strong> — hallucinated numbers can be <em>misinformation</em>. Pair with factual-consistency checking against structured data.</li>
+          <li class="frag"><strong>Tables &amp; numerical consistency are underappreciated</strong> — XBRL is free and accurate; LLMs supplement for non-GAAP &amp; legacy; route arithmetic to code.</li>
+          <li class="frag"><strong>Match the metric to the stakes</strong> — ROUGE/BERTScore measure similarity, not facts. Add factual-consistency checks <em>and</em> expert human evaluation.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Practical Session 14</div>
+          An end-to-end SEC 10-K pipeline — section routing, extractive summarization, ROUGE scoring, and
+          consistency checking.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extended &amp; optional material</h2>
+    <div class="secsub">Annotation challenges, RE internals, retrieval-augmented summarization, and further reading.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · annotation</div>
+    <h2>Why financial annotation needs its own guidelines</h2>
+    <div class="title-rule"></div>
+    <p class="lead">General-domain NER guidelines simply do not anticipate the ambiguities that fill financial documents.</p>
+    <ul>
+      <li class="frag"><strong>Surface-string ambiguity</strong> — "Apple" as organisation (portfolio) vs. product (supply-chain discussion): the <em>same string</em>, different type.</li>
+      <li class="frag"><strong>Nested entities</strong> — "Goldman Sachs Investment Banking Division" = org (Goldman Sachs) + business unit, simultaneously.</li>
+      <li class="frag"><strong>Implicit entities</strong> — "the issuer" in a bond prospectus refers to a previously named company without restating it.</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the implication</span>
+      These motivate <em>domain-specific annotation guidelines and adjudication processes</em> — not just
+      relabelled CoNLL guidelines.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · relation extraction</div>
+    <h2>Why cross-sentence relations are the hard case</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Within-sentence RE</strong> — both entities co-occur → local context suffices.</li>
+      <li class="frag"><strong>Cross-sentence RE</strong> — entities in different sentences → requires <em>document-level</em> encoding and coreference resolution.</li>
+      <li class="frag"><strong>Benchmarks</strong> — DocRED and its financial adaptations; document-level models that encode the whole context (not sentence-by-sentence) achieve the gains.</li>
+    </ul>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why it matters in finance</span>
+      Ownership chains and "the issuer"-style implicit references routinely span paragraphs in prospectuses
+      and 10-Ks.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · long documents</div>
+    <h2>Retrieval-augmented summarization for 300k-word filings</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For documents that exceed any context window — an S-1 over 300,000 words — turn summarization into retrieval-augmented generation.</p>
+    <div class="block"><div class="block-title">The recipe</div>
+      <ol>
+        <li>Index the document's passages with a dense retriever</li>
+        <li>For a query ("What are the principal risk factors?"), retrieve the top-\(k\) passages</li>
+        <li>Summarise <em>only</em> the retrieved passages</li>
+      </ol>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">tradeoff vs. hierarchical summarization</span>
+      RAG is query-targeted and cheap but may miss globally salient content not matching the query;
+      hierarchical two-stage covers everything but costs a full pass over the document.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · further reading</div>
+    <h2>Key references and cross-chapter links</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li><strong>NER foundations</strong> — Lample et al. (2016); Devlin et al. (2019) survey. Financial: FINER-139 (Loukas 2022); English/Greek FINER (Shah 2023).</li>
+      <li><strong>Summarization</strong> — ECTSum (Mukherjee 2022) for transcripts; EDGAR-Corpus (Loukas 2021) for domain-adaptive pretraining.</li>
+      <li><strong>Evaluation</strong> — ROUGE (Lin 2004); BERTScore (Zhang 2020); FactCC (Kryscinski 2020); faithfulness analysis (Maynez 2020).</li>
+      <li><strong>Table reasoning</strong> — FinQA (Chen 2021); broad survey FinBen (Xie 2024).</li>
+    </ul>
+    <div class="takeaway callout">
+      <span class="callout-tag">cross-chapter links</span>
+      XBRL + table parsing here are prerequisites for the DCF pipeline in the Business Valuation chapter;
+      apply the hallucination-mitigation framework (LLM Limitations chapter) to any decision-critical
+      abstractive summary.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

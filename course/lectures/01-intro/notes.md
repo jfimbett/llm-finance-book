@@ -2,7 +2,7 @@
 
 **Paired chapter:** `book/chapters/01-intro/chapter.tex`
 **Duration:** 2 hours
-**Practical session:** `practical.tex` (separate 1-hour session)
+**Practical session:** `course/slides-html/01-intro/practical.html` (separate 1-hour session)
 
 ---
 
@@ -360,7 +360,7 @@ Projecting 30 financial terms' embedding vectors into 2D via PCA reveals domain-
 
 **Important caveat on axis interpretation.** The PCA axes $\mathbf{p}_1, \mathbf{p}_2$ are not directly interpretable as named financial concepts — they are linear combinations of 300 embedding dimensions that explain the most variance *among the 30 selected terms*. A different term selection produces different axes. Resist assigning domain-specific names to the $x$- and $y$-axes without rigorous validation. Rotation methods (Varimax) and supervised probing classifiers offer more principled approaches to identifying interpretable directions.
 
-Full implementation: `code/notebooks/01-intro/demo.ipynb`.
+Full implementation: `code/practicals/01-intro/practical.ipynb`.
 
 ---
 

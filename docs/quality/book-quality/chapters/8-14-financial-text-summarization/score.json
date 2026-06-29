@@ -1,0 +1,204 @@
+{
+  "file": "book/chapters/14-financial-text-summarization/chapter.tex",
+  "reading_index": 8,
+  "slug": "14-financial-text-summarization",
+  "title": "Financial Text Summarization and Information Extraction",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 87,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:272-282 — NER softmax token-classification head correct; cross-entropy loss correct",
+        "chapter.tex:344-352 — relation scorer notation consistent (span reps + relation embedding + bilinear f)",
+        "chapter.tex:728-738 — ROUGE-N recall formula correct; ROUGE-L LCS correctly described",
+        "chapter.tex:318 — C = 2*139+1 = 279 BIO arithmetic correct",
+        "chapter.tex:410-417 — hallucination 25-30% figure attributed to kryscinski2020evaluating on CNN/DailyMail; plausible, sourced"
+      ],
+      "blocking_issues": [
+        "MINOR correctness chapter.tex:313 — 'approximately 900 annotated sentences' for FINER-139 likely wrong if FINER-139 is Loukas 2022 (large corpus); NEEDS_EXTERNAL_VERIFICATION",
+        "Linked to FINER-139 attribution dispute (see citation_accuracy)"
+      ],
+      "recommended_action": "Verify FINER-139 sentence count and source; correct example once attribution settled."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 82,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:185-197 — strong big-picture IE-vs-summarization framing in prose",
+        "chapter.tex:204 — just-in-time token definition bridge",
+        "Boxes used: 5 definition, 3 example, 4 remark; ZERO context/deepdive (grep)"
+      ],
+      "blocking_issues": [
+        "MAJOR concept_separation chapter.tex:266-308,339-352,723-780 — math internals interleaved with intuition; no context/deepdive delineation; rubric dim2 >=90 requires the two layers be separable"
+      ],
+      "recommended_action": "Wrap the four equation derivations in deepdive and the surrounding intuition in context (no new content)."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "No figures in chapter (figures/ holds only .gitkeep; no \\includegraphics/\\input)",
+        "exercises.ipynb cells c14d0002-c14d0008 — real SEC EDGAR pipeline; regex/TF-IDF logic internally consistent with chapter prose",
+        "chapter.tex:318 — worked numeric example C=279 correct; eq:rouge-n, eq:bertscore match standard definitions"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "Prerequisites defined upstream in reading order (01,16,02,03,08,04,09 precede): token/transformer/NER (ch02), RAG (ch02/03/04), sentiment (ch09)",
+        "chapter.tex:204 — token defined-before-use via cross-ref to ch:llm-foundations",
+        "chapter.tex:569-570 — RAG used after being defined in ch02/03/04; no forward-dependency",
+        "Local defs precede use: def:information-extraction/text-summarization before extractive/abstractive"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:4-19 — explicit Learning Objectives",
+        "chapter.tex:285,443,542 — builds on sentiment (ch09) prerequisite",
+        "chapter.tex:938-944 — forward bridge to ch:business-valuation (XBRL/table parsing as DCF prereq) and to hallucination mitigation",
+        "Smooth curve: IE problem -> NER -> RE -> summarization -> tables -> evaluation"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:197,488 — cross-references its own evaluation section rather than re-deriving",
+        "Overlap with ch13 (ROUGE/BERTScore/factual consistency) is appropriate; ch14 is natural SSOT for summarization metrics",
+        "No verbatim re-derivation of upstream transformer/NER foundations; defers via cross-ref"
+      ],
+      "blocking_issues": [
+        "BOOK_WIDE non_repetition — confirm ch13 cross-refs sec:ch14-rouge-bertscore-metrics rather than re-deriving (verify at book level)"
+      ],
+      "recommended_action": "NONE (chapter-local); confirm ch13 SSOT direction book-wide."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 94,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:26-35 — opens with finance bottleneck (Russell 3000 10-Ks, merger data rooms)",
+        "chapter.tex:185-191 — every technique tied to a finance persona (quant, IC, compliance)",
+        "chapter.tex:410-417 — hallucination risk framed as material-misinformation in investment decisions",
+        "Each section motivated by a financial document type (10-K, transcripts, analyst notes, S-1, XBRL)"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:136-156 — Microsoft Q3 2023 earnings-call entity example with typed output; illustrative numbers footnoted",
+        "chapter.tex:464-490 — GPT-4 earnings-summarization prompt example; % improvement explicitly hedged as illustrative",
+        "exercises.ipynb — runnable SEC EDGAR pipeline (AAPL/MSFT/JPM 10-K MD&A extraction, TF-IDF summary), [B]/[I]/[A] tagged"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "All 32 \\cite keys in chapter resolve uniquely in bibliography.bib (grep, each count = 1)",
+        "SSRN working-paper notes (Lehner2024, CookKazinnik2023, Siano2025, ErnstbergerNazemi2025, LiGao2023, ShafferWang2024, WangWang2025) are legitimate, not stubs"
+      ],
+      "blocking_issues": [
+        "MAJOR citation_hygiene — frattaroli2019 bib entry carries note='Needs verification before final release' (stub marker), cited at chapter.tex:134",
+        "MAJOR citation_hygiene — mukherjee2022ectsum (ECTSum, load-bearing) carries note='Needs verification before final release', cited at chapter.tex:441,533,828,921",
+        "NIT — stale auxiliary bib files bibliography_bibertool.bib / bibliography_test.bib present (book-wide)"
+      ],
+      "recommended_action": "Clear the two 'Needs verification' notes after confirming entries; resolve stale aux .bib files."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:723 lin2004rouge, 746 zhang2020bertscore, 670 yao2022react, 369/640 chen2021finqa — correct paper for each proposition",
+        "chapter.tex:284-291 yang2020finbert / loukas2022secbert claims (FinBERT/SEC-BERT advantages) consistent with sources"
+      ],
+      "blocking_issues": [
+        "MAJOR citation_accuracy chapter.tex:222,840,11,918 — 'FINER-139 \\citep{shah2023finer}' likely misattributed; the 139-type FINER-139 is Loukas et al. 2022 (FiNER, ACL 2022), whereas shah2023finer is a different English/Greek FINER dataset; NEEDS_EXTERNAL_VERIFICATION",
+        "MAJOR citation_accuracy chapter.tex:223-228 — described FINER-139 taxonomy (Public Company/ETF/Interest Rate subtypes) appears inconsistent with the XBRL-numeric-tag nature of the actual dataset; NEEDS_EXTERNAL_VERIFICATION"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — verify FINER-139 source/taxonomy; re-point citation and correct description."
+    },
+    {
+      "dimension": "completeness",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "Covers IE taxonomy, NER, RE, extractive/abstractive, 10-K/analyst/long-doc summarization, XBRL/table extraction, consistency checking, ROUGE/BERTScore/factual-consistency, human eval, dataset inventory, further reading",
+        "chapter.tex:410-417,663-671,859-870 — includes key caveats (hallucination risk, LLM arithmetic unreliability, dataset-selection warning)",
+        "chapter.tex:81-88,167-183,391-408 — all bridging definitions present"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "All \\ref targets resolve: ch:business-valuation, ch:llm-foundations, sec:ch14-* labels all defined",
+        "Equation labels eq:ner-classification/relation-score/rouge-n/bertscore consistent",
+        "No duplicate sec:ch14 labels (grep unique)"
+      ],
+      "blocking_issues": [
+        "MINOR notation_crossref chapter.tex:943 — hard-coded prose ref 'Chapter~13' instead of \\Cref{ch:llm-limitations-evaluation}"
+      ],
+      "recommended_action": "Replace 'Chapter~13' with \\Cref to the ch13 label."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "exercises.ipynb — real, end-to-end EDGAR pipeline; deterministic given live SEC data; documented headers/rate-limit",
+        "No figures to regenerate (figures/ empty except .gitkeep)"
+      ],
+      "blocking_issues": [
+        "MINOR reproducibility — demo.ipynb is a 2-cell stub (print('Chapter 14 demo notebook')); not a real demonstration",
+        "exercises.ipynb depends on live EDGAR (network/non-seeded); acceptable but not snapshot-deterministic"
+      ],
+      "recommended_action": "Flesh out or remove demo.ipynb; optionally cache/snapshot a small EDGAR fixture for determinism."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:4-19 — explicit, audience-appropriate Learning Objectives",
+        "Terms defined for mixed academic/industry reader (def boxes, inline NLI/n-gram/token definitions at 204,727,776)",
+        "chapter.tex:90-95,419-423,663-671 — actionable practitioner recommendations throughout",
+        "Summary (873-909) + Further Reading (912-944) scaffold retention"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    }
+  ],
+  "pass": false,
+  "notes": "Audit only, no edits. 8/14 dimensions >=90. Below 90: correctness(87), concept_separation(82), citation_hygiene(84), citation_accuracy(80), notation_crossref(88), reproducibility(78). code_figure_correctness scored on tables/worked examples + exercises.ipynb (no figures in chapter). Top blockers: (1) FINER-139 misattributed to shah2023finer (likely Loukas 2022) -> citation_accuracy capped, NEEDS_EXTERNAL_VERIFICATION; (2) no context/deepdive separation around the 4 equation derivations -> concept_separation; (3) two 'Needs verification before final release' bib stub notes (frattaroli2019, mukherjee2022ectsum) -> citation_hygiene. demo.ipynb is a stub. All 32 cite keys resolve uniquely; all \\ref targets resolve; RAG has no forward-dependency (defined ch02/03/04). One hard-coded 'Chapter~13' prose ref at line 943."
+}

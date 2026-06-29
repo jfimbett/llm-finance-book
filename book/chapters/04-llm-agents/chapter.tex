@@ -116,7 +116,7 @@ the loop). The ``observation'' is the concatenation of tool call results, retrie
 documents, or user messages.
 
 This framing reveals the central bottleneck: the memory space $\mathcal{M}$ is bounded
-by the model's context window. A GPT-4-class model with a 128,000-token context can
+by the model's context window. A frontier-class model with a 128,000-token context can
 hold approximately 100 pages of text---substantial, but insufficient for the full annual
 report history of a large corporation. Strategies for extending effective memory beyond
 the context window are discussed in Section~\ref{subsec:agent-memory}.
@@ -319,7 +319,7 @@ that the agent accesses via precise key-value lookup. The orchestration layer ro
 \label{sec:tool-use}
 
 \begin{context}
-When Morgan Stanley deployed an internal LLM assistant for financial advisors, one of
+When a large wealth-management firm deployed an internal LLM assistant for financial advisors, one of
 the earliest challenges was not language quality but factual grounding. An advisor
 asking ``What is the current yield on the 10-year Treasury?'' needed the answer that
 was true \emph{today}, not an answer pattern-matched against training data from months
@@ -416,7 +416,7 @@ connectors, and web search interfaces. Each category has distinct design conside
 
 The following Python pseudocode illustrates a minimal tool registration pattern:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/04-llm-agents/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/04-llm-agents/}.}
 
 The tool's docstring serves a dual purpose: it documents the function for human
 developers and, when formatted into the system prompt, tells the language model what
@@ -500,7 +500,7 @@ model with irrelevant options. A retrieval-augmented tool selection approach mai
 a vector index of tool descriptions and retrieves only the most semantically relevant
 tools for inclusion in the active context. This mirrors the structure of the human
 expert who knows which Bloomberg function to reach for without mentally enumerating
-all 30,000 available Bloomberg functions.
+the tens of thousands of available Bloomberg functions.
 
 \end{deepdive}
 
@@ -596,6 +596,103 @@ Hooks decouple cross-cutting concerns from the agent's core reasoning loop. A co
 hook need not understand the agent's task; it only needs to inspect the proposed output
 against predefined rules. This separation of concerns is essential for regulated
 environments where compliance monitoring must be auditable and reproducible.
+
+% --- Subsection: File-based pattern ---
+
+\subsection{The File-Based Pattern: Agents, Skills, and Hooks as Markdown Artifacts}
+\label{subsec:file-based-pattern}
+
+The definitions above are framework-agnostic: a skill is a parameterised sub-workflow
+(\Cref{def:skill}), a hook is an event--handler pair (\Cref{def:agent-hook}), and an
+agent is a model with a role inside a loop. Programmatic frameworks realise these as
+Python objects. A second, increasingly common realisation is worth introducing now,
+because the rest of this book is itself built with it and because it is the form a
+practitioner is most likely to touch first: the \emph{file-based} pattern used by
+agentic coding assistants such as Claude Code. Here agents, skills, and hooks are not
+classes buried in a library but \emph{plain-text files} kept under version control,
+which makes them readable, diffable, and auditable---properties that matter as much in a
+regulated workflow as in a software project.
+
+The conventions are simple. An \textbf{agent} is a Markdown file (one per role, e.g.\
+under \texttt{.claude/agents/}) that states a persona, the inputs it may read, the task
+it performs, and---most importantly---the single artifact it is accountable for writing.
+A \textbf{skill} is a Markdown file (e.g.\ under \texttt{.claude/skills/}) that names an
+invocable procedure (\texttt{/draft-chapter}) and lists its ordered steps, which may
+invoke agents or other skills. A \textbf{hook} is a small script wired to a lifecycle
+event through a configuration file, so it fires automatically rather than on request.
+Many such files carry a short YAML \emph{frontmatter} block (delimited by \texttt{-{}-{}-})
+holding metadata---a name and a one-line description---followed by a free-text body.
+
+A minimal agent definition records who the agent is and what it must leave behind:
+
+\begin{minted}{markdown}
+---
+name: filing-risk-extractor
+description: Extracts the risk-factors section from a 10-K into structured JSON.
+---
+
+# Filing-Risk-Extractor Agent
+
+## Persona
+You extract risk factors from SEC filings. You do not editorialise.
+
+## Inputs
+- A 10-K filing (local path or EDGAR accession number)
+
+## What to Do
+1. Locate Item 1A (Risk Factors).
+2. Segment it into individual, atomic risks.
+
+## State Change (the only thing that counts)
+- Write `output/<ticker>-risks.json` as a list of
+  {risk_id, category, text, severity_estimate}.
+
+## Scope Limits
+- Do NOT summarise away detail. Do NOT add risks not in the filing.
+\end{minted}
+
+A skill records an invocable, repeatable procedure---and may call other skills, which is
+how a workflow library is composed rather than copy-pasted:
+
+\begin{minted}{markdown}
+---
+name: screen-filing
+description: Screen a new filing for material risk and draft an analyst note.
+---
+
+# /screen-filing
+
+## Steps
+1. Invoke filing-risk-extractor on the filing.        # calls an agent
+2. Rank risks by severity_estimate; keep the top five.
+3. Draft a one-page note from the ranked risks.
+4. Call /compliance-check on the draft note.          # skill calls skill
+5. If the check fails, revise and repeat from step 3.
+\end{minted}
+
+A hook is wired declaratively to an event and runs a script with no agent in the loop.
+The configuration below fires a compliance script after any file is written, turning a
+convention (``notes must clear compliance'') into an enforced step:
+
+\begin{minted}{json}
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "Write|Edit",
+        "command": "bash .hooks/compliance-check.sh" }
+    ]
+  }
+}
+\end{minted}
+
+The three artifacts divide the labour cleanly: agents are the \emph{who}, skills are the
+\emph{how}, and hooks are the \emph{automatic guardrails} that run whether or not anyone
+remembers to ask. This file-based form is what makes an agentic system inspectable: every
+capability and every control is a tracked file, so a reviewer can read exactly what the
+system is allowed to do and what it is forced to check. We use these artifacts lightly in
+the remainder of this chapter and develop them fully---composed into goal-directed
+iteration loops, with worked finance examples---in
+\Cref{ch:loops-goals-iterations}.
 
 % --- Subsection: Frameworks ---
 
@@ -729,7 +826,7 @@ directly. An \emph{extractor agent} reads a short earnings snippet and pulls out
 reported EPS and analyst consensus, then passes the structured result to a
 \emph{classifier agent} that labels the result as a beat, miss, or inline outcome.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/04-llm-agents/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/04-llm-agents/}.}
 
 \end{deepdive}
 
@@ -759,8 +856,12 @@ outperforms pure parametric models on knowledge-intensive question answering tas
 and subsequent work has extended it to long-form generation, multi-hop reasoning, and
 domain-specific applications including finance \cite{gao2024retrieval}.
 
-\begin{definition}[Retrieval-Augmented Generation]
-\label{def:rag}
+The operational RAG pipeline (retrieval, augmentation, generation) was defined in
+\Cref{def:rag}. Here we give the complementary \emph{probabilistic} view that
+underpins end-to-end training, treating the retrieved document as a latent variable.
+
+\begin{definition}[Retrieval-Augmented Generation (probabilistic view)]
+\label{def:rag-marginal}
 Let $\mathcal{Q}$ be a space of natural-language queries.
 Let $\mathcal{D} = \{d_1, \ldots, d_N\}$ be a corpus of documents, $q$ a query, and
 $R: \mathcal{Q} \times \mathcal{D} \to 2^{\mathcal{D}}$ a retrieval function that
@@ -803,8 +904,8 @@ The most widely deployed ANN algorithm in production financial systems is FAISS 
 AI Similarity Search) \cite{johnson2019billion}, which implements several index types
 including flat (exact) search, inverted file (IVF) indexing, and hierarchical navigable
 small worlds (HNSW). For corpora up to roughly one million vectors, IVF-HNSW provides
-an excellent balance of query speed (typically under 10 milliseconds) and recall
-(typically above 95\% for top-10 retrieval).
+an excellent balance of low query latency (single-digit-to-tens of milliseconds on
+commodity hardware) and high top-10 recall.
 
 Commercial vector databases---Pinecone, Weaviate, Chroma, Qdrant---provide additional
 infrastructure around FAISS-like indexing: metadata filtering, multi-tenancy, real-time
@@ -867,9 +968,12 @@ An alternative that avoids normalisation altogether is \emph{reciprocal rank fus
 $k = 60$ a standard constant that dampens the influence of top-ranked documents.
 As a starting point, practitioners typically weight dense retrieval more heavily (higher $\alpha$) for semantic question-answering tasks, and sparse retrieval more heavily (lower $\alpha$) for exact-match regulatory keyword lookups; the optimal value is task-specific and should be tuned on a held-out validation set.
 
-Recent work on \emph{learned sparse retrieval}---methods such as SPLADE that produce
+The hybrid scheme above blends dense and sparse retrieval as two \emph{fixed} components;
+a natural next step is to \emph{learn} the sparse representation itself, so that the
+sparse signal also captures meaning rather than only exact terms. Recent work on
+\emph{learned sparse retrieval}---methods such as SPLADE that produce
 sparse high-dimensional vectors by applying a ReLU-log activation to MLM logits---
-offers a middle ground between dense and sparse retrieval. SPLADE-style methods learn
+offers exactly this middle ground between dense and sparse retrieval. SPLADE-style methods learn
 to \emph{expand} queries and documents with semantically related terms, capturing
 semantic similarity while maintaining a sparse representation that can be indexed with
 inverted file structures. For financial applications, learned sparse retrieval may
@@ -995,49 +1099,19 @@ omitting material disclosures.
   \label{fig:ch04-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: RAG Retrieval Ranking]
+\begin{illustration}[RAG Retrieval Ranking]
 \label{ex:ch04-illustration}
-\textbf{[I]} Reproduce Figure~\ref{fig:ch04-illustration} using TF-IDF cosine similarity
-between the query \emph{``What are the main risk factors and competitive threats
-facing the company?''} and a corpus of recent financial news headlines.
-(\textit{a})~Identify the top-3 retrieved chunks and explain why TF-IDF ranked
-them highest.
-(\textit{b})~Replace TF-IDF with dense embeddings from
-\texttt{sentence-transformers} (\texttt{all-MiniLM-L6-v2}) and compare the
-ranking. Does dense retrieval surface qualitatively different chunks?
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Illustration
-Exercise.
-\end{exercise}
-
-\begin{exercise}[ReAct Loop for Live Price Lookup]
-\label{ex:ch04-react-price}
-\textbf{[B]} Consider a single-turn agent equipped with one tool:
-\texttt{get\_price(ticker: str) -> float}, which returns the current stock price.
-(\textit{a})~Write the ReAct trajectory (Thought, Action, Observation, Thought,
-Finish) for the query \emph{``Is AAPL trading above \$180?''}.
-(\textit{b})~Explain why a chain-of-thought only approach (no tool call) would be
-unreliable for this task, and identify the specific failure mode.
-(\textit{c})~Extend your trajectory to handle the case where the tool returns an
-error because the market is closed.
-\end{exercise}
-
-\begin{exercise}[Multi-Agent Earnings Pipeline Design]
-\label{ex:ch04-multi-agent-design}
-\textbf{[A]} Design and implement a three-agent pipeline for automated earnings
-analysis. Agent~1 (Extractor) retrieves the most recent 10-K risk factors for
-a given ticker from SEC EDGAR. Agent~2 (Comparator) retrieves the same section
-from the prior-year 10-K and identifies newly added or removed risk factors.
-Agent~3 (Synthesiser) produces a structured summary of material risk changes,
-classifying each change as an escalation, de-escalation, or new risk.
-(\textit{a})~Implement the pipeline using the Anthropic API (or LangChain),
-applying the two-agent extractor--classifier pipeline described earlier in this chapter as a
-starting point.
-(\textit{b})~Propose a faithfulness evaluation method for Agent~3's output:
-how would you verify that every cited risk change is traceable to a specific
-passage in one of the two retrieved filing sections?
-(\textit{c})~Identify at least two prompt-injection vectors an adversary could
-exploit in this pipeline and describe a defence for each.
-\end{exercise}
+The companion notebook reproduces Figure~\ref{fig:ch04-illustration} using TF-IDF
+cosine similarity between the query \emph{``What are the main risk factors and
+competitive threats facing the company?''} and a corpus of recent financial news
+headlines. It identifies the top-3 retrieved chunks and shows why TF-IDF ranks
+them highest, then replaces TF-IDF with dense embeddings from
+\texttt{sentence-transformers} (\texttt{all-MiniLM-L6-v2}) to compare the
+two rankings, illustrating how dense retrieval can surface qualitatively
+different chunks than a sparse lexical baseline.
+See \texttt{code/practicals/04-llm-agents/}, Illustration
+section.
+\end{illustration}
 
 % ---------------------------------------------------------------
 
@@ -1046,8 +1120,8 @@ exploit in this pipeline and describe a defence for each.
 
 \begin{context}
 The techniques developed in the preceding sections converge in a set of high-value
-financial applications. These applications are not hypothetical: firms including Goldman
-Sachs, JPMorgan, Bloomberg, and numerous hedge funds have deployed LLM-based systems
+financial applications. These applications are not hypothetical: several major banks, data
+vendors, and hedge funds have publicly described LLM-based systems
 for tasks ranging from document analysis to automated report generation. This section
 develops five representative applications in sufficient depth for practitioners to
 adapt and implement them, drawing on the agent architectures, tool-use patterns,
@@ -1077,10 +1151,10 @@ and \citet{LopezLiraTang2023} have shown that LLMs can produce nuanced sentiment
 assessments that predict stock price movements around earnings announcements.
 \citet{kim2024financial} take a complementary approach, showing that GPT-4
 fed anonymised financial statements---without any narrative or industry identifiers---
-predicts the direction of future earnings with 60\% accuracy, outperforming human analysts
-(53\%) and matching a narrowly trained state-of-the-art ML model; trading strategies
-based on the LLM's predictions yield higher Sharpe ratios than analyst-based strategies,
-underscoring the practical value of agentic financial analysis.
+predicts the direction of future earnings at an accuracy the authors report exceeds that
+of human analysts and approaches a narrowly trained state-of-the-art ML model; trading
+strategies based on the LLM's predictions yield higher Sharpe ratios than analyst-based
+strategies, underscoring the practical value of agentic financial analysis.
 
 A complete earnings call analysis pipeline involves five stages. First, \emph{ingestion}:
 the transcript is retrieved from a vendor API (e.g., Refinitiv Eikon, S\&P Global
@@ -1150,7 +1224,7 @@ market data, consensus estimates, key events) in machine-readable format, and th
 agent produces prose that describes this data package, citing each figure with a
 reference to its source.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/04-llm-agents/demo.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/04-llm-agents/}.}
 
 The fact-grounding discipline ensures that every number in the generated report can be
 audited against a data source. This is not merely a best-practice recommendation; for
@@ -1229,14 +1303,14 @@ a 7B-parameter model) since its task is purely verification rather than generati
 This architecture is used in the RAGAS evaluation framework \cite{es2023ragas} and
 can be adapted for production citation enforcement. The practical difficulty of filing
 Q\&A at enterprise scale is documented by \citet{zhang2024financebench}, who introduce
-the FinanceBench benchmark of 10{,}231 questions over publicly traded company filings
-and find that even GPT-4-Turbo with retrieval incorrectly answers or refuses 81\% of
-questions, highlighting the gap between research prototypes and production-grade
-financial RAG systems. \citet{wang2025finsage} address this gap with FinSage, a
-multi-aspect RAG framework for financial filings that combines multi-modal preprocessing,
-multi-path sparse-dense retrieval augmented with query expansion, and a compliance-focused
-re-ranking module, achieving 92.51\% recall on expert-curated compliance questions and
-surpassing baseline RAG accuracy on FinanceBench by 24\%.
+the FinanceBench benchmark of questions over publicly traded company filings
+and find that even GPT-4-Turbo with retrieval incorrectly answers or refuses a large
+majority of the questions, highlighting the gap between research prototypes and
+production-grade financial RAG systems. \citet{wang2025finsage} address this gap with
+FinSage, a multi-aspect RAG framework for financial filings that combines multi-modal
+preprocessing, multi-path sparse-dense retrieval augmented with query expansion, and a
+compliance-focused re-ranking module, reporting substantially higher recall on
+expert-curated compliance questions and improved accuracy over baseline RAG on FinanceBench.
 
 In practice, a verifier model checks each claim $s_j$ in the generated answer against the
 chunk $C_j$ cited for it. Claims confirmed as supported are retained; unsupported claims
@@ -1320,7 +1394,7 @@ framework systematically.
 Production financial agents must satisfy strict performance constraints that do not
 apply to research prototypes. Latency matters: an agent that takes two minutes to
 answer a question about current portfolio risk is unusable in a live trading
-environment. Cost matters: running a GPT-4-class model for every document in a
+environment. Cost matters: running a frontier-class model for every document in a
 50,000-filing corpus is economically infeasible. Reliability matters: an agent that
 fails 5\% of the time due to API timeouts is unacceptable in a workflow where every
 failure requires manual intervention.
@@ -1330,7 +1404,7 @@ Caching stores the results of expensive computations (embedding, retrieval, LLM
 generation) against a content hash of the input, so that repeated queries over the
 same document incur only the cost of the cache lookup rather than the full pipeline.
 Model tiering assigns different tasks to models of appropriate capability: a small,
-fast model (e.g., GPT-4o-mini, Claude Haiku) handles routine classification and
+fast model (e.g., Claude Haiku 4.5 or a comparable mini-tier model) handles routine classification and
 extraction tasks, while a larger model handles synthesis and report generation tasks
 that require deeper reasoning.
 
@@ -1532,45 +1606,3 @@ as an ongoing operational concern rather than a one-time design decision.
 \end{context}
 
 % ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch04-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Filing Lookup Tool]\label{ex:ch04-edgar-b}
-\textbf{[B]} Implement an \texttt{edgar\_tool(ticker, form\_type, n)} function
-that, given a ticker symbol, returns a list of the $n$ most recent filings of
-the specified form type, each as a dictionary
-\texttt{\{form, date, accession\_url\}}.
-(\textit{a})~Call the tool for \texttt{AAPL}, \texttt{MSFT}, and \texttt{GOOGL}
-with \texttt{form\_type="10-K"} and \texttt{n=3}.
-(\textit{b})~Wrap the output in a natural-language agent response:
-``Based on EDGAR, the three most recent annual filings for \{ticker\} are\ldots''
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Fact-Retrieval Agent Step]\label{ex:ch04-edgar-i}
-\textbf{[I]} Implement a two-step fact-retrieval chain.
-\emph{Step 1}: look up the CIK for a given ticker.
-\emph{Step 2}: call \texttt{get\_annual\_series} to retrieve the annual
-\texttt{Revenues} series.
-(\textit{a})~Answer the query ``What was Apple's revenue in FY2023?'' by
-identifying the closest fiscal-year entry and returning a formatted string.
-(\textit{b})~Generalise to a function
-\texttt{answer\_query(ticker, concept, fy\_year)}
-that handles any XBRL concept and fiscal year.
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Multi-Company Comparison Agent]\label{ex:ch04-edgar-a}
-\textbf{[A]} Build a \texttt{compare\_companies(tickers, concepts, years)}
-function that fetches XBRL data for multiple companies and returns a tidy
-\texttt{DataFrame} indexed by (ticker, year).
-(\textit{a})~Use it to compare \texttt{Revenues}, \texttt{NetIncomeLoss},
-and \texttt{Assets} for AAPL, MSFT, and GOOGL over 2019--2023.
-(\textit{b})~Plot a grouped bar chart for revenues.
-(\textit{c})~Produce an agent-style natural-language summary:
-``The company with the highest revenue growth over the period was\ldots''
-See \texttt{code/notebooks/04-llm-agents/exercises.ipynb}, Data Lab section.
-\end{exercise}

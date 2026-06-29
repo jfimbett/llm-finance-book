@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 15 — Practical: Privacy &amp; Local Models</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 15 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 15 / Lecture 15 · Practical</div>
+    <h1>LLMs and Privacy: Local Deployments and Text De-identification</h1>
+    <div class="sub">Cost a privacy budget, hand-build a de-identification mask, and read an empirical leakage metric.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview</div>
+    <h2>One hour: 50 minutes of problems, 10 minutes of debrief</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three concrete skills you will walk out with: pricing privacy like a budget,
+      scrubbing a client note by hand, and measuring how much a model memorised.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Timed agenda</div>
+          <ol>
+            <li><strong>Recap</strong> (8 min) — DP, Gaussian mechanism, composition, MI-AUC</li>
+            <li><strong>Problem 1</strong> (12 min) — size DP-SGD noise, spend a budget</li>
+            <li><strong>Problem 2</strong> (12 min) — build a NER de-identification mask</li>
+            <li><strong>Case study</strong> (15 min) — run the membership-inference audit</li>
+            <li><strong>Discussion</strong> (10 min) — where should the model live?</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">goal</span>
+          Leave able to (a) cost a privacy budget, (b) hand-build a de-identification mask,
+          and (c) interpret an empirical leakage metric.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 — RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the formulas you will need</h2>
+    <div class="secsub">Differential privacy as a budget, and how to measure leakage after the fact.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Privacy as noise</div>
+    <h2>To hide one person, blur the answer just enough</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Differential privacy adds calibrated noise so that no single client's record
+      visibly changes the model's output. Tighter privacy means more noise.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Smaller</strong> \(\varepsilon\) (the privacy "spend") → <strong>more</strong> noise → stronger privacy, weaker accuracy</li>
+          <li class="frag"><strong>Clipping</strong> each example's gradient caps how much one record can push the model</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Membership-inference AUC</div>
+          The after-the-fact leakage check: <strong>0.5</strong> = no leakage,
+          <strong>1.0</strong> = total failure; <strong>&lt;0.6</strong> commonly acceptable.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="Gaussian mechanism &amp; composition">
+      The Gaussian mechanism sets the noise scale from the sensitivity \(\Delta_2 f\):
+      \[ \sigma = \frac{\Delta_2 f \cdot \sqrt{2\ln(1.25/\delta)}}{\varepsilon},
+         \qquad \mathcal{M}(D) = f(D) + \mathcal{N}(0,\sigma^2 I). \]
+      Privacy spent over \(k\) mechanism applications grows by <em>advanced composition</em>:
+      \[ \varepsilon' \approx \varepsilon\sqrt{2k\ln(1/\delta')}. \]
+      DP-SGD clips each per-example gradient to bound sensitivity to \(C\):
+      \[ \hat{g}_i = g_i / \max\!\big(1,\ \|g_i\|_2 / C\big). \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">De-identification toolkit</div>
+    <h2>Two layers find the secrets; three strategies hide them</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Two-layer NER pipeline</div>
+          <ul>
+            <li><strong>Learned model</strong> — PERSON, ORG, LOCATION, MONEY, DATE</li>
+            <li><strong>Rules / regex</strong> — IBAN, ISIN, LEI, tax ID, SWIFT</li>
+          </ul>
+        </div>
+        <div class="block"><div class="block-title">Three strategies</div>
+          <ul>
+            <li><strong>Masking</strong> — <code class="inline">[PERSON_001]</code></li>
+            <li><strong>Generalisation</strong> — 75008 → Paris</li>
+            <li><strong>Suppression</strong> — remove the span</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">\(k\)-anonymity</div>
+          Output could plausibly come from \(\geq k\) individuals. Masking gives large \(k\) —
+          <em>but</em> context can still re-identify.
+        </div>
+        <div class="alert callout">
+          <span class="callout-tag">pseudonymisation ≠ anonymisation</span>
+          Pseudonymisation keeps text natural but the mapping is a key. GDPR Recital 26 ⇒
+          still <em>protected</em> personal data, not anonymised.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2 — PROBLEMS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problems — work them before peeking</h2>
+    <div class="secsub">Problem 1: spend a privacy budget. Problem 2: build a de-identification mask.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 12 min</div>
+    <h2>Can the bank afford four private fine-tunes a year?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A bank fine-tunes a 7B model on credit-decision narratives with DP-SGD.
+      Gradients clipped to \(C = 1.0\); target per run \(\varepsilon_{\text{run}} = 0.8\), \(\delta = 10^{-5}\).</p>
+    <ol>
+      <li class="frag"><strong>Task A.</strong> The clipped gradient has \(\ell_2\)-sensitivity \(\Delta_2 f = C = 1.0\).
+        Compute the noise scale \(\sigma\) for one mechanism application. Use \(\ln(1.25/10^{-5}) \approx 11.7\).</li>
+      <li class="frag"><strong>Task B.</strong> The team plans \(k = 4\) independent runs over the year.
+        Using advanced composition with \(\delta' = 10^{-5}\) (\(\ln(1/\delta') \approx 11.5\)),
+        what is the total budget \(\varepsilon'\)?</li>
+      <li class="frag"><strong>Task C.</strong> The annual ceiling is \(\varepsilon_{\max} = 5\).
+        Are the four runs within budget? How many runs fit before the ceiling is breached?</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 12 min</div>
+    <h2>Scrub a relationship-manager call note by hand</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Source sentence:</p>
+    <div class="block">
+      <div class="block-title">Call note</div>
+      <em>"Spoke with Claire Moreau (LEI 969500TEST00CLAIRE12) about increasing the
+      EUR 1,250,000 revolving facility; she will wire from IBAN
+      DE89 3704 0044 0532 0130 00 once the board of Helvetia Trading SA approves on
+      12 March 2025."</em>
+    </div>
+    <ol>
+      <li class="frag"><strong>Task A.</strong> List every sensitive span and assign a type
+        (PERSON, ORG, MONEY, DATE, IBAN, LEI). Mark which need the <em>learned</em> model and which the <em>rule</em> layer.</li>
+      <li class="frag"><strong>Task B.</strong> Produce the fully <em>masked</em> version with typed placeholders
+        (<code class="inline">[PERSON_001]</code>, etc.), keeping co-references consistent.</li>
+      <li class="frag"><strong>Task C.</strong> The portfolio has exactly one Swiss trading firm with a
+        revolver near EUR 1.25m maturing in Q1 2025. Does masking achieve \(k\)-anonymity?
+        Which strategy would you add, and to which span?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 3 — CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case study — the membership-inference audit</h2>
+    <div class="secsub">The empirical check the chapter insists you run after every fine-tune.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the question</div>
+    <h2>How much does a fine-tuned model leak about its training set?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A model that <em>memorised</em> a document fits it suspiciously well. An attacker
+      exploits exactly that gap to guess who was in the training data.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The procedure</div>
+          <ol>
+            <li>Hold out a random subset of documents as the <em>non-member</em> (negative) class.</li>
+            <li>Score every member and non-member with the likelihood-ratio attack (target vs. reference model).</li>
+            <li>Sweep the threshold; plot the ROC; report the <strong>AUC</strong>.</li>
+          </ol>
+        </div>
+        <p class="small">Notebook: <code class="inline">code/practicals/15-privacy-local-models/</code><br>
+          Figure generator: <code class="inline">gen_dp_privacy_utility.py</code> (privacy–utility curve).</p>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">acceptance gate</span>
+          AUC ≈ 0.5 ⇒ attack no better than chance (good). AUC &gt; 0.6 ⇒ leakage:
+          add DP-SGD, reduce epochs, or exclude the most sensitive docs.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code (1/2)</div>
+    <h2>The attack: does the target fit this doc better than a reference?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">If the fine-tuned model assigns a document a much lower loss than an untouched
+      reference model, that document was probably in its training set.</p>
+    <pre class="code">import numpy as np
+from sklearn.metrics import roc_auc_score
+
+# Per-document loss under target (fine-tuned) and reference models.
+# Lower target loss on a doc =&gt; evidence it was a training member.
+def membership_scores(target_loss, ref_loss):
+    # Likelihood-ratio signal: high when target fits doc better than ref.
+    return ref_loss - target_loss          # larger =&gt; more "member-like"
+
+def audit_auc(target_loss, ref_loss, is_member):
+    scores = membership_scores(target_loss, ref_loss)
+    return roc_auc_score(is_member, scores)</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code (2/2)</div>
+    <h2>A toy run where members overfit, non-members don't</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <pre class="code"># Toy: members fit better under target model.
+rng = np.random.default_rng(0)
+ref     = rng.normal(2.0, 0.4, size=400)
+member  = ref[:200] - rng.normal(0.6, 0.2, size=200)
+nonmemb = ref[200:] - rng.normal(0.0, 0.2, size=200)
+target  = np.concatenate([member, nonmemb])
+is_member = np.array([1]*200 + [0]*200)
+
+auc = audit_auc(target, ref, is_member)
+print(f"MI AUC = {auc:.3f}")
+# &lt;0.6 OK; ~0.5 ideal; 1.0 = severe leakage.</pre>
+      </div>
+      <div class="col">
+        <figure class="deckfig">
+          <img src="../assets/figures/15-privacy-local-models/fig_privacy_utility.png" alt="Privacy-utility tradeoff: test accuracy vs. privacy budget epsilon">
+          <figcaption><b>Figure.</b> The privacy–utility curve: test accuracy rises with \(\varepsilon\) (weaker privacy) and saturates toward the non-private baseline. Q3 asks you to read off the gap at \(\varepsilon = 1\) and \(\varepsilon = 10\).
+            <span class="src">Source: gen_dp_privacy_utility.py (schematic).</span></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostic questions</div>
+    <h2>Run it, then connect over-fitting to leakage</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Q1.</strong> What AUC does the toy run report? Acceptable privacy?
+        Which array (<code class="inline">member</code> vs. <code class="inline">nonmemb</code>) drives the gap, and why?</li>
+      <li class="frag"><strong>Q2.</strong> Re-run <code class="inline">member</code> with the over-fit offset reduced
+        from 0.6 to 0.0. What happens to the AUC — and what does that say about over-fitting and leakage?</li>
+      <li class="frag"><strong>Q3.</strong> In <code class="inline">gen_dp_privacy_utility.py</code>, the curve is
+        \(\text{acc}(\varepsilon)=0.90-(0.90-0.55)e^{-0.45\varepsilon}\). Compute accuracy at
+        \(\varepsilon=1\) and \(\varepsilon=10\). How large is the gap to the non-private baseline (0.90)?</li>
+      <li class="frag"><strong>Q4 (link the two).</strong> You must keep MI-AUC &lt; 0.6 <em>and</em> accuracy &gt; 0.80.
+        Is a single DP fine-tune at \(\varepsilon=1\) likely to satisfy both? Which lever
+        (clip norm \(C\), epochs, LoRA) would you pull first?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 4 — DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion — where should the model live?</h2>
+    <div class="secsub">On-premise, private cloud, or anonymise-and-send to a cloud API?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 10 min</div>
+    <h2>Pick a deployment pattern for each scenario — and defend it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each case choose <strong>on-premise</strong>, <strong>private cloud</strong>, or
+      <strong>anonymise-and-send</strong>, justified against regulation, sensitivity, latency, and cost.</p>
+    <ol>
+      <li class="frag">A relationship-manager assistant that routinely sees client names, account numbers,
+        and transaction histories. Latency target: interactive.</li>
+      <li class="frag">Summarising <em>public</em> ECB rate decisions for an internal newsletter —
+        no client data, high volume, cost-sensitive.</li>
+      <li class="frag">Joint fraud-detection model across three banks that legally cannot share raw
+        transaction data with one another.</li>
+      <li class="frag">Drafting a bond prospectus "Risk Factors" section from a structured issuer data
+        dump and five precedent deals (internal, confidential, not personal data).</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">frame your answer around</span>
+      External boundary · data-residency · record-keeping (MiFID II) · DORA third-party terms ·
+      memorisation risk · latency · cost.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 5 — SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions — the worked answers</h2>
+    <div class="secsub">Problem 1 budget arithmetic; Problem 2 mask and re-identification.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>One private run fits the budget — not four</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The headline: with these settings the bank can afford a <strong>single</strong> DP fine-tune
+      before the annual ceiling is breached. Privacy is a scarce, depleting resource.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li><strong>A — noise scale:</strong> \(\sigma \approx 6.05\)</li>
+          <li><strong>B — four runs:</strong> \(\varepsilon' \approx 7.67\)</li>
+          <li><strong>C — vs. ceiling 5:</strong> \(7.67 &gt; 5\) → over budget; only <strong>1 run</strong> fits</li>
+        </ul>
+        <div class="takeaway callout">
+          <span class="callout-tag">the lesson</span>
+          Budget is scarce — lower \(\varepsilon_{\text{run}}\) per run or fine-tune less often.
+        </div>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="the arithmetic">
+          <strong>Task A</strong> (\(\Delta_2 f = 1\), \(\varepsilon_{\text{run}}=0.8\), \(\ln(1.25/10^{-5})\approx 11.7\)):
+          \[ \sigma = \frac{1 \cdot \sqrt{2 \times 11.7}}{0.8}
+                    = \frac{\sqrt{23.4}}{0.8} \approx \frac{4.84}{0.8} \approx 6.05. \]
+          <strong>Task B</strong> (\(k=4\), \(\varepsilon=0.8\), \(\ln(1/\delta')\approx 11.5\)):
+          \[ \varepsilon' \approx 0.8\sqrt{2\times4\times11.5}
+                          = 0.8\sqrt{92} \approx 0.8 \times 9.59 \approx 7.67. \]
+          <strong>Task C</strong> (\(\varepsilon_{\max}=5\)): largest \(k\) with
+          \(0.8\sqrt{2k\cdot 11.5}\le 5\):
+          \[ \sqrt{23k}\le 6.25 \Rightarrow 23k \le 39.1 \Rightarrow k \le 1.7
+             \;\Rightarrow\; \textbf{1 run}. \]
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>Masking is necessary but not sufficient</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Task A — spans, types, layer</div>
+          <table>
+            <tr><th>Span</th><th>Type</th><th>Layer</th></tr>
+            <tr><td>Claire Moreau</td><td>PERSON</td><td>Learned</td></tr>
+            <tr><td>969500TEST00CLAIRE12</td><td>LEI</td><td>Rule</td></tr>
+            <tr><td>EUR 1,250,000</td><td>MONEY</td><td>Learned</td></tr>
+            <tr><td>DE89&nbsp;3704&nbsp;…&nbsp;00</td><td>IBAN</td><td>Rule</td></tr>
+            <tr><td>Helvetia Trading SA</td><td>ORG</td><td>Learned</td></tr>
+            <tr><td>12 March 2025</td><td>DATE</td><td>Learned</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Task B — masked output</div>
+          <em>"Spoke with [PERSON_001] (LEI [LEI_001]) about increasing the [MONEY_001]
+          revolving facility; she will wire from IBAN [IBAN_001] once the board of [ORG_001]
+          approves on [DATE_001]."</em>
+        </div>
+        <div class="alert callout">
+          <span class="callout-tag">Task C — re-identification</span>
+          Masking does <em>not</em> achieve \(k\)-anonymity: "one Swiss trading firm, ~EUR 1.25m
+          revolver, Q1 2025" is a near-unique fingerprint. Add <strong>generalisation</strong>
+          (MONEY → "EUR 1–2m", DATE → "Q1 2025") and consider <strong>suppressing</strong> the
+          ORG nationality cue so the posterior over individuals stays diffuse.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">Gradient inversion in federated learning, and a quantisation sign-off audit.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch A</div>
+    <h2>Gradient inversion: sharing updates can still leak data</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Federated learning shares only gradient updates, never raw data — yet
+      <strong>gradient inversion</strong> can reconstruct inputs from a single update.</p>
+    <ol>
+      <li class="frag"><strong>A1.</strong> Explain why a FedAvg update \(\Delta_k^t\) from a client training on one
+        sensitive batch can leak that batch — and why <em>larger</em> local batch size and
+        <em>more</em> local steps \(E\) both reduce the leakage.</li>
+      <li class="frag"><strong>A2.</strong> You add <em>local</em> DP-SGD before transmitting \(\Delta_k^t\).
+        State the two new costs this imposes (relative to plain FedAvg) and why they are unavoidable.</li>
+      <li class="frag"><strong>A3.</strong> A cross-border bank runs one federated client per jurisdiction.
+        Which regulation does this specifically satisfy that pure centralised training would violate,
+        and why does federation alone <em>not</em> discharge GDPR Art. 17?</li>
+    </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch B</div>
+    <h2>Quantisation audit: sign off a 4-bit on-prem model</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A risk team must approve a 4-bit (AWQ) quantised, DP-fine-tuned model for on-prem deployment.</p>
+    <ol>
+      <li class="frag"><strong>B1.</strong> The team worries quantisation might <em>change</em> the privacy guarantee.
+        Argue, using the <strong>post-processing immunity</strong> property of DP, why quantising a
+        DP-trained model does not weaken its \((\varepsilon,\delta)\) guarantee.</li>
+      <li class="frag"><strong>B2.</strong> AWQ needs a calibration set. Why is using a small <em>public</em> corpus
+        (not client data) both sufficient for quality and necessary for privacy?</li>
+      <li class="frag"><strong>B3.</strong> 7B at 4-bit ≈ 3.5 GB; a branch workstation has a single 8 GB GPU.
+        Estimate whether a 13B 4-bit model (≈ 6.5 GB) also fits, and name one operational reason you might
+        still prefer the 7B at the branch.</li>
+    </ol>
+  </section>
+
+</div></div>
+</body>
+</html>

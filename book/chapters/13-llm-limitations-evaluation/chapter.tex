@@ -37,6 +37,8 @@ tools for measuring and correcting miscalibration in financial applications.
 \subsection{What Calibration Means: Reliability Diagrams and ECE}
 \label{sec:ch13-calibration-reliability-diagrams}
 
+Calibration was introduced for credit default probabilities in \Cref{ch:credit-risk};
+this chapter treats it as a general criterion for evaluating any probabilistic LLM output.
 A classifier is \emph{perfectly calibrated} if, among all predictions assigned
 confidence $p$, exactly a fraction $p$ of them are correct. Formally, let $\hat{p}$ be
 the predicted probability for the positive class and $Y \in \{0,1\}$ be the true label.
@@ -115,7 +117,7 @@ The ECE computes as:
                + \frac{200}{1000}\cdot|0.50-0.47| \notag \\
              &\quad + \frac{300}{1000}\cdot|0.71-0.55| + \frac{200}{1000}\cdot|0.88-0.62|
                \notag \\
-             &= 0.012 \cdot 0.03 + 0.18 \cdot 0.03 + 0.20 \cdot 0.03 + 0.30 \cdot 0.16
+             &= 0.12 \cdot 0.03 + 0.18 \cdot 0.03 + 0.20 \cdot 0.03 + 0.30 \cdot 0.16
                + 0.20 \cdot 0.26 \notag \\
              &= 0.0036 + 0.0054 + 0.0060 + 0.0480 + 0.0520 = 0.115.
 \end{align}
@@ -126,6 +128,19 @@ but severely overconfident in the high-confidence regime: predictions issued wit
 the model's stated confidence to triage manual review would misallocate effort
 systematically toward cases where the model is least reliable.
 \end{example}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.62\textwidth]{chapters/13-llm-limitations-evaluation/figures/fig_reliability}
+  \caption{Reliability diagram for the credit-risk classifier of \Cref{ex:ch13-ece-credit}.
+           Bars show empirical accuracy against mean predicted probability per bin; the
+           dashed diagonal is perfect calibration and the red segments are the per-bin gaps
+           that the Expected Calibration Error aggregates (ECE $=0.115$). The model is
+           well calibrated at low confidence but increasingly overconfident in the
+           high-confidence bins. Generated deterministically by
+           \texttt{gen\_reliability\_diagram.py} from the example's fixed bin statistics.}
+  \label{fig:ch13-reliability}
+\end{figure}
 
 \subsection{Overconfidence in LLM Financial Outputs}
 \label{sec:ch13-overconfidence-financial-outputs}
@@ -210,7 +225,9 @@ vector $\mathbf{z}$, the calibrated probability is $\operatorname{softmax}(\math
 spreads the softmax distribution (reducing overconfidence) and $T < 1$ sharpens it.
 The temperature $T$ is a single scalar learned on a held-out calibration set by
 minimising the negative log-likelihood. Temperature scaling preserves the ordering of
-predictions, so it does not alter discrimination (AUROC) while improving calibration.
+predictions, so it does not alter \emph{discrimination}---the model's ability to rank
+defaulters above non-defaulters, measured by the area under the ROC curve
+(AUROC)---while improving calibration.
 
 \emph{Isotonic regression} is a non-parametric post-hoc method that fits a
 non-decreasing step function mapping predicted probabilities to empirical frequencies
@@ -298,7 +315,7 @@ validity rather than a theoretical nuisance. From a practitioner's perspective,
 \citet{NoguerAlonso2024} provides a comprehensive taxonomy of look-ahead bias sources in
 LLM-based financial applications, covering training cutoffs, entity embeddings, and
 backtesting methodology, and proposes mitigation strategies that inform the contamination-resistant
-design presented in Section~\ref{sec:ch13-contamination-resistant-splits}.
+design presented in \Cref{sec:ch13-contamination-resistant-splits}.
 
 \subsection{Point-in-Time Data Requirements and Anonymization}
 \label{sec:ch13-point-in-time-data}
@@ -471,13 +488,14 @@ contribute genuine value:
         value from it---though this raises distinct regulatory questions.
 \end{enumerate}
 
-\subsection{Empirical Evidence: LLMs Achieve 51--65\% Accuracy on 250 Stocks}
+\subsection{Empirical Evidence: LLMs Achieve 51--65\% Directional Accuracy}
 \label{sec:ch13-empirical-evidence-llm-accuracy}
 
 A substantial empirical literature has tested whether LLMs can predict the direction
 of stock price movements. The results present a consistent pattern: LLMs achieve
-directional accuracy in the range of 51--65\% on daily or weekly prediction tasks,
-with average performance across studies clustering around 59\% \cite{xu2024stock}.
+directional accuracy modestly above the 50\% chance level on daily or weekly prediction
+tasks, with average performance across studies clustering only a few points above chance
+\cite{xu2024stock}.
 
 \citet{LopezLiraTang2023} provided one of the first systematic evaluations, testing
 ChatGPT on headline sentiment and showing that a sentiment-based trading strategy
@@ -488,14 +506,14 @@ are directed. However, their evaluation period coincided with a period of unusua
 market volatility, and the returns were concentrated in specific news categories.
 
 \citet{VidalSSRN2024} provides an independent empirical benchmark, evaluating four
-leading LLMs on predicting 30-day directional price movements for 250 S\&P~500 firms
-and reporting an average accuracy of only 59.4\%---a result that, while marginally above
-chance in statistical terms, falls well below the threshold required for economically
+leading LLMs on predicting 30-day directional price movements for a sample of S\&P~500
+firms and reporting an average accuracy only marginally above chance---a result that
+falls well below the threshold required for economically
 meaningful trading after transaction costs.
 
-A meta-analysis~\cite{zhao2025frontiers} finds that the 59\%
-average accuracy figure is ubiquitous across different LLMs, different markets, and
-different time periods, but that there is enormous heterogeneity around this mean.
+A meta-analysis~\cite{zhao2025frontiers} finds that this modest-edge result is
+ubiquitous across different LLMs, different markets, and
+different time periods, but that there is enormous heterogeneity around the mean.
 Studies that achieve accuracy above 62\% almost uniformly exhibit one or more of the
 following methodological vulnerabilities:
 \begin{itemize}
@@ -634,7 +652,7 @@ excess returns $r_{p,t}$ on a factor model:
 \end{equation}
 
 where $r_{\text{MKT}}, r_{\text{SMB}}, r_{\text{HML}}$ are the Fama-French
-\cite{fama1970efficient} market, size, and value factors. A statistically significant
+\cite{fama1993common} market, size, and value factors. A statistically significant
 $\alpha$ indicates the strategy delivers returns not explained by passive factor
 exposures. Many LLM trading strategies, when subjected to factor regression, produce
 $\alpha$ that is statistically indistinguishable from zero.
@@ -661,7 +679,7 @@ financial machine learning literature \cite{lopezdeprado2018advances}.
 
 Both protocols require a \emph{purge period}: a gap between the end of the training
 window and the beginning of the evaluation window, equivalent to the gap $\Delta$ in
-Definition~\ref{def:ch13-temporal-split}. The purge period must be at least as long
+\Cref{def:ch13-temporal-split}. The purge period must be at least as long
 as the prediction horizon to prevent any individual observation from appearing in both
 training and evaluation windows through overlapping label windows.
 
@@ -671,7 +689,7 @@ Let $h$ be the prediction horizon and $\Delta_{\text{purge}}$ be the purge gap.
 At iteration $k$, the training set is $\mathcal{D}_{\text{train}}^{(k)} =
 \{(x_t, y_t) : t \leq kh - \Delta_{\text{purge}}\}$ and the evaluation set is
 $\mathcal{D}_{\text{eval}}^{(k)} = \{(x_t, y_t) : kh \leq t \leq (k+1)h - 1\}$.
-The model is retrained from scratch (or adapted via PEFT (parameter-efficient fine-tuning, e.g., LoRA; see Chapter~\ref{ch:llm-training-finetuning})) at each iteration $k$.
+The model is retrained from scratch (or adapted via PEFT (parameter-efficient fine-tuning, e.g., LoRA; see \Cref{ch:llm-training})) at each iteration $k$.
 \end{definition}
 
 The walk-forward protocol makes an implicit assumption about model persistence: the
@@ -733,7 +751,7 @@ A complete trading-grade evaluation for an LLM signal should report:
   \item Information ratio against a relevant benchmark.
   \item Maximum drawdown and Calmar ratio.
   \item Turnover rate and estimated capacity.
-  \item Performance decomposition by factor loadings (equation~\eqref{eq:ch13-factor-alpha}).
+  \item Performance decomposition by factor loadings (\Cref{eq:ch13-factor-alpha}).
   \item Statistical significance of alpha using heteroskedasticity-robust standard errors
         and multiple-testing corrections.
 \end{itemize}
@@ -768,7 +786,7 @@ regulatory citation used in a filing or advice document carries serious liabilit
 sheet figures, interest rates, credit ratings, option Greeks, return histories. LLMs
 hallucinate numbers with disturbing frequency. \citet{kang2023hallucination} construct
 a dedicated benchmark of numerical queries (revenue, EPS, EBITDA, credit spreads) from
-public filings and report that, on their benchmark, GPT-4 class models answered incorrectly 15--30\% of the time, with no reliable indicator distinguishing correct from
+public filings and report that, on their benchmark, GPT-4 class models answered a non-trivial fraction of queries incorrectly, with no reliable indicator distinguishing correct from
 incorrect answers in the model's lexical output. The model does not say ``I am not
 sure''; it produces a number with the same fluency whether that number is correct or
 fabricated.
@@ -895,7 +913,7 @@ of LLMs to finance, each requiring a specific methodological response.
         or close to their training cutoff produces inflated performance estimates.
         Robust evaluation requires hard temporal splits, purge periods, contextual
         anonymisation, and n-gram deduplication against known training corpora. The
-        contamination audit in Example~\ref{ex:ch13-contamination-audit} illustrates
+        contamination audit in \Cref{ex:ch13-contamination-audit} illustrates
         that published accuracy figures can be reduced by 8 percentage points or more
         after contamination controls.
 
@@ -911,7 +929,7 @@ of LLMs to finance, each requiring a specific methodological response.
         classification accuracy to economic metrics: Sharpe ratio, information ratio,
         factor alpha, and trading-grade metrics including transaction costs, capacity,
         and maximum drawdown. A complete evaluation protocol is defined in
-        Section~\ref{sec:ch13-trading-grade-evaluation}.
+        \Cref{sec:ch13-trading-grade-evaluation}.
 
   \item \emph{Hallucination}: LLMs fabricate citations, numerical facts, and entities
         in financial contexts, with no reliable lexical signal distinguishing correct from
@@ -956,15 +974,15 @@ literature; see \citet{lewellen2010empirical} for the asset-pricing dimension.
 \citet{grossman1980impossibility} provides the theoretical limit on informational
 efficiency. \citet{LopezLiraTang2023} establish the
 benchmark accuracy findings for ChatGPT-based headline trading strategies.
-\citet{VidalSSRN2024} reports a concrete 59.4\% average accuracy across four LLMs
-and 250 S\&P 500 firms, providing an independent empirical baseline. \citet{ChenGreenGulenZhou2024}
+\citet{VidalSSRN2024} reports an average directional accuracy only marginally above chance
+across several LLMs and a sample of S\&P~500 firms, providing an independent empirical baseline. \citet{ChenGreenGulenZhou2024}
 documents the extrapolation bias and over-optimism present in LLM stock forecasts.
 \citet{xu2024stock} surveys the broader accuracy literature, and the meta-analysis in
 \citet{zhao2025frontiers} surveys the broader accuracy landscape across a large set of heterogeneous LLM evaluation studies.
 
 \emph{Economic evaluation.} \citet{sharpe1994sharpe} defines the Sharpe ratio.
 \citet{grinold1999active} develops the information ratio and the fundamental law of
-active management. Chapter~\ref{ch:portfolio-quant-trading} of this book covers the
+active management. \Cref{ch:portfolio-quant-trading} of this book covers the
 practical implementation of walk-forward backtesting and transaction cost modelling.
 
 \emph{Hallucination.} \citet{ji2023survey} provides a comprehensive survey of
@@ -974,47 +992,3 @@ FActScore methodology for fine-grained factual evaluation. \citet{manakul2023sel
 covers self-consistency as a hallucination detection method. For grounding via RAG,
 see \citet{lewis2020rag} and the applied financial RAG system described in
 \citet{wang2025finsage}.
-
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch13-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/13-llm-limitations-evaluation/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Numerical QA Benchmark Construction]\label{ex:ch13-edgar-b}
-\textbf{[B]} For AAPL, MSFT, and GOOGL, create five question--answer pairs each
-from EDGAR XBRL data.
-Each question has the form ``What was \{company\}'s \{concept\} in fiscal year \{year\}?''
-(concepts: Revenues, NetIncomeLoss, Assets for variety).
-Format as a list of dicts with fields \texttt{ticker}, \texttt{question},
-\texttt{answer\_usd}, and \texttt{answer\_formatted}.
-Print all 15 pairs.
-See \texttt{code/notebooks/13-llm-limitations-evaluation/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[TF-IDF Retrieval Evaluation]\label{ex:ch13-edgar-i}
-\textbf{[I]} For AAPL's five most recent 10-K filings, build a TF-IDF index
-(one document per year, text = MD\&A section).
-For each of the five QA pairs constructed in Exercise~\ref{ex:ch13-edgar-b} for AAPL,
-retrieve the most relevant document by cosine similarity.
-(\textit{a})~Compute recall@1: the fraction of queries for which the correct
-filing year is the top-ranked document.
-(\textit{b})~Print the top-1 retrieved year and score for each query.
-(\textit{c})~Discuss why TF-IDF retrieval may fail on numerical queries.
-See \texttt{code/notebooks/13-llm-limitations-evaluation/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Hallucination Benchmark]\label{ex:ch13-edgar-a}
-\textbf{[A]} Simulate an LLM hallucination benchmark.
-For each of the 15 QA pairs from Exercise~\ref{ex:ch13-edgar-b}, generate
-a simulated ``LLM answer'' by adding multiplicative noise of
-$\pm 15\,\%$ (e.g.\ \texttt{true\_value * (1 + random\_noise)},
-where noise is uniform on $[-0.15, 0.15]$).
-(\textit{a})~Compute the mean absolute percentage error (MAPE) across all 15 pairs.
-(\textit{b})~Flag all answers where the absolute error exceeds 20\,\%.
-(\textit{c})~Discuss how this benchmark could be extended to evaluate
-actual LLM outputs and what additional challenges arise when answers
-are expressed in natural language rather than numbers.
-See \texttt{code/notebooks/13-llm-limitations-evaluation/exercises.ipynb}, Data Lab section.
-\end{exercise}

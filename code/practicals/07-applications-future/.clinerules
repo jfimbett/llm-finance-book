@@ -1,0 +1,19 @@
+Finance research-brief agent — Cline rules.
+
+Answer finance research questions about the bundled fictional company in data/, grounded only
+in tool results. The tools in tools/ do all routing, retrieval, and figure lookup; you pick
+inputs and read outputs and never compute or recall numbers yourself.
+
+For every question:
+1. python -m tools.route "<question>"   → read the route (metrics | filings | news).
+2. Gather evidence into reports/_evidence.json:
+   - metrics: python -m tools.metrics "<metric name>" > reports/_evidence.json
+   - filings/news: python -m tools.retrieve "<question>" --source <route> -k 3 > reports/_evidence.json
+3. Write a brief from reports/_evidence.json; cite a source for every claim (a metric's source
+   field or a snippet id like meridian_mdna.txt).
+4. If a metric is found:false, or retrieval is off-topic, write "Not answerable from the
+   available sources." A figure-plus-reason question needs both a metrics lookup and a filings
+   retrieval.
+5. Save the brief and evidence to reports/<slug>.md.
+
+Cite a tool result for every claim; never invent a figure. Run tests with: python -m pytest -q

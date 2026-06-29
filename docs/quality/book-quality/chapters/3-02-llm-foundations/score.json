@@ -1,0 +1,207 @@
+{
+  "file": "book/chapters/02-llm-foundations/chapter.tex",
+  "reading_index": 3,
+  "slug": "02-llm-foundations",
+  "title": "Large Language Models: Architecture and Practice",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 1,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 72,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:787-943 — attention, sqrt(d_k) variance=d_k, multi-head, sinusoidal-PE rotation proof all mathematically correct and re-derivable",
+        "chapter.tex:407-505 — vanishing/exploding-gradient bound (M_sigma rho)^(T-t) and LSTM constant-error-carousel argument correct, with the saturating-forget-gate caveat",
+        "chapter.tex:1243-1272 — merger example EV/EBITDA = 4.2B/310M ~ 13.5x is correct",
+        "chapter.tex:2197-2198 — LoRA 4096x4096,r=16: 16.8M->131K (128x) arithmetic correct"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:2563-2595 — roadmap table tab:roadmap describes a non-existent book structure (Ch.3 Sentiment, Ch.4 Information Extraction, Ch.5 Earnings Calls...) that contradicts the actual main.tex table of contents; fabricated/stale content presented as fact"
+      ],
+      "recommended_action": "Rebuild tab:roadmap from book/main.tex reading order using \\Cref/\\nameref, or delete the per-chapter mapping; otherwise math is release-grade"
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:1154,1569,1634,1756,1956,2261,2441 — section openers use context boxes for big picture, deepdive for internals: exemplary delineation",
+        "chapter.tex:1518 — rho-vs-p_i notation clash explicitly disambiguated"
+      ],
+      "blocking_issues": [
+        "BLOCKER (book-wide) — ch02 is the designated SSOT for transformer/attention/LSTM internals, but ch01 (01-intro/chapter.tex:1473-1710) re-derives RNN/vanishing-gradient/scaled-dot-product/multi-head with colliding labels, so the big-picture-vs-internals split is duplicated across two chapters rather than cleanly owned",
+        "MINOR · chapter.tex:48-338,344-613,619-1121 — longest deepdive runs lack an intervening context recap for a standalone big-picture path"
+      ],
+      "recommended_action": "Demote ch01 internals to \\Cref pointers (ch02 SSOT); add brief context recaps in the three long deepdive sections"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 45,
+      "pass": false,
+      "evidence": [
+        "fig_illustration.pdf present; caption (chapter.tex:1126-1133) matches the sinusoidal-PE claim in Definition def:positional-encoding",
+        "exercises.ipynb is real (22 cells) and contains positional-encoding + cosine-similarity code matching illustration ex:ch02-illustration"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:1690,1716,1841,1849,1855,2079 — six prose references send the reader to code/notebooks/02-llm-foundations/demo.ipynb for 'the complete Python implementation', but demo.ipynb is a 583-byte stub with one markdown cell and zero code; every API/structured-gen/RAG code promise is unfulfilled"
+      ],
+      "recommended_action": "Populate demo.ipynb with the promised runnable code, or re-point the six references to exercises.ipynb where real code lives"
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:37-42 — notation-inheritance remark defines V/token before use, citing Definition def:corpus-vocab",
+        "chapter.tex:246 — d_model use deferred with forward note to def:scaled-dot-product-attn",
+        "Internally every concept (attention->multi-head->PE->enc-dec; temperature->top-k->nucleus->beam) is defined before use in reading order"
+      ],
+      "blocking_issues": [
+        "MINOR — context boxes forward-reference sec:rag and sec:hallucinations before their definitions later in the same chapter; resolves intra-chapter but slightly muddies ordering"
+      ],
+      "recommended_action": "Acceptable ordering; tighten forward-pointers to \\Cref to make the intra-chapter sequence explicit"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:22-35 — explicit bridge 'begins where Chapter 1 left off (token embeddings)' and signposts the section arc",
+        "chapter.tex:346 — bridges from ch01 bag-of-tokens to sequential models"
+      ],
+      "blocking_issues": [
+        "MAJOR — the wrong roadmap table (2563-2595) and 15 wrong Chapter~N prose refs give the reader an incorrect map of how this chapter feeds later chapters, breaking the progression narrative"
+      ],
+      "recommended_action": "Fix roadmap table + Chapter~N refs (see notation_crossref); difficulty curve itself is sound"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "ch01's duplicate RNN/vanishing-gradient/scaled-dot-product/multi-head derivations were removed and now forward-reference ch02's canonical labels (thm:vanish-explode, def:lstm, def:scaled-dot-product-attn, def:mha at chapter.tex:408,455,788,845); ch02 is now the unambiguous SSOT for these derivations",
+        "Within the chapter, KD temperature reuses def:temperature by reference (chapter.tex:2139), causal mask reused by CLM (1055): good internal cross-referencing"
+      ],
+      "blocking_issues": [
+        "RESOLVED — ch01 no longer re-derives ch02's RNN/attention/LSTM material (verified by two-pass pdflatex)",
+        "MAJOR (book-wide, remaining) — ch02 still shares 7 duplicate labels with other chapters (def:rag/eq:rrf/eq:cosine-sim at 1972/2049/2004; def:lora/eq:lora at 2184/2189; def:hallucination at 2279; tab:api-costs at 1907)"
+      ],
+      "recommended_action": "Resolve the 7 remaining cross-chapter duplicate labels to a single owner per concept"
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:437-441 — vanishing-gradient bound motivated by 8-12k-token earnings calls and page-3-vs-page-20 negation",
+        "chapter.tex:1483-1486 — temperature tied to extraction-vs-stress-test finance tasks",
+        "chapter.tex:1718-1748 — structured generation motivated by numerical/field-omission/unit-confusion finance failure modes",
+        "chapter.tex:2443-2531 — limitations framed around EU AI Act, SEC fiduciary duty, GDPR, look-ahead bias (didisheim2025memory)"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE — finance-first framing is consistent throughout"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:1243-1272 — merger valuation example with concrete TechCo numbers, reasoning-vs-generative contrast",
+        "chapter.tex:1084-1101 — FinBERT two-models example correctly disambiguates Araci-2019 vs Huang-2023",
+        "chapter.tex:1910-1918 — cost worked example ($410 GPT-4o vs $20 Haiku) ties to ex:bpe and eq:cost-model",
+        "chapter.tex:2091-2096 — FinanceBench 81% failure stat grounds RAG limits realistically"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE — examples are realistic, grounded, and integrated; partially actionable once demo.ipynb is populated"
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "All 68 unique \\cite keys in the chapter resolve to entries in book/bibliography.bib",
+        "No malformed keys; entries spot-checked (LopezLiraTang2023, niszczota2023gpt, vaswani2017attention) have required fields"
+      ],
+      "blocking_issues": [
+        "MAJOR · book/bibliography.bib:1727,3175 — wei2022emergent is a duplicate key (identical content); biber will warn/error on the repeated entry"
+      ],
+      "recommended_action": "Delete one of the two wei2022emergent entries"
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:1304-1308 — LopezLiraTang2023 'ChatGPT sentiment predicts next-day returns, monotonic in model size' matches the SSRN paper's thesis",
+        "chapter.tex:1340-1344 — niszczota2023gpt '99% financial literacy' matches title 'GPT Has Become Financially Literate' (FRL 2023)",
+        "chapter.tex:2282-2289 — maynez2020faithfulness intrinsic/extrinsic taxonomy correctly attributed"
+      ],
+      "blocking_issues": [
+        "NEEDS_EXTERNAL_VERIFICATION — quantitative claims at chapter.tex:1091 (FinBERT 97%/+8pp) and 2356 (chen2024uncertainty Sharpe +20%) cannot be verified against source PDFs locally; caps this dimension at 89"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — confirm the two quantitative claims against source papers"
+    },
+    {
+      "dimension": "completeness",
+      "score": 85,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-19 — explicit Learning Objectives",
+        "Covers doc-repr, RNN/LSTM/GRU/BiLSTM, attention, transformer, pretraining, tokenisation, landscape, sampling, structured gen, API, RAG, distillation, hallucination, regulation, summary: comprehensive arc",
+        "chapter.tex:2457-2463 — explicit no-legal-advice caveat"
+      ],
+      "blocking_issues": [
+        "MAJOR · chapter.tex:2563-2595 — the chapter-roadmap, a completeness aid, is wrong and would misdirect the reader about the rest of the book"
+      ],
+      "recommended_action": "Correct the roadmap table; otherwise no critical concept/caveat missing"
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 68,
+      "pass": false,
+      "evidence": [
+        "The RNN/LSTM/attention/multihead canonical labels (eq:rnn-jacobian, thm:vanish-explode, def:lstm, eq:lstm-*, def:scaled-dot-product-attn, thm:sqrt-dk-scaling, def:mha, eq:multihead at chapter.tex:402,408,455,788,819,845,854) are now the UNIQUE definitions — the 9 ch01 collisions are resolved (verified by two-pass pdflatex)",
+        "rem:ch2-notation and the d_model deferral note show good notation discipline"
+      ],
+      "blocking_issues": [
+        "RESOLVED — the 9 RNN/LSTM/attention/multihead label collisions with ch01 are gone (ch02 is now sole owner)",
+        "MAJOR (remaining) — 7 other duplicate labels persist with other chapters: tab:api-costs (1907), def:rag (1972), eq:cosine-sim (2004), eq:rrf (2049), def:lora (2184), eq:lora (2189), def:hallucination (2279)",
+        "MAJOR · chapter.tex:24,160,346,1339,1405,1425,1427,1819,2501,2502,2519,2527,2560,2598,2599 — 15 hard-coded 'Chapter~N' prose refs (RUBRIC dim-12 forbids), numbers wrong in reading order"
+      ],
+      "recommended_action": "Resolve the 7 remaining cross-chapter duplicate labels (assign single owners); convert the 15 hard-coded Chapter~N refs to \\ref{ch:...}"
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 50,
+      "pass": false,
+      "evidence": [
+        "exercises.ipynb is a real 22-cell notebook reproducing the positional-encoding figure and the cosine-similarity geometry described in ex:ch02-illustration",
+        "fig_illustration.pdf present and consistent with its caption"
+      ],
+      "blocking_issues": [
+        "BLOCKER · demo.ipynb (583-byte stub) is referenced six times as the source of the API/structured-gen/RAG code; that code is not reproducible because it does not exist",
+        "exercises_executed.ipynb contains only 2 executed code cells vs 22 in exercises.ipynb — partial execution snapshot"
+      ],
+      "recommended_action": "Populate demo.ipynb (or re-point references) and provide a fully executed snapshot; add figure-regeneration note to ex:ch02-illustration"
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-19 — clear, measurable Learning Objectives for the mixed academic/industry audience",
+        "context/deepdive boxes scaffold big-picture-then-internals consistently",
+        "chapter.tex:1192-1193 — inline KV-cache definition; terms defined for non-experts"
+      ],
+      "blocking_issues": [
+        "MINOR — Learning Objectives promise the reader will 'implement structured JSON extraction' and 'build a RAG pipeline', but the enabling code (demo.ipynb) is a stub, so the objectives are currently unmeetable from the materials"
+      ],
+      "recommended_action": "Restore the code behind demo.ipynb so the hands-on objectives become achievable; scaffolding otherwise strong"
+    }
+  ],
+  "pass": false,
+  "notes": "Iteration 1: ch02 was NOT edited (it remains the single source of truth and retains all canonical RNN/LSTM/attention/multihead derivations). The companion ch01 SSOT edit removed ch01's duplicate derivations and colliding labels, lifting ch02's cross-chapter scores: notation_crossref 48->68, non_repetition 55->78. Both still below 90 due to ch02's OWN remaining issues (7 other duplicate labels, 15 hard-coded Chapter~N refs, stub demo.ipynb, fabricated tab:roadmap), which are out of scope for the ch01/ch02 SSOT pass. Original audit (iteration 0): Audit only, iteration 0. Mathematically excellent, finance-first chapter (correctness of derivations, finance examples, and finance orientation are release-grade). It is blocked from passing by four BLOCKER-class defects, three of which are book-wide: (1) demo.ipynb is a stub referenced 6x; (2) the chapter-roadmap table tab:roadmap is fabricated relative to the real main.tex TOC; (3) 12 \\label collisions with ch01; (4) ch01 duplicates the RNN/attention/LSTM derivations this chapter is meant to own as SSOT. Plus 15 forbidden hard-coded Chapter~N refs and a duplicate wei2022emergent bib key. citation_accuracy capped at 89 pending external verification of two quantitative claims."
+}

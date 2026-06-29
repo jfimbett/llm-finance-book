@@ -34,7 +34,7 @@ deterministic surrogate (e.g., the first occurrence of a `PERSON` entity becomes
 `PERSON_001`, the second `PERSON_002`, and so on).
 
 (b) Apply your function to the five synthetic earnings-call sentences provided in
-`code/notebooks/15-privacy-local-models/demo.ipynb`. Report which entity spans
+`code/practicals/15-privacy-local-models/`. Report which entity spans
 were detected and which were missed.
 
 (c) Propose two strategies to improve recall for financial entity types (e.g., ticker

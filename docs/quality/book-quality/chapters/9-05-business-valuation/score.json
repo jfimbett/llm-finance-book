@@ -1,0 +1,126 @@
+{
+  "file": "book/chapters/05-business-valuation/chapter.tex",
+  "reading_index": 9,
+  "slug": "05-business-valuation",
+  "title": "LLMs for Business Valuation",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 90,
+      "pass": true,
+      "evidence": ["chapter.tex:320-368 — FCFF/FCFE definitions + relationship proven from first principles", "chapter.tex:378-406 — FCFF worked example arithmetic verified (713.6M)", "Prior $15.2B-vs-$13.3B inconsistency RESOLVED: $13.3B ReAct trace removed; $15.2B recomputes exactly ($15.17B)"],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 90,
+      "pass": true,
+      "evidence": ["Consistent context→deepdive layering; intuition separated from the FCFF proof and error-propagation derivation"],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 86,
+      "pass": false,
+      "evidence": ["Single figure fig:ch05-illustration resolves and matches prose; Gordon-Growth spot-check passes (FCF 98.8B, cell WACC6%/g1% ≈ 1996)", "lst:nonrecurring-prompt is valid minted"],
+      "blocking_issues": ["MINOR · FCF inconsistency: figure/exercises use yfinance FCF $98.8B while valuation_example uses EDGAR FCF $108.8B — reader sees two AAPL FCF numbers", "MINOR · all in-chapter Python replaced by 'see demo.ipynb' pointers, but demo.ipynb is a stub"],
+      "recommended_action": "Add a one-line note reconciling the two FCF sources; ensure cited notebooks are real (see reproducibility)."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 72,
+      "pass": false,
+      "evidence": ["Builds well on ch04 agents/RAG via \\ref{ch:llm-agents}"],
+      "blocking_issues": ["MAJOR — WACC used in eq:dcf (89) but only glossed inline (85); r_E/r_D never sourced", "MAJOR — CAPM (the standard r_E model) never defined before reading index 9; only a stray inline form at read#7 (ch09:411), never referenced from ch05"],
+      "recommended_action": "Add a short WACC definition box deriving the weights and pointing r_E to CAPM; back-reference the CAPM line at read#7 or introduce CAPM properly (see completeness/finance integration)."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 88,
+      "pass": false,
+      "evidence": ["Strong explicit bridge to ch04 agents/RAG (\\Cref{ch:llm-agents}, line 1024); reuses ReAct/embedding retrieval"],
+      "blocking_issues": ["CoT reused without a bridge; difficulty otherwise sound"],
+      "recommended_action": "Add a one-line bridge for reused CoT; the WACC/CAPM fix also improves the build-up."
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 58,
+      "pass": false,
+      "evidence": ["Reading-order analysis vs ch01/ch02/ch04"],
+      "blocking_issues": ["BLOCKER — cosine similarity DEFINED a 4th time as a full definition env (chapter.tex:921) after ch01:868 (SSOT), ch02:2004, ch04:298", "MAJOR — ReAct fully re-introduced (chapter.tex:678) though ch04 (read#6) owns it"],
+      "recommended_action": "Replace the cosine-similarity redefinition with \\Cref to ch01; reduce ReAct to a short reminder + \\Cref{ch:llm-agents}."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 86,
+      "pass": false,
+      "evidence": ["Genuinely finance-first: every section motivated by a real valuation decision (M&A/IPO/Level-3 fair value; income/market/asset frameworks; FCFF/FCFE from first principles)"],
+      "blocking_issues": ["The discount rate — the single most consequential DCF input — is asserted (WACC=9%) and never motivated by a financial derivation; cost of equity / CAPM / beta / ERP appear nowhere"],
+      "recommended_action": "Supply the WACC/CAPM derivation (the orphaned valuation_example provides it for AAPL) so the discount rate is finance-derived."
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 72,
+      "pass": false,
+      "evidence": ["AAPL DCF-sensitivity heatmap (fig:ch05-illustration) is real and reader-runnable — the strongest grounded example"],
+      "blocking_issues": ["MAJOR — the flagship end-to-end case study (subsec:bv-pipeline-casestudy, 1043-1091) is an explicitly synthetic composite SaaS firm, while a complete real AAPL DCF+comps multi-agent exercise exists ORPHANED at exercises/valuation_example/ (intrinsic ~$214-225 vs ref $226.84) and is never linked — grep -rn valuation_example book/ returns nothing"],
+      "recommended_action": "Integrate exercises/valuation_example/ via one companion-exercise box (see editor-plan T1) — closes WACC gap and replaces synthetic authority with a real reproducible valuation."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 88,
+      "pass": false,
+      "evidence": ["All 18 ch05 \\cite keys resolve in the live bibliography.bib; no dups among them; only the live bib is loaded; seed stubs xu2024stock/wei2022emergent not cited here"],
+      "blocking_issues": ["MAJOR — shen2023nlp is a placeholder entry ('Shen, Sheng and others', no venue, 'Needs verification before final release') yet backs a substantive empirical claim", "MINOR — zhang2024financebench and frieder2023large carry inline % [CHECK] flags"],
+      "recommended_action": "Replace/verify shen2023nlp before release; resolve the [CHECK] flags."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 78,
+      "pass": false,
+      "evidence": ["CoT (wei2022chain), ReAct (yao2022react), Toolformer (schick2023toolformer), LoRA (hu2022lora), FinanceBench (zhang2024financebench → Islam et al. 2311.11944) all SUPPORTED; ch05's numbers are self-contained worked examples, not falsely attributed"],
+      "blocking_issues": ["MAJOR · chapter.tex:645 — cites frieder2023large for GPT-4 arithmetic errors, but that entry's title is 'LLMs and the ArXiv' (2302.00083); the arithmetic-reliability claim belongs to Frieder 'Mathematical Capabilities of ChatGPT' (2301.13867) → WRONG_PAPER", "MAJOR · chapter.tex:946 — shen2023nlp placeholder backs the EV/EBITDA-IQR claim → NEEDS_EXTERNAL_VERIFICATION"],
+      "recommended_action": "Repoint/relabel frieder2023large to the math-capabilities paper; verify or replace shen2023nlp and its EV/EBITDA claim. Do not assert until sourced."
+    },
+    {
+      "dimension": "completeness",
+      "score": 70,
+      "pass": false,
+      "evidence": ["8 learning objectives addressed across 9 sections with formal definitions and a case study"],
+      "blocking_issues": ["BLOCKER — WACC drives every DCF (eq:dcf, §2.1 example, case study, Monte Carlo, error-prop = 36+ uses) but is never derived/estimated: no CAPM, no r_E/r_D, no WACC subsection. Rubric names this the canonical completeness failure", "MINOR — §8 benchmarking has no quantitative results table"],
+      "recommended_action": "Add a WACC/CAPM derivation (orphaned exercise supplies CAPM r_E≈9.48%, WACC≈9.27% for AAPL); add a small benchmarking results table or mark qualitative explicitly."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 65,
+      "pass": false,
+      "evidence": ["Cross-chapter \\ref{ch:llm-agents} resolves; static label scan"],
+      "blocking_issues": ["BLOCKER — label collision: eq:cosine-sim defined in ch01:868, ch02:2004, AND ch05:926; \\eqref{eq:cosine-sim} resolves ambiguously"],
+      "recommended_action": "Remove the ch05 cosine-similarity redefinition (use \\Cref to ch01's SSOT), eliminating the colliding label; verify with /audit-cross-refs + build."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 62,
+      "pass": false,
+      "evidence": ["Figure regenerable via exercises.ipynb (executed copy present) and covered by run_illustrations.sh; graceful numeric fallbacks exist", "exercises/valuation_example/ is genuinely runnable, well-structured, arithmetically sound (dcf_result $225.00 vs $226.84)"],
+      "blocking_issues": ["demo.ipynb is a STUB despite being cited ~10x as 'the complete Python implementation'", "yfinance + live EDGAR fetch, no seed/snapshot → figure drifts; hard-coded User-Agent instructor@dauphine.eu", "leftover placeholder cell + mojibake in exercises.ipynb"],
+      "recommended_action": "Fill demo.ipynb (or stop citing it as authoritative); snapshot AAPL FCF; clean the placeholder/mojibake; wire valuation_example as the runnable case study."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 90,
+      "pass": true,
+      "evidence": ["LOs map to sections; ReAct trace is exceptionally pedagogical; difficulty progresses from single-firm FCFF to multi-agent orchestration"],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    }
+  ],
+  "pass": false,
+  "notes": "Initial dry-run audit (iteration 0). Below 90 on 10 of 14 dimensions. The dominant theme is a single high-leverage fix: integrating the orphaned exercises/valuation_example/ (with its CAPM/WACC derivation) closes the completeness BLOCKER and lifts finance_examples, finance_orientation, concept_ordering, progressive_learning, and reproducibility at once. Separately, removing the cosine-similarity redefinition fixes both non_repetition and the notation_crossref label collision."
+}

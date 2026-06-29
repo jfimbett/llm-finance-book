@@ -1,0 +1,66 @@
+\documentclass[12pt, openany, twoside]{book}
+
+\input{preamble}
+
+% Companion volume to the main book (main.tex -> main.pdf).
+% Declaring the main document here lets \ref/\cref/\pageref to labels in the
+% main text resolve to the correct numbers. Reads main.aux; harmless if absent.
+\externaldocument{main}
+
+% Distinguish this PDF's metadata from the main volume.
+\hypersetup{pdftitle={Large Language Models in Finance --- Appendices}}
+
+\begin{document}
+
+% ---- Half-title page ----
+\begin{titlepage}
+  \thispagestyle{empty}
+  \vspace*{3cm}
+  \begin{center}
+    {\rule{0.6\textwidth}{0.5pt}}\\[1.5cm]
+    {\Large\bfseries Large Language Models\\[6pt] in Finance}\\[1.2cm]
+    {\large\scshape Appendices}\\[0.4cm]
+    {\small A Practitioner's Reference Volume}\\[1.8cm]
+    {\large Juan F.\ Imbet}\\[0.4cm]
+    {\small Paris Dauphine\,--\,PSL University}\\[2.1cm]
+    {\small Paris, \the\year}
+  \end{center}
+  \vfill
+  \begin{center}
+    {\small\itshape Companion to the main text. Cross-references of the form\\
+     ``Appendix~A'' or ``Chapter~5'' point between this volume and the main book.}
+  \end{center}
+\end{titlepage}
+
+% ---- Copyright page ----
+\newpage
+\thispagestyle{empty}
+\vspace*{\fill}
+{\small
+\noindent Copyright \textcopyright\ \the\year\ by Juan F.\ Imbet.\\[6pt]
+All rights reserved. No part of this book may be reproduced or transmitted
+in any form or by any means, electronic or mechanical, including photocopying,
+recording, or by any information storage and retrieval system, without
+permission in writing from the author.\\[12pt]
+\noindent This volume collects the appendices of \textit{Large Language Models
+in Finance}; it is intended to be read alongside the main text.\\[12pt]
+\noindent\textit{First edition, \the\year.}
+}
+
+\frontmatter
+\tableofcontents
+
+\mainmatter
+\appendix
+\include{appendices/A-claude-code/chapter}
+\include{appendices/B-codex-cli/chapter}
+\include{appendices/C-huggingface-local/chapter}
+\include{appendices/D-sdk-commercial/chapter}
+\include{appendices/E-git-github/chapter}
+\include{appendices/F-cline/chapter}
+% Add new appendices here
+
+\backmatter
+\printbibliography[heading=bibintoc, title={References}]
+
+\end{document}

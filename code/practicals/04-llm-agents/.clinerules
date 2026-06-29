@@ -1,0 +1,16 @@
+Filing Q&A agent — Cline rules.
+
+Answer questions about the SEC filings in data/corpus/, grounded only in retrieved text.
+The tools in tools/ do all retrieval and scoring; you pick inputs and read outputs and
+never compute or recall numbers yourself.
+
+For every question:
+1. python -m tools.retrieve "<question>" -k 4 > reports/_context.json
+2. Write an answer using only facts in reports/_context.json; cite chunk ids (e.g.
+   novacorp_mdna.txt#1) after every figure.
+3. python -m tools.grade --question "<q>" --answer "<a>" --context reports/_context.json
+4. If faithfulness < 0.7, revise or answer "Not answerable from the available filings";
+   if relevance < 0.5, re-retrieve with a better query.
+5. Save the answer and scores to reports/<slug>.md.
+
+Never state a number that is not in a retrieved chunk. Run tests with: python -m pytest -q

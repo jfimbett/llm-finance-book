@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 14 — Practical: Summarizing &amp; Extracting from SEC Filings</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 14 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 14 / Lecture 14 · Practical</div>
+    <h1>Financial Text Summarization and Information Extraction</h1>
+    <div class="sub">Hands-on: extractive summarization, ROUGE by hand, and consistency checking on a 10-K.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview · 1 hour</div>
+    <h2>What we will actually do today</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Fifty minutes of problems, ten minutes of debrief. We measure how good a summary is,
+      then catch a summary that quietly gets a number wrong.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Timed agenda</div>
+          <ol>
+            <li class="frag"><strong>Recap</strong> (5 min) — extractive vs. abstractive; ROUGE-\(N\); consistency.</li>
+            <li class="frag"><strong>Problem 1</strong> (12 min) — compute ROUGE-1/2/L by hand for two candidate summaries.</li>
+            <li class="frag"><strong>Problem 2</strong> (13 min) — design a faithfulness check; label three summary claims.</li>
+            <li class="frag"><strong>Case study</strong> (20 min) — run the Python 10-K pipeline end to end.</li>
+            <li class="frag"><strong>Discussion</strong> (10 min) — extractive vs. abstractive in production.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout frag">
+          <span class="callout-tag">the bigger picture</span>
+          A summary is only useful if you can <em>trust</em> it. Today is about the two trust questions:
+          "how close is it to the truth?" (ROUGE) and "did it get the numbers right?" (consistency).
+        </div>
+        <p class="small">Code lives in <code class="inline">code/practicals/14-financial-text-summarization/</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1: RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the formulas you will need</h2>
+    <div class="secsub">Extractive vs. abstractive, ROUGE, and the three-step consistency recipe.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Two ways to summarize</div>
+    <h2>Copy sentences, or write new ones?</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Extractive</div>
+          <ul>
+            <li>Picks <em>verbatim</em> sentences from the source</li>
+            <li>Faithfulness is <strong>free</strong> — it can only quote</li>
+            <li>Can read choppy</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Abstractive</div>
+          <ul>
+            <li><em>Generates</em> new sentences</li>
+            <li>Fluent and readable</li>
+            <li><strong>Hallucination-prone</strong> — can invent facts</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the trade-off in one line</span>
+      Extractive trades fluency for safety; abstractive trades safety for fluency. In finance, the stakes decide.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Scoring a summary</div>
+    <h2>ROUGE: how much of the reference did we recover?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">ROUGE asks a recall question in plain English: of the words (or phrases) in the human
+      reference summary, what fraction shows up in the machine's summary?</p>
+    <aside class="underhood" data-title="ROUGE-N and ROUGE-L, formally">
+      <strong>ROUGE-\(N\)</strong> (recall-oriented) counts matched \(n\)-grams:
+      \[ \text{ROUGE-}N=\frac{\#\{\text{matched } n\text{-grams}\}}{\#\{n\text{-grams in reference}\}}. \]
+      \(N=1\) is unigrams (single words), \(N=2\) is bigrams (adjacent word pairs).
+      <br><br>
+      <strong>ROUGE-L</strong> is LCS-based: it uses the <em>longest common subsequence</em> between candidate
+      and reference, so it rewards words that appear in the same <em>order</em> without requiring them adjacent.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the bigger picture</span>
+      ROUGE is a <em>word-overlap</em> ruler. It is cheap and standard — but it does not understand meaning.
+      Keep that in your pocket; Problem 1 exploits it.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Catching wrong numbers</div>
+    <h2>The three-step consistency recipe</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A summary can be fluent, well-scored, and still state a number that contradicts the filing.
+      Consistency checking is the cheap gate that catches it.</p>
+    <ol>
+      <li class="frag"><strong>Extract</strong> each metric from multiple sources (prose narrative and the XBRL table).</li>
+      <li class="frag"><strong>Normalise</strong> to a common unit and sign (e.g. all revenue in USD millions).</li>
+      <li class="frag"><strong>Cross-reference</strong> — flag any pair that disagrees beyond a tolerance (e.g. 0.1%).</li>
+    </ol>
+    <div class="block frag"><div class="block-title">Faithfulness label set</div>
+      <span class="pill g">verified</span> matches the source &nbsp;·&nbsp;
+      <span class="pill o">unverifiable</span> not in the source &nbsp;·&nbsp;
+      <span class="pill r">incorrect</span> contradicts the source
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 2: PROBLEM 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problem 1 — ROUGE by hand</h2>
+    <div class="secsub">12 minutes · compute ROUGE-1/2/L for two candidate summaries, then read the lesson.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · the setup</div>
+    <h2>Two candidates against one reference</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Treat each word as a token; lowercase everything. Reference \(R\) has 7 tokens.</p>
+    <div class="block"><div class="block-title">Reference \(R\)</div>
+      <code class="inline">revenue rose 13 percent to 56.5 billion</code>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Candidate A</div>
+          <code class="inline">revenue rose 13 percent</code>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Candidate B</div>
+          <code class="inline">profit fell 13 percent to 56.5 billion</code>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout">
+      <span class="callout-tag">your tasks</span>
+      Compute <strong>ROUGE-1</strong> (unigram recall), <strong>ROUGE-2</strong> (bigram recall), and
+      <strong>ROUGE-L</strong> (LCS recall) for both A and B.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · the catch</div>
+    <h2>Notice anything suspicious about Candidate B?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Candidate B paraphrases "revenue rose" as the <em>semantically opposite</em> "profit fell" —
+      yet it shares many tokens with the reference.</p>
+    <div class="alert callout frag">
+      <span class="callout-tag">discussion question</span>
+      What does B's score reveal about ROUGE's core weakness, and which metric from the lecture would
+      catch the error? Hold your prediction — we score it on the next slides.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 3: PROBLEM 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Problem 2 — designing a faithfulness check</h2>
+    <div class="secsub">13 minutes · label four claims, then say how to ground the numbers.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · the setup</div>
+    <h2>One abstractive summary, four claims to judge</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Source facts (from the filing / XBRL)</div>
+      revenue = \(\$\)56.5B (+13% YoY) &nbsp;·&nbsp; net income = \(\$\)16.4B &nbsp;·&nbsp; Azure growth = +29%
+    </div>
+    <div class="block frag"><div class="block-title">Candidate abstractive summary</div>
+      "Revenue grew 13% to \(\$\)56.5 billion. <strong>Net income rose to \(\$\)17 billion.</strong>
+      Azure cloud revenue increased <strong>29%</strong>, and management <strong>raised full-year guidance.</strong>"
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">your tasks</span>
+      <strong>A.</strong> Label each of the four claims (verified / unverifiable / incorrect).
+      <strong>B.</strong> For the numerical claims, which step of the 3-step recipe grounds them against XBRL?
+      <strong>C.</strong> Which claim is most dangerous in a decision context, and why?
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 4: CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Case study — an end-to-end 10-K mini-pipeline</h2>
+    <div class="secsub">20 minutes · section routing → extractive summary → ROUGE → number-consistency check.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the goal</div>
+    <h2>Take a 10-K excerpt and run the whole pipeline</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Everything runs locally in seconds — no model download, no API key. Pure Python.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The stack</div>
+          <ul>
+            <li><code class="inline">re</code> — section routing &amp; monetary-figure extraction</li>
+            <li><code class="inline">networkx</code> — TextRank graph (sentence similarity → PageRank)</li>
+            <li><code class="inline">rouge_score</code> (or the hand formula) — evaluation</li>
+          </ul>
+        </div>
+        <figure class="deckfig">
+          <img src="../assets/figures/14-financial-text-summarization/diagram.svg" alt="Summarization pipeline: 10-K to chunks to map-reduce to executive summary">
+          <figcaption><b>Figure.</b> The pipeline we implement: chunk the 10-K MD&amp;A, score each sentence with TextRank (map), then aggregate top sentences (reduce) and cross-check numbers against the XBRL table.
+            <span class="src">Source: Chapter 14 illustration.</span></figcaption>
+        </figure>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">What you will do</div>
+          <ol>
+            <li>Run the provided code on the sample MD&amp;A text</li>
+            <li>Inspect which sentences TextRank selects</li>
+            <li>Run the consistency check; see which prose number disagrees with the table</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">setup</span>
+      <code class="inline">pip install networkx rouge-score</code> — no model download or API key required.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code · part 1a</div>
+    <h2>Setup &amp; helper functions</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A short MD&amp;A excerpt, plus three helpers: split into sentences, count words, measure cosine overlap.</p>
+    <pre class="code">import re, networkx as nx
+from collections import Counter
+
+MDNA = (
+ "Revenue increased 13% to &#36;56.5 billion in fiscal 2023. "
+ "The growth was driven by strong cloud demand. "
+ "Azure revenue grew 29% year over year. "
+ "Operating margin expanded to 42%. "
+ "Management expects continued momentum into fiscal 2024. "
+ "The company faces foreign-exchange headwinds."
+)
+
+def sentences(text):
+    return [s.strip() for s in re.split(r'(?&lt;=[.!?])\s+', text) if s.strip()]
+
+def bow(s):                       # bag-of-words vector
+    return Counter(re.findall(r"[a-z]+", s.lower()))
+
+def sim(a, b):                    # cosine over word counts
+    common = set(a) &amp; set(b)
+    num = sum(a[w] * b[w] for w in common)
+    den = (sum(v*v for v in a.values())**0.5) * \
+          (sum(v*v for v in b.values())**0.5)
+    return num / den if den else 0.0</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code · part 1b</div>
+    <h2>TextRank: sentences vote for each other</h2>
+    <div class="title-rule"></div>
+    <pre class="code">def textrank(text, k=2):
+    sents = sentences(text); vecs = [bow(s) for s in sents]
+    G = nx.Graph()
+    for i in range(len(sents)):
+        for j in range(i+1, len(sents)):
+            w = sim(vecs[i], vecs[j])
+            if w &gt; 0: G.add_edge(i, j, weight=w)
+    scores = nx.pagerank(G)
+    top = sorted(scores, key=scores.get, reverse=True)[:k]
+    return [sents[i] for i in sorted(top)]
+
+print(textrank(MDNA, k=2))</pre>
+    <div class="bigpicture callout">
+      <span class="callout-tag">the idea</span>
+      Sentences vote for each other via cosine similarity; PageRank surfaces the most central (salient) ones —
+      selected <em>verbatim</em>, so the extractive summary is faithful by construction.
+    </div>
+    <aside class="underhood" data-title="why PageRank surfaces salience">
+      Build a graph where node \(i\) is a sentence and edge weight \(w_{ij}=\mathrm{sim}(s_i,s_j)\) is the
+      cosine of their bag-of-words vectors. PageRank assigns each sentence a stationary score
+      \[ \pi_i = \frac{1-\delta}{n} + \delta \sum_{j} \frac{w_{ji}}{\sum_k w_{jk}}\,\pi_j, \]
+      so a sentence is "important" if it is similar to many other important sentences. The top-\(k\) by \(\pi\)
+      are the most <em>central</em> — the ones the document keeps coming back to.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code · part 2</div>
+    <h2>Consistency check: prose number vs. the table</h2>
+    <div class="title-rule"></div>
+    <pre class="code"># Table (XBRL-derived) ground truth, in USD millions
+TABLE = {"revenue": 56500.0, "azure_growth_pct": 29.0}
+
+# Numbers stated in the prose narrative
+PROSE = {"revenue": 56500.0, "azure_growth_pct": 28.0}  # note: 28 vs 29
+
+def consistency(table, prose, tol=0.001):
+    flags = []
+    for k in table.keys() &amp; prose.keys():
+        t, p = table[k], prose[k]
+        rel = abs(t - p) / abs(t) if t else 0.0
+        status = "OK" if rel &lt;= tol else "MISMATCH"
+        flags.append((k, t, p, f"{rel:.2%}", status))
+    return flags
+
+for row in consistency(TABLE, PROSE):
+    print(row)
+# -&gt; ('revenue', 56500.0, 56500.0, '0.00%', 'OK')
+# -&gt; ('azure_growth_pct', 29.0, 28.0, '3.45%', 'MISMATCH')</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostics</div>
+    <h2>After running both parts, work through these</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Coverage:</strong> which sentences did TextRank select? Do they cover revenue
+        <em>and</em> guidance?</li>
+      <li class="frag"><strong>Root cause:</strong> the check flags <code class="inline">azure_growth_pct</code>.
+        Is this an <em>extraction error</em> or a <em>disclosure inconsistency</em>? How would you tell?</li>
+      <li class="frag"><strong>Tolerance:</strong> set <code class="inline">tol = 0.05</code>. Does the mismatch
+        still flag? What is the danger of a loose tolerance?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 5: DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Discussion — extractive vs. abstractive in production</h2>
+    <div class="secsub">10 minutes · for each scenario, choose a paradigm and justify it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · three scenarios</div>
+    <h2>Which paradigm — and why?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each, choose extractive, abstractive, or hybrid — and justify.</p>
+    <ol>
+      <li class="frag"><strong>Covenant monitoring</strong> — summarise loan-agreement clauses for a credit committee.
+        <em>Every numerical threshold must be exact.</em></li>
+      <li class="frag"><strong>Equity desk digest</strong> — a fluent 150-word daily roundup of overnight analyst notes,
+        for human readers who will not act on it directly.</li>
+      <li class="frag"><strong>Regulator-facing 10-K summary</strong> — must be auditable: every claim traceable to a
+        source sentence.</li>
+    </ol>
+    <div class="block frag"><div class="block-title">Frame your answer around</div>
+      Faithfulness vs. fluency · hallucination cost · auditability / traceability · whether a human or a
+      downstream system consumes the output · availability of a structured (XBRL) ground truth for grounding.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 6: SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Worked answers to Problems 1 and 2, and the lesson each one teaches.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>ROUGE by hand — the scores</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Reference \(R\) (7 tokens): <code class="inline">revenue rose 13 percent to 56.5 billion</code>.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Candidate A — "revenue rose 13 percent"</div>
+          <ul>
+            <li>ROUGE-1 = \(4/7 \approx \mathbf{0.571}\)</li>
+            <li>ROUGE-2 = \(3/6 = \mathbf{0.500}\)</li>
+            <li>ROUGE-L = \(4/7 \approx \mathbf{0.571}\)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Candidate B — "profit fell 13 percent to 56.5 billion"</div>
+          <ul>
+            <li>ROUGE-1 = \(5/7 \approx \mathbf{0.714}\)</li>
+            <li>ROUGE-2 = \(4/6 \approx \mathbf{0.667}\)</li>
+            <li>ROUGE-L = \(5/7 \approx \mathbf{0.714}\)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="where each number comes from">
+      <strong>A</strong> matches \(\{\)revenue, rose, 13, percent\(\}\) → 4 unigrams of 7.
+      Bigrams "revenue rose", "rose 13", "13 percent" → 3 of 6. The 4 words appear in order → LCS \(=4\).
+      <br><br>
+      <strong>B</strong> matches \(\{\)13, percent, to, 56.5, billion\(\}\) → 5 unigrams of 7.
+      Bigrams "13 percent", "percent to", "to 56.5", "56.5 billion" → 4 of 6. LCS \(=5\).
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1 · the lesson</div>
+    <h2>The wrong-meaning summary won</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Recall: A scored \(\approx 0.571\); B scored \(\approx 0.714\) on <em>every</em> ROUGE variant.</p>
+    <div class="alert callout">
+      <span class="callout-tag">the lesson</span>
+      B <em>outscores</em> A on every variant despite <strong>inverting the meaning</strong>
+      ("revenue rose" → "profit fell"). ROUGE rewards lexical overlap, not semantics or factual direction.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the move that follows</span>
+      This is exactly why finance needs <strong>factual-consistency / NLI-based</strong> checks (e.g. FactCC),
+      not ROUGE alone, to catch a summary that says the opposite of the truth.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>Faithfulness check — labels and grounding</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Claim</th><th>Label</th><th>Why</th></tr>
+      <tr><td>Revenue grew 13% to \(\$\)56.5B</td><td><span class="pill g">verified</span></td><td>matches source</td></tr>
+      <tr><td>Net income rose to \(\$\)17 billion</td><td><span class="pill r">incorrect</span></td><td>source is \(\$\)16.4B; rounding to \(\$\)17B is <em>material</em></td></tr>
+      <tr><td>Azure increased 29%</td><td><span class="pill g">verified</span></td><td>matches source</td></tr>
+      <tr><td>Management raised full-year guidance</td><td><span class="pill o">unverifiable</span></td><td>no guidance fact in the source</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">B. Grounding numbers against XBRL</div>
+      This is step (3), <em>cross-reference</em>: after extraction and normalisation, compare each prose number
+      to the XBRL figure. \(\$\)17B vs. \(\$\)16.4B is \(\sim 3.7\%\) — exceeds a 0.1% tolerance → flag.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2 · the verdict</div>
+    <h2>Which claim is most dangerous?</h2>
+    <div class="title-rule"></div>
+    <div class="alert callout">
+      <span class="callout-tag">the net-income claim</span>
+      It is confidently stated, numerically wrong, and feeds directly into valuation / EPS reasoning — a
+      decision-grade error wearing the clothes of a precise fact.
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the subtler risk</span>
+      The "unverifiable" guidance claim is also risky (potential extrinsic hallucination) — but it is
+      detectable as <em>ungrounded</em> rather than contradicted, which makes it easier to flag automatically.
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Five takeaways — and where the next practical goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Key takeaways</h3>
+        <ul>
+          <li><strong>ROUGE is lexical</strong> — high overlap can coexist with inverted meaning; pair it with semantic (BERTScore) and factual (NLI / XBRL-grounded) checks.</li>
+          <li><strong>Extractive buys faithfulness for free</strong> — TextRank quotes salient sentences via sentence-graph PageRank.</li>
+          <li><strong>Consistency checking is a cheap, high-value gate</strong> — normalise, then cross-reference prose numbers against the XBRL table.</li>
+          <li><strong>Tolerance matters</strong> — too loose hides material errors; too tight flags rounding noise.</li>
+          <li><strong>Choose by the stakes</strong> — exact numbers / auditability → extractive; fluent human digests → abstractive (with checks).</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Next practical</div>
+          Fine-tuning SEC-BERT for FINER-139 NER and benchmarking against a zero-shot LLM extractor on
+          earnings-call entity recognition.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problems</h2>
+    <div class="secsub">Beyond the core session: hierarchical summarization and arithmetic via code.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem</div>
+    <h2>Hierarchical summarization of a 300,000-word S-1</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An S-1 runs 300,000 words — far beyond any single context window. You cannot summarise it in
+      one shot, so you summarise in stages.</p>
+    <ol>
+      <li class="frag"><strong>Stage 1:</strong> each of \(\sim\)30 sections → a 200–400-word summary.
+        What is the approximate total intermediate token budget?</li>
+      <li class="frag"><strong>Stage 2:</strong> concatenate the section summaries; a second-pass model → the final summary.</li>
+      <li class="frag"><strong>Compare:</strong> cost vs. a retrieval-augmented approach that summarises only the
+        top-\(k\) passages for "principal risk factors". When does each win?</li>
+    </ol>
+    <aside class="underhood" data-title="rough token budget">
+      30 sections \(\times\) ~300-word summaries \(\approx\) 9{,}000 words \(\approx\) 12{,}000 tokens of
+      intermediate text, plus the input cost of reading all 300{,}000 words once. Retrieval skips most of the
+      input read: it embeds and fetches only the passages matching the query, trading recall for cost when the
+      question is narrow.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem</div>
+    <h2>Arithmetic via code — the ReAct principle</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The lecture's ReAct principle: don't make the LLM do mental arithmetic — route the calculation
+      to a code interpreter.</p>
+    <p>Given extracted <code class="inline">revenue_2023 = 56500</code> and
+      <code class="inline">revenue_2022 = 50000</code> (USD M), an LLM is asked for YoY growth.</p>
+    <ol>
+      <li class="frag">Why might the LLM answer "~11%" or "15%" when computing inline?</li>
+      <li class="frag">Write the one-line Python the agent should emit instead:
+        <code class="inline">(56500 - 50000) / 50000 * 100</code>.</li>
+      <li class="frag">State the verified result and explain how separating "decide-what-to-compute" from
+        "actually-compute" eliminates the numerical-error class.</li>
+    </ol>
+    <aside class="underhood" data-title="the verified number">
+      \[ \frac{56500 - 50000}{50000}\times 100 = \frac{6500}{50000}\times 100 = \mathbf{13\%}. \]
+      The LLM <em>decides</em> the formula; the interpreter <em>executes</em> it exactly. The model never
+      approximates a division, so the inline-arithmetic error class disappears.
+    </aside>
+  </section>
+
+</div></div>
+</body>
+</html>

@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 12 — Practical: Explaining Financial LLM Decisions</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 12 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 12 / Lecture 12 · Practical</div>
+    <h1>Explainability and Interpretability of LLMs in Finance</h1>
+    <div class="sub">Hands-on: SHAP by hand, faithfulness, and a compliant denial-letter pipeline.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview</div>
+    <h2>One hour: 50 minutes of problems, 10 of debrief</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Today we don't just <em>read</em> about explainability — we compute it, stress-test it,
+      and catch a real compliance failure before it ships.</p>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — Shapley formula, faithfulness metrics, the safe generation pipeline.</li>
+          <li class="frag"><strong>Problem 1</strong> (12 min) — Shapley values by hand for a 2-feature credit game; check efficiency.</li>
+          <li class="frag"><strong>Problem 2</strong> (12 min) — Score sufficiency &amp; comprehensiveness; judge faithfulness.</li>
+          <li class="frag"><strong>Problem 3</strong> (8 min) — Audit an LLM-drafted denial letter for ECOA compliance.</li>
+          <li class="frag"><strong>Case Study</strong> (15 min) — Run the deterministic SHAP attribution generator; vary inputs.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout frag">
+          <span class="callout-tag">the bigger picture</span>
+          An explanation that <em>sounds</em> right but isn't tied to the model is a liability, not an asset.
+          The whole session trains one instinct: trust an explanation only when the numbers force it.
+        </div>
+        <div class="block frag"><div class="block-title">Discussion (8 min)</div>
+          When is a <em>plausible</em> explanation worse than no explanation at all?
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION: RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the three tools you'll use today</h2>
+    <div class="secsub">Shapley attribution, faithfulness metrics, and the constrained explanation pipeline.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · attribution</div>
+    <h2>Shapley values: fair credit, and a built-in correctness check</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A Shapley value answers "how much did <em>this</em> feature contribute to the decision?" by
+      averaging its marginal effect over every order the features could arrive in (Lundberg &amp; Lee, 2017).</p>
+    <div class="block">
+      <div class="block-title">The check you can never skip — efficiency</div>
+      The attributions must add up to the gap between the actual prediction and the average prediction.
+      If they don't, you computed something wrong.
+    </div>
+    <aside class="underhood" data-title="the Shapley formula and the n=2 case">
+      \[
+      \phi_i(v) = \sum_{S \subseteq N \setminus \{i\}}
+      \frac{|S|!\,(n-|S|-1)!}{n!}\bigl[v(S \cup \{i\}) - v(S)\bigr].
+      \]
+      For \(n=2\), each feature has exactly two orderings, so
+      \[
+      \phi_1 = \tfrac{1}{2}\bigl[v(\{1\})-v(\emptyset)\bigr]
+             + \tfrac{1}{2}\bigl[v(\{1,2\})-v(\{2\})\bigr].
+      \]
+      <strong>Efficiency:</strong>
+      \[
+      \phi_1 + \phi_2 = v(\{1,2\}) - v(\emptyset) = f(x) - \mathbb{E}[f(X)].
+      \]
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">why it matters for compliance</span>
+      In an adverse-action notice, \(|\phi_i|\) ranks the reasons — the biggest driver is listed first.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · faithfulness &amp; pipeline</div>
+    <h2>Does the explanation actually describe the model?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two ablation tests turn "this looks like a good explanation" into a number.
+      <strong>Sufficiency</strong>: keep only the explained words — does the prediction survive?
+      <strong>Comprehensiveness</strong>: remove them — does the prediction collapse?</p>
+    <aside class="underhood" data-title="sufficiency and comprehensiveness">
+      <strong>Sufficiency</strong> (keep only the explained set \(e\)):
+      \[ \text{Suff}(e,f,x) = 1 - |f(x) - f(x_{e(x)})| \quad (\to 1 \text{ is best}). \]
+      <strong>Comprehensiveness</strong> (remove the explained set):
+      \[ \text{Comp}(e,f,x) = |f(x) - f(x_{\bar{e}(x)})| \quad (\text{high is good}). \]
+    </aside>
+    <div class="block">
+      <div class="block-title">The constrained explanation pipeline (for Problem 3)</div>
+      Decide → attribute (SHAP / IG) → <em>constrained</em> LLM translation → compliance filter → human review.
+      The generator may refer <strong>only</strong> to the attribution feed; it must not invent factors or
+      reference protected characteristics (ECOA).
+    </div>
+  </section>
+
+  <!-- ============================ SECTION: PROBLEMS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problems — work these before the solutions</h2>
+    <div class="secsub">A credit game, a faithfulness audit, and a denial letter that breaks the law.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 12 min</div>
+    <h2>Shapley values for a two-feature credit game</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A credit model scores an applicant on two features:
+      \(x_1=\) debt-to-income, \(x_2=\) revenue trend. The value function \(v(S)\) is the model's
+      \(P(\text{creditworthy})\) when only the features in \(S\) are known.</p>
+    <div class="cols">
+      <div class="col">
+        <table>
+          <tr><th>Coalition \(S\)</th><th>\(v(S)\)</th></tr>
+          <tr><td>\(\emptyset\) (baseline)</td><td>0.50</td></tr>
+          <tr><td>\(\{1\}\) (DTI only)</td><td>0.32</td></tr>
+          <tr><td>\(\{2\}\) (revenue only)</td><td>0.41</td></tr>
+          <tr><td>\(\{1,2\}\) (both)</td><td>0.14</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Your tasks</div>
+          <ul>
+            <li><strong>A.</strong> Compute \(\phi_1\) and \(\phi_2\) from the \(n=2\) formula.</li>
+            <li><strong>B.</strong> Verify efficiency: \(\phi_1+\phi_2 = v(\{1,2\})-v(\emptyset)\).</li>
+            <li><strong>C.</strong> Which feature drives the rejection? In an ECOA notice, which reason is listed first?</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 12 min</div>
+    <h2>Is this explanation faithful — or just plausible?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A text classifier outputs \(f(x)=0.14\) for a loan application (baseline 0.50). An XAI method
+      claims the set \(e(x)=\{\)"struggled", "declining", "down 30%"\(\}\) accounts for the decision.
+      You run two ablations:</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li>Keep <em>only</em> \(e(x)\) (mask the rest): \(f(x_{e(x)}) = 0.19\).</li>
+          <li>Remove <em>only</em> \(e(x)\) (keep the rest): \(f(x_{\bar{e}(x)}) = 0.44\).</li>
+        </ul>
+        <div class="block"><div class="block-title">Tasks A–C</div>
+          <ul>
+            <li><strong>A.</strong> Compute sufficiency \(\text{Suff}(e,f,x)\).</li>
+            <li><strong>B.</strong> Compute comprehensiveness \(\text{Comp}(e,f,x)\).</li>
+            <li><strong>C.</strong> Is it faithful? What would a <em>low</em> sufficiency <em>and</em> a low comprehensiveness have told you?</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout"><span class="callout-tag">Task D — the attention trap</span>
+          The attention map for the same input highlights "restaurant" and "market" instead.
+          After ablating those two tokens, \(f\) is <em>unchanged</em> at 0.14.
+          What does that imply about the attention explanation? (Jain &amp; Wallace, 2019)
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · 8 min</div>
+    <h2>Audit an LLM-drafted denial letter</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An LLM was given the attribution feed (DTI \(-0.18\), revenue \(-0.12\), cash reserve \(-0.07\))
+      and produced the draft below. <strong>Find every compliance defect</strong> against ECOA / Reg. B.</p>
+    <div class="alert callout">
+      <span class="callout-tag">draft denial letter</span>
+      "Dear Applicant, your application was declined. Your overall credit profile did not meet our criteria.
+      We also note that applicants in your area and of your demographic tend to default more often, and your
+      business outlook seemed weak. We wish you the best."
+    </div>
+    <div class="block"><div class="block-title">Task — flag which the draft violates and why</div>
+      <ol class="small">
+        <li>Vagueness (specificity requirement — Reg. B requires 4–5 principal reasons, stated specifically).</li>
+        <li>Introduction of a factor <em>not</em> in the attribution feed (hallucinated by the generator).</li>
+        <li>Reference to a protected characteristic (ECOA prohibition).</li>
+        <li>Missing required disclosures (statement-of-reasons / consumer-report rights).</li>
+      </ol>
+      Then rewrite the first sentence to be <em>specific and compliant</em> using the feed.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION: CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case study — the deterministic SHAP figure</h2>
+    <div class="secsub">Reproduce a token-level attribution chart, then modify it and reason about audit guarantees.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · intro</div>
+    <h2>Why a hard-coded explanation is the responsible one</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Goal: reproduce the token-level SHAP attribution chart from the chapter's credit example,
+      then change it and watch what happens.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/12-xai-explainability/fig_shap_attribution.png" alt="Token-level SHAP attribution bar chart for the credit-decision example">
+      <figcaption><b>Figure.</b> The target output: token-level SHAP attributions for the fine-tuned BERT credit classifier. Red bars push \(P(\text{creditworthy})\) from the 0.50 baseline down to 0.14; "operates" makes a small positive contribution. You will reproduce and modify this chart.
+        <span class="src">Source: deterministically generated by <code>gen_shap_attribution.py</code> from fixed example values — no live model or data.</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code</div>
+    <h2>A waterfall of token contributions</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The script</div>
+          <code class="inline">code/figures/12-xai-explainability/gen_shap_attribution.py</code>
+        </div>
+        <div class="bigpicture callout">
+          <span class="callout-tag">why deterministic?</span>
+          The script hard-codes the documented attribution values — it depends on <em>no</em> live model or
+          data, so every student reproduces an identical figure. That is exactly the
+          <em>reproducibility</em> property auditors require.
+        </div>
+      </div>
+      <div class="col">
+        <pre class="code">TOKENS = [
+    ("struggled",   -0.089),
+    ("declining",   -0.073),
+    ("down 30%",    -0.061),
+    ("competitive", -0.047),
+    ("restaurant",  -0.038),
+    ("pandemic",    -0.029),
+    ("operates",    +0.012),
+]
+# sort most-negative at the bottom
+items  = sorted(TOKENS, key=lambda t: t[1])
+colors = ["#d62728" if v &lt; 0
+          else "#2ca02c" for v in values]</pre>
+      </div>
+    </div>
+    <div class="takeaway callout">
+      <span class="callout-tag">read the numbers</span>
+      Baseline \(0.50 \to\) model output \(0.14\); total gap \(= -0.36\).
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · diagnostic questions</div>
+    <h2>Run it, then interrogate the output</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Q1.</strong> What is the printed sum of the seven shown tokens? Compare to the full gap
+        \(0.14 - 0.50 = -0.36\). Why is the sum of the <em>shown</em> tokens not exactly \(-0.36\)?
+        <span class="small">(Hint: completeness.)</span></li>
+      <li class="frag"><strong>Q2.</strong> Compute the SHAP completeness ratio
+        \(\sum_{i\in e}\phi_i / (f(x)-\mathbb{E}[f(X)])\) for the seven tokens. What fraction of the decision do they explain?</li>
+      <li class="frag"><strong>Q3.</strong> Change "operates" from \(+0.012\) to \(-0.030\). Does its bar change colour?
+        What would such a sign flip imply for the adverse-action narrative?</li>
+      <li class="frag"><strong>Q4.</strong> The figure is <em>deterministic</em>. Contrast with running KernelSHAP or LIME live
+        on the model. Which audit property does the deterministic version guarantee that a live, unseeded run does not?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION: DISCUSSION ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion — when a plausible explanation is dangerous</h2>
+    <div class="secsub">Decide whether each explanation is safe to ship, and what extra check you'd require.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 8 min</div>
+    <h2>Three explanations — which would you ship?</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Fluent but unanchored.</strong> A retail chatbot writes a polished paragraph explaining a
+        loan rejection — but it was <em>not</em> given the upstream SHAP feed.</li>
+      <li class="frag"><strong>Plausible but not faithful.</strong> An attention heat-map highlights tokens an expert
+        agrees are relevant, yet ablating them does not change the prediction (Jain &amp; Wallace, 2019).</li>
+      <li class="frag"><strong>An invented number.</strong> A robo-adviser's suitability narrative cites a 9% expected
+        return that does not appear in the product's Key Information Document (violates MiFID II suitability requirements, ESMA 2018).</li>
+    </ol>
+    <div class="block"><div class="block-title">Frame your answer around</div>
+      faithfulness vs. plausibility (Jacovi &amp; Goldberg, 2020) · the separation-of-concerns pipeline · protected characteristics (ECOA) · reproducibility for audit.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION: SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions</h2>
+    <div class="secsub">Work the problems first — then check your numbers and reasoning against these.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>Debt-to-income is the stronger driver</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Both features push the score down; DTI pushes harder, so it heads the ECOA notice.</p>
+    <aside class="underhood" data-title="full Shapley computation">
+      <strong>Task A.</strong>
+      \[
+      \phi_1 = \tfrac{1}{2}[v(\{1\})-v(\emptyset)] + \tfrac{1}{2}[v(\{1,2\})-v(\{2\})]
+             = \tfrac{1}{2}(0.32-0.50) + \tfrac{1}{2}(0.14-0.41)
+      \]
+      \[
+      = \tfrac{1}{2}(-0.18) + \tfrac{1}{2}(-0.27) = -0.090 - 0.135 = \mathbf{-0.225}.
+      \]
+      \[
+      \phi_2 = \tfrac{1}{2}(0.41-0.50) + \tfrac{1}{2}(0.14-0.32)
+             = \tfrac{1}{2}(-0.09) + \tfrac{1}{2}(-0.18) = \mathbf{-0.135}.
+      \]
+      <strong>Task B (efficiency).</strong>
+      \( \phi_1 + \phi_2 = -0.225 - 0.135 = -0.360 = v(\{1,2\}) - v(\emptyset) = 0.14-0.50.\ \checkmark \)
+    </aside>
+    <div class="takeaway callout">
+      <span class="callout-tag">Task C</span>
+      \(|\phi_1| > |\phi_2|\): <strong>debt-to-income</strong> is the stronger driver \(\Rightarrow\) listed first in the ECOA notice.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>Faithful by both tests — attention fails one</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Tasks A &amp; B</div>
+          <p><strong>Sufficiency:</strong> \(\text{Suff} = 1 - |0.14 - 0.19| = 1 - 0.05 = \mathbf{0.95}\) — high: keeping only \(e(x)\) nearly reproduces the prediction.</p>
+          <p><strong>Comprehensiveness:</strong> \(\text{Comp} = |0.14 - 0.44| = \mathbf{0.30}\) — large: removing \(e(x)\) moves the prediction most of the way back toward the 0.50 baseline.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout"><span class="callout-tag">Task C</span>
+          High sufficiency <em>and</em> high comprehensiveness \(\Rightarrow\) the explanation is <strong>faithful</strong>:
+          the three tokens both suffice for and are necessary to the decision. Low sufficiency would mean \(e(x)\)
+          omits real drivers; low comprehensiveness would mean the model routes around \(e(x)\).
+        </div>
+        <div class="alert callout"><span class="callout-tag">Task D</span>
+          The attention explanation <strong>fails comprehensiveness</strong> (ablating its tokens leaves \(f=0.14\) unchanged).
+          It is <em>plausible</em> but not <em>faithful</em> — not audit-grade (Jain &amp; Wallace, 2019).
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 3</div>
+    <h2>Four defects — and a compliant rewrite</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Defects in the draft</div>
+          <ol class="small">
+            <li><strong>Vagueness:</strong> "credit profile did not meet our criteria" — no specific, quantified reasons. Violates Reg. B specificity.</li>
+            <li><strong>Unlisted factor:</strong> "business outlook seemed weak" is not in the feed — the generator hallucinated it.</li>
+            <li><strong>Protected characteristic:</strong> "applicants … of your demographic" — prohibited basis under ECOA. Severe.</li>
+            <li><strong>Missing disclosures:</strong> no statement-of-reasons right, no free-consumer-report-copy notice.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout"><span class="callout-tag">compliant rewrite of the first sentence</span>
+          "Your application was declined primarily because your debt-to-income ratio of 54% exceeded our maximum
+          of 45%, your revenue declined 28% year-on-year, and your cash reserves covered under one month of
+          operating expenses."
+        </div>
+        <p class="small">Specific, quantified, drawn <em>only</em> from the feed, no protected factors.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>Four lessons to carry out the door</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Problem 1:</strong> Shapley values are marginal contributions averaged over orderings;
+            efficiency is your built-in correctness check, and \(|\phi_i|\) orders the ECOA reasons.</li>
+          <li class="frag"><strong>Problem 2:</strong> Faithfulness = sufficiency <em>and</em> comprehensiveness.
+            Attention can be plausible yet fail comprehensiveness — not audit-grade (Jacovi &amp; Goldberg, 2020).</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Problem 3:</strong> The dangerous failures are hallucinated factors and
+            protected-characteristic leakage. Constrain the generator + add a compliance filter + human review.</li>
+          <li class="frag"><strong>Case study:</strong> Deterministic, seeded explanations are reproducible —
+            the property audits demand and live LIME / KernelSHAP runs do not guarantee.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="block frag"><div class="block-title">Next practical</div>
+      Privacy and local models: running explainable pipelines on-premises when client data cannot leave the institution.
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problem</h2>
+    <div class="secsub">Counterfactual search on a linear scoring model. Beyond the core session.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch problem</div>
+    <h2>Counterfactual search: the smallest change that flips the decision</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A scoring model uses two structured features, DTI \(d\) and cash-reserve months \(c\).
+      Approve iff score \(\geq 0.5\), where
+      \(\text{score} = 0.5 - 1.2(d - 0.45) + 0.1(c - 3)\) and \(d\) is a fraction.
+      An applicant has \(d=0.54\), \(c=0.8\) (matching the chapter example).</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Tasks</div>
+          <ol class="small">
+            <li>Compute the current score. Is the applicant approved?</li>
+            <li>Find the minimal single-feature change in \(d\) (holding \(c\) fixed) that flips the decision. State it as an actionable counterfactual (Wachter et al., 2017).</li>
+            <li>Repeat for \(c\). Which counterfactual is the smaller <em>relative</em> change?</li>
+            <li>Why might the \(d\)-counterfactual be preferred even if the \(c\)-change is numerically smaller?
+              <span class="small">(Hint: feasibility &amp; cost-reflecting distance.)</span></li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <aside class="underhood" data-title="solution sketch">
+          \[ \text{score} = 0.5 - 1.2(0.09) + 0.1(-2.2) = 0.5 - 0.108 - 0.22 = 0.172 &lt; 0.5 \Rightarrow \text{declined}. \]
+          Approval needs the linear term \(\geq 0\): e.g.
+          \[ d \leq 0.45 - \frac{0.1(c-3)}{1.2}. \]
+          Articulate the resulting threshold as a plain counterfactual the applicant could act on.
+        </aside>
+      </div>
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

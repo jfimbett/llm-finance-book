@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 7 — Practical: Applications, Governance, and Future Trends</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 7 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 7 / Lecture 7 · Practical</div>
+    <h1>Other Applications in Finance and Future Trends</h1>
+    <div class="sub">A 60-minute hands-on session: choose architectures, audit fairness, fuse retrievers, and design a real governance package.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">How the hour runs</div>
+    <h2>Six moves that tie the whole course together</h2>
+    <div class="title-rule"></div>
+    <p class="lead">This capstone session is less about new theory and more about <em>judgement</em> — making the
+      build-or-buy, fair-or-not, ground-or-guess calls that a real deployment forces on you.</p>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Recap</strong> (5 min) — the formulas and decision frameworks you'll reuse</li>
+          <li class="frag"><strong>Problem 1</strong> (10 min) — pick the deployment pattern &amp; architecture</li>
+          <li class="frag"><strong>Problem 2</strong> (10 min) — fairness metrics and the impossibility theorem</li>
+          <li class="frag"><strong>Problem 3</strong> (10 min) — hybrid retrieval &amp; reciprocal rank fusion</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="5">
+          <li class="frag"><strong>Case Study</strong> (15 min) — a full financial AI governance package</li>
+          <li class="frag"><strong>Discussion</strong> (5 min) — open problems &amp; responsible deployment</li>
+          <li class="frag"><strong>Solutions</strong> (5 min) — worked answers</li>
+        </ol>
+        <div class="bigpicture callout frag">
+          <span class="callout-tag">session focus</span>
+          The case study synthesises governance, bias mitigation, and system design into one realistic
+          end-to-end deployment. Everything you've learned, applied at once.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 01 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap: the frameworks you'll lean on</h2>
+    <div class="secsub">Three decisions — which pattern, how to retrieve, what "fair" means — each with a formula behind it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · choosing a pattern</div>
+    <h2>Three deployment patterns, three different jobs</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Before any modelling, decide <em>how</em> the model meets the task. Each pattern wins in a
+      different situation.</p>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block"><div class="block-title">Zero-shot</div>
+          General reasoning, no training data. Fast to stand up; weakest on consistency.</div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">RAG</div>
+          Updatable documents, an audit trail, citable sources. The default when answers must be grounded.</div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Fine-tuning</div>
+          Structured, consistent output. Worth it when format and reliability matter more than flexibility.</div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the heuristic</span>
+      No data + reasoning → zero-shot. Documents + auditability → RAG. Structured output + consistency → fine-tune.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · combining retrievers</div>
+    <h2>Reciprocal Rank Fusion: blend two rankings without tuning weights</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A dense (semantic) retriever and a sparse (keyword/BM25) retriever each rank your passages.
+      RRF merges them using only each passage's <em>rank</em> — no fragile score calibration.</p>
+    <aside class="underhood" data-title="the RRF score">
+      For query \(q\) and passage \(d_i\), with ranks from each retriever:
+      \[ s_{\text{RRF}}(q, d_i) = \frac{1}{k + r_{\text{dense}}(d_i)} + \frac{1}{k + r_{\text{sparse}}(d_i)},
+         \qquad k = 60. \]
+      A passage that ranks high in <em>either</em> list earns a large reciprocal term; the constant \(k\) damps
+      the outsized influence of the very top ranks.
+    </aside>
+    <div class="bigpicture callout">
+      <span class="callout-tag">why it matters</span>
+      Keyword search nails exact figures ("capex 2023"); semantic search catches paraphrases. RRF lets you keep
+      both strengths with one line of arithmetic.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · what "fair" means</div>
+    <h2>Three definitions of fairness — and they can't all hold</h2>
+    <div class="title-rule"></div>
+    <p class="lead">"Fair" is not one thing. There are at least three precise, reasonable definitions — and when
+      groups default at different rates, no model can satisfy all three at once.</p>
+    <div class="cols c3">
+      <div class="col">
+        <div class="block"><div class="block-title">Demographic parity</div>
+          Same approval rate for every group.</div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Equalized odds</div>
+          Same error rates (TPR, FPR) across groups.</div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Calibration</div>
+          A score of \(p\) means a true \(p\) chance — within every group.</div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the three criteria, formally">
+      Demographic parity:
+      \[ \Pr(\hat{Y}=1 \mid A=a) = \Pr(\hat{Y}=1 \mid A=b). \]
+      Equalized odds:
+      \[ \Pr(\hat{Y}=1 \mid Y=y, A=a) = \Pr(\hat{Y}=1 \mid Y=y, A=b). \]
+      Calibration within group:
+      \[ \Pr(Y=1 \mid \hat{P}=p, A=a) = p. \]
+    </aside>
+    <div class="alert callout">
+      <span class="callout-tag">impossibility · Chouldechova (2017)</span>
+      When base rates differ across groups, these three criteria <em>cannot</em> be simultaneously satisfied by
+      any non-trivial classifier. Fairness becomes a policy choice, not a checkbox.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · benchmark reference</div>
+    <h2>Five model families, three benchmarks — keep this slide open for Problem 1</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Architecture choices aren't just theory — this chart shows what domain adaptation and raw scale each buy you in practice.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/07-applications-future/fig_illustration.png" alt="Grouped bar chart of five LLM families on FinQA, FPB, and FiQA-SA benchmarks">
+      <figcaption><b>Figure.</b> Five LLM families on three financial NLP benchmarks. FinQA (Chen et al., 2021): numerical reasoning, exact-match accuracy. FPB (Malo et al., 2014): three-class sentiment. FiQA-SA (Maia et al., 2018): aspect-based sentiment F1. GPT-4 leads numerical reasoning; domain-adapted FinBERT and BloombergGPT lead on sentiment. <span class="src">Source: original benchmark papers and Xie et al. (2023) FinBench survey.</span></figcaption>
+    </figure>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">what to take from this</span>
+      Domain pre-training buys most on vocabulary-sensitive sentiment tasks. Scale dominates numerical reasoning. The right architecture for a task depends on which of these properties your task has — exactly what Problem 1 asks you to classify.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · who watches the model</div>
+    <h2>SR 11-7: three lines of defence</h2>
+    <div class="title-rule"></div>
+    <p class="lead">US model-risk guidance structures oversight into three independent layers — the same backbone we'll
+      use for the case study's governance package.</p>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">1 · Development</div>The team that builds and owns the model.</div></div>
+      <div class="col"><div class="block"><div class="block-title">2 · Independent Validation</div>Challenges the model independently of its builders.</div></div>
+      <div class="col"><div class="block"><div class="block-title">3 · Internal Audit</div>Checks that the first two lines actually do their jobs.</div></div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 02 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problems: make the calls</h2>
+    <div class="secsub">Three timed problems. Work them first — the worked solutions live in Section 05.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · 10 min</div>
+    <h2>Match each finance task to a pattern and an architecture</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For each task, pick (a) the deployment pattern — zero-shot / RAG / fine-tuning — and (b) the
+      architecture family — encoder-only / decoder-only / enc-dec / agentic. One sentence of justification each.</p>
+    <table>
+      <tr><th>Task</th><th>Description</th></tr>
+      <tr><td>(i) Trade classification</td><td>Label trades "value" or "momentum" from order-flow logs; 10,000 labelled examples; must decide within 1 ms</td></tr>
+      <tr><td>(ii) 10-K summariser</td><td>Generate a 3-paragraph summary of the MD&amp;A section; no labelled training data</td></tr>
+      <tr><td>(iii) Comparable selection</td><td>Find 8–12 comparable firms from a universe of 5,000 public companies, using their latest MD&amp;A text</td></tr>
+      <tr><td>(iv) SAR drafting</td><td>From a flagged pattern + retrieved news, draft a Suspicious Activity Report narrative for analyst review</td></tr>
+      <tr><td>(v) Credit scoring</td><td>Score loan applications from applicant text; must give calibrated PD and FCRA-compliant reason codes</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · 10 min</div>
+    <h2>Audit a loan model for fairness</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A binary loan-approval model is evaluated on two demographic groups. The confusion counts:</p>
+    <table>
+      <tr><th></th><th>A · default</th><th>A · non-default</th><th>B · default</th><th>B · non-default</th></tr>
+      <tr><td><strong>Approve</strong></td><td>15</td><td>300</td><td>30</td><td>400</td></tr>
+      <tr><td><strong>Deny</strong></td><td>85</td><td>100</td><td>70</td><td>100</td></tr>
+      <tr><td><strong>Total</strong></td><td>100</td><td>400</td><td>100</td><td>500</td></tr>
+    </table>
+    <div class="cols">
+      <div class="col"><div class="block"><div class="block-title">Part A</div>
+        Compute the approval rate for each group. Does the model satisfy <em>demographic parity</em>?</div></div>
+      <div class="col"><div class="block"><div class="block-title">Part B</div>
+        Compute TPR (defaults correctly denied) and FPR for each group. Does it satisfy <em>equalized odds</em>?</div></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · continued</div>
+    <h2>Why you can't have it all — and which to keep</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Part C</div>
+      Observed default rates: Group A \(= 100/500 = 20\%\); Group B \(= 100/600 \approx 16.7\%\). Using the
+      Chouldechova impossibility theorem, explain why the model cannot simultaneously satisfy demographic
+      parity <em>and</em> calibration within group given these base rates.</div>
+    <div class="block frag"><div class="block-title">Part D</div>
+      If you must enforce exactly one fairness criterion for a consumer credit application under ECOA, which
+      do you choose? Justify.</div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the trap</span>
+      Different base rates mean equal approval rates and honest probabilities pull in opposite directions. You
+      have to pick — and defend the pick.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · 10 min</div>
+    <h2>Fuse two retrievers with RRF</h2>
+    <div class="title-rule"></div>
+    <p class="lead">For a query over a 10-K corpus, the dense and BM25 retrievers each rank five candidate passages:</p>
+    <table>
+      <tr><th>Passage</th><th>Dense rank \(r_{\text{dense}}\)</th><th>Sparse rank \(r_{\text{sparse}}\)</th></tr>
+      <tr><td>\(d_1\)</td><td>1</td><td>4</td></tr>
+      <tr><td>\(d_2\)</td><td>2</td><td>1</td></tr>
+      <tr><td>\(d_3\)</td><td>3</td><td>5</td></tr>
+      <tr><td>\(d_4\)</td><td>4</td><td>2</td></tr>
+      <tr><td>\(d_5\)</td><td>5</td><td>3</td></tr>
+    </table>
+    <div class="cols">
+      <div class="col"><div class="block"><div class="block-title">Part A</div>
+        Compute \(s_{\text{RRF}}(q, d_i)\) for each passage with \(k = 60\). Round to 5 decimals.</div></div>
+      <div class="col"><div class="block"><div class="block-title">Part B</div>
+        Rank the passages by RRF score (highest first). Which ranks first?</div></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 3 · continued</div>
+    <h2>When keyword beats semantic — and the role of \(k\)</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Part C</div>
+      The query is "What was the capital expenditure for fiscal year 2023?" Is it better served by the dense
+      retriever or BM25? Explain why, and state the advantage of the hybrid approach.</div>
+    <div class="block frag"><div class="block-title">Part D</div>
+      Why use \(k = 60\) as the smoothing constant rather than \(k = 0\) (pure reciprocal rank)? What happens
+      to the RRF scores as \(k \to \infty\)?</div>
+  </section>
+
+  <!-- ============================ SECTION 03 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Case Study: a governance package</h2>
+    <div class="secsub">A European asset manager wants an LLM research assistant. Design the system and its controls.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the brief</div>
+    <h2>An LLM investment assistant for equity analysts</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A European asset manager wants to deploy an LLM-based research assistant. Its outputs feed
+      investment recommendations that may reach <em>retail</em> clients — so the stakes are regulatory, not just technical.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Four capabilities</div>
+          <ol>
+            <li>Answer NL queries about public companies via RAG over 10-K/10-Q filings</li>
+            <li>Generate one-page analyst briefings on demand</li>
+            <li>Classify the sentiment of earnings-call transcripts</li>
+            <li>Suggest comparable companies for a target</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Step 1 · 5 min</div>
+          Map each of the four capabilities to an architecture (deployment pattern + family). Identify the most
+          important integration constraint for each.</div>
+        <p class="small">Delivered through the firm's internal Slack workspace.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · controls</div>
+    <h2>Wrap the system in SR 11-7 and a hallucination protocol</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Step 2 · 5 min — governance structure</div>
+      Draft the SR 11-7 three-lines structure. For each line of defence, name one <em>LLM-specific</em> control
+      that would not appear in the governance of a traditional statistical model.</div>
+    <div class="block"><div class="block-title">Step 3 · 5 min — incident response</div>
+      The assistant sometimes hallucinates company-specific figures. Design a monitoring &amp; incident-response
+      protocol specifying (a) how hallucinations are detected, (b) severity classification, and (c) the
+      escalation pathway.</div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the framing</span>
+      Architecture <em>is</em> compliance: the audit log, the validation line, the incident pathway are the deliverable,
+      not an afterthought.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · build it</div>
+    <h2>Detect hallucinations by checking claims against sources</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Complete this function: for every numerical claim in a response, verify whether a retrieved
+      passage actually supports it.</p>
+    <pre class="code">import re, anthropic
+
+def verify_numerical_claims(response: str,
+                            retrieved_passages: list[str],
+                            client: anthropic.Anthropic) -&gt; dict:
+    """
+    For each numerical claim in `response`, verify whether it appears
+    in `retrieved_passages`. Return a dict with keys:
+      'supported': list of (claim, source_passage) pairs
+      'unsupported': list of claims NOT found in any passage
+      'hallucination_rate': float in [0.0, 1.0]
+    """</pre>
+    <p class="small">Skeleton notebook: <code class="inline">code/practicals/07-applications-future/</code></p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · build it (cont.)</div>
+    <h2>The three steps — and two things that can bite you</h2>
+    <div class="title-rule"></div>
+    <pre class="code">    # Step 1: extract all numerical claims from response
+    # (use the LLM to list them as JSON)
+    # TODO: write extraction prompt
+
+    # Step 2: for each claim, check if it appears in any retrieved passage
+    # TODO: use string matching or a second LLM call for semantic matching
+
+    # Step 3: compute hallucination_rate = len(unsupported) / len(all_claims)
+    pass</pre>
+    <div class="cols">
+      <div class="col"><div class="alert callout"><span class="callout-tag">Q1</span>
+        Why might string matching fail for financial figures — e.g. "\(\$\)4.2 billion" vs. "4,200"?</div></div>
+      <div class="col"><div class="alert callout"><span class="callout-tag">Q2</span>
+        What is the risk of using a second LLM call to do semantic matching?</div></div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 04 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Discussion: responsible deployment</h2>
+    <div class="secsub">Three short scenarios for small-group debate — no clean answers, only defensible ones.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Discussion · 5 min</div>
+    <h2>Three things that go wrong after launch</h2>
+    <div class="title-rule"></div>
+    <div class="block frag"><div class="block-title">A · Unfaithful reasoning</div>
+      The assistant outputs a "buy" with a chain-of-thought that correctly spots strong free cash flow — but
+      calls it a <em>concern</em>, then recommends buy anyway. How do you classify this incident? What does it
+      say about trusting CoT for auditability?</div>
+    <div class="block frag"><div class="block-title">B · Feedback loop</div>
+      Six months in, the stocks the assistant rates most positively show <em>lower</em> subsequent alpha than at
+      launch; you suspect rivals deployed similar systems. What evidence would you look for? What governance
+      response fits?</div>
+    <div class="block frag"><div class="block-title">C · Regulatory inquiry</div>
+      MiFID II regulators ask for the full 12-month log of recommendations <em>including the prompts</em>. The
+      system logs outputs but not prompts. Describe the compliance gap and the remediation.</div>
+  </section>
+
+  <!-- ============================ SECTION 05 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions: worked answers</h2>
+    <div class="secsub">Compare against your work. The arithmetic is exact; the design calls are defensible, not unique.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 1</div>
+    <h2>Pattern + architecture for each task</h2>
+    <div class="title-rule"></div>
+    <table>
+      <tr><th>Task</th><th>Answer</th><th>Why</th></tr>
+      <tr><td>(i) Trade classification</td><td><span class="pill g">Fine-tune + Encoder-only</span></td><td>10K labels; sub-ms latency; pure classification</td></tr>
+      <tr><td>(ii) 10-K summariser</td><td><span class="pill b">Zero-shot + Decoder-only</span></td><td>No labels; fluent text; RAG optional for freshness</td></tr>
+      <tr><td>(iii) Comparable selection</td><td><span class="pill o">RAG + Agentic</span></td><td>Retrieve &amp; reason over 5,000 firms; multi-step</td></tr>
+      <tr><td>(iv) SAR drafting</td><td><span class="pill b">RAG + Decoder / Enc-Dec</span></td><td>Retrieved news context; fluent generation</td></tr>
+      <tr><td>(v) Credit scoring</td><td><span class="pill g">Fine-tune + Decoder-only</span></td><td>Constrained output: calibrated PD + reason codes</td></tr>
+    </table>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 2</div>
+    <h2>The fairness audit, worked</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Part A — demographic parity</div>
+          A \(= (15+300)/500 = 63\%\); B \(= (30+400)/600 \approx 71.7\%\). <strong>Not satisfied.</strong></div>
+        <div class="block frag"><div class="block-title">Part B — equalized odds</div>
+          TPR: A \(= 85/100 = 85\%\), B \(= 70/100 = 70\%\). FPR: A \(= 100/400 = 25\%\), B \(= 100/500 = 20\%\).
+          <strong>Not satisfied</strong> (both differ).</div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Part C — impossibility</div>
+          Base rates differ (20% vs 16.7%). Calibration within group forces <em>different</em> approval rates,
+          which breaks demographic parity. Mutually incompatible — Chouldechova's theorem.</div>
+        <div class="block frag"><div class="block-title">Part D — which to enforce</div>
+          Under ECOA, <strong>equalized odds</strong> is most defensible: it equalises error rates, so creditworthy
+          borrowers across groups face equal false-denial rates.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Problem 3</div>
+    <h2>RRF scores and the winning passage</h2>
+    <div class="title-rule"></div>
+    <aside class="underhood" data-title="Part A — the arithmetic">
+      With \(s_{\text{RRF}} = 1/(60 + r_{\text{dense}}) + 1/(60 + r_{\text{sparse}})\):
+      \[ d_1: 1/61 + 1/64 \approx 0.03202, \quad d_2: 1/62 + 1/61 \approx 0.03252, \]
+      \[ d_3: 1/63 + 1/65 \approx 0.03125, \quad d_4: 1/64 + 1/62 \approx 0.03176, \]
+      \[ d_5: 1/65 + 1/63 \approx 0.03125. \]
+    </aside>
+    <div class="block"><div class="block-title">Part B — ranking</div>
+      \(d_2 &gt; d_1 &gt; d_4 &gt; d_3 = d_5\). <strong>\(d_2\) ranks first</strong> — top in sparse, 2nd in dense.</div>
+    <div class="cols">
+      <div class="col"><div class="block frag"><div class="block-title">Part C</div>
+        "Capex for FY2023" is a specific numeric query — <strong>BM25</strong> wins on exact term matching; dense
+        may surface related-but-wrong passages. Hybrid keeps BM25's exactness and dense's semantic reach.</div></div>
+      <div class="col"><div class="block frag"><div class="block-title">Part D</div>
+        At \(k=0\), rank 1 scores 1 and rank 2 scores 0.5 — a huge gap. As \(k\to\infty\) all scores flatten to
+        equality. \(k=60\) is moderate smoothing: it keeps rank information without letting the top rank dominate.</div></div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solutions · Case study</div>
+    <h2>Hallucination protocol — key points</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">Detection</div>
+      Cross-validate each numerical claim against the structured XBRL database, not just free-text passages.</div>
+    <div class="cols">
+      <div class="col"><div class="block frag"><div class="block-title">Severity</div>
+        <strong>Low</strong> = unverifiable figure in a summary. <strong>High</strong> = hallucinated figure in a
+        recommendation that reached a client.</div></div>
+      <div class="col"><div class="block frag"><div class="block-title">Escalation</div>
+        High severity → immediate review, potential reversal, compliance notification, and root-cause analysis
+        before the system resumes.</div></div>
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up · the whole course in one slide</div>
+    <h2>Seven principles to carry out the door</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>Match the tool to the task</strong> — not every problem needs a frontier model</li>
+          <li class="frag"><strong>Architecture is compliance</strong> — feature store, append-only decision DB, versioned API, monitoring are regulatory requirements</li>
+          <li class="frag"><strong>Retrieval beats memorisation</strong> for any factual claim that must be auditable</li>
+          <li class="frag"><strong>Fairness is a policy choice</strong> — the impossibility theorem is non-negotiable; pick explicitly</li>
+        </ol>
+      </div>
+      <div class="col">
+        <ol start="5">
+          <li class="frag"><strong>Chain-of-thought is a trace, not a proof</strong> — stated reasoning may not be the actual computation</li>
+          <li class="frag"><strong>Measure everything</strong> — retrieval quality, faithfulness, fairness, drift; what isn't measured can't be managed</li>
+          <li class="frag"><strong>The tools are new; the standards are not</strong> — document honestly, validate independently, escalate, retire models when limits prove material</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problem</h2>
+    <div class="secsub">Optional: the economics of routing low-confidence queries to a human.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch</div>
+    <h2>Effective-cost routing: when is a human reviewer worth it?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A small FinLLM answers \(p_m = 80\%\) of filing-QA queries correctly at \(c_m = \$0.01\) each.
+      Low-confidence queries (fraction \(\rho\)) go to a human at \(c_h = \$5.00\) each, who fixes all errors.</p>
+    <aside class="underhood" data-title="effective cost per correct output">
+      \[ C_{\text{eff}}(\rho) = \frac{c_m + \rho\,c_h}{p_m + \rho(1-p_m)}. \]
+      The numerator is the average spend per query; the denominator is the fraction ultimately correct.
+    </aside>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">Part A</div>
+        Evaluate \(C_{\text{eff}}\) at \(\rho = 0\) and \(\rho = 0.20\). Which is cheaper per <em>correct</em> output?</div></div>
+      <div class="col"><div class="block"><div class="block-title">Part B</div>
+        Compliance requires effective correctness \(p_m + \rho(1-p_m) \ge 0.95\). Find the minimum \(\rho^\star\).</div></div>
+      <div class="col"><div class="block"><div class="block-title">Part C</div>
+        At \(\rho^\star\), what is \(C_{\text{eff}}\)? Discuss cost vs. the regulatory correctness floor.</div></div>
+    </div>
+    <div class="takeaway callout">
+      <span class="callout-tag">hint</span>
+      Solve \(0.80 + \rho(0.20) \ge 0.95\) for Part B, then substitute back.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

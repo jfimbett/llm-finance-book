@@ -1,0 +1,18 @@
+Credit-decision explanation agent — Cline rules.
+
+Explain a credit decision for an applicant in data/applicants/, grounded only in the
+attribution tool's output. The tools in tools/ compute every attribution; you pick the
+applicant and read the output and never compute one yourself.
+
+For every applicant:
+1. python -m tools.attribute "<applicant>" > reports/_attribution.json
+2. python -m tools.check --attribution reports/_attribution.json
+   If ok is false, stop and re-run — a non-additive attribution is not faithful.
+3. If the decision is deny, write an adverse-action notice citing the features with the
+   most negative phi (at most four), each by its adverse_action_reason. If approve, write a
+   short approval note.
+4. Save the notice and the additivity gap to reports/<applicant>.md.
+
+Every factor cited must come from the attribution tool. Never cite a protected attribute
+(race, color, religion, national origin, sex, marital status, age, public assistance).
+Run tests with: python -m pytest -q

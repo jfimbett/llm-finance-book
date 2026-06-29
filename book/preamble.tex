@@ -11,6 +11,11 @@
 \linespread{1.05}                   % Palatino needs slightly more leading
 \usepackage[english]{babel}
 \usepackage{microtype}              % Protrusion, expansion, kerning
+% Relax justification so near-fit lines stretch into the margin slack instead of
+% overflowing it; eliminates the many small (<10pt) prose Overfull \hbox warnings.
+\setlength{\emergencystretch}{3em}
+\usepackage{tabularx}               % auto-width X columns for wide tables
+\usepackage{seqsplit}              % breakable long monospace tokens (filenames)
 
 % --- Page Layout ---
 \usepackage[
@@ -74,6 +79,7 @@
 
 % --- Colors ---
 \usepackage{xcolor}
+\usepackage{colortbl} % single-pass row/column shading inside math arrays
 \definecolor{linkblue}{RGB}{14, 75, 140}
 \definecolor{codebg}{RGB}{248, 248, 248}
 \definecolor{coderule}{RGB}{210, 210, 210}
@@ -92,7 +98,7 @@
 % --- Figures & Tables ---
 \usepackage{graphicx}
 \usepackage{tikz}
-\usetikzlibrary{positioning,calc,decorations.pathreplacing}
+\usetikzlibrary{positioning,calc,decorations.pathreplacing,arrows.meta}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepackage{booktabs}
@@ -118,6 +124,13 @@
   breaklines = true,
 }
 
+% --- Cross-document references (main <-> appendix) ---
+% xr-hyper must be loaded BEFORE hyperref. Each top-level document
+% (main.tex, appendix.tex) declares \externaldocument{...} for the other,
+% so that \ref/\cref/\pageref to labels in the sibling PDF resolve to the
+% correct numbers instead of "??".
+\usepackage{xr-hyper}
+
 % --- Hyperlinks ---
 \usepackage[
   colorlinks = true,
@@ -142,6 +155,7 @@
 % natbib compatibility
 \newcommand{\citet}[1]{\textcite{#1}}
 \newcommand{\citep}[1]{\parencite{#1}}
+\newcommand{\citealt}[1]{\cite{#1}}
 
 % --- Theorem Environments ---
 % Shared counter; reset per chapter
@@ -175,10 +189,21 @@
 \theoremstyle{defstyle}
 \newtheorem{definition}[theorem]{Definition}
 \newtheorem{example}[theorem]{Example}
-\newtheorem{exercise}[theorem]{Exercise}
+\newtheorem{illustration}[theorem]{Illustration}
 
 \theoremstyle{remstyle}
 \newtheorem{remark}[theorem]{Remark}
+
+% --- Clever cross-references (load after hyperref + amsthm theorems) ---
+\usepackage[capitalise,noabbrev]{cleveref}
+\crefname{definition}{Definition}{Definitions}
+\Crefname{definition}{Definition}{Definitions}
+\crefname{remark}{Remark}{Remarks}
+\Crefname{remark}{Remark}{Remarks}
+\crefname{example}{Example}{Examples}
+\Crefname{example}{Example}{Examples}
+\crefname{illustration}{Illustration}{Illustrations}
+\Crefname{illustration}{Illustration}{Illustrations}
 
 % --- PDF page inclusion (covers) ---
 \usepackage{pdfpages}

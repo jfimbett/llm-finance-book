@@ -1,0 +1,19 @@
+Portfolio-construction agent — Cline rules.
+
+Build a mean-variance optimal portfolio from the bundled text views in data/views/ and
+report a tiny backtest on the bundled return series, grounded only in tool output. The
+tools in tools/ do all optimization and backtesting; you pick the objective and read
+outputs and never compute or recall numbers yourself.
+
+For every run:
+1. python -m tools.views --json > reports/_views.json
+2. python -m tools.optimize --objective max-sharpe --rf 0.0 --json > reports/_weights.json
+   (or --objective min-variance to ignore expected returns). Confirm weights sum to 1.
+3. python -m tools.backtest --objective max-sharpe --json > reports/_backtest.json
+4. Write a summary citing only the per-asset weights, the optimizer Sharpe, and the
+   backtest cumulative return and Sharpe; flag any short (negative) weight; say the
+   backtest is in-sample on fictional data.
+5. Save the summary to reports/<objective>.md.
+
+Never state a weight, return, or Sharpe that the tools did not produce. Run tests with:
+python -m pytest -q

@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practical Session 1 — From Text to Vectors</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 1 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 1 / Lecture 1 · Practical</div>
+    <h1>Introduction</h1>
+    <div class="sub">TF-IDF by hand, cosine similarity, embedding analogies, and Python on real earnings calls.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ SESSION OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Session overview</div>
+    <h2>One hour, five things you'll actually do</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Guided problems first, then a short Python case study, and a bonus API exercise. Try each problem before you reveal the solution.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="statrow">
+          <div class="stat"><div class="num">5'</div><div class="lbl">Recap — the key formulas</div></div>
+          <div class="stat"><div class="num">15'</div><div class="lbl">Problem 1 — TF-IDF by hand</div></div>
+          <div class="stat"><div class="num">10'</div><div class="lbl">Problem 2 — embedding analogies</div></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="statrow">
+          <div class="stat"><div class="num">20'</div><div class="lbl">Case study — Python on earnings calls</div></div>
+          <div class="stat"><div class="num">5'</div><div class="lbl">Discussion — BoW vs. embeddings</div></div>
+          <div class="stat"><div class="num">5'</div><div class="lbl">Solutions — walkthrough</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="block"><div class="block-title">Notebook</div>
+      Work in <code class="inline">code/practicals/01-intro/practical.ipynb</code> — open it before we start.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 01 — RECAP ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Recap — the formulas we'll lean on</h2>
+    <div class="secsub">Five minutes to reload TF-IDF and Word2Vec before we compute anything.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · counting, weighted</div>
+    <h2>TF-IDF rewards words that are frequent here but rare everywhere</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two moves: count how often a word shows up in a document, then discount words that show up in every document.</p>
+    <ul>
+      <li>Word in <em>all</em> documents &rArr; IDF = 0 (suppressed — it tells you nothing)</li>
+      <li>Word in <em>one</em> document &rArr; IDF = ln N (maximally discriminative)</li>
+      <li>TF-IDF picks out words <strong>frequent in a document but rare in the corpus</strong></li>
+    </ul>
+    <aside class="underhood" data-title="TF-IDF and cosine similarity">
+      \[ \mathrm{tf}(v,d)=\frac{\mathrm{count}(v,d)}{|d|}, \qquad
+         \mathrm{idf}(v,\mathcal{C})=\log\!\frac{|\mathcal{C}|}{\mathrm{df}(v,\mathcal{C})}, \qquad
+         \mathrm{tfidf}=\mathrm{tf}\times\mathrm{idf}. \]
+      Document similarity is length-invariant — the cosine of the TF-IDF vectors:
+      \[ \mathrm{sim}(d_i,d_j)=\frac{\tilde{\mathbf{x}}(d_i)^\top \tilde{\mathbf{x}}(d_j)}
+         {\|\tilde{\mathbf{x}}(d_i)\|_2\,\|\tilde{\mathbf{x}}(d_j)\|_2}. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Recap · meaning as geometry</div>
+    <h2>Word2Vec: predict the neighbors, and analogies fall out</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Train a model to guess the words around a target word. To do it well, it must place related words near each other — and that arrangement <em>is</em> the embedding.</p>
+    <ul>
+      <li>Only \(K{+}1\) embedding rows update per step (vs. all \(V\) for full softmax)</li>
+      <li>Positive context vectors are pulled <em>toward</em> the centre word; random "noise" words are pushed <em>away</em></li>
+      <li>Linear analogies emerge: \(\hat{\mathbf{v}}_{\text{king}}-\hat{\mathbf{v}}_{\text{man}}+\hat{\mathbf{v}}_{\text{woman}}\approx\hat{\mathbf{v}}_{\text{queen}}\) (cosine similarity 0.67 in GloVe-300)</li>
+    </ul>
+    <figure class="deckfig">
+      <img src="../assets/figures/01-intro/fig_king_analogy.png" alt="PCA projection of the king minus man plus woman approximately equals queen word analogy in GloVe-300 vector space">
+      <figcaption><b>Figure.</b> The word analogy \(\hat{\mathbf{v}}_{\text{king}} - \hat{\mathbf{v}}_{\text{man}} + \hat{\mathbf{v}}_{\text{woman}} \approx \hat{\mathbf{v}}_{\text{queen}}\), visualised in 2D via PCA of real GloVe-300 vectors.
+        The orange arrow is the vector arithmetic; the dotted line shows the result landing next to <em>queen</em>.
+        <span class="src">Source: author calculations; see gen_king_analogy.py in code/figures/01-intro/.</span></figcaption>
+    </figure>
+    <aside class="underhood" data-title="skip-gram with negative sampling">
+      Skip-gram predicts context from the centre word:
+      \[ J_{\mathrm{SG}}=\frac{1}{T}\sum_{t}\sum_{k\neq 0}^{\pm c}\log P(w_{t+k}\mid w_t). \]
+      Negative sampling replaces the full softmax with one real context word vs. \(K\) noise words:
+      \[ \mathcal{L}_{\mathrm{NEG}}=\log\sigma(\mathbf{v}_{w_{t+k}}^\top\hat{\mathbf{v}}_{w_t})
+         +\sum_{j=1}^{K}\mathbb{E}_{w_j\sim P_n}\big[\log\sigma(-\mathbf{v}_{w_j}^\top\hat{\mathbf{v}}_{w_t})\big]. \]
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 02 — PROBLEM 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Problem 1 — TF-IDF by hand</h2>
+    <div class="secsub">Four earnings-call snippets, one vocabulary, and a cosine similarity you can compute on paper.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · the data</div>
+    <h2>Four snippets, lower-cased and stripped of stop words</h2>
+    <div class="title-rule"></div>
+    <p class="lead">After removing the stop words {the, a, of, in, by, is, our, we, to, and}, each snippet is exactly five tokens.</p>
+    <table>
+      <tr><th>Doc</th><th>Pre-processed tokens</th></tr>
+      <tr><td>\(d_1\)</td><td><code class="inline">revenue increased strong margin growth</code></td></tr>
+      <tr><td>\(d_2\)</td><td><code class="inline">margin pressure volume declined uncertainty</code></td></tr>
+      <tr><td>\(d_3\)</td><td><code class="inline">strong volume revenue outlook positive</code></td></tr>
+      <tr><td>\(d_4\)</td><td><code class="inline">guidance withdrawn uncertainty pressure growth</code></td></tr>
+    </table>
+    <div class="block"><div class="block-title">Vocabulary (\(V=13\) distinct tokens)</div>
+      <code class="inline">declined, growth, guidance, increased, margin, outlook, positive, pressure, revenue, strong, uncertainty, volume, withdrawn</code>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 1 · your tasks</div>
+    <h2>Work it through — individually or in pairs (15 min)</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Compute</strong> \(\mathrm{tf}(v,d)\) for each token and document. <span class="small">Hint: 5 tokens per doc, so \(\mathrm{tf}\in\{0,\,0.2\}\).</span></li>
+      <li class="frag"><strong>Compute</strong> \(\mathrm{df}(v,\mathcal{C})\) and \(\mathrm{idf}(v,\mathcal{C})=\ln(4/\mathrm{df}(v))\) for each word.</li>
+      <li class="frag"><strong>Compute</strong> \(\mathrm{tfidf}(v,d_1,\mathcal{C})\) and \(\mathrm{tfidf}(v,d_2,\mathcal{C})\) for all \(v\).</li>
+      <li class="frag"><strong>Compute</strong> \(\mathrm{sim}(d_1,d_2)\) using \(\ell_2\)-normalised TF-IDF vectors. <span class="small">Hint: only non-zero entries contribute to the dot product.</span></li>
+      <li class="frag"><strong>Interpret:</strong> which two documents are most similar? Does it match your intuition about their content?</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">attempt before you reveal</span>
+      Try all five tasks first — the full solution is in Section 05.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 03 — PROBLEM 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Problem 2 — word embedding analogies</h2>
+    <div class="secsub">Arithmetic on meaning: what does <code class="inline">bond − coupon + dividend</code> point to?</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Problem 2 · the puzzle</div>
+    <h2>Fill in the blank with vector arithmetic</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Imagine a Word2Vec model trained on a large corpus of earnings-call transcripts. It has learned these approximate relationships in embedding space — what completes each one?</p>
+    <table>
+      <tr><th>Analogy</th><th>Result \(\approx\) ?</th></tr>
+      <tr><td><code class="inline">bond − coupon + dividend</code></td><td>?</td></tr>
+      <tr><td><code class="inline">long − profit + loss</code></td><td>?</td></tr>
+      <tr><td><code class="inline">inflation − high + low</code></td><td>?</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Tasks (10 min — discuss with a neighbour)</div>
+      <ol>
+        <li>For each row, predict the missing word and explain the financial reasoning.</li>
+        <li>Explain <em>why</em> these linear relationships emerge from the skip-gram objective.</li>
+        <li>Give an analogy that would <em>fail</em> or produce nonsense, and explain why.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 04 — CASE STUDY ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Case study — Python on earnings calls</h2>
+    <div class="secsub">Let scikit-learn do the counting on five real Q3-2023 snippets, then read the similarity matrix.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the goal</div>
+    <h2>Find the most similar pair of earnings-call snippets</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Use <code class="inline">scikit-learn</code> to build TF-IDF vectors for five real snippets and rank them by cosine similarity — no hand arithmetic this time.</p>
+    <ul>
+      <li class="frag">Five snippets from Q3 2023 earnings calls (provided in the notebook)</li>
+      <li class="frag">Apply <code class="inline">TfidfVectorizer</code> with <code class="inline">stop_words='english'</code>, <code class="inline">max_features=500</code></li>
+      <li class="frag">Compute the pairwise cosine-similarity matrix</li>
+      <li class="frag">Identify and interpret the most- and least-similar pairs</li>
+    </ul>
+    <div class="block frag"><div class="block-title">Run it</div>
+      Open <code class="inline">code/practicals/01-intro/practical.ipynb</code> and run cells 1–4.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · the code</div>
+    <h2>The whole pipeline is a dozen lines</h2>
+    <div class="title-rule"></div>
+    <pre class="code">from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+# snippets: list of 5 earnings call excerpt strings
+vectorizer = TfidfVectorizer(stop_words='english',
+                             max_features=500)
+X = vectorizer.fit_transform(snippets)   # (5, 500) sparse matrix
+
+# Pairwise cosine similarity
+sim_matrix = cosine_similarity(X)
+np.fill_diagonal(sim_matrix, 0)          # zero out self-similarity
+
+# Most similar pair
+i, j = np.unravel_index(sim_matrix.argmax(), sim_matrix.shape)
+print(f"Most similar: doc {i} and doc {j}, sim = {sim_matrix[i,j]:.3f}")
+
+# Top terms for doc i
+feature_names = vectorizer.get_feature_names_out()
+top_terms = feature_names[X[i].toarray().argsort()[0, -5:]]
+print(f"Top terms for doc {i}: {top_terms}")</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Case study · interpret</div>
+    <h2>Questions to answer after running the notebook</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag"><strong>Highest similarity:</strong> which pair scores highest? What do their top TF-IDF terms have in common?</li>
+      <li class="frag"><strong>Cross-company surprise:</strong> two docs from <em>different</em> companies score higher than two from the <em>same</em> company in different sectors. How can that happen?</li>
+      <li class="frag"><strong>Vocabulary sensitivity:</strong> change <code class="inline">max_features</code> from 500 to 50. Does the most-similar ranking change? What does that say about TF-IDF and vocabulary truncation?</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">a hint for Q2</span>
+      TF-IDF matches <em>vocabulary</em>, not <em>topic</em>. Two firms using the same boilerplate language can look closer than two firms discussing genuinely different businesses.
+    </div>
+    <p class="small">A stretch extension comparing TF-IDF with averaged GloVe embeddings appears in the appendix.</p>
+  </section>
+
+  <!-- ============================ DISCUSSION ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Discussion</div>
+    <h2>When would you reach for BoW, and when for embeddings?</h2>
+    <div class="title-rule"></div>
+    <div class="block"><div class="block-title">The central trade-off</div>
+      TF-IDF is interpretable, fast, and needs no pre-training. Word embeddings are dense and semantically rich — but they are black-box vectors.
+    </div>
+    <p class="lead">Discuss in groups (5 min):</p>
+    <ol>
+      <li class="frag">Building a system to flag unusually <strong>negative</strong> 10-K filings — TF-IDF + LM dictionary, or embeddings? Justify.</li>
+      <li class="frag">Retrieving every call that discusses <strong>supply-chain risk</strong> from 500,000 transcripts — which method?</li>
+      <li class="frag">An auditor wants the system to <strong>explain</strong> why a filing was flagged — which is easier to explain?</li>
+      <li class="frag">Under what conditions might TF-IDF actually <em>outperform</em> embeddings in a return-prediction task?</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 05 — SOLUTIONS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Solutions — the walkthrough</h2>
+    <div class="secsub">Reveal only after you've had a real attempt.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 1</div>
+    <h2>The discriminative words win, and \(d_2\)–\(d_4\) are the closest pair</h2>
+    <div class="title-rule"></div>
+    <p class="lead">With \(N=4\), a word in one doc has \(\mathrm{idf}=\ln 4\approx1.386\); a word in two docs has \(\mathrm{idf}=\ln 2\approx0.693\). Every \(\mathrm{tf}=0.2\).</p>
+    <div class="block"><div class="block-title">Headline answers</div>
+      <ul>
+        <li>\(\mathrm{sim}(d_1,d_2)\approx 0.21\) — they share only <code class="inline">margin</code></li>
+        <li>Most similar pair: <strong>\(d_2\) and \(d_4\)</strong> — they share <code class="inline">uncertainty, pressure, growth</code></li>
+      </ul>
+    </div>
+    <aside class="underhood" data-title="df, idf, and tfidf in d₁">
+      <table>
+        <tr><th>Token</th><th>df</th><th>idf</th><th>tfidf in \(d_1\) (tf = 0.2)</th></tr>
+        <tr><td>declined</td><td>1</td><td>\(\ln 4\approx1.386\)</td><td>0</td></tr>
+        <tr><td>growth</td><td>2</td><td>\(\ln 2\approx0.693\)</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
+        <tr><td>guidance</td><td>1</td><td>1.386</td><td>0</td></tr>
+        <tr><td>increased</td><td>1</td><td>1.386</td><td>\(0.2\times1.386\approx0.277\)</td></tr>
+        <tr><td>margin</td><td>2</td><td>0.693</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
+        <tr><td>pressure</td><td>2</td><td>0.693</td><td>0</td></tr>
+        <tr><td>revenue</td><td>2</td><td>0.693</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
+        <tr><td>strong</td><td>2</td><td>0.693</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
+        <tr><td>uncertainty</td><td>2</td><td>0.693</td><td>0</td></tr>
+        <tr><td>volume</td><td>2</td><td>0.693</td><td>0</td></tr>
+      </table>
+      \(\mathrm{sim}(d_1,d_2)\) draws on the single shared token <code class="inline">margin</code>, giving \(\approx0.21\) after \(\ell_2\) normalisation.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Solution · Problem 2</div>
+    <h2>Each analogy swaps one financial dimension</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><code class="inline">bond − coupon + dividend</code> \(\approx\) <strong>equity</strong><br>
+        <span class="small">A bond pays coupons; equity pays dividends. Subtracting the income-type isolates the instrument.</span></li>
+      <li class="frag"><code class="inline">long − profit + loss</code> \(\approx\) <strong>short</strong><br>
+        <span class="small">A long position profits from price rises; a short profits from falls — i.e. what is a loss for a long.</span></li>
+      <li class="frag"><code class="inline">inflation − high + low</code> \(\approx\) <strong>deflation</strong><br>
+        <span class="small">A directional flip along the macro-price dimension.</span></li>
+    </ul>
+    <aside class="underhood" data-title="why the arithmetic works — and when it fails">
+      Co-occurrence patterns encode systematic financial relationships: words appearing in the same contexts as
+      "bond" but <em>not</em> "coupon" tend to be equity-related. Because skip-gram places words by their contexts,
+      consistent contrasts (income-type, direction) become roughly <em>parallel offset vectors</em> in the space —
+      so subtracting and adding moves you along that contrast.
+      <br><br>
+      <strong>Failure modes:</strong> analogies break when a term is <em>polysemous</em> ("call" = phone vs. option),
+      <em>rare</em> (too few contexts to place it), or when the relationship is not a consistent linear offset
+      (idioms, multi-word entities). The arithmetic only works where the contrast is geometrically regular.
+    </aside>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>What you take away — and where Lecture 2 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>This session</h3>
+        <ul>
+          <li>TF-IDF: fast, interpretable, order-invariant</li>
+          <li>Cosine similarity is just normalised overlap of discriminative words</li>
+          <li>Word2Vec/GloVe: semantic geometry and linear analogies (king → queen)</li>
+          <li>Domain adaptation matters — "risk" means something different on Wall Street</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          Both TF-IDF and Word2Vec give every word a <em>single, static</em> vector. Next lecture: Transformers
+          learn <strong>context-dependent</strong> embeddings — the same word gets a different vector depending on
+          the sentence around it.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — stretch problem</h2>
+    <div class="secsub">Optional: pit TF-IDF against averaged GloVe embeddings.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · stretch</div>
+    <h2>Does an embedding-based ranking agree with TF-IDF?</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Optional extension: load <code class="inline">glove-wiki-gigaword-100</code> via <code class="inline">gensim</code> and, for each document, compute the average word embedding.</p>
+    <ol>
+      <li class="frag">Does the embedding-based similarity ranking agree with the TF-IDF ranking?</li>
+      <li class="frag">What does any <em>disagreement</em> tell you about what each representation captures?</li>
+      <li class="frag">When would you trust the embedding ranking over TF-IDF — and vice versa?</li>
+    </ol>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the point of the exercise</span>
+      TF-IDF agrees when documents share exact words; averaged embeddings agree when they share <em>meaning</em>.
+      Disagreement is exactly where synonyms and paraphrase live.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

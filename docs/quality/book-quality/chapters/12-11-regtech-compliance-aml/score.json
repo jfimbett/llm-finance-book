@@ -1,0 +1,194 @@
+{
+  "file": "book/chapters/11-regtech-compliance-aml/chapter.tex",
+  "reading_index": 12,
+  "slug": "11-regtech-compliance-aml",
+  "title": "RegTech, Compliance, and Anti-Money Laundering",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:45-67 — EU AI Act four tiers and seven high-risk obligations stated correctly",
+        "chapter.tex:84-89 — SR 11-7 model definition quoted/paraphrased accurately",
+        "chapter.tex:180-184 — RRF with kappa=60 and rank-infinity handling is correct"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:135-137 — 95-99% figure labelled FPR but used as 1-PPV (false-discovery rate); definitional slip given eq:fpr-aml denominator |N|"
+      ],
+      "recommended_action": "Relabel the 95-99% statistic as false-discovery rate / (1-PPV) consistent with eq:fpr-aml, or rephrase as a 1-5% precision claim."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:32-38,117-121,226-230,287-291,336-340 — context boxes consistently carry the big-picture layer separate from body detail"
+      ],
+      "blocking_issues": [
+        "NIT · no deepdive box used; RAG internals + RRF math (chapter.tex:180-188) sit in plain body, slightly blurring big-picture vs under-the-hood"
+      ],
+      "recommended_action": "Wrap chapter.tex:180-188 in a deepdive box to sharpen the intuition/internals split."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 45,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:172 — prose claims a dataflow figure exists",
+        "figures/ contains only .gitkeep (zero figure files); no \\begin{figure} in chapter"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:172 — text references Figure fig:ch11-rag-pipeline that is never defined and has no asset; prose-vs-figure contradiction"
+      ],
+      "recommended_action": "Create the five-component RAG dataflow figure with \\label{fig:ch11-rag-pipeline}, or remove the figure sentence and \\ref."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:40-104 — AI Act, MiFID/Basel/SR11-7, GDPR introduced before being used downstream",
+        "chapter.tex:176 — BM25 explicitly back-referenced to ch:llm-foundations where it is defined",
+        "chapter.tex:130-138 — FPR/PPV defined before the false-positive discussion uses them"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:165 — bridges to ch:llm-agents ReAct for the adverse-media agent",
+        "chapter.tex:69,439 — bridges to ch:credit-risk for GDPR/SR11-7 in credit and ch:xai-explainability for interpretability",
+        "chapter.tex:170 — builds RAG pipeline on lewis2020rag foundations already introduced earlier in reading order"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:84,377-390 — SR 11-7 is a clean single source of truth within the book"
+      ],
+      "blocking_issues": [
+        "MAJOR · chapter.tex:93-104 vs 15-privacy-local-models/chapter.tex:54-63,426-434 — GDPR Arts 5/17/22 explained in full in both chapters with no cross-reference (two SSOTs; different GDPR bib keys)",
+        "MAJOR · chapter.tex:75-82 vs ch15:54 — MiFID II re-introduced in both chapters"
+      ],
+      "recommended_action": "Designate one SSOT for GDPR-in-compliance and MiFID II, cross-reference the other chapter, and align the GDPR bib key."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:123-142 — every technique is motivated by the AML false-positive crisis, a real finance pain point",
+        "chapter.tex:284-330 — XBRL/SAR/stress-test automation framed by concrete regulatory reporting burdens",
+        "chapter.tex:333-407 — governance framed as finance compliance reality, not generic ML"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:106-111 — A. Petrov GDPR Art.22 example ties rights to audit-log architecture",
+        "chapter.tex:151-163 — Carlos Fernandez-Gutierrez agentic screening workflow, concrete 5 steps",
+        "chapter.tex:276-281 — Meridian/Apex/Sunridge multi-hop beneficial-ownership chain",
+        "chapter.tex:392-407 — full MRM governance example with named roles and numeric thresholds"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 87,
+      "pass": false,
+      "evidence": [
+        "All 25 \\cite keys resolve in book/bibliography.bib (verified)",
+        "No duplicate or missing keys; required fields present for all"
+      ],
+      "blocking_issues": [
+        "MINOR · bibliography.bib fincen2020aml carries inline '% [CITE: verify precise report title]' and a hedging note; key supports load-bearing FPR claim (chapter.tex:137)"
+      ],
+      "recommended_action": "Confirm the exact FinCEN report title and remove the verify-comment, or substitute a verifiable source."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:84 — SR 11-7 model definition matches the cited guidance",
+        "Citation descriptions are plausible and well-matched to titles for the SSRN set"
+      ],
+      "blocking_issues": [
+        "MAJOR · chapter.tex:162,197,431 — AMI attributed to chen2025aml whose arXiv ID 2602.23373 decodes to Feb-2026 (future, inconsistent with year=2025); likely fabricated, NEEDS_EXTERNAL_VERIFICATION",
+        "MINOR · 7 SSRN @unpublished keys (AndhovAmparo2024, Passador2024, ViracachaP2024, Anand2025, Shirvanporzour2025, Ngam2026, IoannidesEtAl2023) cite specific claims unverifiable locally; NEEDS_EXTERNAL_VERIFICATION caps at 89"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — verify chen2025aml arXiv ID and the SSRN abstracts; if chen2025aml is unverifiable, present the AMI as the book's own construction and drop the citation."
+    },
+    {
+      "dimension": "completeness",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:413-423 — summary covers all five themes with caveats",
+        "chapter.tex:317-319,328 — human-review and hallucination caveats present for SAR and stress-test automation"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:223-251 — asymmetric sanctions-recall rationale appears only at def:entity-resolution; an earlier one-line caveat would close the bridge"
+      ],
+      "recommended_action": "Add a one-line caveat at the start of sec:ch11-entity-resolution that a missed sanctions hit categorically outweighs a false-positive review."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 40,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:69,110,165,417,439 — internal \\ref/\\Cref to sections and ch:llm-agents/ch:credit-risk/ch:xai-explainability all resolve",
+        "Equation labels eq:fpr-aml/eq:rrf-fusion/eq:ami-score/eq:xbrl-retrieval-score consistent and used"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:172 — \\ref{fig:ch11-rag-pipeline} has no matching \\label anywhere; dangling reference renders as 'Figure ??' and fails the cross-reference gate"
+      ],
+      "recommended_action": "Define fig:ch11-rag-pipeline (with asset) or delete the \\ref and its sentence."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 55,
+      "pass": false,
+      "evidence": [
+        "code/notebooks/11-.../exercises.ipynb — contains a real SEC EDGAR compliance-language data lab",
+        "Chapter equations are self-contained and deterministic on paper"
+      ],
+      "blocking_issues": [
+        "MAJOR · code/notebooks/11-.../demo.ipynb is a stub: imports numpy/pandas and prints a string, implements none of eq:rrf-fusion / eq:ami-score / eq:xbrl-retrieval-score",
+        "No regenerable figure exists for fig:ch11-rag-pipeline"
+      ],
+      "recommended_action": "Implement a seeded demo notebook for RRF fusion and AMI scoring on synthetic documents; add the RAG dataflow figure."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:4-26 — explicit, well-scoped learning objectives",
+        "chapter.tex:32-38 etc — context boxes scaffold each section for the mixed academic/industry reader",
+        "Terms (PEP, UBO, EDD, FaMCA, SAR, XBRL, RAG) defined at first use; smooth difficulty curve"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    }
+  ],
+  "pass": false,
+  "notes": "Reading index 12. NOT a thin/placeholder chapter: 439 lines, mature finance-first prose, 5 sections, multiple definitions/examples. Two BLOCKERs both stem from one root cause: chapter.tex:172 references Figure fig:ch11-rag-pipeline which is never defined and has no asset (figures/ holds only .gitkeep) — fails notation_crossref and code_figure_correctness. demo.ipynb is a stub (reproducibility). Book-wide non_repetition issue: GDPR Arts 5/17/22 and MiFID II duplicated with ch15 (privacy) with no cross-reference; this chapter should be SSOT for the EU AI Act and SR 11-7. citation_accuracy capped at 89 (set 80) due to suspicious chen2025aml arXiv ID 2602.23373 (decodes to a future month) and 7 unverifiable SSRN working papers — all NEEDS_EXTERNAL_VERIFICATION. All 25 cite keys resolve; all 4 chapter cross-ref labels resolve."
+}

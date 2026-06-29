@@ -159,21 +159,55 @@ Consider a compliance agent tasked with screening the individual ``Carlos Fernan
   \item \textbf{Evidence extraction.} For relevant documents, the agent extracts: the alleged offence type (corruption, embezzlement, sanctions violation, etc.); the geographic jurisdiction; the date of the alleged conduct; the legal status (alleged vs. convicted); and the source type (court document, government press release, investigative journalism, tabloid).
   \item \textbf{Risk scoring.} The agent produces a structured output including a risk tier (low/medium/high/critical), a summary of findings, and cited evidence. The output is designed to be directly actionable by a human reviewer.
 \end{enumerate}
-The entire pipeline runs in minutes rather than hours, and the structured output facilitates consistent review and easy escalation~\cite{chen2025aml}.
+The entire pipeline runs in minutes rather than hours, and the structured output facilitates consistent review and easy escalation.
 \end{example}
 
-The design of such an agent involves several non-trivial choices. Tool selection determines which data sources are available (news APIs, regulatory databases, beneficial ownership registries). Memory management determines how context from earlier search steps informs later queries --- a key challenge when the relevant information is spread across many documents. Error handling must address cases where the same name refers to multiple individuals, a systematic challenge for common names in large populations. Chapter~\ref{ch:llm-agents} discusses the ReAct framework~\cite{yao2022react} and multi-step reasoning patterns applicable here. \citet{Ngam2026} demonstrates how an agentic LLM architecture built around a Perceive-Reason-Act loop can autonomously compile regulatory text into executable AML detection features, directly closing the traceability gap between compliance rules and model outputs that generic agentic designs often leave open.
+The design of such an agent involves several non-trivial choices. Tool selection determines which data sources are available (news APIs, regulatory databases, beneficial ownership registries). Memory management determines how context from earlier search steps informs later queries --- a key challenge when the relevant information is spread across many documents. Error handling must address cases where the same name refers to multiple individuals, a systematic challenge for common names in large populations. \Cref{ch:llm-agents} discusses the ReAct framework~\cite{yao2022react} and multi-step reasoning patterns applicable here. \citet{Ngam2026} demonstrates how an agentic LLM architecture built around a Perceive-Reason-Act loop can autonomously compile regulatory text into executable AML detection features, directly closing the traceability gap between compliance rules and model outputs that generic agentic designs often leave open.
 
 \subsection{RAG-based adverse media pipelines: architecture and design}
 \label{sec:ch11-rag-adverse-media}
 
 The adverse media agent described in Section~\ref{sec:ch11-agentic-adverse-media} can be grounded in a retrieval-augmented generation (RAG) architecture~\cite{lewis2020rag} that combines an updatable document corpus with an LLM reader. This section specifies the architecture in detail.
 
-A RAG-based adverse media pipeline has five components: an ingestion pipeline, a vector store, a retriever, a reader/ranker, and an output formatter. Figure~\ref{fig:ch11-rag-pipeline} describes the dataflow conceptually.
+A RAG-based adverse media pipeline has five components: an ingestion pipeline, a vector store, a retriever, a reader/ranker, and an output formatter. \Cref{fig:ch11-rag-pipeline} describes the dataflow conceptually.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      node distance=8mm and 12mm,
+      box/.style={draw, rounded corners, align=center, minimum height=10mm,
+                  text width=20mm, font=\footnotesize},
+      src/.style={draw, dashed, rounded corners, align=center,
+                  minimum height=9mm, text width=20mm, font=\footnotesize},
+      every node/.style={inner sep=3pt},
+      arr/.style={-{Latex[length=2mm]}, thick}
+    ]
+    \node[src] (feeds) {News, court filings, press releases};
+    \node[box, right=of feeds] (ingest) {Ingestion \\ (chunk + embed)};
+    \node[box, right=of ingest] (store) {Vector store \\ (dense + BM25)};
+    \node[box, below=of store] (retr) {Retriever \\ (hybrid + RRF)};
+    \node[box, left=of retr] (reader) {Reader / ranker \\ (LLM)};
+    \node[box, left=of reader] (out) {Output \\ formatter};
+    \node[src, above=of retr] (query) {Subject query \\ (+ alias variants)};
+
+    \draw[arr] (feeds) -- (ingest);
+    \draw[arr] (ingest) -- (store);
+    \draw[arr] (store) -- (retr);
+    \draw[arr] (query) -- (retr);
+    \draw[arr] (retr) -- node[above, font=\scriptsize] {top-$k$} (reader);
+    \draw[arr] (reader) -- (out);
+  \end{tikzpicture}
+  \caption{Dataflow of a RAG-based adverse media screening pipeline. Documents are
+           ingested continuously, chunked, embedded, and stored alongside metadata; a
+           subject query (expanded with alias variants) drives hybrid retrieval, whose
+           top-$k$ passages are ranked and summarised by an LLM reader before the output
+           formatter emits a structured, citation-grounded result.}
+  \label{fig:ch11-rag-pipeline}
+\end{figure}
 
 \textbf{Ingestion pipeline.} News articles, court filings, regulatory press releases, and other source documents are collected continuously from subscribed feeds. Each document is chunked into passages of 200--400 tokens with overlap, embedded using a sentence encoder, and stored in a vector database alongside structured metadata (source URL, publication date, source credibility tier, named entities). The metadata fields are critical: they enable post-retrieval filtering that reduces the ranking burden on the LLM.
 
-\textbf{Vector store.} The vector store holds both dense embeddings (for semantic search) and the original text (for BM25 sparse retrieval; BM25 is a term-frequency/inverse-document-frequency-based scoring function defined in Chapter~\ref{ch:llm-foundations}). Hybrid retrieval, combining dense and sparse signals via reciprocal rank fusion~\cite{cormack2009reciprocal}, consistently outperforms either modality alone in legal and news document retrieval tasks. The store must support incremental updates (new articles arrive daily) and selective deletion (GDPR Article 17 compliance).
+\textbf{Vector store.} The vector store holds both dense embeddings (for semantic search) and the original text (for BM25 sparse retrieval; BM25 is a term-frequency/inverse-document-frequency-based scoring function defined in \Cref{ch:llm-foundations}). Hybrid retrieval, combining dense and sparse signals via reciprocal rank fusion~\cite{cormack2009reciprocal}, consistently outperforms either modality alone in legal and news document retrieval tasks. The store must support incremental updates (new articles arrive daily) and selective deletion (GDPR Article 17 compliance).
 
 \textbf{Retriever.} Given a subject query, the retriever performs hybrid search and returns the top-$k$ candidate passages. The retrieval query should be expanded: rather than searching for the exact input name, the system should generate multiple query variants covering name transliterations, associated companies, and known aliases.
 
@@ -181,7 +215,17 @@ A RAG-based adverse media pipeline has five components: an ingestion pipeline, a
 \label{eq:rrf-fusion}
 \mathrm{RRF}(d) = \sum_{r \in R} \frac{1}{\kappa + \mathrm{rank}_r(d)},
 \end{equation}
-where $R$ is the set of ranking functions (dense, sparse), $\kappa$ is a smoothing constant (typically 60), and $\mathrm{rank}_r(d)$ is the rank of document $d$ under ranking function $r$. Documents not retrieved by a particular ranker are assigned rank $\infty$.
+where $R$ is the set of ranking functions (dense, sparse), $\kappa$ is a smoothing constant (typically 60), and $\mathrm{rank}_r(d)$ is the rank of document $d$ under ranking function $r$. Documents not retrieved by a particular ranker are assigned rank $\infty$. \Cref{fig:ch11-rrf} works \eqref{eq:rrf-fusion} through a small example: a passage ranked highly by \emph{both} retrievers is promoted above one that any single retriever ranks first, which is the property that makes hybrid retrieval robust.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.78\textwidth]{chapters/11-regtech-compliance-aml/figures/fig_rrf}
+  \caption{Reciprocal rank fusion (\Cref{eq:rrf-fusion}, $\kappa = 60$) applied to five
+           candidate passages, each with its rank under a dense and a sparse retriever.
+           The fused order rewards passages ranked highly by both signals. Generated
+           deterministically by \texttt{gen\_rrf\_fusion.py}.}
+  \label{fig:ch11-rrf}
+\end{figure}
 
 \textbf{Reader/ranker.} The LLM reader receives the top-$k$ passages and the subject query, and performs two tasks: cross-passage entity disambiguation (is this passage about the same individual?) and relevance classification (does this passage contain material AML risk evidence?). Cross-encoder reranking~\cite{reimers2019} scores each passage against the query with full attention across the passage-query pair, providing higher-quality relevance estimates than the bi-encoder retriever at the cost of higher latency.
 
@@ -194,7 +238,7 @@ Latency and throughput constraints matter in production. For real-time onboardin
 \subsection{Adverse Media Index: quantitative risk scoring from text}
 \label{sec:ch11-adverse-media-index}
 
-A binary low/high risk classification of adverse media is insufficient for risk-based AML. What is needed is a continuous risk score that can be compared across subjects, tracked over time, and integrated into quantitative risk models. The Adverse Media Index (AMI) formalises this~\cite{chen2025aml}.
+A binary low/high risk classification of adverse media is insufficient for risk-based AML. What is needed is a continuous risk score that can be compared across subjects, tracked over time, and integrated into quantitative risk models. The Adverse Media Index (AMI), which we formalise below, captures this requirement.
 
 \begin{definition}[Adverse Media Index]
 \label{def:adverse-media-index}
@@ -297,7 +341,7 @@ The eXtensible Business Reporting Language (XBRL) is a standardised taxonomy for
 
 Manual XBRL tagging is error-prone. Financial statements contain ambiguous line items (``other comprehensive income'' may map to different XBRL concepts depending on the nature of the items it contains), and taxonomy versions change annually. LLMs can automate tagging by treating it as a classification problem: given a financial statement line item and its surrounding context, predict the correct XBRL concept.
 
-The challenge is the size of the taxonomy space. The US GAAP taxonomy contains over 20,000 elements. A simple classification model over this space performs poorly due to label sparsity --- most XBRL concepts are rarely used. In practice, the tagging problem is better framed as a retrieval problem: embed the financial statement line item and retrieve the most semantically similar XBRL concept descriptions, then use an LLM to verify the match and select among the top candidates.
+The challenge is the size of the taxonomy space. The US GAAP taxonomy contains on the order of tens of thousands of elements. A simple classification model over this space performs poorly due to label sparsity --- most XBRL concepts are rarely used. In practice, the tagging problem is better framed as a retrieval problem: embed the financial statement line item and retrieve the most semantically similar XBRL concept descriptions, then use an LLM to verify the match and select among the top candidates.
 
 \begin{equation}
 \label{eq:xbrl-retrieval-score}
@@ -428,7 +472,7 @@ This chapter has examined the application of large language models to regulatory
 
 The regulatory framework for AI in financial services is evolving rapidly. The text of the EU AI Act \cite{euaiact2024} should be read alongside the guidance notes issued by the European AI Office and national competent authorities, which provide interpretation of the high-level statutory requirements. The Federal Reserve's SR~11-7 guidance \cite{sr117} remains the definitive US reference for model risk management, and the Financial Stability Board's 2024 report \cite{FSB2024stability} provides a global overview of emerging supervisory expectations for AI in finance.
 
-On the AML side, the FATF guidance on AI in AML/CFT \cite{fatf2021aml} is essential reading for practitioners, as it defines the international standard-setter's expectations for AI-enabled compliance programmes. \citet{chen2025aml} provide a detailed technical treatment of LLM-based adverse media screening, including the Adverse Media Index formalisation developed in this chapter.
+On the AML side, the FATF guidance on AI in AML/CFT \cite{fatf2021aml} is essential reading for practitioners, as it defines the international standard-setter's expectations for AI-enabled compliance programmes. For a concrete example of LLM agents automating AML annotation work, \citet{lin2025risktagger} present RiskTagger, an LLM-based agent that automatically annotates crypto money-laundering behaviours from unstructured reports and multi-chain transaction paths, reporting high agreement with expert judgments on a real case study---an illustration of the agentic-annotation pattern applied to a different (Web3) AML setting. The Adverse Media Index formalisation developed in this chapter is intended as a practical template; practitioners should calibrate its weights and thresholds against their own labelled case outcomes before relying on it.
 
 For the technical foundations of retrieval-augmented generation, \citet{lewis2020rag} is the original RAG paper. \citet{gao2024retrieval} provide a comprehensive survey of RAG architectures including hybrid retrieval and reranking. \citet{cormack2009reciprocal} introduce the reciprocal rank fusion algorithm used in hybrid retrieval.
 
@@ -436,45 +480,4 @@ Model risk management and explainability for deep learning systems are treated i
 
 Readers who wish to explore entity resolution in depth should consult the survey literature on record linkage, particularly the probabilistic approaches building on the Fellegi-Sunter model, as well as more recent work applying transformer-based embeddings to the blocking and matching stages of the pipeline.
 
-Cross-references within this book: Chapter~\ref{ch:llm-agents} covers agentic architectures including the ReAct framework applicable to adverse media agents; Chapter~\ref{ch:credit-risk} covers GDPR and SR~11-7 in the credit context, with deeper treatment of SHAP-based explainability; Chapter~\ref{ch:xai-explainability} covers interpretability methods in full generality.
-
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch11-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[Regulatory Keyword Monitor]\label{ex:ch11-edgar-b}
-\textbf{[B]} For the five most recent annual 10-K filings of JPMorgan Chase
-(\texttt{JPM}), count occurrences of the following compliance keywords:
-``anti-money laundering'', ``AML'', ``BSA'', ``OFAC'', ``sanctions'',
-``KYC'', ``suspicious activity'', ``FinCEN'', ``compliance programme''
-(all case-insensitive), normalised per thousand words.
-(\textit{a})~Print the year-by-year frequency table.
-(\textit{b})~Plot the total keyword frequency as a line chart over years.
-See \texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Risk-Factor Paragraph Classification]\label{ex:ch11-edgar-i}
-\textbf{[I]} Download Item~1A (Risk Factors) from JPMorgan's most recent 10-K.
-Split into paragraphs and classify each as one of five risk categories:
-``credit risk'', ``regulatory/compliance risk'', ``operational risk'',
-``market risk'', or ``other'', using keyword-matching rules.
-(\textit{a})~Report the class distribution.
-(\textit{b})~Print one representative paragraph per class.
-(\textit{c})~Discuss how this keyword-based classification compares to an LLM-based approach.
-See \texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Cross-Bank Compliance Language Comparison]\label{ex:ch11-edgar-a}
-\textbf{[A]} Repeat the compliance keyword analysis for five large banks:
-JPM, BAC, Citigroup (\texttt{C}), Wells Fargo (\texttt{WFC}), and Goldman Sachs (\texttt{GS}).
-(\textit{a})~Build a $5 \times 9$ keyword-frequency matrix (normalised per thousand words).
-(\textit{b})~Cluster the banks by their keyword profiles using hierarchical
-agglomerative clustering (implement with \texttt{scipy.cluster.hierarchy}).
-(\textit{c})~Display the result as a dendrogram.
-(\textit{d})~Discuss whether clustering reflects bank size, business model,
-or regulatory exposure.
-See \texttt{code/notebooks/11-regtech-compliance-aml/exercises.ipynb}, Data Lab section.
-\end{exercise}
+Cross-references within this book: \Cref{ch:llm-agents} covers agentic architectures including the ReAct framework applicable to adverse media agents; \Cref{ch:credit-risk} covers GDPR and SR~11-7 in the credit context, with deeper treatment of SHAP-based explainability; \Cref{ch:xai-explainability} covers interpretability methods in full generality.

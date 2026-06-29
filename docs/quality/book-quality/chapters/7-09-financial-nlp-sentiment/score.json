@@ -1,0 +1,208 @@
+{
+  "file": "book/chapters/09-financial-nlp-sentiment/chapter.tex",
+  "reading_index": 7,
+  "slug": "09-financial-nlp-sentiment",
+  "title": "Financial NLP and Sentiment Analysis",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:166 — worked LM example arithmetic (1-4)/35 ≈ -0.086 is correct",
+        "chapter.tex:183-190 — softmax-over-[CLS] FinBERT classifier head correct",
+        "chapter.tex:523-534 — Krippendorff alpha nominal and ordinal variants stated correctly; 0.667/0.800 thresholds standard",
+        "chapter.tex:411-416 — CAR / AR / market-model definitions correct",
+        "chapter.tex:243 — honest replication caveat on bollen2011twitter directional accuracy"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:30-36,122-126,229-233,362-366,454-458 — context boxes consistently carry the big-picture layer",
+        "chapter.tex:183-192 — under-the-hood classifier math kept distinct from intuition",
+        "chapter.tex:446-448 — remark used for practical caveat per RUBRIC §5"
+      ],
+      "blocking_issues": [
+        "MINOR: no deepdive boxes used; technical layers sit inline rather than in deepdive environments, but context-box separation is adequate"
+      ],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "exercises.ipynb cell-3 — hand-rolled ~20-word LM_POS/LM_NEG named as LM dictionary contradicts def:lm-dictionary (2,355/354 words)",
+        "exercises.ipynb cell-5 — net formula normalises by (pos+neg) whereas chapter eq:lm-sentiment (chapter.tex:136) normalises by total words",
+        "chapter.tex — no \\includegraphics; figures/ holds only .gitkeep (no figure to contradict prose)"
+      ],
+      "blocking_issues": [
+        "MINOR code-figure: toy wordlist mislabelled as Loughran-McDonald",
+        "MINOR code-figure: notebook net-sentiment formula diverges from chapter definition without note"
+      ],
+      "recommended_action": "Label notebook wordlist as illustrative proxy; reconcile net formula with eq:lm-sentiment or annotate the deliberate difference."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:96,190 — BERT/tokenizer internals deferred to ch:llm-foundations (read 3rd) rather than redefined",
+        "chapter.tex:300,530 — Krippendorff alpha forward-pointed from ex:finbert-finetuning to sec:ch09-evaluation where it is defined",
+        "All key terms (lexicon, CAR, SUE, z-score) defined before or at first substantive use"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:96,190,599 — explicit bridges to ch:llm-foundations, ch:domain-specific-llms, ch:financial-text-summarization, ch:llm-limitations-evaluation",
+        "Smooth arc: sources -> methods -> applications -> signal -> production -> evaluation",
+        "Difficulty curve rises sensibly from lexicons to LLM zero-shot to event studies"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 74,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:263,318-320 vs ch01-intro:168-256 — Tetlock 2007/2008 and LM 2011 re-narrated without \\Cref to ch:intro",
+        "chapter.tex:141-148 vs ch16:415-467 — GI-vs-LM liability/tax argument duplicated across ch01/ch16/ch09",
+        "chapter.tex:174-196 vs ch08:211-246 — FinBERT/SEC-BERT/PhraseBank re-introduced; ch08 already establishes them (end-pointer at line 599 only)"
+      ],
+      "blocking_issues": [
+        "MAJOR book-repetition: founding sentiment results (Tetlock, LM) re-derived rather than cross-referenced; RUBRIC ground rule for index-7 explicitly flags this",
+        "MAJOR book-repetition: FinBERT/SEC-BERT model descriptions duplicated with ch08"
+      ],
+      "recommended_action": "Add \\Cref{ch:intro}/\\Cref{ch:ai-ml-finance-text}/\\Cref{ch:domain-specific-llms} at first mention and compress re-derived narrative to a recap + pointer."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:30-36 — opens with a finance framing of language as a measured data source",
+        "Every method (lexicon/FinBERT/LLM) tied to a financial decision (returns prediction, risk, policy signal)",
+        "chapter.tex:219,247-249 — techniques motivated by trading Sharpe, fund flows, bank runs"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:150-169 — worked MD&A LM-scoring example, reader-actionable",
+        "chapter.tex:293-310 — end-to-end FinBERT earnings-call fine-tuning example with concrete hyperparameters",
+        "exercises.ipynb — real EDGAR+yfinance event study with [B]/[I]/[A] tags",
+        "chapter.tex:247-249 — gilbazo2025tweeting (Mgmt Sci 2025) and cookson2026bankrun (JFE 2026), real published examples"
+      ],
+      "blocking_issues": [
+        "MINOR: chapter itself carries no figure; visual anchor would strengthen integration"
+      ],
+      "recommended_action": "NONE (optionally add one generated figure)."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "All 44 \\cite keys resolve exactly once in bibliography.bib (verified by grep count)",
+        "No duplicate or stub keys among the chapter's citations",
+        "Loughran-McDonald, Tetlock, FinBERT, KirtacGermano entries each present and well-formed"
+      ],
+      "blocking_issues": [
+        "NIT: SSRN @unpublished entries lack type/institution fields (cosmetic)"
+      ],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:219 — KirtacGermano2024 'Sharpe ratio of 3.05' sourced to SSRN #4706629 (@unpublished), not locally verifiable",
+        "chapter.tex:291 — Siano2025 'three times more return variation / double R²' sourced to SSRN #5198675",
+        "chapter.tex:223,324,84 — FatemiHu2023, ChiuHung2024, Lehner2024, XuBabaian2025 precise claims sourced only to SSRN working papers",
+        "Peer-reviewed cites (loughran2011liability, tetlock2007giving/2008words, huang2023finbert, manela2017news) appear accurately described"
+      ],
+      "blocking_issues": [
+        "MAJOR citation: ~10 precise quantitative claims rest on unverifiable SSRN @unpublished papers"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — verify SSRN claims and add anchors, or soften to attributed-claim phrasing (caps at 89 until verified)."
+    },
+    {
+      "dimension": "completeness",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:171 — lexicon limitations (negation, domain shift) stated explicitly",
+        "chapter.tex:255-257 — social-media methodological caveats (bots, selection, reverse causality)",
+        "chapter.tex:354-356 — information-effect vs policy-effect confound flagged",
+        "chapter.tex:565-567 — economic-validity caveat beyond statistical metrics"
+      ],
+      "blocking_issues": [
+        "MINOR: subword-tokenizer note (case-folding/[NUM] often unnecessary) absent at line 101"
+      ],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "All \\ref/\\Cref targets resolve: ch:llm-foundations, ch:domain-specific-llms, ch:financial-text-summarization, ch:llm-limitations-evaluation, and internal sec/eq labels verified",
+        "No duplicate labels in chapter",
+        "chapter.tex:64 — 'Chapter~\\ref{sec:ch09-earnings-call-transcripts}' labels a SECTION as 'Chapter' (same-chapter ref)"
+      ],
+      "blocking_issues": [
+        "MINOR: line 64 word/label mismatch ('Chapter' applied to a section ref)"
+      ],
+      "recommended_action": "Change 'Chapter~\\ref{sec:ch09-earnings-call-transcripts}' to 'Section~\\ref{...}'."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 76,
+      "pass": false,
+      "evidence": [
+        "demo.ipynb — 2-cell stub that only prints a string; demonstrates none of the chapter's concepts despite its markdown claim",
+        "exercises.ipynb — real, runnable EDGAR+yfinance pipeline with [B]/[I]/[A] exercises",
+        "figures/ — only .gitkeep; no figure-generation script committed"
+      ],
+      "blocking_issues": [
+        "MAJOR code-figure: demo.ipynb is a placeholder notebook"
+      ],
+      "recommended_action": "Populate demo.ipynb with a runnable LM-vs-FinBERT demo or remove it and rely on exercises.ipynb."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:4-24 — explicit, well-scoped learning objectives",
+        "context boxes scaffold each section for the mixed academic/industry reader",
+        "chapter.tex:570-585 — clear itemised summary; line 588-599 structured further-reading map",
+        "Terms (cashtag, SUE, CAR, macro-F1) defined for non-specialists"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    }
+  ],
+  "pass": false,
+  "notes": "Reading index 7. Strong, finance-first, technically correct chapter. Four dimensions sit below 90: non_repetition (74 — Tetlock/LM founding results and FinBERT/SEC-BERT re-derived rather than cross-referenced to ch01/ch16/ch08, the explicit RUBRIC concern for this slot), reproducibility (76 — demo.ipynb is a stub), code_figure_correctness (78 — exercises notebook mislabels a toy wordlist as Loughran-McDonald and its net formula diverges from eq:lm-sentiment), and notation_crossref (88 — line 64 calls a section 'Chapter'). citation_accuracy capped at 89: ~10 precise quantitative claims rest on unverifiable SSRN @unpublished papers -> NEEDS_EXTERNAL_VERIFICATION. All 44 cite keys resolve uniquely; all \\ref/\\Cref targets resolve. No BLOCKER-class errors. 3 BOOK_WIDE_ITEMS."
+}

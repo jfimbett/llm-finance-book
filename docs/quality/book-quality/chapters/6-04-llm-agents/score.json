@@ -1,0 +1,202 @@
+{
+  "file": "book/chapters/04-llm-agents/chapter.tex",
+  "reading_index": 6,
+  "slug": "04-llm-agents",
+  "title": "LLM Agents and Finance Applications",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:92-109 def:pra-loop — PRA triple (pi,mu,phi) is internally consistent and re-derivable",
+        "chapter.tex:184-199 — CoT-vs-ReAct program-synthesis framing is precise and correct",
+        "chapter.tex:1385-1399 def:audit-trail — chained-hash tamper-evidence construction H(payload||hash_{t-1}) is correct, SHA-256 clarified",
+        "chapter.tex:834-881 — BM25/dense/RRF (k=60)/SPLADE descriptions are technically accurate"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:119 — '128k tokens ~ 100 pages' stated as fact (heuristic, uncited)"
+      ],
+      "recommended_action": "Soften/cite the token-to-page heuristic; no factual errors found."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:32-52 context box (big picture) vs chapter.tex:54-314 deepdive (internals)",
+        "Every section opens context then deepdive: chapter.tex:321/332, 741/753, 1270/1287",
+        "Intuition and formal definitions cleanly delineated; reader can follow either layer"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 70,
+      "pass": false,
+      "evidence": [
+        "fig:ch04-illustration (chapter.tex:985-996) matches exercises.ipynb cells 1,3 exactly (5 tickers, RdYlGn, dashed mean line); runs clean in exercises_executed.ipynb",
+        "demo.ipynb is a placeholder (0 code cells) yet promised at chapter.tex:419,732,1123"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:419,732,1123 — three prose promises of demo.ipynb code that does not exist (demo.ipynb is a placeholder)"
+      ],
+      "recommended_action": "Populate demo.ipynb with the promised implementations, or repoint the three sentences to exercises.ipynb."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "Agents defined (def:autonomous-agent chapter.tex:64) before use; PRA before ReAct before tools before RAG before applications before governance",
+        "vector database term forward-referenced and immediately glossed at chapter.tex:276 then defined subsec:vector-db chapter.tex:791",
+        "No use-before-definition found in reading order"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "Builds cleanly on ch03/ch08 (LLMs, fine-tuning) and motivates each technique from finance",
+        "Smooth internal difficulty curve from PRA loop to multi-agent governance"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:1505 — no end-of-chapter summary or explicit bridge to next chapter (09-financial-nlp-sentiment); 8 stated objectives never synthesised"
+      ],
+      "recommended_action": "Add a closing Summary/bridge remark or context box tying objectives together and pointing forward."
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "Chapter is the designated SSOT and correctly owns ReAct (def:react-trajectory chapter.tex:158)",
+        "Internal overlap is cross-referenced (e.g. chapter.tex:122,305 -> subsec:agent-memory, sec:rag-finance)"
+      ],
+      "blocking_issues": [
+        "MAJOR · book-repetition — ch05 (05-business-valuation:675-697) re-derives ReAct without \\Cref{ch:llm-agents} at the point of re-derivation",
+        "MINOR · book-repetition — RAG formally defined twice (ch02:1972 and ch04:762) without an explicit bridge"
+      ],
+      "recommended_action": "Add a bridge from ch04 RAG deep dive to ch02 pipeline definition; coordinate ch05 to \\Cref this chapter for ReAct (BOOK_WIDE)."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "Every section opens with a finance scenario: chapter.tex:32 (PM multi-doc), 321 (Morgan Stanley live yield), 741 (50k-doc library), 1271 (Mata v. Avianca governance)",
+        "Techniques motivated by finance problems (compliance audit trails, MiFID II, EDGAR), not bolted on"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "ex:react-filing chapter.tex:229 (Tesla 10-K trace), ex:db-tools chapter.tex:438, ex:multi-agent-research chapter.tex:706, ex:portfolio-qa chapter.tex:1160 (data-vintage caveat), rem:signal-staleness chapter.tex:1250 (HFT adverse selection)",
+        "Earnings example honestly fenced as hypothetical (chapter.tex:1068-1070)"
+      ],
+      "blocking_issues": [
+        "NIT · chapter.tex:1160 — ex:portfolio-qa numbers not explicitly flagged hypothetical (earnings example is)"
+      ],
+      "recommended_action": "Add a one-line illustrative disclaimer to ex:portfolio-qa for consistency."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "All 35 \\cite keys resolve uniquely in book/bibliography.bib (verified by grep)",
+        "Internal \\ref/\\Cref targets all resolve within the chapter"
+      ],
+      "blocking_issues": [
+        "MAJOR · zhang2024financebench carries unresolved '% [CHECK] verify author list and title spelling' stub with apparently wrong author roster",
+        "MINOR · yao2022react carries a stale '% [CHECK] venue confirmed ICLR 2023' comment",
+        "BLOCKER(book) · def:rag label collides with 02-llm-foundations:1972"
+      ],
+      "recommended_action": "Remove [CHECK] stubs after correcting zhang2024financebench authors; relabel ch04 def:rag."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 82,
+      "pass": false,
+      "evidence": [
+        "yao2022react, wei2022chain, lewis2020rag, schick2023toolformer, es2023ragas correctly attributed to the propositions they support",
+        "Finance papers (xiao2024tradingagents, an2024finverse, kim2024financial) summarised consistently with their titles/abstracts"
+      ],
+      "blocking_issues": [
+        "MAJOR · chapter.tex:1380 cites esma2018mifid2 (a Suitability guideline) for MiFID II Article 16 record-keeping — likely wrong source",
+        "MAJOR · kurshan2024agenticregulator year(2024)/arXiv-id(2512.11933=Dec2025) inconsistent; cited claims unverifiable locally",
+        "zhang2024financebench described result (81% incorrect/refused) NEEDS_EXTERNAL_VERIFICATION"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — verify esma source, kurshan metadata, and FinanceBench/FinSage numbers (capped at 89)."
+    },
+    {
+      "dimension": "completeness",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "Covers PRA, ReAct, CoT, ToT, Reflexion, tools, memory, RAG, frameworks, multi-agent, five finance apps, governance, prompt injection",
+        "Caveats present: signal staleness, data vintage, faithfulness thresholds, defence-in-depth"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:1505 — no summary/takeaways section closing the chapter",
+        "MINOR · demo.ipynb gap leaves the tool-registration and multi-agent code examples without their promised concrete realisation"
+      ],
+      "recommended_action": "Add closing summary; deliver the promised notebook code."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "All in-chapter \\ref/\\Cref and \\cite keys resolve (verified)",
+        "Notation consistent (O,A,M,E spaces; pi/mu/phi reused coherently)"
+      ],
+      "blocking_issues": [
+        "BLOCKER · duplicate label def:rag (chapter.tex:763 vs 02-llm-foundations:1972) -> multiply-defined label",
+        "MINOR · eq:hybrid-search (chapter.tex:861) labelled but never \\eqref'd"
+      ],
+      "recommended_action": "Relabel ch04 def:rag to def:rag-marginal and cross-reference; remove or use the dead equation label."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 60,
+      "pass": false,
+      "evidence": [
+        "Figure is regenerable: exercises.ipynb cells 1,3 produce fig_illustration.pdf and run clean in exercises_executed.ipynb",
+        "exercises.ipynb includes real, runnable B/I/A exercises against SEC EDGAR"
+      ],
+      "blocking_issues": [
+        "BLOCKER · demo.ipynb is a placeholder (0 code cells) while chapter.tex:419,732,1123 promise complete implementations there"
+      ],
+      "recommended_action": "Populate demo.ipynb (deterministic/documented) or repoint prose to exercises.ipynb."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "Explicit learning objectives (chapter.tex:4-25); consistent context/deepdive scaffolding; worked examples per concept",
+        "Terms defined for the mixed academic/industry audience"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:1505 — objectives never revisited/synthesised; no closing recap",
+        "MINOR · broken demo.ipynb promise undercuts the hands-on learning path"
+      ],
+      "recommended_action": "Add a closing synthesis mapping back to the 8 objectives; fix the notebook promise."
+    }
+  ],
+  "pass": false,
+  "iteration": 0,
+  "notes": "Audit only — no edits applied. Strong finance-first SSOT chapter for AGENTS/ReAct/tool-use; ch04 correctly owns ReAct (def:react-trajectory) and PRA (def:pra-loop). Three blocking defects: (1) demo.ipynb is a placeholder yet promised 3x (chapter.tex:419,732,1123) — caps reproducibility & code_figure_correctness; (2) duplicate \\label{def:rag} collides with 02-llm-foundations:1972 — caps notation_crossref; (3) zhang2024financebench bib entry has a [CHECK] stub and apparently wrong author list. citation_accuracy capped at 89 (NEEDS_EXTERNAL_VERIFICATION) for esma2018mifid2 (suitability guideline cited for Article 16 record-keeping), kurshan2024agenticregulator (year/arXiv-id mismatch), and FinanceBench/FinSage numeric claims. All 35 cite keys resolve uniquely. Figure matches its notebook code and runs clean. BOOK_WIDE: ch05 re-derives ReAct without \\Cref at the point of re-derivation; RAG defined in two chapters."
+}

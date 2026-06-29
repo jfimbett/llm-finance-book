@@ -28,7 +28,7 @@ filings, earnings transcripts, analyst reports, central bank statements, and new
 articles are released. Each document contains facts that can move asset prices, alter
 credit assessments, or trigger compliance reviews. The bottleneck is not the
 absence of information but the cost of reading, interpreting, and routing it. A
-portfolio manager cannot personally read every 10-K filed by the 6,000-plus companies
+portfolio manager cannot personally read every 10-K filed by the roughly 3,000 companies
 in the Russell 3000. A compliance officer cannot manually scan every contract in a
 merger data room. Natural language processing---and, increasingly, large language
 models---addresses this bottleneck by automating the transformation of raw text into
@@ -201,7 +201,7 @@ as we discuss in Section~\ref{sec:ch14-evaluation-benchmarks}.
 \label{sec:ch14-named-entity-recognition}
 % ===========================================================================
 
-A \emph{token} is the atomic unit of text produced by a tokenizer (typically a sub-word piece); see Chapter~\ref{ch:llm-foundations} for a formal definition.
+A \emph{token} is the atomic unit of text produced by a tokenizer (typically a sub-word piece); see \Cref{ch:llm-foundations} for a formal definition.
 Named entity recognition (NER) is the foundational IE task: given a sequence of tokens,
 label each token with its entity type or mark it as non-entity. In general-domain NLP,
 the standard CoNLL-2003 benchmark defines entity types \textsc{Person}, \textsc{Location},
@@ -219,7 +219,7 @@ Several annotated corpora have been released to support financial NER research. 
 makes different tradeoffs between annotation granularity, document type coverage, and
 scale.
 
-\textbf{FINER-139} \citep{shah2023finer} is one of the most comprehensive financial NER
+\textbf{FINER-139} \citep{loukas2022finer} is one of the most comprehensive financial NER
 benchmarks. It annotates 139 fine-grained entity types across documents drawn from SEC
 filings and financial news. The taxonomy is organised hierarchically: top-level types
 (e.g., Organisation, Financial Instrument, Economic Indicator) decompose into subtypes
@@ -461,7 +461,7 @@ A common pipeline architecture for 10-K summarization consists of three stages:
         retrieval-based approach that selects the most informative chunk-level summaries.
 \end{enumerate}
 
-\begin{example}[Earnings Report Summarization with GPT-4]
+\begin{example}[Earnings Report Summarization with GPT-5]
 \label{ex:earnings-gpt4}
 Consider an investor who wishes to summarise the earnings release of a large-cap
 technology company. The release runs to 12,000 words and includes a press release,
@@ -469,10 +469,12 @@ financial tables, and an MD\&A section. A simple but effective approach uses a
 structured prompt:
 
 \begin{verbatim}
-You are a senior equity analyst. Summarise the following earnings release
-in no more than 150 words, covering: (1) revenue and EPS vs. consensus,
-(2) the single most important forward guidance statement, and (3) one key
-risk mentioned by management. Quote all numbers exactly as stated.
+You are a senior equity analyst. Summarise the following
+earnings release in no more than 150 words, covering:
+(1) revenue and EPS vs. consensus, (2) the single most
+important forward guidance statement, and (3) one key
+risk mentioned by management. Quote all numbers exactly
+as stated.
 
 [EARNINGS RELEASE TEXT]
 \end{verbatim}
@@ -543,8 +545,8 @@ assessing tone extraction, topic modeling, sentiment analysis, and temporal orie
 side by side; their results provide a resource-conscious alternative to proprietary
 API-based pipelines for institutions that cannot transmit sensitive transcripts to
 third-party servers.
-The informational stakes of earnings-call summarization are quantified by \citet{Siano2025}, who shows that LLM-based contextual text representations of earnings
-press releases and conference calls explain three times more variation in short-window
+The informational stakes of earnings-call summarization are highlighted by \citet{Siano2025}, who reports that LLM-based contextual text representations of earnings
+press releases and conference calls explain substantially more variation in short-window
 stock returns than dictionary or non-LLM methods, directly measuring the additional
 information content that LLM summarization captures relative to simpler text approaches.
 \citet{ErnstbergerNazemi2025} provide further evidence of the
@@ -569,8 +571,8 @@ Strategies for handling these extreme-length documents include:
         summarise those passages. This turns summarisation into retrieval-augmented
         generation \citep{lewis2020rag}.
   \item \textbf{Long-context models.} Models with extended context windows---Longformer
-        \citep{beltagy2020} and, as of 2024, commercial models with extended context
-        windows of 128K to 1M tokens---such as Gemini 1.5 Pro---can process an entire S-1 in a single forward pass. The practical
+        \citep{beltagy2020} and contemporary long-context commercial models, with context
+        windows ranging up to roughly one million tokens, can process an entire S-1 in a single forward pass. The practical
         constraint is the computational cost: processing 300,000 tokens through a
         dense attention model is expensive, though sparse-attention variants mitigate
         this.
@@ -614,9 +616,9 @@ structured XBRL data. Footnotes, which contain information about accounting poli
 choices, litigation contingencies, and segment disaggregations, are often only partially
 tagged. The practitioner must therefore combine XBRL extraction for core financial
 statement figures with NLP-based extraction for the surrounding narrative.
-\citet{LiGao2023} demonstrate that a prompt-engineering framework can
-achieve 96--99.5\% accuracy when extracting key financial indicators from
-PDF-formatted unstructured sources, establishing a practical performance benchmark
+\citet{LiGao2023} report that a prompt-engineering framework can
+achieve high extraction accuracy for key financial indicators from
+PDF-formatted unstructured sources, establishing a practical approach
 for LLM-based financial data extraction pipelines that supplement the structured
 XBRL layer. \citet{ShafferWang2024} extend this logic to non-recurring
 items: by applying sequential prompting to 10-K filings, they identify and aggregate
@@ -720,22 +722,27 @@ systems that are eloquent but dangerous in a financial decision context.
 \label{sec:ch14-rouge-bertscore-metrics}
 % ---------------------------------------------------------------------------
 
+\begin{context}
 \textbf{ROUGE} \citep{lin2004rouge} is the most widely used automatic metric for
-summarisation evaluation. ROUGE-$N$ computes the $n$-gram recall of the candidate
-summary against one or more reference summaries:
+summarisation evaluation. Intuitively, it measures how much of the reference summary's
+wording the candidate reproduces---a recall-oriented overlap score.
+\end{context}
 
-An \emph{$n$-gram} is a contiguous sequence of $n$ tokens; for a sequence $y$, the multiset $\mathcal{G}_N(y)$ contains all contiguous $N$-token subsequences.
+\begin{deepdive}
+ROUGE-$N$ computes the $n$-gram recall of the candidate summary against one or more
+reference summaries. An \emph{$n$-gram} is a contiguous sequence of $n$ tokens; for a
+sequence $y$, the multiset $\mathcal{G}_N(y)$ contains all contiguous $N$-token subsequences.
 \begin{equation}
 \label{eq:rouge-n}
 \text{ROUGE-}N = \frac{\sum_{s \in \mathcal{R}} \sum_{g \in \mathcal{G}_N(s)}
   \text{Count}_{\text{match}}(g, c)}{\sum_{s \in \mathcal{R}} \sum_{g \in \mathcal{G}_N(s)}
   \text{Count}(g)},
 \end{equation}
-
 where $\mathcal{R}$ is the set of reference summaries, $\mathcal{G}_N(s)$ is the set
 of $n$-grams in summary $s$, $c$ is the candidate summary, and $\text{Count}_{\text{match}}(g, c)$
 is the number of times $n$-gram $g$ appears in both the reference and the candidate.
 ROUGE-L measures the longest common subsequence rather than exact $n$-gram overlap.
+\end{deepdive}
 
 Despite its ubiquity, ROUGE has well-known limitations. It rewards lexical overlap rather
 than semantic equivalence. A summary that replaces ``net income declined 12\%'' with
@@ -743,23 +750,28 @@ than semantic equivalence. A summary that replaces ``net income declined 12\%'' 
 word substitution. Conversely, a summary that copies irrelevant sentences from the source
 can achieve high ROUGE scores without being informative.
 
+\begin{context}
 \textbf{BERTScore} \citep{zhang2020bertscore} addresses the lexical-overlap limitation
-by measuring semantic similarity between candidate and reference tokens using contextual
-embeddings. For candidate token $\hat{r}_j$ and reference token $r_i$, the cosine
-similarity is:
+by judging candidate and reference tokens as equivalent when their meanings match, not
+only when their surface forms do.
+\end{context}
 
+\begin{deepdive}
+BERTScore measures semantic similarity between candidate and reference tokens using
+contextual embeddings. For candidate token $\hat{r}_j$ and reference token $r_i$, the cosine
+similarity is
 \begin{equation}
 \label{eq:bertscore}
 \text{sim}(r_i, \hat{r}_j) = \frac{\mathbf{h}_{r_i}^\top \mathbf{h}_{\hat{r}_j}}
   {\|\mathbf{h}_{r_i}\| \cdot \|\mathbf{h}_{\hat{r}_j}\|},
 \end{equation}
-
 where $\mathbf{h}_{r_i}$ is the contextual embedding of token $r_i$ from a pretrained
 model (typically RoBERTa or a domain-specific encoder). BERTScore precision, recall, and
 F$_1$ are computed by greedily matching each token in the candidate to the most similar
 token in the reference, and vice versa. In financial text, BERTScore using a financial
 encoder (e.g., FinBERT) captures domain-specific semantic similarity better than a
 general-domain encoder.
+\end{deepdive}
 
 Neither ROUGE nor BERTScore measures factual correctness. A summary that states the
 correct financial facts in different words receives a deserved high BERTScore. But a
@@ -837,7 +849,7 @@ for domain-adaptive pretraining of encoder models. Models pretrained on EDGAR-Co
 consistently outperform general-domain models on financial NLP benchmarks, even when
 the downstream task is not directly related to SEC filings.
 
-\textbf{FINER-139} \citep{shah2023finer} is the most comprehensive financial NER
+\textbf{FINER-139} \citep{loukas2022finer} is the most comprehensive financial NER
 benchmark, annotating 139 fine-grained entity types. It is the standard benchmark for
 evaluating domain-specific NER models on SEC filing text. Practitioners building
 production financial NER systems should use FINER-139 as their primary evaluation set.
@@ -915,8 +927,9 @@ summarisation in financial documents. The key takeaways are:
 
 The foundational work on general-domain NER, from conditional random fields through
 transformer-based token classification, is covered in \citet{lample2016neural} and the
-survey in \citet{devlin2019}. For financial NER specifically, \citet{shah2023finer}
-provides both the benchmark and a comprehensive survey of prior datasets.
+survey in \citet{devlin2019}. For financial NER specifically, the FINER-139 XBRL
+benchmark \citep{loukas2022finer} and the English/Greek FINER dataset of
+\citet{shah2023finer} provide the standard evaluation resources.
 
 The ECTSum dataset paper \citep{mukherjee2022ectsum} is essential reading for anyone
 building earnings transcript summarisation systems; it provides a careful analysis of
@@ -935,57 +948,10 @@ Readers interested in the broader landscape of financial NLP benchmarks should c
 \citet{xie2024finben}, which surveys over a dozen evaluation datasets and provides
 unified leaderboards.
 
-Chapter~\ref{ch:business-valuation} of this book applies several of the extraction
+\Cref{ch:business-valuation} of this book applies several of the extraction
 techniques developed here in the context of an end-to-end valuation pipeline---in
 particular, the XBRL extraction and LLM-assisted table parsing components described in
 Section~\ref{sec:ch14-table-numerical-extraction} are direct prerequisites for the
 discounted cash flow models developed there. The hallucination mitigation framework
-introduced in Chapter~13 should be applied to any production system that uses abstractive
+introduced in \Cref{ch:llm-limitations-evaluation} should be applied to any production system that uses abstractive
 summarisation in a decision-critical context.
-
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch14-data-lab}
-
-The following exercises use live data from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code is in
-\texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
-
-\begin{exercise}[MD\&A Section Extraction]\label{ex:ch14-edgar-b}
-\textbf{[B]} Fetch Apple's most recent 10-K filing HTML from EDGAR and extract
-the MD\&A section (between ``Item~7'' and ``Item~7A'' headings) using
-the \texttt{extract\_mda} helper.
-(\textit{a})~Print the word count, sentence count, and the first
-500 characters of the extracted text.
-(\textit{b})~Plot a histogram of sentence lengths (words per sentence).
-(\textit{c})~Discuss the challenges of reliably detecting section boundaries
-across different filer formats.
-See \texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Extractive Summarisation]\label{ex:ch14-edgar-i}
-\textbf{[I]} Implement TF-IDF sentence scoring: compute TF within each sentence
-and IDF over all sentences, then score each sentence as the sum of its
-TF-IDF weights.
-Apply this to the MD\&A sections of AAPL, MSFT, and JPM.
-(\textit{a})~Select the top-5 sentences as the extractive summary.
-(\textit{b})~Print each summary and compute the compression ratio
-(words in summary / words in original).
-(\textit{c})~Compare the three summaries qualitatively.
-See \texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
-\end{exercise}
-
-\begin{exercise}[Information Extraction Pipeline]\label{ex:ch14-edgar-a}
-\textbf{[A]} For AAPL, MSFT, GOOGL, AMZN, and META, build an information
-extraction pipeline that retrieves from the most recent 10-K:
-(\textit{a})~the first revenue figure matching the pattern
-\verb|\$\d+[\d.,]*\s*(billion|million)| in the MD\&A;
-(\textit{b})~the first three risk-factor sentences from Item~1A
-(identified by searching for the Item~1A heading);
-(\textit{c})~the names of the top-three executives mentioned on the filing
-cover page or management section, using a heuristic that finds consecutive
-capitalised tokens preceded by titles such as \textit{CEO}, \textit{CFO},
-\textit{President}, or \textit{Chairman}.
-Output as a structured list of dicts and discuss the limitations of
-regex-based IE versus an LLM-based approach.
-See \texttt{code/notebooks/14-financial-text-summarization/exercises.ipynb}, Data Lab section.
-\end{exercise}

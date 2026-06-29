@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture 4 — LLM Agents and Finance Applications</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 4 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 4 / Lecture 4</div>
+    <h1>LLM Agents and Finance Applications</h1>
+    <div class="sub">How an LLM stops answering questions and starts fetching filings, running numbers, and writing the report — under supervision.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ ROADMAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Roadmap</div>
+    <h2>Where this lecture is going</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <ol>
+          <li class="frag"><strong>From models to agents</strong> — wrap the LLM in a loop so it can act, not just talk.</li>
+          <li class="frag"><strong>Memory</strong> — what an agent can hold in its head vs. look up on demand.</li>
+          <li class="frag"><strong>Tools</strong> — letting the model call a calculator, a database, an API.</li>
+          <li class="frag"><strong>Orchestration</strong> — skills, hooks, frameworks, and multi-agent teams.</li>
+          <li class="frag"><strong>RAG</strong> — answer from your own 50,000-document library.</li>
+          <li class="frag"><strong>Applications</strong> — earnings calls, reports, portfolio Q&amp;A, trading signals.</li>
+          <li class="frag"><strong>Governance</strong> — production constraints, HITL, audit trails, and adversarial risks.</li>
+        </ol>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">the bigger picture</span>
+          A plain LLM is a brilliant intern who never leaves the chair. An <em>agent</em> gives that
+          intern hands: it can pull the 10-K, run the DCF, check compliance, and hand you a draft —
+          while logging every step so you can audit it.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 1 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>From language models to agents</h2>
+    <div class="secsub">Why a model that only predicts the next word can't do an analyst's job — and what fixes it.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The limitation</div>
+    <h2>Why a brilliant model that just sits there isn't enough</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A plain language model turns a prompt into words and stops. It has no memory between calls and can't reach out into the world — so real analyst work breaks it.</p>
+    <div class="block">
+      <div class="block-title">A portfolio manager asks</div>
+      <em>"Given Apple's last earnings call and the most recent 10-K, what are the key risks to
+      revenue growth vs. two years ago?"</em>
+    </div>
+    <ul>
+      <li class="frag"><strong>Documents don't fit</strong> — a call plus a 10-K can overflow what the model can read at once (frontier-class: 128,000+ tokens ≈ 100 pages)</li>
+      <li class="frag"><strong>Cross-referencing two sources is unreliable</strong> when both are crammed into one prompt</li>
+      <li class="frag"><strong>The follow-up restarts from scratch</strong> — "now compare to Microsoft" forgets everything</li>
+    </ul>
+    <aside class="underhood" data-title="what 'stateless' means">
+      A language model is a conditional distribution over token sequences: given a prompt
+      \(x_{1:t}\), it produces a distribution over the next token \(x_{t+1}\). Each call is
+      independent — it carries no state from the previous call and cannot alter its environment.
+      That independence is exactly the property an analyst workflow violates.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The fix</div>
+    <h2>An agent is the same model, wrapped in a loop</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Take that one-shot oracle and put it inside a cycle: look at the situation, decide what to do, do it, read the result, repeat. That loop is what makes the LLM an <em>autonomous agent</em>.</p>
+    <div class="block frag">
+      <div class="block-title">Autonomous Agent (definition)</div>
+      A computational system that <strong>perceives observations</strong> from an environment,
+      <strong>maintains internal state</strong>, <strong>selects actions</strong> from an action
+      space, and <strong>executes those actions</strong> in pursuit of a goal. When the reasoning
+      module is an LLM, we call it an <em>LLM-based agent</em>.
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the move that follows</span>
+      Everything in this lecture is a piece of that loop: where memory lives, what actions are allowed,
+      who supervises, and how you prove afterward what happened.
+    </div>
+    <aside class="underhood" data-title="why finance needs agents specifically">
+      Financial analysis involves heterogeneous data — SEC filings, earnings call transcripts,
+      Bloomberg feeds, proprietary databases — that cannot realistically be assembled into a single
+      prompt. Compliance workflows require auditable action traces. Portfolio construction demands
+      numerical computation that pure language generation cannot reliably perform. Each requirement
+      maps onto an agent capability: tool calling, memory management, structured planning.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The loop, named</div>
+    <h2>Perceive, reason, act — then do it again</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Strip the jargon and an agent repeats three moves: take in new information, decide on an action, and let the world respond. The diagram below shows the cycle.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/04-llm-agents/diagram.svg" alt="LLM agent loop diagram: observe, reason, act, tools and memory, environment">
+      <figcaption><b>Figure.</b> The perceive–reason–act loop. The model reads an observation, reasons about what to do, and issues an action; the environment (tools, APIs, databases) responds with the next observation. Memory threads through every step.
+        <span class="src">Source: Course materials, Chapter 4.</span></figcaption>
+    </figure>
+    <aside class="underhood" data-title="the Perceive–Reason–Act loop, formally">
+      A PRA loop is a triple \((\pi, \mu, \phi)\):
+      \[ \phi: \mathcal{O} \times \mathcal{M} \to \mathcal{M} \quad\text{(memory update)} \]
+      \[ \pi: \mathcal{M} \to \Delta(\mathcal{A}) \quad\text{(policy: memory} \to \text{distribution over actions)} \]
+      \[ \mu: \mathcal{A} \times \mathcal{E} \to \mathcal{O} \quad\text{(environment response)} \]
+      Starting from \(m_0\), each step: \(m_t \gets \phi(o_t, m_{t-1})\), \(a_t \sim \pi(m_t)\), \(o_{t+1} \gets \mu(a_t, e_t)\).
+      In an LLM agent \(\pi\) is the language model; \(\mathcal{M}\) is the prompt; actions are text, tool-calls, or termination; observations are tool outputs and user messages.
+      The central bottleneck: \(\mathcal{M}\) is bounded by the context window — roughly 100 pages for a frontier-class model.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The loop, unpacked</div>
+    <h2>What each piece of the loop means in an LLM agent</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Policy, memory, action, and observation each map directly onto things you can see and control in code.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Inside the loop</div>
+          <ul>
+            <li><strong>Policy</strong> = the language model (decides the next action)</li>
+            <li><strong>Memory</strong> = the structured prompt — history, tool results, system instructions</li>
+            <li><strong>Action</strong> = a text reply, a tool call, or "I'm done"</li>
+            <li><strong>Observation</strong> = a tool output, a retrieved document, a user message</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">the key bottleneck</span>
+          Memory is capped by the context window — roughly 100 pages for a frontier-class model.
+          A company's full filing history simply does not fit, which is why we need the memory and
+          retrieval tricks coming up.
+        </div>
+        <div class="block frag"><div class="block-title">Finance PRA example</div>
+          Earnings-call monitor: observation = a new transcript sentence; actions = Flag(reason),
+          Query(database), or Summarise (terminates); memory = accumulated transcript + flagged items.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">ReAct</div>
+    <h2>Think out loud, then act — and the act grounds the thought</h2>
+    <div class="title-rule"></div>
+    <p class="lead">ReAct (Yao et al., 2022) interleaves a written thought with a real action. The model says what it intends, takes a step, reads the result, and continues from facts rather than guesses.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Why explicit reasoning helps</div>
+          Want the closing price of AAPL on a date?
+          <ul>
+            <li><strong>Chain-of-thought only:</strong> the model <em>approximates</em> the number from training patterns — unreliable (Wei et al., 2022)</li>
+            <li><strong>ReAct:</strong> it calls <code class="inline">market_data_api(date=t)</code> and gets the exact value</li>
+          </ul>
+          Downstream reasoning then uses the precise number, not a hallucinated one.
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">practical result</span>
+          ReAct cuts hallucination by anchoring each reasoning step to a tool-call observation —
+          the model checks reality instead of inventing it.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="the ReAct trajectory, formally">
+      ReAct interleaves reasoning traces and actions as a trajectory
+      \[ \tau = (T_1, A_1, O_1,\; T_2, A_2, O_2,\; \ldots,\; T_n, A_n, O_n), \]
+      where \(T_i\) is a natural-language thought, \(A_i\) an action, and \(O_i\) an observation returned
+      by the environment. The trajectory terminates when \(A_n = \textsc{Finish}(\text{answer})\).
+      For \(f(t) = \) closing price of AAPL on date \(t\): chain-of-thought generates \(\hat f(t)\)
+      by pattern-matching; ReAct calls a tool and receives the exact \(f(t)\), eliminating a systematic
+      source of factual error.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">ReAct in action</div>
+    <h2>Three tool calls replace one risky guess</h2>
+    <div class="title-rule"></div>
+    <p class="lead"><strong>Query:</strong> "What was Tesla's stated liquidity-risk policy in its most recent 10-K?" Watch the agent walk to the answer instead of inventing it.</p>
+    <table>
+      <tr><th>Step</th><th>What happens</th></tr>
+      <tr><td><strong>Thought 1</strong></td><td>I need Tesla's most recent 10-K. Use the EDGAR search tool.</td></tr>
+      <tr><td><strong>Action 1</strong></td><td><code class="inline">edgar_search(ticker="TSLA", form="10-K", limit=1)</code></td></tr>
+      <tr><td><strong>Obs 1</strong></td><td><code class="inline">{accession: "0001318605-24-000004", filed: "2024-01-26"}</code></td></tr>
+      <tr><td><strong>Thought 2</strong></td><td>I have the accession. Retrieve the liquidity section specifically.</td></tr>
+      <tr><td><strong>Action 2</strong></td><td><code class="inline">edgar_section(accession="...", section="Liquidity")</code></td></tr>
+      <tr><td><strong>Obs 2</strong></td><td><code class="inline">[3,200 words of text...]</code></td></tr>
+      <tr><td><strong>Thought 3</strong></td><td>I have the relevant section. Extract the stated policy.</td></tr>
+      <tr><td><strong>Action 3</strong></td><td><strong>Finish</strong>(structured summary of liquidity policy)</td></tr>
+    </table>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the point</span>
+      Three grounded tool-call steps replace one hallucination-prone generation step.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Beyond ReAct</div>
+    <h2>Agents that explore options and learn from their mistakes</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two upgrades make agents smarter without retraining: search several plans before committing, and write yourself a note about what went wrong.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Tree-of-Thought (ToT)</strong> (Yao et al., 2023) — lays out reasoning as a search tree and evaluates several candidate paths before choosing one</li>
+          <li class="frag"><strong>Reflexion</strong> (Shinn et al., 2023) — adds a spoken self-critique after each attempt, carried into the next try without fine-tuning</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Finance example</div>
+          An agent picking comparable companies might write itself the lesson:
+          <em>"I should filter by market cap and GICS sub-industry simultaneously, not sequentially."</em>
+          That lesson carries forward — verbal self-improvement substitutes for expensive fine-tuning.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="Reflexion memory update">
+      After episode \(k\), a reflection function \(\rho: \mathcal{M} \times \mathcal{Y} \to \mathcal{L}\)
+      maps trajectory memory and outcome to a natural-language lesson \(\ell^{(k)}\), which is
+      prepended to memory for the next episode:
+      \[ m_0^{(k+1)} \gets \ell^{(k)} \oplus m_0^{(k)}. \]
+      No gradient update is required — the lesson is plain text.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 2 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>Memory</h2>
+    <div class="secsub">What an agent keeps in its head, what it looks up, and why a lookup error can become a compliance event.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The memory tiers</div>
+    <h2>What to hold in your head vs. what to look up</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Agents use three kinds of memory, just like a person: what's in front of you now, a library you search by meaning, and a filing cabinet you look up by exact key.</p>
+    <table>
+      <tr><th>Type</th><th>Size</th><th>Latency</th><th>Persistence</th></tr>
+      <tr><td>In-context</td><td>≤ context window</td><td>≈ 0</td><td>Session only</td></tr>
+      <tr><td>Retrieval-augmented</td><td>Unbounded</td><td>10–100 ms</td><td>Persistent</td></tr>
+      <tr><td>Long-term (DB)</td><td>Unbounded</td><td>1–10 ms</td><td>Persistent</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>In-context</strong> — the current conversation and recent tool results; instant, but gone at session end</li>
+      <li class="frag"><strong>Retrieval-augmented</strong> — a vector database searched by meaning; good for semantic queries over 10,000 SEC filings</li>
+      <li class="frag"><strong>Long-term</strong> — a relational or graph DB for exact lookups: entity metadata, fiscal calendar, analyst-revision history</li>
+    </ul>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the design move</span>
+      Financial agents layer all three: in-context for the active session, retrieval for the document corpus, structured DB for entity metadata. Route each information need to the right tier.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When lookup goes wrong</div>
+    <h2>A bad retrieval poisons everything downstream</h2>
+    <div class="title-rule"></div>
+    <p class="lead">When an agent searches its library by meaning, it can miss the right document or grab the wrong one — and the reasoning built on top inherits the error.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag"><strong>Missed relevant doc</strong> → a hallucinated gap in the answer</li>
+          <li class="frag"><strong>Spurious retrieval</strong> → noise dragged into the reasoning</li>
+          <li class="frag">Both failure modes propagate into the generated answer</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">in finance, retrieval errors matter</span>
+          A faithfulness failure in a compliance summary can be a regulatory violation. A faithfulness
+          score below <strong>0.80–0.90</strong> (commonly ~0.85) triggers human review rather than
+          automated publication.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="semantic retrieval by cosine similarity">
+      Given \(N\) document vectors \(\{\mathbf{v}_i\} \subset \mathbb{R}^D\) and a query \(\mathbf{q}\),
+      retrieval returns the \(k\) closest by cosine similarity
+      \(\cos(\mathbf{u},\mathbf{v}) = \mathbf{u}^\top\mathbf{v}/(\|\mathbf{u}\|\,\|\mathbf{v}\|)\):
+      \[ \text{Retrieve}(q,k) = \operatorname*{argtopk}_{i}\;
+         \frac{\mathbf{q} \cdot \mathbf{v}_i}{\|\mathbf{q}\|\,\|\mathbf{v}_i\|}. \]
+      Two failure modes: a relevant \(\mathbf{v}_i\) ranked below \(k\) (missed), or an irrelevant one
+      ranked above \(k\) (spurious). Both propagate directly into the generated answer.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 3 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Tool use and function calling</h2>
+    <div class="secsub">Giving the model a calculator, a database, and an API — safely, with an action space you control.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The tool paradigm</div>
+    <h2>A tool is a labelled action with a strict contract</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each tool is just three things: a name, a contract for its inputs and outputs, and the code that runs. The contract is what lets the model use it without guessing.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li><strong>Name</strong> — a unique identifier</li>
+          <li><strong>Schema</strong> — JSON Schema: what goes in, what comes out</li>
+          <li><strong>Implementation</strong> — the function that does the work (or returns an error)</li>
+        </ul>
+        <div class="block frag"><div class="block-title">Finance tool library example</div>
+          <code class="inline">get_financial_statement(ticker, type, period)</code><br>
+          <code class="inline">compute_ratio(ticker, ratio_name, period)</code><br>
+          <code class="inline">get_consensus_estimates(ticker, metric, horizon)</code><br>
+          <code class="inline">compare_peers(ticker, metric, period, n_peers)</code>
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout">
+          <span class="callout-tag">highest-leverage investment in reliability</span>
+          Clear, precise field descriptions — units, valid ranges, edge-case behaviour. These descriptions
+          flow straight into the JSON Schema the model reads, so good prose here is good engineering.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="a tool, formally">
+      A tool is a triple \(\mathcal{T} = (\textit{name}, \textit{schema}, f)\), where
+      \(f: \mathcal{D} \to \mathcal{R} \cup \{\textsc{Error}\}\) maps an input domain \(\mathcal{D}\)
+      (defined by the JSON Schema) to a result co-domain \(\mathcal{R}\), or an explicit error.
+      The model only ever sees the schema, never the body of \(f\). Safer than raw SQL: expose
+      <code>get_revenue(ticker, year)</code>, not <code>execute_sql(query)</code> — the action space
+      is restricted to semantically meaningful, validated operations.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">How a tool call actually works</div>
+    <h2>The model asks; a trusted environment acts</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Crucially, the model never runs code itself. It emits a structured request, and a separate trusted environment executes it and hands back the result — which is what makes tool use auditable and safe to restrict.</p>
+    <ol>
+      <li class="frag">Tools are declared in the system prompt as a JSON array</li>
+      <li class="frag">The model generates a structured tool-call message — function name + arguments</li>
+      <li class="frag">The execution environment dispatches the function and returns the result as a new message</li>
+      <li class="frag">The model continues reasoning with that result now in context</li>
+      <li class="frag">If the JSON is malformed, a validation error is returned as feedback — the agent regenerates with corrected arguments (Pydantic is widely used for this)</li>
+    </ol>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why this matters</span>
+      The agent's action space is <em>exactly</em> the set of declared tools — nothing more. That separation
+      is the safety property: you can prove what an agent was capable of doing.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Models that learn to use tools</div>
+    <h2>Toolformer and Gorilla: teaching the model when and which tool to call</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two key systems solved the hardest parts of tool use: knowing <em>when</em> a tool call is needed, and selecting the right one from thousands of options.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Toolformer (Schick et al., 2023)</div>
+          Fine-tuned a language model to self-supervise tool-call placement within generated text.
+          Key insight: a tool call should be emitted only when it is likely to <em>reduce perplexity</em>
+          of subsequent tokens — formalising <em>when</em> to call a tool.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Gorilla (Patil et al., 2023)</div>
+          Tackled <em>which</em> tool to call given a library of thousands of APIs. Fine-tuned on
+          (instruction, API call) pairs from API documentation. On large API libraries, Gorilla
+          outperforms GPT-4 with in-context demonstrations. Implication: specialised tool-calling
+          models or retrieval-augmented tool selection can outperform general-purpose LLMs at scale.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">practical design</span>
+      For large tool libraries, maintain a vector index of tool descriptions and retrieve only
+      the most semantically relevant tools for the active context — analogous to a Bloomberg
+      expert who reaches for the right function without mentally enumerating all 30,000.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">A custom tool</div>
+    <h2>Wrapping a DCF so the model can't misuse it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Define a tool with typed, described, range-checked inputs. The descriptions teach the model how to call it; the validation stops bad calls before they run.</p>
+    <pre class="code">from pydantic import BaseModel, Field
+
+class DCFInput(BaseModel):
+    free_cash_flows: list[float] = Field(
+        description="Projected FCFs in USD millions, chronological"
+    )
+    wacc: float = Field(
+        description="WACC as a decimal (0.08 = 8%)", ge=0.0, le=1.0
+    )
+    terminal_growth_rate: float = Field(
+        description="Perpetual growth rate as a decimal", ge=0.0, le=0.15
+    )</pre>
+    <ul>
+      <li class="frag">Pydantic field descriptions propagate into the JSON Schema the model receives</li>
+      <li class="frag">Validation errors come back as structured feedback — the agent regenerates with corrected arguments</li>
+      <li class="frag">Safer than raw SQL: the action space is restricted to meaningful financial operations</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">When tools fail</div>
+    <h2>An error is an observation, not a dead end</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Real tools time out, hit rate limits, and return nothing. A production agent treats each failure as information and recovers in layers.</p>
+    <ol>
+      <li class="frag"><strong>Innermost</strong> — retry with exponential back-off for transient failures (network timeouts, rate limiting)</li>
+      <li class="frag"><strong>Middle</strong> — read the error as an observation and try a different action: another endpoint, a relaxed date range, a decomposed query</li>
+      <li class="frag"><strong>Outermost</strong> — call <strong>RequestHumanHelp</strong>(description) rather than returning a made-up answer</li>
+    </ol>
+    <div class="alert callout frag">
+      <span class="callout-tag">never pass errors silently</span>
+      A robust protocol always returns an informative <strong>Error(msg)</strong>. The agent treats it as a
+      valid observation and generates a recovery action — silence is how hallucinations sneak in.
+    </div>
+    <aside class="underhood" data-title="robust tool calling, formally">
+      A robust tool calling protocol for tool \(\mathcal{T} = (\textit{name}, \textit{schema}, f)\)
+      is a function \(\hat f: \mathcal{D} \to \mathcal{R} \cup \{\textsc{Error}(msg)\}\) such that:
+      (1) \(\hat f(\mathbf{x}) = f(\mathbf{x})\) when \(f\) succeeds; (2) \(\hat f(\mathbf{x}) = \textsc{Error}(msg)\)
+      with an informative message when \(f\) raises; (3) the agent's policy \(\pi\) treats
+      \(\textsc{Error}(msg)\) as a valid observation and generates a recovery action.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 4 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Orchestration and multi-agent systems</h2>
+    <div class="secsub">Reusable skills, cross-cutting hooks, file-based patterns, and a team of specialists instead of one overworked generalist.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Building blocks</div>
+    <h2>Skills package the work; hooks watch it happen</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Two abstractions keep agent systems manageable: a <em>skill</em> is a reusable sub-workflow, and a <em>hook</em> is a callback that fires on events without touching the core reasoning.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Skills</div>
+          A named, parameterised sub-workflow that hides its own prompt engineering, tool selection, and
+          error handling. Examples: <code class="inline">SummariseEarningsCall</code>,
+          <code class="inline">RetrieveRiskFactors</code>, <code class="inline">GenerateCompsTable</code>.
+          A coordinator composes them in sequence without knowing their internals.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Hooks — financial examples</div>
+          <ul>
+            <li><strong>Audit hook</strong> — logs every tool call to an immutable trail (MiFID II)</li>
+            <li><strong>Compliance hook</strong> — checks a proposed response before any Finish</li>
+            <li><strong>Cost hook</strong> — tracks token usage; alerts on budget breach</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">why decouple</span>
+      Hooks separate cross-cutting concerns — audit, compliance, cost — from the agent's core reasoning loop.
+      A compliance hook need not understand the task; it only needs to inspect the proposed output.
+    </div>
+    <aside class="underhood" data-title="skills and hooks, formally">
+      A skill is a map \(\mathcal{S}: \mathcal{P} \times \mathcal{M}_{\text{in}} \to \mathcal{M}_{\text{out}}\)
+      from parameters and input context to output context — a parameterised sub-workflow.
+      A hook is a pair \((\mathcal{E}, h)\) where \(\mathcal{E}\) is an event type
+      (e.g., <em>ToolCallCompleted</em>, <em>TrajectoryTerminated</em>) and
+      \(h: \mathcal{E} \times \mathcal{M} \to \mathcal{M}\) is a handler invoked when an event fires.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The file-based pattern</div>
+    <h2>Agents, skills, and hooks as plain text — readable, diffable, auditable</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Agentic coding assistants (like Claude Code) realise agents, skills, and hooks as plain-text markdown files under version control — every capability and guardrail is a tracked file a reviewer can read.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Three file types, three roles</div>
+          <ul>
+            <li><strong>Agent file</strong> — states a persona, allowed inputs, the task, and the single artifact it must write</li>
+            <li><strong>Skill file</strong> — names an invocable procedure (<code class="inline">/screen-filing</code>) and lists ordered steps; skills can call other skills</li>
+            <li><strong>Hook script</strong> — wired declaratively to a lifecycle event (e.g., <em>PostToolUse</em>); runs automatically, no agent in the loop</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout frag">
+          <span class="callout-tag">why this matters for regulated workflows</span>
+          Agents are the <em>who</em>, skills are the <em>how</em>, hooks are the
+          <em>automatic guardrails</em> that run whether or not anyone remembers to ask.
+          The entire capability and control surface is inspectable from a git log.
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">practical note</span>
+      Many such files carry YAML frontmatter (name, description) followed by a free-text body.
+      A hook wired to <em>PostToolUse: Write|Edit</em> with a compliance script turns a
+      policy ("notes must clear compliance") into an enforced, auditable step.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Many agents, one job</div>
+    <h2>A team of specialists beats one generalist</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Split a hard task across narrow specialists and route between them. Each agent does one thing well, and the decomposition itself reduces errors.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Equity-research delegation</div>
+          <ol>
+            <li><strong>Coordinator</strong> — decomposes the request, assembles the final output</li>
+            <li><strong>Data Agent</strong> — retrieves statements and market data</li>
+            <li><strong>Quant Agent</strong> — computes ratios, scenario analysis</li>
+            <li><strong>Analyst Agent</strong> — drafts qualitative commentary</li>
+            <li><strong>Compliance Agent</strong> — checks regulation, appends disclosures</li>
+          </ol>
+        </div>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">production result</span>
+          A first-draft research report in <strong>≈ 4 minutes</strong> vs. <strong>2 days</strong>
+          for a human team. Humans review the compliance flags and quant scenario assumptions.
+        </div>
+        <div class="block frag"><div class="block-title">Evidence: TradingAgents (Xiao et al., 2024)</div>
+          Specialist LLM agents — fundamental, sentiment, technical analysts, traders with varied risk
+          profiles — debate market conditions before risk adjudication; yields superior cumulative
+          returns and Sharpe ratios vs. single-agent baselines over a 6-month live evaluation.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="multi-agent system, formally">
+      A multi-agent system is a triple \((\mathcal{AG}, \mathcal{C}, \delta)\): a set of agents
+      \(\mathcal{AG} = \{ag_1,\ldots,ag_K\}\) each with its own system prompt, tool library, and memory;
+      a communication topology \(\mathcal{C}: \mathcal{AG}\times\mathcal{AG}\to\{0,1\}\);
+      and a routing function \(\delta: \mathcal{AG}\times\mathcal{M}\to\mathcal{AG}\) selecting
+      the next agent given the conversation state.
+      The key insight: a specialist handling a narrow subtask outperforms a generalist managing
+      everything — decomposition reduces error (Park et al., 2023).
+      Ante et al. (2024) survey 306 deployed crypto AI agents and document how agentic autonomy
+      reshapes market coordination in ways existing regulatory frameworks are not designed to address.
+    </aside>
+  </section>
+
+  <!-- ============================ SECTION 5 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Retrieval-augmented generation in finance</h2>
+    <div class="secsub">Answering from your own 50,000-document library — keeping knowledge external, current, and auditable.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Why RAG</div>
+    <h2>Don't memorise the library — look things up at query time</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A large asset manager's research library has 50,000 documents. No context window holds it and no fine-tuning reliably memorises it. So retrieve the handful of relevant passages when the question arrives, and reason over those.</p>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      RAG (Lewis et al., 2020) keeps knowledge <strong>external, current, and auditable</strong> — you can swap
+      in a new filing without retraining, and you can point to exactly which passages an answer came from.
+      Gao et al. (2024) survey the extension of RAG to domain-specific applications including finance.
+    </div>
+    <aside class="underhood" data-title="the RAG marginalisation">
+      Retrieval-Augmented Generation marginalises over documents as a latent variable:
+      \[ p(a \mid q) = \sum_{z \in \mathcal{D}} p(z \mid q)\, p(a \mid q, z), \]
+      where \(z\) is a retrieved document, \(p(z\mid q)\) is the retrieval distribution (concentrated on
+      the top-\(k\) results in practice), and \(p(a\mid q,z)\) is the generation distribution.
+      In the original RAG formulation (Lewis et al., 2020), both retriever and generator are trained
+      end-to-end. The dominant deployment — <em>naive RAG</em> — uses a frozen bi-encoder retriever
+      and a closed-source LLM generator via API, sacrificing end-to-end optimisation for dramatically
+      lower deployment cost.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The vector database</div>
+    <h2>Semantic search at scale — finding meaning, not just keywords</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A vector database stores document embeddings and answers "which documents have a similar meaning to this query?" in milliseconds — even over millions of documents.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The core algorithm: FAISS (Johnson et al., 2019)</div>
+          Facebook AI Similarity Search implements several index types. For financial corpora up to
+          roughly one million vectors, <strong>IVF-HNSW</strong> (inverted file + hierarchical
+          navigable small worlds) delivers:
+          <ul>
+            <li>Query speed: <strong>under 10 ms</strong></li>
+            <li>Recall: <strong>above 95%</strong> for top-10 retrieval</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Metadata filtering is critical</div>
+          Commercial VDBs (Pinecone, Weaviate, Chroma, Qdrant) add metadata filtering to FAISS-like
+          indexing. For finance: attach <strong>ticker, date, document type, section</strong> to each
+          vector. Query "Apple CFO supply chain" with a filter restricting to Apple documents —
+          cuts irrelevant retrievals substantially.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Deploying RAG</div>
+    <h2>The cheap setup that wins — plus the filter that saves it</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Most production RAG is deliberately simple: a frozen off-the-shelf retriever feeding a closed-source LLM through an API. The big reliability win is filtering by metadata first.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Dominant deployment (naive RAG)</div>
+          <ul>
+            <li>Frozen bi-encoder retriever (a sentence transformer, e.g. FinBERT or text-embedding-3-large)</li>
+            <li>Closed-source LLM generator via API</li>
+            <li>Gives up end-to-end optimisation; dramatically cheaper to deploy</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout">
+          <span class="callout-tag">metadata filtering matters</span>
+          A query for "Apple CFO supply chain" should be restricted to Apple documents, not all 50,000
+          documents in the index. Composite queries combining semantic similarity with metadata equality
+          constraints substantially reduce irrelevant retrievals.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Grading a RAG system</div>
+    <h2>In finance, faithfulness comes before everything</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The RAGAS framework (Es et al., 2023) scores a RAG pipeline on four axes. For regulated finance, they are not equally important — an unfaithful answer is a hallucinated claim presented to a client.</p>
+    <table>
+      <tr><th>Metric</th><th>Definition</th></tr>
+      <tr><td>Faithfulness</td><td>Fraction of answer claims supported by the retrieved context</td></tr>
+      <tr><td>Answer Relevance</td><td>Semantic similarity between answer and query</td></tr>
+      <tr><td>Context Precision</td><td>Fraction of retrieved chunks relevant to the query</td></tr>
+      <tr><td>Context Recall</td><td>Fraction of ground-truth claims covered by the context</td></tr>
+    </table>
+    <ol>
+      <li class="frag"><strong>Faithfulness first.</strong> Unfaithful = hallucinated = a compliance failure with clients. Below <strong>0.85</strong> → block automated publication, trigger human review.</li>
+      <li class="frag"><strong>Context recall next.</strong> High faithfulness with low recall = accurate but incomplete — material disclosures may be omitted.</li>
+    </ol>
+  </section>
+
+  <!-- ============================ SECTION 6 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Finance applications</h2>
+    <div class="secsub">Earnings-call pipelines, reports, portfolio Q&amp;A, trading signals, and filing search.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Application · earnings calls</div>
+    <h2>Turning a call transcript into a structured, cited brief</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An earnings-call agent runs a five-stage pipeline — from raw transcript to a structured summary where every claim cites the transcript. Total pipeline latency: 3.2 minutes for a 90-minute call.</p>
+    <ol>
+      <li class="frag"><strong>Ingestion</strong> — transcript from a vendor API (Refinitiv, S&amp;P Global) or EDGAR</li>
+      <li class="frag"><strong>Segmentation</strong> — classify speaker turns: management guidance / analyst Q / clarification</li>
+      <li class="frag"><strong>Metric extraction</strong> — find numerical guidance; compare to prior guidance and consensus</li>
+      <li class="frag"><strong>Sentiment</strong> — a directional score per segment on a financially calibrated scale</li>
+      <li class="frag"><strong>Synthesis</strong> — a structured summary with transcript citations (including timestamp and speaker)</li>
+    </ol>
+    <div class="cols">
+      <div class="col">
+        <div class="takeaway callout frag">
+          <span class="callout-tag">predictive evidence</span>
+          Kim et al. (2024): GPT-4 fed anonymised financial statements predicts earnings direction at
+          accuracy that exceeds human analysts; trading strategies yield higher Sharpe ratios.
+          LopezLira &amp; Tang (2023): zero-shot GPT-4 headline sentiment predicts short-term returns.
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">domain knowledge matters</span>
+          General models misread finance: "margin compression was manageable" is a negative signal;
+          "exceptional inventory build" in consumer electronics is a negative signal.
+          FinGPT (Yang et al., 2023) and BloombergGPT (Wu et al., 2023) substantially reduce these errors.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Application · reports &amp; filing Q&amp;A</div>
+    <h2>Describe verified data — never write from memory</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The core principle of automated research: a data agent assembles verified numbers first, then a writer agent describes that package, citing every figure. Free-form "write a report about NVIDIA" produces hallucinated figures.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Report generation — fact grounding</div>
+          <ul>
+            <li>Data agent assembles a <em>verified</em> data package (statements, market data, estimates)</li>
+            <li>Writer produces prose <em>describing</em> it, citing each figure by source</li>
+            <li>MiFID II substantiation requirements apply to algorithmically generated research too</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Filing Q&amp;A — citation wrapper</div>
+          <ul>
+            <li>Every claim must carry a chunk citation</li>
+            <li>A verifier model (7B-parameter is sufficient) checks each claim against the cited chunk</li>
+            <li>Unsupported → <code class="inline">[Claim not verified; human review required]</code></li>
+            <li>FinSage (Wang et al., 2025): multi-path retrieval + compliance re-ranking for FinanceBench</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">FinanceBench — it's hard (Zhang et al., 2024)</span>
+      Even GPT-4-Turbo with retrieval incorrectly answers or refuses a large majority of questions over
+      publicly traded company filings. Production-grade financial RAG is genuinely difficult.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Application · portfolio research assistants</div>
+    <h2>Natural-language analytics for the portfolio manager</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A portfolio research assistant takes natural-language questions and answers them with precise computation — no bespoke code needed for each query.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Tool library for portfolio Q&amp;A</div>
+          <code class="inline">get_factor_exposures(portfolio, model, date)</code><br>
+          <code class="inline">compute_tracking_error(portfolio, benchmark, days)</code><br>
+          <code class="inline">run_stress_test(portfolio, scenario)</code><br>
+          <code class="inline">search_research_notes(query, date_range, universe)</code>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Sample interaction</div>
+          <em>"What is the current technology sector weight vs. the benchmark?"</em><br><br>
+          Agent → calls <code class="inline">get_factor_exposures</code> → responds: "28.4% vs 27.8% in S&amp;P 500
+          (60bps overweight). Note: today's intraday prices not incorporated — refresh after market close."
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">data-vintage transparency</span>
+      An agent that silently answers about yesterday's close when the manager asks about today's positions
+      after a large trade introduces a serious misunderstanding risk. Agents must explicitly flag data vintage.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Application · trading signals from text</div>
+    <h2>From Tetlock to GPT: richer, more nuanced signals than bag-of-words</h2>
+    <div class="title-rule"></div>
+    <p class="lead">LLM agents extend the long tradition of text-based signals by producing structured outputs — sector sentiment, management confidence, guidance revision direction, novelty relative to prior disclosures — rather than a single number.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Signal generation pipeline</div>
+          News monitoring agent → triggers signal agent per document → structured JSON output:
+          <ul>
+            <li><code class="inline">sentiment_direction</code> {-1, 0, +1}</li>
+            <li><code class="inline">sentiment_intensity</code> [0, 1]</li>
+            <li><code class="inline">affected_entities</code> (ticker list)</li>
+            <li><code class="inline">event_type</code> (M&amp;A, guidance revision, rating change…)</li>
+            <li><code class="inline">confidence</code> [0, 1]</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">signal staleness / adverse selection</span>
+          By the time a news article is processed (typically 10–60 seconds for cloud inference),
+          HFT may have already incorporated the information. The practical value of LLM text signals
+          is at <strong>longer horizons (minutes to days)</strong>, not ultra-low latency.
+          Practitioners must measure signal half-life and calibrate holding periods.
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">evidence</span>
+      Tetlock (2007): text features predict returns. LopezLira &amp; Tang (2023): zero-shot GPT-4
+      outperforms dictionary-based methods. Yang et al. (2023): fine-tuned open-source models achieve
+      comparable accuracy at lower inference cost. An et al. (2024) FinVerse integrates 600+ financial APIs
+      for complex quantitative tasks far beyond single-turn Q&amp;A.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 7 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">07</div>
+    <h2>Governance and safety</h2>
+    <div class="secsub">Production constraints, human oversight matched to risk, tamper-evident audit trails, and defending against poisoned inputs.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Production constraints</div>
+    <h2>Latency, cost, and reliability — the three constraints that matter in finance</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A research prototype that takes two minutes to answer a question is fine. The same latency in a live trading workflow is not. Production deployment imposes three hard constraints simultaneously.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Managing latency</div>
+          <ul>
+            <li><strong>Caching</strong> — store results against a content hash; repeated queries cost only a cache lookup</li>
+            <li><strong>Model tiering</strong> — GPT-5.6 Luna / Claude Haiku 4.5 for classification and extraction; larger models for synthesis and report generation</li>
+            <li>LLM generation budget: <strong>50–70%</strong> of total allowed wall-clock time</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Defensive architecture</div>
+          Every external dependency — LLM API, market data vendor, vector DB — is treated as potentially
+          unavailable.
+          <ul>
+            <li><strong>Circuit breakers</strong> — detect a consistently failing dependency and route around it</li>
+            <li><strong>Rate limit management</strong> — request queuing with priority ordering</li>
+            <li><strong>Graceful degradation</strong> — cached response, simpler fallback model, or human escalation</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="latency budget, formally">
+      A latency budget \(B_\ell = \sum_{i=1}^K b_i\) allocates total allowed wall-clock time
+      across workflow components (retrieval, LLM call, tool call, post-processing).
+      A well-designed agent allocates 50–70% to LLM generation and enforces hard timeouts on
+      each component, triggering a graceful degradation path if any component exceeds its allocation.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Human-in-the-loop</div>
+    <h2>Match the level of human oversight to the stakes</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Not every action needs a human signature. Pick the oversight pattern by how reversible and how consequential the action is. Ouyang et al. (2022) showed that human feedback is essential for aligning LLM outputs — in finance this applies to factual correctness, not just values.</p>
+    <table>
+      <tr><th>Pattern</th><th>Timing</th><th>Appropriate for</th></tr>
+      <tr><td>Pre-execution approval</td><td>Before any action</td><td>Trade execution, client comms, regulatory filing</td></tr>
+      <tr><td>Checkpoint review</td><td>At predefined gates</td><td>Report generation, compliance monitoring</td></tr>
+      <tr><td>Post-hoc audit</td><td>After completion</td><td>News classification, filing alerts (high-volume, low-stakes)</td></tr>
+    </table>
+    <ul>
+      <li class="frag"><strong>Irreversible + high-consequence</strong> → pre-execution approval</li>
+      <li class="frag"><strong>Reversible + medium-consequence</strong> → checkpoint review</li>
+      <li class="frag"><strong>Low-stakes + high-volume</strong> → post-hoc audit</li>
+    </ul>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Audit &amp; explainability</div>
+    <h2>A tamper-evident log of what the agent did — and why</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Every action is recorded with a timestamp and full payload, and the records are chained so that altering any past entry breaks every later hash. The agent's own thoughts double as its explanation.</p>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li class="frag">The audit trail records <em>what</em> the agent did</li>
+          <li class="frag">An explanation addresses <em>why</em></li>
+          <li class="frag">For ReAct agents, the Thought steps <em>are</em> the explanation — a strong argument for agents that externalise reasoning in natural language</li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="block frag"><div class="block-title">Regulatory requirements</div>
+          <ul>
+            <li>MiFID II Article 16: record-keeping obligations for investment decisions</li>
+            <li>SEC Rule 17a-4: electronic records for broker-dealers</li>
+            <li>Both apply to <em>algorithmically generated</em> decisions that influence investment outcomes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="hash-chained audit records">
+      An audit trail is \(\mathcal{A} = (r_1, \ldots, r_T)\) where each record \(r_t = (t_t, \text{type}_t,
+      \text{payload}_t, \text{hash}_t)\) holds a timestamp, record type, full input/output payload, and
+      a chained hash
+      \[ \text{hash}_t = H(\text{payload}_t \,\|\, \text{hash}_{t-1}), \]
+      where \(H\) is a collision-resistant hash function (e.g., SHA-256). Modifying any historical
+      record changes its hash and invalidates every subsequent hash — tamper evidence analogous to a
+      blockchain, applied to agent audit logs.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Adversarial robustness</div>
+    <h2>When a document tells your agent to misbehave</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Prompt injection is malicious instructions hidden in tool outputs or retrieved documents that try to override the system prompt. Worse, the attacker need not touch your system at all (Perez et al., 2022; Greshake et al., 2023).</p>
+    <div class="block frag"><div class="block-title">Indirect injection (Greshake et al., 2023)</div>
+      An attacker controls a web page and embeds hidden instructions that execute inside <em>any</em> agent
+      that retrieves that page — the agent becomes a confused deputy, exercising elevated privileges on
+      behalf of the attacker.
+    </div>
+    <h3>Defence in depth — no single control is sufficient</h3>
+    <ol>
+      <li class="frag"><strong>Input sanitisation</strong> — strip instruction-like patterns from retrieved text</li>
+      <li class="frag"><strong>Privilege separation</strong> — trusted system prompt vs. untrusted retrieved docs processed in a sandboxed context</li>
+      <li class="frag"><strong>Invariant monitoring</strong> — a separate agent blocks actions that violate invariants ("never recommend companies not on the approved list")</li>
+      <li class="frag"><strong>Dual-key authorisation</strong> — consequential actions need human + agent confirmation; capability-based security for API keys</li>
+    </ol>
+    <aside class="underhood" data-title="the confused-deputy problem and capability-based security">
+      Prompt injection is a classic <em>confused deputy</em>: a powerful program (the agent) is manipulated
+      by a less-privileged input (a retrieved document) into exercising elevated privileges on behalf of
+      the attacker. The defence is <em>capability-based security</em>: the agent's trade-execution API
+      key is stored in a secure enclave separate from its data-retrieval key and requires an additional
+      authentication factor — ensuring that even a fully compromised agent cannot execute trades without
+      the secondary factor.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The regulatory horizon</div>
+    <h2>AI governance for finance is arriving — build for it now</h2>
+    <div class="title-rule"></div>
+    <p class="lead">In 2023, a New York attorney was sanctioned for submitting a legal brief citing six non-existent cases generated by ChatGPT (Mata v. Avianca). In finance, the stakes are at least as high — and regulators are responding.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Regulatory developments</div>
+          <ul>
+            <li class="frag"><strong>EU AI Act (2024)</strong> — AI systems in financial services classified as high-risk; conformity assessment, logging, and human oversight obligations</li>
+            <li class="frag"><strong>SEC proposed rules (2023)</strong> — disclosure of AI use in investment recommendations; fiduciary obligations on algorithmic advice</li>
+            <li class="frag"><strong>MiFID II best execution</strong> — must document reasoning chains for trading-related decisions in sufficient granularity to reconstruct them</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="alert callout frag">
+          <span class="callout-tag">structural concern (Kurshan et al., 2024)</span>
+          Existing model-risk frameworks assume static, well-specified algorithms subject to one-time
+          validation. Multi-agent trading systems learn continuously, exchange latent signals, and exhibit
+          emergent behaviour — current frameworks are structurally inadequate.
+          A layered governance architecture (self-regulation + firm-level + regulator-hosted monitoring)
+          is needed.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ WRAP ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Wrap-up</div>
+    <h2>The agent stack — and where Lecture 5 goes</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>The stack we built</h3>
+        <table>
+          <tr><th>Capability</th><th>Key mechanism</th></tr>
+          <tr><td>Basic LLM</td><td>Prompt → token distribution (stateless)</td></tr>
+          <tr><td>Agent loop</td><td>Perceive–Reason–Act; ReAct interleaving</td></tr>
+          <tr><td>Extended memory</td><td>Vector DB (FAISS/HNSW); hybrid search; chunking</td></tr>
+          <tr><td>External tools</td><td>Function calling; Pydantic validation; Toolformer/Gorilla</td></tr>
+          <tr><td>Composition</td><td>Skills; hooks; file-based pattern; multi-agent</td></tr>
+          <tr><td>Applications</td><td>Earnings; reports; portfolio Q&amp;A; trading signals; filing search</td></tr>
+          <tr><td>Safety</td><td>Production constraints; HITL; audit trails; injection defences; regulation</td></tr>
+        </table>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">connection to Chapter 5</span>
+          Chapter 5 applies these architectures to <strong>business valuation</strong> — a task needing
+          document retrieval, numerical computation, structured synthesis, and human oversight: exactly the
+          stack developed here.
+        </div>
+        <p class="small"><strong>Key refs:</strong> Yao et al. (2022) · Shinn et al. (2023) ·
+          Lewis et al. (2020) · Greshake et al. (2023) · Kim et al. (2024) ·
+          Xiao et al. (2024) · Zhang et al. (2024) · Kurshan et al. (2024).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ APPENDIX ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">A</div>
+    <h2>Appendix — extra &amp; optional material</h2>
+    <div class="secsub">Orchestration frameworks, vector databases, hybrid search, learned sparse retrieval, and chunking strategies. Beyond the core lecture.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · frameworks</div>
+    <h2>Pick the framework that fits the task <em>and</em> the audit trail</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Three popular orchestration frameworks make different bets. For regulated finance, the deciding factor is often who logs the full conversation by default.</p>
+    <table>
+      <tr><th>Framework</th><th>Design philosophy</th><th>Best for</th><th>Audit trail</th></tr>
+      <tr><td>LangChain (2022)</td><td>Composable chains (LCEL)</td><td>Diverse data sources</td><td>Explicit config needed</td></tr>
+      <tr><td>LlamaIndex (2022)</td><td>Data-intensive retrieval</td><td>Large document corpora</td><td>Explicit config needed</td></tr>
+      <tr><td>AutoGen (Wu et al., 2023)</td><td>Multi-agent conversation</td><td>Team-structured workflows</td><td>Full history by default</td></tr>
+    </table>
+    <div class="takeaway callout">
+      <span class="callout-tag">auditability</span>
+      AutoGen serialises full conversation histories — a natural audit log satisfying MiFID II best-execution
+      documentation. For compliance-sensitive applications, the choice of framework should consider not
+      just task fit but also the audit trail requirements imposed by regulators.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · learned sparse retrieval</div>
+    <h2>SPLADE: the best of both worlds — semantic meaning, sparse efficiency</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Standard hybrid search combines a fixed dense embedder and fixed BM25. SPLADE goes further: it <em>learns</em> a sparse representation that captures meaning rather than just exact terms.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">How SPLADE works</div>
+          Applies a ReLU-log activation to masked language model (MLM) logits to produce a
+          <em>sparse high-dimensional vector</em>. The model learns to expand queries and documents
+          with semantically related terms — e.g., expanding "haircut" (financial: reduction in
+          collateral value) rather than its everyday sense.
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout frag">
+          <span class="callout-tag">why it matters for finance</span>
+          Financial terminology is highly specialised. A SPLADE model fine-tuned on financial text can
+          learn that "haircut", "covenants", and "basis points" carry domain-specific meanings that
+          general-purpose embedding models encode poorly. Learned sparse retrieval may outperform both
+          BM25 and dense retrieval on benchmark tasks in specialised financial corpora.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · hybrid search</div>
+    <h2>Meaning-search and keyword-search cover each other's gaps</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Dense retrieval captures semantic similarity but fails on exact matches like CUSIP numbers or regulatory citations. Sparse keyword search nails those. Blend the two.</p>
+    <ul>
+      <li class="frag"><strong>Higher α (favour dense)</strong> — QA over long financial documents; start around α ≈ 0.7</li>
+      <li class="frag"><strong>Lower α (favour sparse)</strong> — keyword-heavy regulatory lookup; start around α ≈ 0.3</li>
+      <li class="frag"><strong>Reciprocal Rank Fusion (RRF)</strong> — avoids normalisation entirely: combines rank positions from each retrieval system with constant k = 60</li>
+      <li class="frag"><strong>Tune on a held-out validation set</strong> — the optimal α is task-specific</li>
+    </ul>
+    <aside class="underhood" data-title="BM25 and the hybrid score">
+      BM25 (Robertson et al., 2009) scores by normalised term frequency weighted by inverse document frequency.
+      After min–max normalising both signals, combine them:
+      \[ \text{score}_{\text{hybrid}}(q,d) = \alpha \cdot \widetilde{\text{cosine}}(\mathbf{q},\mathbf{v}_d)
+         + (1-\alpha)\cdot\widetilde{\text{BM25}}(q,d). \]
+      Reciprocal rank fusion avoids normalisation:
+      \[ \text{RRF}(q,d) = \sum_{r \in \{\text{dense},\text{sparse}\}} (k + \text{rank}_r(d))^{-1}, \quad k=60. \]
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Appendix · chunking</div>
+    <h2>How you slice a 200-page filing decides what you can find</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A 10-K has hierarchical structure. Cutting it into fixed-size blocks severs meaning at arbitrary points — better to respect the document's own boundaries.</p>
+    <ol>
+      <li class="frag"><strong>Fixed-size</strong> — L tokens with δ overlap; simple, ignores structure</li>
+      <li class="frag"><strong>Semantic</strong> — sentence/paragraph boundaries; EDGAR item structure for SEC filings provides natural top-level sections</li>
+      <li class="frag"><strong>Hierarchical</strong> — a multi-level index (document → section → paragraph); retrieve the section first, then the paragraph within it. Two-stage approach reduces context sent to the generator while preserving structure</li>
+    </ol>
+    <div class="cols">
+      <div class="col">
+        <div class="block frag"><div class="block-title">Recommended for 10-Ks</div>
+          Hierarchical: EDGAR item structure at the top level + sentence-boundary chunking within items
+          (max <strong>512 tokens</strong>, <strong>64-token overlap</strong>).
+          Apple 2023 10-K (170 pages): ~15 item chunks, ~300 paragraph chunks, 20–30 table chunks.
+        </div>
+      </div>
+      <div class="col">
+        <div class="takeaway callout frag">
+          <span class="callout-tag">benchmark result</span>
+          Typical recall for well-tuned hierarchical RAG on 10-K filings: <strong>85–95%</strong> on
+          manually labelled evaluation sets. Fixed-size chunking consistently underperforms hierarchical
+          on downstream QA over long financial documents.
+        </div>
+      </div>
+    </div>
+    <aside class="underhood" data-title="chunking strategy, formally">
+      A chunking strategy is a function \(\chi: \mathcal{D} \to 2^{\mathcal{P}}\) mapping a document
+      to a set of passages such that (i) \(\bigcup_{p\in\mathcal{P}(d)} \text{tokens}(p) = \text{tokens}(d)\)
+      (coverage), (ii) each \(p\) fits within a maximum token budget \(L_{\max}\), and (iii) adjacent
+      passages may share up to \(\delta_o\) tokens of overlap.
+    </aside>
+  </section>
+
+</div></div>
+</body>
+</html>

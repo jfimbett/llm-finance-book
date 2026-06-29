@@ -1,0 +1,2228 @@
+\chapter{Loops, Goals, and Iterations: Agents, Skills, and Hooks}
+\label{ch:loops-goals-iterations}
+
+\begin{remark}[Learning Objectives]
+After completing this chapter, the reader should be able to:
+\begin{enumerate}
+  \item Explain why one-shot prompting is fragile for complex work and describe
+        the goal-directed loop (observe, propose, act, evaluate, revise) that
+        replaces it.
+  \item Write goals as concrete, checkable, decomposable control objects, and
+        encode them in project files (TASK.md, TOPIC.md, STATUS.md, rubrics,
+        validation scripts).
+  \item Distinguish the roles of agents, skills, and hooks in an iterative
+        system, and assemble them into a working iteration loop with explicit
+        stopping criteria.
+  \item Trace a deliberately simple feedback loop (derivative-free root finding)
+        and a complex multi-agent loop (credit-risk stress testing) and explain
+        why each requires real, feedback-driven iteration.
+  \item Diagnose common failure modes of agentic iteration (infinite loops,
+        fake convergence, goal drift, Goodhart overfitting, premature success)
+        and apply hooks and stopping rules as remedies.
+  \item Select an appropriate design pattern (planner--executor--critic,
+        generate--test--revise, scaffold--draft--audit--repair, and others) for
+        a given finance workflow.
+\end{enumerate}
+(This is a methodology capstone. The concrete tooling for Claude Code, Codex,
+Hugging Face, the SDKs, Git, and Cline lives in Appendices~A--F; this chapter
+treats the \emph{design of iterative agentic systems} rather than any single
+tool.)
+\end{remark}
+
+\begin{context}
+This chapter builds directly on the agentic primitives of
+\Cref{ch:llm-agents}. There we defined an agent, a skill (\Cref{def:skill}), and a
+hook (\Cref{def:agent-hook}), and introduced the file-based form in which each is a
+plain-text, version-controlled artifact (\Cref{subsec:file-based-pattern}): an agent
+Markdown file with a persona and an accountable output, a skill Markdown file with an
+ordered, composable procedure, and a hook script wired to a lifecycle event. We do not
+re-derive those definitions here. Instead we ask the next question: how are these parts
+\emph{composed into a feedback loop} that pursues a goal, measures its own progress, and
+knows when to stop? The placement of this chapter is deliberate---it comes after the
+finance domains it draws on (notably credit risk, \Cref{ch:credit-risk}, whose stress
+test is the running example of \Cref{sec:example-credit-risk}) and after the governance
+and evaluation material (Part~V) that the loop's validators and audit trails depend on,
+so that every ingredient of an engineered loop is already on the table.
+\end{context}
+
+
+% --- Section: From Linear Prompts to Iterative Systems ---
+\section{From Linear Prompts to Iterative Systems}\label{sec:from-linear-to-iterative}
+
+The preceding chapters treated the large language model largely as a function: a prompt goes in, a completion comes out, and the engineering problem is to shape the prompt so that the completion is useful. This is the natural mental model for someone who has just learned to call an API, and it is adequate for a surprising range of tasks: summarizing a filing, extracting a counterparty name, drafting a paragraph. But it is also a deceptive model, because it hides the fact that almost every interesting use of an LLM in a production finance setting is really a \emph{process} rather than a single call. That process is a sequence of model invocations interleaved with tool calls, validations, human checks, and revisions, organized around a goal that the first call almost never achieves on its own.
+
+This chapter is about the design of that process. We are deliberately not writing a tutorial on any particular framework; the concrete mechanics of agents, skills, and hooks (how to register a tool, how to wire a pre-commit check, how to schedule a recurring job) live in Appendices A through F. Here we are concerned with the architecture of \emph{iterative agentic systems}: systems in which a model repeatedly observes the state of the world, proposes an action, acts, evaluates the result against an explicit goal, and revises. The central claim is that the loop, not the prompt, is the primary unit of design, and that getting the loop right, with its goal, its feedback channels, and its stopping rules, matters far more than any single clever instruction. We develop this claim abstractly in the first two sections, ground it in finance examples in \Cref{sec:example-credit-risk} and beyond, and confront its pathologies in \Cref{sec:failure-modes}.
+
+\subsection{Why One-Shot Prompting Is Fragile}\label{subsec:one-shot-fragile}
+
+A one-shot prompt is an open-loop controller. The model receives a specification, emits an output, and that output is consumed downstream without the model ever learning whether it was correct. This arrangement has a structural defect that no amount of prompt engineering can repair: there is no error-correction channel. The model cannot observe the consequences of what it produced, so it cannot detect, let alone fix, its own mistakes. If a generated SQL query references a column that does not exist, the one-shot system does not find out; if a valuation script silently divides by a zero free-cash-flow base, the number is reported with the same confidence as a correct one.
+
+The fragility compounds along three axes. First, \emph{errors propagate without attenuation.} When a single completion must perform several steps (parse a document, extract figures, compute a ratio, write a narrative), an error early in the chain corrupts everything after it, and because the model produces the whole chain in one forward pass, it has no opportunity to notice the inconsistency. Second, \emph{the specification frequently exceeds what a single pass can satisfy.} Real financial tasks carry constraints that interact: a portfolio rebalancing must respect turnover limits, sector caps, a tracking-error budget, and tax-lot accounting simultaneously. Asking for all of this in one completion forces the model to juggle every constraint at once, and the probability that it satisfies all of them jointly falls roughly multiplicatively as constraints are added. Third, \emph{the model cannot see the environment it is reasoning about.} It does not know the actual schema of the database, the current value of a rate, or whether a file it assumed exists actually does. One-shot prompting asks the model to act on a hallucinated model of the world rather than the world itself.
+
+\begin{context}
+Consider how a junior analyst actually builds a discounted-cash-flow model. They do not write the entire spreadsheet top to bottom and submit it. They sketch the revenue build, check that the growth rates imply a sane terminal value, notice that the implied EBITDA margin is above the sector ceiling, walk the assumption back, re-run, and circulate a draft for comment before anything is final. Every step consumes feedback from the previous one. The expert workflow is intrinsically iterative; the one-shot prompt asks the model to do something no competent human would attempt.
+\end{context}
+
+None of this makes one-shot prompting useless. For short, self-contained, verifiable-at-a-glance tasks it is the right tool, and we return to that case in \Cref{subsec:when-not-to-loop}. The trouble is that its failure mode is silent and its reliability degrades sharply with task complexity, and that combination of high complexity and silent error is the regime in which most consequential finance work lives.
+
+\subsection{The Goal-Directed Loop: Observe, Propose, Act, Evaluate, Revise}\label{subsec:goal-directed-loop}
+
+The remedy is to close the loop: to give the system a way to inspect the results of its own actions and to keep acting until an explicit goal condition is met. We organize the iterative agentic system around five phases.
+
+\begin{definition}[The goal-directed loop]\label{def:goal-directed-loop}
+A \emph{goal-directed loop} is a procedure that, given a goal $G$ with an associated success predicate $\mathrm{ok}(\cdot)$, repeats the following five phases until $\mathrm{ok}$ holds or a stopping rule fires:
+\begin{enumerate}
+  \item \textbf{Observe.} Read the current state of the environment $s_t$ (files, test results, data, prior outputs).
+  \item \textbf{Propose.} Generate a candidate action $a_t$ intended to move the state toward $G$, conditioned on $s_t$ and the history.
+  \item \textbf{Act.} Execute $a_t$, producing a new environment state $s_{t+1}$.
+  \item \textbf{Evaluate.} Compute feedback $e_{t+1}$ by applying checks to $s_{t+1}$---tests, a rubric, a validator, a human review---and assess whether $\mathrm{ok}(s_{t+1})$ holds.
+  \item \textbf{Revise.} If the goal is not met and the stopping rule has not fired, fold $e_{t+1}$ into the context and return to \textbf{Observe}.
+\end{enumerate}
+\end{definition}
+
+The phases are not decorative; their ordering encodes a dependency structure. Each phase consumes the output of the one before it. \emph{Propose} is conditioned on what \emph{Observe} read, so the model reasons about the actual environment rather than an imagined one. \emph{Evaluate} runs against the state that \emph{Act} produced, so the verdict is grounded in a real artifact. Most importantly, \emph{Revise} feeds $e_{t+1}$, the concrete evidence of what went wrong, back into the next \emph{Propose}, which is exactly the error-correction channel that one-shot prompting lacks. The loop terminates only on an explicit condition: either the success predicate is satisfied or a stopping rule (an iteration cap, a budget limit, a no-progress detector) intervenes. A loop with no explicit termination condition is a hazard rather than a design, and we treat stopping rules as first-class in \Cref{subsec:success-stopping-failure}.
+
+\begin{remark}
+The Evaluate phase is where most of the engineering value resides, and it is the phase practitioners most often shortchange. A loop is only as good as its feedback. If $\mathrm{ok}(\cdot)$ is weak, accepting outputs that are wrong, the loop will happily converge to something useless. We argue in \Cref{sec:goals-as-control} that the feedback function deserves at least as much design attention as the prompt.
+\end{remark}
+
+\subsection{Loops Versus Ordinary Repetition}\label{subsec:loops-vs-repetition}
+
+It is tempting to equate ``loop'' with ``doing the same thing several times,'' but repetition and iteration are different things, and conflating them produces systems that burn tokens without converging. The distinguishing feature of a genuine loop is that each iteration uses the feedback from the previous iteration to change the next action. Repetition without that feedback dependency is just sampling.
+
+\begin{definition}[Genuine iteration]\label{def:genuine-iteration}
+A repeated procedure is \emph{genuinely iterative} if the action taken at step $t+1$ depends on the evaluated feedback $e_{t+1}$ from step $t$; that is, if $a_{t+1} = \pi(s_{t+1}, e_{t+1}, h_t)$ where $h_t$ is the accumulated history. If $a_{t+1}$ is conditionally independent of $e_{t+1}$ given the original goal, the procedure is mere repetition.
+\end{definition}
+
+The canonical anti-pattern is \emph{spurious repetition}: re-prompting the model without reading the result of the previous attempt. Suppose a script asks the model to ``fix the failing test,'' captures the model's edit, applies it, and then, regardless of whether the test now passes, asks again, ``fix the failing test,'' with the same prompt. The model is being run repeatedly, but no information from the test runner is flowing back into the prompt. If the first edit was wrong, the second attempt is no more likely to be right than the first; the system is sampling from the same conditional distribution over and over. Worse, because the partial edits may accumulate, repeated blind attempts can leave the codebase in a state worse than where it started.
+
+Contrast this with a genuinely iterative version of the same task. After applying the edit, the system runs the test suite, captures the failure message---the exact assertion that failed, the stack trace, the offending values---and includes that message in the next prompt. Now $a_{t+1}$ is a function of $e_{t+1}$: the model sees that the test failed because it returned a price of \$0 when the discount rate was zero, and proposes a guard for that case. The two systems issue the same number of model calls, but only one of them carries information forward, and only that one is a loop. So whenever you build something that calls a model more than once, the first design question is not ``how many times?'' but ``what does iteration $t+1$ learn from iteration $t$?''
+
+\subsection{Claude Code as the Concrete Substrate}\label{subsec:claude-code-substrate}
+
+The loop of \Cref{def:goal-directed-loop} is an abstraction; to build anything we need a substrate that supplies its five phases. Throughout this book we use Claude Code as that substrate, because it exposes each phase as a first-class, scriptable mechanism, and because its primitives (agents, skills, and hooks) map cleanly onto the loop. We keep the treatment at the design level here and defer the operational detail to the appendices.
+
+\emph{Observe} is realized by the model's file-reading and command-running tools: the system inspects the repository, runs a query, or reads a prior report before proposing anything. \emph{Propose} and \emph{Act} are realized by \textbf{agents}, the role-scoped model invocations that can call tools, edit files, and run commands (Appendix~B). \textbf{Skills} package a recurring multi-phase workflow into a single named procedure, so that an entire observe--propose--act--evaluate sequence can be invoked as a unit and reused (Appendix~C); the project's own \texttt{/score-content} and \texttt{/refine-until-threshold} skills are loops of exactly this kind. \emph{Evaluate} is realized by whatever produces trustworthy feedback: a test suite, a validation script that exits nonzero on failure, a rubric applied by a separate ``critic'' agent, or a human review gate (Appendix~D). \textbf{Hooks} bind checks to lifecycle events, running a linter before a write is accepted or a validator before a commit, so that evaluation is enforced automatically rather than left to the model's discretion (Appendix~E). Finally, version-control commits provide the loop's memory and its rollback path: a passing iteration is committed, so a later bad iteration can be reverted to a known-good state (Appendix~F).
+
+\begin{remark}
+The reason to insist on a concrete substrate is that the loop's reliability lives in its plumbing, not its prose. A success predicate that is ``a human eyeballs it'' is not durable; a success predicate that is ``\texttt{pytest} exits zero and the rubric agent returns $\geq 90$'' is. The substrate is what turns the abstract Evaluate phase into something that actually fires every iteration.
+\end{remark}
+
+\subsection{Situating the Loop in the Agentic-AI Literature}\label{subsec:agentic-literature}
+
+The observe--propose--act--evaluate--revise loop is not a novelty of this book; it is a synthesis of two literatures that arrived at the same shape from different directions. Recognizing the lineage helps both in borrowing techniques and in avoiding rediscovered mistakes.
+
+On the LLM side, the loop generalizes a family of recent methods. \textbf{ReAct}~\cite{yao2022react} interleaves reasoning traces with tool actions, which is precisely the Observe--Propose--Act alternation: the model thinks, acts on the environment, reads what came back, and thinks again. \textbf{Reflexion}~\cite{shinn2023reflexion} adds an explicit Evaluate--Revise step, having the agent verbalize what went wrong after a failed attempt and carry that reflection into the next try; this is the feedback channel of \Cref{def:genuine-iteration} made textual. \textbf{Self-Refine}~\cite{madaan2023selfrefine} is the single-model special case in which the same model generates, critiques, and revises its own output in a loop. Underlying all of these is \textbf{chain-of-thought} prompting~\cite{wei2022chain}, which makes the Propose phase's reasoning explicit and inspectable, and tool-use methods such as \textbf{Toolformer}~\cite{schick2023toolformer} that give the Act phase real effects in the world. At the system level, multi-agent frameworks split the loop's phases across specialized roles (a \emph{planner} that proposes, an \emph{executor} that acts, a \emph{critic} that evaluates), as in \textbf{AutoGen}~\cite{wu2023autogen} and the broader agent surveys~\cite{xi2023rise,wang2023survey}; the \emph{Generative Agents} of Park et al.~\cite{park2023generative} push the same machinery toward long-horizon, memory-bearing behavior. The decomposition into roles is the same loop viewed through an organizational lens, and we exploit it directly in this project, whose audit and editing pipelines assign Propose and Evaluate to different agents.
+
+On the engineering side, the loop is a restatement of iterative paradigms that predate LLMs by decades. The \textbf{spiral model} of software development~\cite{boehm1988spiral} replaced the single-pass waterfall with risk-driven cycles of plan, build, evaluate, and re-plan, moving from open-loop to closed-loop for exactly the reasons of \Cref{subsec:one-shot-fragile}. The \textbf{PDCA cycle} of Deming~\cite{deming1986}, namely Plan, Do, Check, Act, is the same five phases compressed to four, originating in process control and quality management. That an LLM agent loop, a 1980s software-engineering methodology, and a mid-century manufacturing-quality discipline all converge on the same structure is no coincidence: it is what any system that must produce correct output under uncertainty looks like once it is forced to close its feedback loop. The model contributes a powerful, general Propose function, but the surrounding loop is old engineering wisdom.
+
+\begin{deepdive}
+The control-theoretic reading is worth making explicit. The one-shot prompt is open-loop control: an input is mapped to an output with no measurement of the result. The goal-directed loop is feedback control: the Evaluate phase measures the plant's state, the error $e_{t+1}$ is the difference from the setpoint $G$, and Revise is the controller that drives the error toward zero. This framing immediately predicts the failure modes of \Cref{sec:failure-modes}---instability when the gain is too high (over-aggressive revisions that oscillate), and steady-state error when the feedback signal is biased (a weak or gameable success predicate). It also explains why a good stopping rule matters: an unstable closed loop that never settles is worse than a single open-loop shot.
+\end{deepdive}
+
+\subsection{When Not to Use an Agentic Loop}\label{subsec:when-not-to-loop}
+
+The loop is powerful, but power is not the same as appropriateness, and treating every problem as an occasion for an agent is itself a design error, one we examine at length as \emph{excessive delegation} in \Cref{subsec:excessive-delegation}. A loop is justified only when iteration buys something. If the task is deterministic and specifiable, a plain script or a pure function is cheaper, faster, auditable, and exactly reproducible; wrapping a known computation in an LLM loop merely adds cost, latency, and a new source of error. If the task recurs on a fixed schedule with no per-run reasoning (fetch a file each morning, recompute a fixed metric), a cron job is the right tool, with perhaps a single model call inside it rather than a loop around it.
+
+A useful decision heuristic runs through four questions. First, \emph{is the output mechanically verifiable?} If there is a cheap, trustworthy check, a loop can exploit it; if there is no way to evaluate an attempt, a loop has no feedback to act on and degenerates into the spurious repetition of \Cref{subsec:loops-vs-repetition}. Second, \emph{does the task require reasoning that varies with the input?} If the same procedure applies every time, write the procedure; reserve the model for genuine judgment. Third, \emph{is the first attempt likely to be wrong, and is being wrong costly?} Loops earn their keep precisely when one-shot reliability is low and silent errors are expensive---which describes most consequential finance tasks. Fourth, \emph{can a wrong intermediate action cause irreversible harm?} If acting in the world has side effects that cannot be rolled back (sending an order, wiring funds), the loop needs a human gate or a sandbox before the Act phase, and where neither is available, a loop may be the wrong architecture entirely.
+
+\begin{table}[t]
+\centering
+\begin{tabularx}{\linewidth}{@{}X l X@{}}
+\toprule
+\textbf{Task} & \textbf{Right tool} & \textbf{Why} \\
+\midrule
+Compute a bond's yield to maturity & Pure function & Deterministic, exactly specifiable \\
+Daily download of a price file & Cron job & Recurs on a schedule, no per-run reasoning \\
+Extract figures from a novel filing & Loop with validator & Variable input, output mechanically checkable \\
+Draft and harden a valuation model & Agentic loop & Low one-shot reliability, costly silent errors \\
+\bottomrule
+\end{tabularx}
+\caption{Matching the task to the tool. A goal-directed loop is warranted only when iteration buys error correction the alternatives cannot provide.}
+\label{tab:when-to-loop}
+\end{table}
+
+The summary in \Cref{tab:when-to-loop} is intentionally blunt: reach for a loop when, and only when, the task is hard to get right in one pass \emph{and} easy enough to check that iteration can converge, and fall back to simpler machinery whenever either of those conditions fails.
+
+% --- Section: Goals as Control Objects ---
+\section{Goals as Control Objects}\label{sec:goals-as-control}
+
+If the loop is the unit of design, the goal is its setpoint. Everything the loop does is in service of driving the environment toward a goal, and so the goal functions as a \emph{control object} rather than a mere preamble to the work: an artifact that actively governs the loop's behavior, determines when it stops, and decides whether its output is acceptable. A vague goal yields a loop that wanders; a precise, checkable goal yields a loop that converges. This section treats the goal with the seriousness it deserves: what properties make a goal usable, what three components every goal must specify, where goals should live, and how to tell a bad goal from a good one.
+
+\subsection{Concrete, Checkable, Decomposable Goals}\label{subsec:concrete-checkable-goals}
+
+A goal is usable by a loop when it has three properties, each of which maps onto a phase of the loop.
+
+A goal is \textbf{concrete} when it names the artifact to be produced or changed. ``Improve the credit model'' names nothing; ``raise the out-of-sample AUC of the model defined in \texttt{models/credit.py}, evaluated by \texttt{eval/backtest.py}, to at least 0.78'' names the file to change, the script that measures success, and the target. Concreteness is what makes the \emph{Act} phase well-posed: the agent knows what it is allowed to touch and what it is trying to produce, rather than guessing at the scope of the work.
+
+A goal is \textbf{checkable} when satisfaction can be verified mechanically or by a stated rubric, without further negotiation. ``Make the writing better'' is uncheckable; ``every rubric dimension scores at least 90 as reported by \texttt{/score-content}'' is checkable because a defined procedure returns a verdict. Checkability is what makes the \emph{Evaluate} phase possible at all: it supplies the success predicate $\mathrm{ok}(\cdot)$ of \Cref{def:goal-directed-loop}. Without it the loop has no way to know it is done, and termination collapses back onto human whim.
+
+A goal is \textbf{decomposable} when it splits into local subgoals that can be pursued and checked independently. ``Bring the whole book to release quality'' decomposes into per-chapter goals, each of which decomposes into per-dimension goals, each measurable on its own. Decomposability is what makes the \emph{Revise} phase tractable: when a global check fails, the loop can localize the failure to a subgoal and act there, rather than re-attempting the entire task. It also bounds context, since a subgoal and its evidence fit in a window that the whole task would overflow, and it enables the multi-agent decomposition of \Cref{subsec:agentic-literature}, where different subgoals are handed to different specialized agents.
+
+\begin{remark}
+These three properties are less three independent virtues than a single requirement viewed from three phases: a goal must tell the agent \emph{what to do} (concrete, for Act), \emph{when it has succeeded} (checkable, for Evaluate), and \emph{how to make progress in pieces} (decomposable, for Revise). A goal missing any one of them disables a phase of the loop.
+\end{remark}
+
+\subsection{Success Criteria, Stopping Rules, and Failure Modes}\label{subsec:success-stopping-failure}
+
+A complete goal specifies three distinct things, and the most common defect in practice is to specify only the first. They are not interchangeable.
+
+The \textbf{success criterion} is the predicate that defines done: the condition under which the loop has achieved the goal and should stop \emph{because it has won}. ``All tests pass and coverage is at least 90\%'' is a success criterion. It answers the question, when may we declare victory?
+
+The \textbf{stopping rule} is the condition under which the loop must halt \emph{even though it has not won}: an iteration cap, a wall-clock or token budget, or a no-progress detector that fires when successive iterations stop improving the evaluation score. The stopping rule exists because success is not guaranteed, and a loop without one can run forever, burn an unbounded budget, or, worse, thrash, making and unmaking the same change while the feedback oscillates. Every loop needs both: the success criterion says when to stop happy, the stopping rule says when to stop anyway. The project's \texttt{max\_refine\_iterations} setting is exactly a stopping rule; \texttt{quality\_threshold} is exactly a success criterion.
+
+The \textbf{anticipated failure modes} are the ways the loop is expected to go wrong, named in advance so the system can detect and respond to them. A loop that optimizes a proxy may game it (\Cref{subsec:goodhart-overfitting}); a loop may converge to a local optimum that the success criterion accepts but a human would reject; a loop may oscillate; a loop may ``succeed'' by weakening its own test. Naming these in the goal turns them from surprises into checks. If you anticipate that an agent might satisfy a coverage target by writing vacuous tests, you add a check for assertion density; if you anticipate it might pass a numeric threshold by overfitting, you hold out a validation set the loop cannot see.
+
+\begin{example}[Three components for a credit-model loop]\label{ex:three-components}
+A goal to improve the credit model of \Cref{sec:example-credit-risk} is complete only when it states all three. \emph{Success criterion:} out-of-sample AUC $\geq 0.78$ on the held-out 2023 book, with calibration error below a stated bound. \emph{Stopping rule:} halt after eight iterations, or when three consecutive iterations fail to improve validation AUC by more than $0.002$. \emph{Anticipated failure modes:} the agent may overfit to the validation split (mitigated by a final lockbox test set evaluated once), may introduce features that leak future information (mitigated by a temporal-split check), or may trade calibration for discrimination (mitigated by the explicit calibration bound). A goal that names only the AUC target invites all three pathologies.
+\end{example}
+
+\subsection{Representing Goals in Files}\label{subsec:goals-in-files}
+
+A goal that lives only in a chat prompt is fragile: it vanishes when the context window rolls over, it cannot be inspected after the fact, and no two runs share the same definition of success. A goal that lives in a \emph{file} is durable across context windows, auditable by humans and other agents, version-controlled alongside the work it governs, and, when the file is executable, directly usable as the Evaluate phase. This is why the project keeps its goals in files: \texttt{TOPIC.md} fixes audience and quality thresholds, \texttt{STATUS.md} tracks per-chapter state, \texttt{docs/quality/RUBRIC.md} defines the dimensions, and per-task instructions live in a \texttt{TASK.md}. The principle generalizes well beyond this book, and it comes down to writing the goal down where the loop can read it rather than where only the current prompt can.
+
+A goal file should make the three components of \Cref{subsec:success-stopping-failure} explicit. A minimal \texttt{TASK.md} for a finance pipeline might read:
+
+\begin{minted}{markdown}
+# TASK: Harden the FCF valuation script
+
+## Artifact
+valuation/dcf.py  (function `value_company(ticker) -> float`)
+
+## Success criteria
+- `pytest tests/test_dcf.py` exits 0
+- Coverage of `dcf.py` >= 90% (`pytest --cov`)
+- No division-by-zero on the 12 edge-case tickers in tests/edge.csv
+
+## Stopping rule
+- Halt after 6 iterations, or 2 iterations with no new passing tests.
+
+## Anticipated failure modes
+- Passing tests by catching all exceptions and returning 0  -> forbidden;
+  every return value must be finite and positive or raise ValueError.
+\end{minted}
+
+The decisive move is to make the success criterion not merely \emph{stated} but \emph{executable}. A validation script that exits nonzero on failure can be wired directly into the Evaluate phase, and, via a hook, enforced before any commit is accepted (Appendix~E), so that the loop's notion of ``done'' and the repository's notion of ``acceptable'' are literally the same code:
+
+\begin{minted}{bash}
+#!/usr/bin/env bash
+# validate.sh -- the success predicate, as code. Exit 0 == goal met.
+set -euo pipefail
+
+pytest -q tests/test_dcf.py            # functional correctness
+pytest -q --cov=valuation --cov-fail-under=90   # coverage floor
+
+# guard against the named failure mode: no silent zeros
+python - <<'PY'
+from valuation.dcf import value_company
+v = value_company("AAPL")
+assert v > 0 and v == v, f"non-positive or NaN valuation: {v}"
+PY
+echo "GOAL MET"
+\end{minted}
+
+With the goal expressed this way, the loop becomes mechanical: act, run \texttt{validate.sh}, read its exit code and output, revise, repeat until it exits zero or the stopping rule fires. The file states the contract, and the loop does no more than satisfy it.
+
+\subsection{Bad Goals Versus Good Goals}\label{subsec:bad-vs-good-goals}
+
+The difference between a loop that converges and one that wanders is usually visible in the goal statement itself, before a single iteration runs. \Cref{tab:bad-vs-good} contrasts common bad goals with their repaired versions; in every case the repair adds concreteness, a checkable predicate, or a guard against an anticipated failure mode.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}p{0.27\linewidth}p{0.40\linewidth}p{0.25\linewidth}@{}}
+\toprule
+\textbf{Bad goal} & \textbf{Good goal} & \textbf{What the repair adds} \\
+\midrule
+``Improve the chapter.'' & ``Every rubric dimension scores $\geq 90$ as measured by \texttt{/score-content}.'' & A checkable success predicate and a fixed measuring procedure. \\
+\addlinespace
+``Make the credit model more accurate.'' & ``Raise held-out AUC of \texttt{credit.py} to $\geq 0.78$ on the 2023 book, without using post-origination features.'' & A named artifact, a numeric target, and a leakage guard. \\
+\addlinespace
+``Get the tests passing.'' & ``\texttt{pytest} exits 0 \emph{and} coverage $\geq 90\%$; passing by swallowing exceptions is forbidden.'' & A second criterion and an anticipated-failure-mode guard against gaming. \\
+\addlinespace
+``Keep improving the portfolio.'' & ``Maximize backtested Sharpe subject to turnover $\leq 30\%$; stop after 8 runs or when Sharpe gains $< 0.05$.'' & A constraint and an explicit stopping rule, so the loop terminates. \\
+\bottomrule
+\end{tabular}
+\caption{Bad goals versus good goals. Each bad goal disables a phase of the loop---it is unconcrete, uncheckable, or unbounded---and each repair restores it.}
+\label{tab:bad-vs-good}
+\end{table}
+
+Read the table as a diagnostic. ``Improve the chapter'' fails because it is uncheckable: there is no predicate the Evaluate phase can compute, so the loop cannot know when to stop and defaults to running until the human gets bored. ``Make the credit model more accurate'' fails because it is unconcrete and unguarded: it names no artifact and invites the agent to ``improve'' AUC by leaking future information. ``Get the tests passing'' fails because its only criterion is trivially gameable---the surest way to make tests pass is to make them assert nothing---so the repaired version forbids the exploit explicitly. ``Keep improving the portfolio'' fails because it is unbounded: with no stopping rule and a metric that can always be nudged, the loop never terminates, the very pathology \Cref{subsec:success-stopping-failure} warns against. The discipline is simple to state and demanding to practice: before you launch a loop, write its goal as a file, and confirm that the goal is concrete, that its success is checkable, and that it specifies both when to stop happy and when to stop anyway. Get that wrong and no amount of clever iteration recovers it, because a loop is only ever as good as the goal you hand it. With the goal fixed as the loop's setpoint, we turn next to the machinery that pursues it, the agents, skills, and hooks of \Cref{sec:agents-as-iterators,sec:skills-as-procedures,sec:hooks-as-guardrails}, and then assemble those components into an engineered loop in \Cref{sec:designing-loop}.
+
+% --- Section: Agents as Specialized Iterators ---
+\section{Agents as Specialized Iterators}\label{sec:agents-as-iterators}
+
+In everyday usage the word ``agent'' has come to mean a chatbot with a few tools bolted on---a single conversational endpoint that answers whatever it is asked. For the purposes of building reliable iterative systems, that framing is actively unhelpful. The agents we care about in this chapter are \emph{specialized iterators}, not general assistants. Each one occupies a narrow position inside the loop introduced in \Cref{sec:designing-loop}, performs a single well-defined transformation on the project state, and hands control onward. The intelligence of the overall system comes less from the raw capability of any one model call and more from how a handful of focused agents are composed into a feedback structure.
+
+This view is consistent with how the research literature has come to describe LLM-based agents. The survey of \cite{xi2023rise} characterizes an agent as a model embedded in an environment with perception, memory, and action, rather than as a stand-alone text generator, and \cite{wang2023survey} catalogues the recurring architectural patterns (planning, reflection, tool use, and memory) that distinguish an agent from a prompt. The multi-agent framework of \cite{wu2023autogen} pushes the point further: capability is decomposed across cooperating conversational agents with distinct responsibilities, and the orchestration between them becomes a first-class design concern. Our treatment is squarely in this tradition. We will insist, however, on a discipline that is easy to lose sight of in demos: an agent earns its place in the loop only by the durable change it makes to the project, not by the prose it produces.
+
+\begin{context}
+A useful finance analogy is the trading desk versus the lone discretionary trader. A capable individual can, in principle, source liquidity, price the instrument, manage the book, and check the limits all at once. A desk instead separates execution, quant pricing, and risk control into distinct seats with distinct mandates. The separation has nothing to do with whether any one person is capable; narrow mandates, clear handoffs, and an independent risk function simply produce outcomes that are auditable and robust to individual error. Specialized agents play the same organizational role inside an automated workflow.
+\end{context}
+
+\subsection{Roles: Worker, Critic, Validator, Planner, Refactorer}\label{subsec:agent-roles}
+
+It helps to name the recurring roles an agent can play, because each contributes something structurally different to an iteration. The five roles below are not exhaustive, but they cover the vast majority of useful designs, and this book's own \texttt{.claude/agents/} directory is essentially a population of agents drawn from them.
+
+\begin{definition}[Agent roles in an iterative loop]\label{def:agent-roles}
+Within a single iteration we distinguish five canonical roles. A \emph{worker} produces or transforms the primary artifact (writes a section, drafts code, generates a figure). A \emph{critic} reads the artifact and returns a structured judgment (strengths, weaknesses, and concrete change requests) without itself rewriting. A \emph{validator} applies an objective, ideally deterministic, test and returns a pass/fail signal (does it compile, do the tests pass, is the score above threshold). A \emph{planner} decomposes a goal into an ordered sequence of subtasks and assigns them to other roles. A \emph{refactorer} improves the internal structure of an existing artifact while preserving its observable behavior.
+\end{definition}
+
+The worker is the only role that strictly must exist; the others exist to make the worker's output trustworthy and to keep the loop converging. A critic supplies the natural-language gradient, the sense of \emph{in which direction} the artifact should change, that a worker can act on in the next pass. This is the mechanism behind self-refinement \cite{madaan2023selfrefine}, where the same underlying capability is split into a generate step and a critique step, and behind the chain-of-thought decomposition \cite{wei2022chain} that lets a planner reason explicitly about subtask order before any work begins.
+
+The validator is the role most often omitted and most sorely missed. A critic's judgment is itself a model output and therefore fallible and gameable; a validator's verdict, when it is built on a compiler, a test suite, or a numerical check, is not subject to persuasion. In finance terms, the critic is the senior reviewer who says the model looks aggressive; the validator is the limit system that simply rejects the trade. A loop that contains only workers and critics can drift confidently in a wrong direction. We return to the design of trustworthy validators in \Cref{subsec:trustworthy-validators}.
+
+The refactorer deserves separate mention because its contribution is invisible in the short run and decisive in the long run. A worker under deadline accretes structure that works but is increasingly hard to extend; the refactorer periodically pays down that debt without changing what the artifact does. In a book project, this is the agent that consolidates duplicated notation or merges two overlapping subsections, improving maintainability while the reader sees no behavioral change.
+
+\subsection{Single-Agent Versus Multi-Agent Loops}\label{subsec:single-vs-multi-agent}
+
+Given these roles, the first architectural decision is whether to assign them to one agent or several. A single agent can play multiple roles in sequence: generate, then critique its own output, then revise. This is the structure of Reflexion \cite{shinn2023reflexion}, in which an agent reflects on the outcome of its own attempt, writes that reflection into memory, and conditions its next attempt on it. For many tasks a single self-reflective agent is entirely sufficient, and it is the simplest thing to build and reason about.
+
+Separation of concerns earns its keep when the critic must be genuinely independent of the worker. A model asked to critique its own freshly written text is subject to a well-documented bias toward endorsing it; the same context that produced the artifact also primes the model to defend it. Splitting the critic into a separate agent, with its own prompt, its own definition file, and ideally no access to the worker's private reasoning, restores an adversarial distance. The planner-executor-critic decomposition makes this explicit: the planner commits to a decomposition, executors carry out subtasks, and an independent critic evaluates the result against the plan rather than against the executor's self-narrative. Multi-agent frameworks such as \cite{wu2023autogen} formalize this as a conversation among role-typed agents, and the broader survey \cite{xi2023rise} documents that such separation tends to improve robustness on tasks where a single agent would otherwise rationalize its mistakes.
+
+\begin{remark}
+Separation is not free. Every additional agent adds orchestration cost, latency, and, most insidiously, an opportunity for a lossy handoff (\Cref{subsec:agent-handoffs}). The right default is the smallest number of agents that gives the critic real independence from the worker. Reach for a second agent when self-evaluation is untrustworthy or when two roles need genuinely different prompts or tools; do not split roles merely because the diagram looks more sophisticated.
+\end{remark}
+
+\subsection{Handoffs and Shared State Between Agents}\label{subsec:agent-handoffs}
+
+When more than one agent participates, the loop lives or dies on the quality of the handoffs between them. A handoff is the transfer of state from one agent to the next, and it can happen through several channels of decreasing fragility. The most robust channel is the durable project state itself: the worker writes a file, commits it, and the critic reads that committed file. Slightly less robust is a structured output---a JSON object, a scored report with a fixed schema---passed directly between agents. Most fragile is free-form natural language summarized from one agent's context and pasted into another's.
+
+The danger to guard against is the \emph{lossy handoff}: information that the upstream agent possessed but failed to transmit, so the downstream agent silently operates on an impoverished picture. A critic that receives only a prose summary of a chapter, rather than the chapter file, will critique the summary; its change requests may be irrelevant to what is actually on the page. This is why the skills in this project route handoffs through files and through fixed-schema reports rather than through conversational summaries. The scorer agent, for instance, writes a JSON report to \texttt{docs/quality/} with a stable schema, and the next agent reads that file, not a remembered description of it.
+
+\begin{context}
+The lossy-handoff failure has a precise analogue in the trade lifecycle: information loss between the front office and the back office. A trade economically agreed on the desk but transcribed incompletely into the settlement system produces a break that surfaces days later, far from where it can be cheaply fixed. The remedy in operations is the same as the remedy here: a single authoritative record (the booked trade; the committed file) that every downstream function reads from, rather than a chain of re-keyed summaries.
+\end{context}
+
+\subsection{Agents Should Improve Project State, Not Merely Emit Output}\label{subsec:agents-improve-state}
+
+We can now state the central discipline of this section. An agent's value is the durable, inspectable change it makes to the project state (files written, tests turned green, a quality score raised, a commit recorded), not the text it prints into a transcript. Output that is not captured into state evaporates when the session ends; a brilliant critique that no agent ever acts on and no file ever records has changed nothing.
+
+This principle has immediate practical consequences. A worker agent should write to a file rather than return a draft for a human to copy. A critic should emit a structured report that a downstream agent can consume, not a paragraph of praise. A validator should leave behind a score file or a passing test, an artifact the next iteration can read. Above all, we measure an agent by the diff it produces, which is exactly why this project's commit-oriented hooks (\Cref{sec:hooks-as-guardrails}) are the natural unit of accountability: a commit is the smallest durable record that an agent changed the world.
+
+\begin{example}[A single-responsibility agent definition]\label{ex:agent-definition}
+An agent definition file makes the role, inputs, and, critically, the state change explicit, and refuses everything else. The following is the kind of Markdown definition this project keeps under \texttt{.claude/agents/}. Note that the contract names the artifact it writes and the boundaries of what it may touch.
+
+\begin{minted}{markdown}
+# Sentiment-Backtest-Validator Agent
+
+## Persona
+You validate one thing: that a sentiment-signal backtest is
+reproducible and leak-free. You do not improve the strategy.
+
+## Inputs
+- `code/practicals/07-sentiment/backtest.py`
+- `data/processed/headlines.parquet`
+
+## What to Do
+1. Re-run the backtest end to end from a clean state.
+2. Check no feature uses information dated after the trade.
+3. Confirm reported Sharpe matches the recomputed Sharpe.
+
+## State Change (the only thing that counts)
+- Write `docs/quality/07-backtest-validation.json`
+  with {pass, lookahead_violations, sharpe_recomputed}.
+
+## Scope Limits
+- Do NOT edit the strategy. Do NOT tune parameters.
+- On failure, set pass=false and list violations. Stop.
+\end{minted}
+
+The agent prints whatever it likes while working, but it is accountable for exactly one thing: a validation report on disk. The next iteration reads that file, not the transcript.
+\end{example}
+
+
+% --- Section: Skills as Reusable Procedures ---
+\section{Skills as Reusable Procedures}\label{sec:skills-as-procedures}
+
+If agents are the actors in the loop, skills are the procedures they follow. A skill is a named, reusable, composable sequence of steps that accomplishes a recurring task the same way every time. Where an agent is a \emph{who} (a role with a persona and a mandate), a skill is a \emph{how}: an explicit recipe that may orchestrate several agents in order. This project's \texttt{.claude/skills/} directory is full of them: \texttt{/new-topic}, \texttt{/draft-chapter}, \texttt{/score-content}, \texttt{/iterate-book-quality}. Each captures a workflow that would otherwise have to be reinvented, imperfectly, every time it is needed.
+
+The reason skills matter for iterative systems is that loops are run many times, and a loop whose steps are improvised afresh on each run is not really the same loop twice. Skills make the procedure itself a durable, version-controlled artifact, so that the hundredth run is recognizably the same process as the first, with only the inputs differing.
+
+\subsection{Skills as Reusable Operational Knowledge}\label{subsec:skills-operational-knowledge}
+
+The first thing a skill buys you is that ``how we do X here'' is written down once and stops being re-derived from scratch in every session. Consider drafting a chapter in this book. Done from memory, the process is a fog of half-remembered conventions: which agents to invoke and in what order, where the bibliography lives, what the commit message should look like, what the quality threshold is. Done as a skill, it is an ordered list of steps that any session---human-driven or agent-driven---can execute identically.
+
+This is operational knowledge in the precise sense: knowledge about how the project operates, as opposed to knowledge about its subject matter. It is exactly the kind of knowledge that is most often lost, because it lives in the heads of whoever set the project up and is rarely written down until someone new asks ``how do I add a chapter?'' A skill file is the answer to that question, made executable. When the procedure improves, whether a new review step is added or an agent is swapped out, the improvement is made once, in the skill, and every future run inherits it.
+
+\subsection{Skills Compared to Functions}\label{subsec:skills-as-functions}
+
+The load-bearing analogy of this section is that a skill is to a workflow what a function is to a computation. The mapping is exact enough to be worth laying out property by property, because each good property of functions has a direct skill counterpart, and the analogy tells you what a well-designed skill should look like.
+
+\begin{definition}[The skill-function correspondence]\label{def:skill-function}
+A well-formed skill mirrors the properties of a well-formed function. It has a \emph{name} you invoke it by (\texttt{/draft-chapter}). It has \emph{scoped inputs}---explicitly declared arguments and prerequisites---rather than reaching into ambient state at will. It has a \emph{single, documented responsibility}, just as a function should do one thing. It is \emph{repeatable}: the same inputs drive the same procedure, giving referential transparency at the level of process. And it is \emph{composable}: a skill may call another skill exactly as a function calls a subroutine, so that complex workflows are built from simpler ones.
+\end{definition}
+
+The composability property is the most powerful, because it is what lets a workflow library grow without growing unmanageable. A high-level skill becomes a short orchestration of lower-level skills, each of which remains independently testable and reusable. In this project, \texttt{/draft-chapter} calls \texttt{/score-content} as a step, and \texttt{/score-content} can in turn be a step inside \texttt{/refine-until-threshold}; the same scoring procedure is reused at three different altitudes without being rewritten.
+
+\begin{example}[A skill that calls another skill]\label{ex:skill-calls-skill}
+The following skill file, in the style of this project's \texttt{.claude/skills/}, drafts a chapter by orchestrating agents and then \emph{invokes a second skill} to enforce the quality gate. The composition is the point: the scoring logic is not duplicated here, it is called.
+
+\begin{minted}{markdown}
+# /draft-chapter
+
+## Purpose
+Draft a book chapter by orchestrating agents, then gate on quality.
+
+## Inputs
+- Chapter id (e.g., `07-sentiment`)
+- TOPIC.md (audience, depth, quality_threshold)
+
+## Steps
+1. Invoke literature-reviewer; append BibTeX to bibliography.bib.
+2. Invoke book-writer; write sections to chapter.tex.
+3. Invoke math-checker; loop with book-writer until PASS.
+4. Call /score-content on the chapter file.        # <- skill calls skill
+5. If any dimension < quality_threshold:
+       call /refine-until-threshold on the file.    # <- and again
+6. Commit: feat(ch07): draft sentiment chapter
+\end{minted}
+
+Steps 4 and 5 are not re-implementations of scoring and refinement; they are calls to existing skills. The chapter-drafting workflow stays short and readable precisely because the work is delegated to composed procedures.
+\end{example}
+
+\begin{deepdive}
+The function analogy can be pushed into testing and versioning. If a skill is a function, it can have something like unit tests: a fixture chapter on which \texttt{/score-content} is expected to return a known score, so a regression in the skill is caught. It can also be versioned with semantics that resemble an API contract: adding an optional step is backward compatible, while changing the meaning of an input is a breaking change that downstream skills calling it must be checked against. Treating the skills directory with the same discipline as a code library, rather than as a pile of prompts, is what makes a large workflow collection survive contact with time.
+\end{deepdive}
+
+\subsection{Skills Encode Project-Specific Conventions}\label{subsec:skills-encode-conventions}
+
+Beyond reuse, skills are where a project's conventions are frozen into enforceable form. Every nontrivial project accumulates conventions (numbering schemes, directory layouts, commit-message formats, quality thresholds), and these conventions are worthless if they are merely documented and routinely ignored. A skill turns a convention from a guideline into a step that actually executes.
+
+This project's \texttt{/new-topic} skill is a clean illustration. The convention that chapter $N$, lecture $N$, and notebook $N$ cover the same topic is not left to the discretion of whoever adds a chapter; it is mechanized. The skill creates \texttt{book/chapters/NN-name/}, \texttt{course/lectures/NN-name/}, and \texttt{code/practicals/NN-name/} together, wires the new chapter into \texttt{main.tex}, appends the status row, and commits with the prescribed message. The numbering convention cannot drift because the only sanctioned way to create a topic enforces it. Likewise \texttt{/draft-chapter} bakes in the convention that no chapter is considered drafted until it clears the quality threshold from \texttt{TOPIC.md}; the gate is part of the procedure, not a reminder the author may skip.
+
+\begin{remark}
+The distinction between a convention written in a style guide and a convention encoded in a skill is the distinction between aspiration and enforcement. A style guide describes the world you wish you lived in; a skill, paired with the hooks of \Cref{sec:hooks-as-guardrails}, builds it. When you find yourself repeatedly correcting the same deviation, that is the signal to lift the convention out of prose and into an executable step.
+\end{remark}
+
+\subsection{Skills Reduce Entropy in Long-Running Projects}\label{subsec:skills-reduce-entropy}
+
+The deepest reason to invest in skills is thermodynamic, by analogy. Left alone, a long-running project drifts toward disorder. Each ad hoc action (a chapter added by hand with a slightly different layout, a commit with an off-format message, a figure generated by a one-off script) introduces a small inconsistency. Individually these are trivial; cumulatively they are the difference between a project a newcomer can navigate and one that only its original author can. The natural tendency of an evolving project, under the pressure of many small expedient decisions, is rising entropy.
+
+Skills are the counterforce. Because a skill performs the task the same way every time, every invocation pushes the project back toward a consistent state instead of away from it. The hundredth chapter added through \texttt{/new-topic} has the same structure as the first; the thousandth commit produced through a skill has the same message format as the first. The work of maintaining order is amortized: it is done once, in the design of the skill, rather than re-paid in vigilance on every action. This is also why skills compound in value over the life of a project: the longer the project runs and the more times a skill is invoked, the more accumulated inconsistency it has prevented.
+
+\begin{context}
+The financial-controls analogy is exact. A trading firm does not rely on each trader independently remembering to check limits, reconcile positions, and document rationale; it institutes a control framework of standard operating procedures that make the correct action the default action. Sarbanes--Oxley-style internal controls exist precisely because, absent enforced procedure, even competent and well-intentioned operators produce drift, errors, and unreconciled breaks at scale. A skill library is the control framework of an agentic project: it is the set of standard operating procedures that keep a complex, long-running, multi-actor system in a state someone can still audit.
+\end{context}
+
+
+% --- Section: Hooks as Guardrails and Feedback Channels ---
+\section{Hooks as Guardrails and Feedback Channels}\label{sec:hooks-as-guardrails}
+
+Agents act and skills sequence those actions, but neither, on its own, guarantees that the result meets the project's standards. The missing piece is a mechanism that fires \emph{automatically}, outside the agent's control, to check the work and feed back a crisp signal. That mechanism is the hook. A hook is a script registered to run when a particular event occurs (before a tool is used, after a file is written, when a session ends), and its job is to convert the subjective question ``is this good?'' into an objective, enforced answer. Hooks are how a loop's stopping condition (\Cref{sec:designing-loop}) becomes real rather than aspirational.
+
+The defining property of a hook is that it does not depend on the agent's cooperation. An agent can be instructed to check its own work and may, for any number of reasons, fail to. A hook runs regardless, because it is wired into the event itself, and that is what turns guidance into a guardrail.
+
+\subsection{Hooks as Automatic Interventions}\label{subsec:hooks-automatic}
+
+We distinguish hooks by when they fire relative to the action they govern.
+
+\begin{definition}[Pre-action and post-action hooks]\label{def:hook-types}
+A \emph{pre-action hook} fires before an action is permitted to proceed and can block it; it is a precondition check. A \emph{post-action hook} fires after an action has occurred and reacts to the result; it can validate, record, repair, or escalate. In both cases the hook runs automatically as a consequence of the event, without the acting agent invoking it and, critically, without the agent being able to skip it.
+\end{definition}
+
+This project's \texttt{settings.json} registers both kinds. A \texttt{PreToolUse} hook intercepts \emph{every} Bash command and, when the command is a \texttt{git commit}, runs a battery of integrity and quality checks that can block the commit. A set of \texttt{PostToolUse} hooks fire after every \texttt{Write} or \texttt{Edit}: one auto-commits the change, one reminds the author to score the file, one scaffolds paired lecture and notebook files when a new chapter appears. The agent doing the writing does not call any of these; they are consequences of writing, wired in once and thereafter unavoidable.
+
+\begin{context}
+The pre-action hook is the pre-trade limit check; the post-action hook is post-trade surveillance. A pre-trade control rejects an order that would breach a position limit before it ever reaches the market: the trade simply cannot proceed. Post-trade surveillance, by contrast, examines executed trades for patterns that warrant a flag, a reversal, or escalation to compliance. A mature trading system needs both, and for the same reason an agentic project does: some failures must be prevented outright, while others can only be detected after the fact and then remediated.
+\end{context}
+
+\subsection{The Hook Catalogue}\label{subsec:hook-catalogue}
+
+A small number of hook categories recur across projects. The catalogue below names each, with a concrete finance-flavored instance, so that designing a guardrail layer becomes a matter of selecting from known patterns rather than inventing from scratch.
+
+\emph{Pre-run checks} validate that an action's preconditions hold before it runs. Before launching a multi-hour fine-tuning job on a financial corpus, a pre-run hook can confirm that the dataset checksum matches and that no record carries a timestamp past the training cutoff, refusing to start a run that would silently leak future information.
+
+\emph{Post-write validation} inspects an artifact the moment it is written. After a chapter file is edited, a hook can check that every \texttt{\textbackslash cite} key resolves against the bibliography, catching a dangling citation before it propagates.
+
+\emph{Linting, tests, and compilation} turn correctness into a mechanical verdict. After a backtest module is edited, a hook can run the unit tests that assert the strategy is leak-free and that reported returns reconcile to the recomputed series; after a \texttt{.tex} edit, it can attempt a compile so a broken build is caught at the keystroke, not at release.
+
+\emph{Safety checks} block dangerous or non-compliant actions. A hook can scan a staged diff for an accidentally committed API key or for personally identifiable client data about to enter version control, and refuse the commit.
+
+\emph{Commit checks} enforce the discipline of the durable record. Before a commit lands, a hook can verify the message matches the prescribed \texttt{type(scope): summary} format and that the quality gate for any touched content file is green.
+
+The following is a post-write validation hook in the style of this project's \texttt{.claude/hooks/}, checking that a freshly edited chapter has no unresolved citations.
+
+\begin{minted}{bash}
+#!/bin/bash
+# check-citations.sh - post-write validation hook
+# Exit 0 = OK, exit 1 = signal a problem.
+set -euo pipefail
+
+BIB="book/bibliography.bib"
+MISSING=0
+# Only inspect staged .tex files.
+for f in $(git diff --cached --name-only | grep '\.tex$' || true); do
+  for key in $(grep -oE '\\cite\{[^}]+\}' "$f" \
+               | sed -E 's/\\cite\{([^}]+)\}/\1/'); do
+    if ! grep -q "{$key," "$BIB"; then
+      echo "  Unresolved citation: $key in $f"
+      MISSING=$((MISSING+1))
+    fi
+  done
+done
+
+[ "$MISSING" -gt 0 ] && { echo "Citation check: FAIL"; exit 1; }
+echo "Citation check: OK"; exit 0
+\end{minted}
+
+A hook is inert until it is registered against an event. The snippet below shows the kind of \texttt{settings.json} registration this project uses, wiring a pre-commit check onto Bash calls and a post-write validation onto file edits.
+
+\begin{minted}{json}
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash",
+        "hooks": [{ "type": "command",
+          "command": "bash .claude/hooks/pre-commit-checks.sh",
+          "description": "Block commit on integrity/quality failure" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Write|Edit",
+        "hooks": [{ "type": "command",
+          "command": "bash .claude/hooks/check-citations.sh",
+          "description": "Validate citations after editing .tex files" }] }
+    ]
+  }
+}
+\end{minted}
+
+% CHECK: matcher strings "Bash" and "Write|Edit" follow this project's settings.json convention.
+
+\subsection{Turning Subjective Improvement into Measurable Feedback}\label{subsec:hooks-measurable}
+
+The reason hooks matter so much to an iterative system is that they replace the model's self-assessment with an external measurement. ``This chapter reads well'' is an opinion the model can hold sincerely and wrongly. ``This chapter compiles, every citation resolves, and every quality dimension scores at least the threshold'' is a fact a hook can establish and report as a single bit. The loop's stopping condition can then be hung on that bit rather than on the model's confidence.
+
+This substitution is what makes a feedback loop trustworthy. A model evaluating its own output is both the generator and the judge, and the correlation between those two roles is exactly the source of error we worried about in \Cref{subsec:single-vs-multi-agent}. A hook is a judge the generator does not control. Its verdict is reproducible (run it twice on the same artifact and it returns the same answer), which means progress measured against it is real progress and not a fluctuation in the model's mood. When a hook reports pass, the loop has a defensible reason to stop; when it reports fail, the loop has a concrete, actionable reason to continue.
+
+\subsection{Designing Trustworthy Validators}\label{subsec:trustworthy-validators}
+
+The power of hooks creates its own hazard: as soon as a check becomes the target the loop optimizes against, the check stops measuring what it was meant to measure. This is Goodhart's law \cite{goodhart1984}---when a measure becomes a target, it ceases to be a good measure---and it is the central design challenge of building validators. A weak validator is not merely useless; it is dangerous, because it confers false confidence while the loop quietly games it. We treat the general phenomenon of optimizing to the metric rather than the goal at length in \Cref{subsec:goodhart-overfitting}; here the concern is narrower: how to build individual validators that resist being gamed.
+
+\begin{theorem}[A passing check is necessary, not sufficient]\label{thm:check-not-goal}
+Let $G$ be the true goal and $V$ a validator that returns pass on the set of artifacts $\{x : V(x) = \text{pass}\}$. The loop optimizes for $V = \text{pass}$, not for $G$. Unless $\{x : V(x)=\text{pass}\} \subseteq \{x : G \text{ is met}\}$, there exist artifacts that pass the check yet fail the goal, and an optimizing loop will tend to find them. A green check therefore licenses stopping only to the extent that passing the validator genuinely entails meeting the goal.
+\end{theorem}
+
+The practical response is to design validators whose passing set is hard to enter without actually meeting the goal. Several principles help. Prefer checks tied to genuine outcomes over checks tied to proxies: testing that a backtest is leak-free and that its returns reconcile is harder to game than asserting that the word ``Sharpe'' appears in the report. Combine several weak checks whose conjunction is hard to satisfy by accident, so that gaming the suite requires gaming all of them at once. Keep the validator's logic out of the worker agent's reach, so it cannot tailor its output to the test's internals. And hold some checks back as a hidden holdout, run only at release, so the loop cannot overfit to the full battery it sees on every iteration.
+
+\begin{context}
+Model-risk management has confronted exactly this problem and offers a vocabulary for it. A bank does not validate a pricing model solely on in-sample fit, because in-sample fit is trivially gameable; it demands out-of-sample testing, benchmarking against an independent model, and review by a validation function organizationally separate from the model's developers. Each practice is a defense against the developer optimizing to the test. A validator hook should borrow the same instincts: out-of-sample holdouts, independent benchmarks, and separation between the thing being validated and the thing doing the validating.
+\end{context}
+
+\subsection{Failure Hooks}\label{subsec:failure-hooks}
+
+So far we have treated hooks mostly as gates that return pass or fail. The remaining question is what the system actually does when a check fails, and a well-designed loop has a definite, automatic answer. A \emph{failure hook} is the policy that fires on a failing verdict: it specifies the consequence of a broken build, a red test, a dangling citation, or a quality score that has dropped below threshold.
+
+A handful of failure policies cover most situations, and they escalate in severity. The mildest is to \emph{block}: a pre-action hook simply refuses to let the action proceed, as this project's pre-commit check refuses a commit when integrity checks fail, so nothing bad lands and the agent must address the problem before retrying. A stronger response is to \emph{revert}: a post-action hook that detects a regression undoes the offending change, restoring the last known-good state, which is appropriate when the damage is already written and must be unwound. When a failure indicates a problem the loop cannot resolve on its own (an ambiguous requirement, a check that fails in a way no obvious edit fixes), the right policy is to \emph{escalate} to a human rather than thrash. And in the common case where the failure is informative and fixable, the policy is to \emph{re-enter the loop}: feed the failure message back to the worker as the next iteration's input, exactly the mechanism by which a failing test or a critic's report drives the generate--critique--revise cycle of \Cref{subsec:single-vs-multi-agent} and self-refinement \cite{madaan2023selfrefine}.
+
+\begin{remark}
+The choice among block, revert, escalate, and re-enter is itself a design decision, and the deciding question is whether the failure is recoverable and by whom. Recoverable by the agent with the information at hand: re-enter. Recoverable but only after damage is undone: revert, then re-enter. Not yet committed: block and let the agent retry. Not recoverable without human judgment: escalate. A loop without an explicit failure policy does not avoid failures; it merely handles them implicitly and inconsistently, which is generally the worst of the available options.
+\end{remark}
+
+\begin{context}
+The failure-policy taxonomy is the operational risk playbook in miniature. A breached pre-trade limit blocks the order outright. A trade booked in error is reversed (a revert) to restore the book. A loss event that exceeds a desk's mandate is escalated to risk committee rather than handled at the desk. And a near miss feeds back into the control framework as a refinement, so the same failure is less likely next time. An agentic system that wires these four responses to its checks is doing, in software, what a risk function does for a trading floor.
+\end{context}
+
+% --- Section: Designing an Iteration Loop ---
+\section{Designing an Iteration Loop}\label{sec:designing-loop}
+
+The previous four sections gave us the components of an agentic workflow in
+isolation: goals as the control signal that says \emph{what} ``done'' means
+(\Cref{sec:goals-as-control}), agents as the iterators that propose and apply
+changes (\Cref{sec:agents-as-iterators}), skills as the reusable procedures that
+package recurring work (\Cref{sec:skills-as-procedures}), and hooks as the
+guardrails that enforce invariants no matter how the agent reasons
+(\Cref{sec:hooks-as-guardrails}).
+None of these is useful alone. A goal with no iterator is a wish; an iterator
+with no goal wanders; and either one without guardrails will, given enough
+attempts, find a way to declare victory that the author never intended. This
+section assembles the three into a single runnable design: the iteration loop.
+
+Far from being a new idea, the loop is the oldest idea in engineering, restated for
+agents. \Cref{subsec:agentic-literature} already traced its lineage to Boehm's
+spiral model \cite{boehm1988spiral} and Deming's plan--do--check--act cycle
+\cite{deming1986}: both replaced a single straight-line pass with repeated cycles
+in which every output is measured against a standard and that measurement feeds
+the next revision. An agentic workflow is these cycles executed by a language
+model rather than a team, with the validation step automated and the ``check''
+phase made cheap enough to run on every turn. The
+design problem, then, is not to invent a loop but to specify its parts precisely
+enough that a non-deterministic agent can run it safely and a human can audit it
+afterward.
+
+We proceed in five steps. \Cref{subsec:loop-template} gives the general
+seven-step template. \Cref{subsec:loop-pseudocode} writes it as pseudocode and
+maps each line onto the concrete Claude Code primitives---agents, skills, hooks,
+and commits. \Cref{subsec:state-memory-context} addresses the single hardest
+practical issue, namely how state survives across turns when the conversation
+context does not. \Cref{subsec:stopping-criteria} specifies when the loop must
+halt, and \Cref{subsec:economics-of-iteration} treats cost and latency as
+first-class stopping criteria rather than afterthoughts.
+
+\subsection{The General Loop Template}\label{subsec:loop-template}
+
+Every well-formed iteration loop, regardless of domain, decomposes into the same
+seven steps. We state them as a procedure because the order matters: each step
+consumes the output of the one before it, and skipping or reordering steps is the
+most common way a loop silently breaks.
+
+\begin{enumerate}
+  \item \textbf{Read the current state.} Before doing anything, the agent must
+        establish ground truth: what files exist, what the last validation said,
+        what the goal file requires, and how far the previous iteration got.
+        State lives on disk and in version control, not in the agent's memory
+        (\Cref{subsec:state-memory-context}). An iteration that begins by acting
+        rather than reading is acting on a hallucinated picture of the world.
+  \item \textbf{State the next local goal.} The global goal (``$|f(x)| < 10^{-3}$'')
+        is rarely achievable in one move. The agent names a concrete, smaller
+        objective for \emph{this} turn---``reduce the residual below the current
+        best,'' ``make the failing test pass''---that is checkable at the end of
+        the turn.
+  \item \textbf{Propose a change.} The agent reasons from the current state and
+        the local goal to a specific edit: a new guess, a code change, a revised
+        paragraph. This is the ``reason'' half of the reason--act cycle.
+  \item \textbf{Apply the change.} The proposal is written to disk. Until this
+        step nothing in the world has changed; after it, the state has advanced
+        and is now the input to the next read.
+  \item \textbf{Run validation.} A deterministic check---a test suite, an
+        evaluator script, a hook---measures the new state against the goal. This
+        is the ``check'' of PDCA and the irreplaceable source of feedback. The
+        agent does not get to grade its own work; the validator does.
+  \item \textbf{Interpret feedback.} The agent reads the validation output and
+        extracts signal: did the residual shrink or grow? In which direction? By
+        how much? This interpretation is what turns a blind retry into a directed
+        search.
+  \item \textbf{Decide: stop, continue, or escalate.} Given the feedback, the
+        agent chooses one of three outcomes: \emph{stop} because the goal is met
+        or a budget is exhausted; \emph{continue} to another iteration with the
+        new state; or \emph{escalate} to a human because progress has stalled or
+        a guardrail forbids automatic resolution. Every loop must be able to
+        reach a stop or escalate state (\Cref{subsec:stopping-criteria}).
+\end{enumerate}
+
+Two properties of this template deserve emphasis. First, validation (step~5) is
+separated from interpretation (step~6), and both are separated from the decision
+(step~7). Collapsing them, letting the agent decide it is done at the same
+moment it judges its own output, removes the independent check that makes the
+loop trustworthy. The hook that enforces the stopping condition is deliberately
+external to the agent's reasoning. Second, the decision step always includes
+\emph{escalate}, not just stop and continue. A loop that can only succeed or grind
+forever is a loop that will eventually grind forever; the escape hatch to human
+review is part of the design, not an admission of failure.
+
+\subsection{Pseudocode and Its Mapping onto a Claude Code Workflow}\label{subsec:loop-pseudocode}
+
+The seven steps translate directly into a control loop. We write it in
+language-agnostic pseudocode and then annotate how each line is realized by the
+concrete primitives of an agentic harness.
+
+\begin{minted}{text}
+state <- read_state()             # files, commits, last validation report
+goal  <- read_goal()              # success predicate + budget
+best  <- evaluate(state, goal)    # baseline score of current state
+
+while not goal.satisfied(best) and not goal.budget_exhausted():
+    local   <- choose_objective(state, best)   # name this turn's target
+    change  <- propose(state, local)           # REASON
+    state2  <- apply(change, state)            # ACT: write to disk
+    report  <- validate(state2)                # deterministic check
+    if report.improves_on(best):
+        commit(state2, summarize(change, report))
+        state, best <- state2, report.score    # accept
+    else:
+        state <- rollback(state)               # reject, keep best
+    if stalled(history) or report.requires_human:
+        escalate(state, report); break         # hand off
+
+emit_report(state, best, history) # final summary, hook-gated
+\end{minted}
+
+The mapping onto Claude Code primitives is one-to-one and worth making explicit,
+because the value of the design is precisely that abstract control flow becomes
+concrete tooling:
+
+\begin{itemize}
+  \item \texttt{read\_state} and \texttt{read\_goal} are file reads. The goal
+        file is a checked-in artifact (\Cref{sec:goals-as-control}); the state is
+        the working tree plus the \texttt{git log} and the last validation
+        report. There is no hidden state in the model.
+  \item \texttt{propose} followed by \texttt{apply} is the agent's
+        reason-then-act turn. This interleaving of reasoning traces with
+        environment actions is exactly the pattern formalized by ReAct
+        \cite{yao2022react}: the model thinks, acts, observes, and thinks again,
+        rather than producing a single plan up front.
+  \item \texttt{validate} is a \emph{skill}---a scripted, deterministic
+        invocation of a test runner or evaluator. It is not the agent's opinion;
+        it is a program whose output the agent must accept.
+  \item \texttt{report.improves\_on(best)} and the \texttt{rollback} branch make
+        the loop a form of self-refinement: the model revises its own prior
+        output in light of feedback, keeping improvements and discarding
+        regressions. This accept/reject discipline is what distinguishes a Self-Refine
+        \cite{madaan2023selfrefine} loop, which improves monotonically against an
+        explicit critique, from undirected resampling.
+  \item \texttt{commit} writes the accepted state into version control. The
+        commit is both the persistence mechanism (\Cref{subsec:state-memory-context})
+        and the audit trail; each commit message is a one-line record of what
+        changed and why the validator accepted it.
+  \item the \texttt{escalate} branch and the final \texttt{emit\_report} are
+        \emph{hook}-gated. A stop hook can refuse to let the loop announce
+        success unless the validator's latest output satisfies the goal predicate
+        (we build exactly such a hook in \Cref{subsec:rootfind-artifacts}).
+\end{itemize}
+
+The accept/reject structure also makes the loop robust to the agent's mistakes.
+Because every proposed change is validated before it is committed and rolled back
+if it does not improve the score, a bad proposal costs one iteration, not the
+whole run. The loop tolerates a noisy proposer precisely because the validator
+and version control are deterministic.
+
+\subsection{State, Memory, and Context Management Across Iterations}\label{subsec:state-memory-context}
+
+The most common reason an otherwise sound loop fails in practice is a
+misunderstanding of where state lives. A language-model agent has no durable
+memory between turns. Its context window is a sliding buffer that is eventually
+truncated or summarized; anything the agent ``knew'' three iterations ago but did
+not write down is gone. Designing a loop therefore means designing for amnesia:
+assume that on any given turn the agent remembers nothing except what it can read
+from disk.
+
+\begin{remark}
+A useful mental model is that the agent is a new employee every morning who reads
+the project's files, does one day's work, commits it, and is replaced overnight
+by someone equally capable but with no recollection of yesterday. Everything that
+must survive the night has to be written down.
+\end{remark}
+
+This leads to a clean separation between what persists and what is lost. The
+following persists across iterations because it is external to the model:
+
+\begin{itemize}
+  \item \textbf{Files in the working tree}---the actual artifact being improved,
+        plus any scratch files the loop deliberately maintains.
+  \item \textbf{The git history}---an ordered record of accepted states. The
+        commit log is the loop's long-term memory; \texttt{git diff} between two
+        commits reconstructs exactly what one iteration changed.
+  \item \textbf{Validation reports}---the output of the validator, written to a
+        known path (for example a results file or a status table) so the next
+        turn can read the last score without re-running everything.
+  \item \textbf{A status table or scratchpad}---an explicit, human-readable
+        summary of where the loop stands: current best, iterations spent, what
+        has been tried, what failed. This is the single most valuable artifact to
+        maintain, because it lets the next turn orient in one read.
+\end{itemize}
+
+By contrast, the following is lost and must never be relied upon: the agent's
+chain of thought from prior turns, intermediate values it computed but did not
+save, and any nuance of its earlier reasoning that did not make it into a file or
+a commit message. The practical rule is therefore: \emph{write before you forget}.
+Every iteration should end by persisting its result and a one-line note of what it
+learned, so that the loop's progress is recoverable from disk alone. A loop whose
+correctness depends on the agent ``remembering'' the last guess is broken; a loop
+that reads the last guess from a results file at the top of every turn is robust.
+
+This discipline has a further benefit: it makes the loop \emph{resumable}. Because
+all state is on disk, a run interrupted at iteration~12 (by a crash, a budget
+limit, or a human pausing it) can be restarted at iteration~13 by a fresh agent
+that simply reads the current state, so the loop is checkpointed by construction.
+
+\subsection{Stopping Criteria}\label{subsec:stopping-criteria}
+
+A loop that cannot stop is a liability, not a tool. The defining design
+obligation of any iteration loop is that it provably terminates. Termination is
+not guaranteed by the goal being reachable---the goal may be unreachable with the
+moves available---so the loop must carry at least one criterion that fires
+regardless of progress.
+
+\begin{definition}[Stopping rule]\label{def:stopping-rule}
+A \emph{stopping rule} for an iteration loop is a predicate over the loop's
+history that returns true when the loop must halt. A loop is \emph{well-formed}
+only if at least one of its stopping rules is \emph{guaranteed-terminating}: it
+fires after finitely many iterations independent of whether the goal is met.
+\end{definition}
+
+In practice a loop combines several stopping rules, of which exactly one needs to
+be guaranteed-terminating:
+
+\begin{enumerate}
+  \item \textbf{Success (goal satisfied).} The validator reports that the success
+        predicate holds---for example $|f(x)| < 10^{-3}$, or all tests pass. This
+        is the desired exit, but it is not guaranteed to fire.
+  \item \textbf{Convergence (no further improvement).} The best score has not
+        improved for $k$ consecutive iterations. The loop has plateaued and
+        further attempts are unlikely to help. This catches the case where the
+        agent is stuck at a local optimum.
+  \item \textbf{Budget exhaustion.} A maximum iteration count, wall-clock limit,
+        or token/dollar budget has been reached. This is the
+        \emph{guaranteed-terminating} criterion every loop must include: it fires
+        after a finite number of steps no matter what.
+  \item \textbf{Human-review-required.} A guardrail or hook has flagged a
+        condition that policy forbids resolving automatically---a change touching
+        a protected file, a validation failure of a certain class, or simply the
+        convergence rule firing. The loop escalates rather than continues.
+\end{enumerate}
+
+The reason the budget criterion is non-negotiable is that the other three can all
+fail to fire: the goal may be unreachable, the agent may make tiny non-zero
+improvements forever, and no guardrail may trip. Only a hard budget guarantees
+that the loop is a terminating procedure. Convergence and human-review criteria
+make the loop \emph{smart} about stopping early; the budget makes it \emph{safe}.
+A well-designed loop typically exits on success or convergence in the common case
+and falls back to the budget only in pathological ones, but the budget is always
+present.
+
+\subsection{The Economics of Iteration}\label{subsec:economics-of-iteration}
+
+Each iteration has a cost: the tokens consumed by the agent's reasoning, the
+compute spent running the validator, and the wall-clock latency before a result
+is available. In a toy problem these costs are negligible. In a production finance
+workflow (revising a risk model, regenerating a regulatory report, refactoring a
+pricing library across a large repository) they are not, and they belong in the
+loop's design as first-class stopping criteria rather than as afterthoughts.
+
+The core question is one of return on investment. Each iteration is expected to
+move the state variable closer to the goal by some amount, at some cost. As the
+loop approaches the goal, the marginal improvement per iteration typically
+shrinks (the easy gains are taken first), while the cost per iteration stays
+roughly constant. There is therefore a point past which the next iteration costs
+more than the improvement it is expected to deliver is worth. Encoding that point
+as a budget (``stop after $N$ iterations,'' ``stop when the marginal residual
+reduction falls below $\epsilon$,'' ``stop at \$$B$ of spend'') is what turns the
+convergence and budget rules of \Cref{subsec:stopping-criteria} from abstractions
+into business decisions. In finance especially, where a workflow may run on a
+schedule and at scale, the difference between a loop that stops at ``good enough''
+and one that chases the last basis point of quality is the difference between a
+tool that pays for itself and one that does not.
+
+\begin{context}
+\textbf{A back-of-envelope cost--value sketch (hypothetical numbers).}
+Suppose an analyst's manual revision of a model document takes two hours of time
+valued at \$200, so the value of automating it is on the order of \$200 per run.
+Suppose each agentic iteration costs roughly \$0.50 in tokens plus compute and
+takes about ninety seconds. If the loop reaches acceptable quality in eight
+iterations, it costs about \$4 and four minutes, an obvious win against \$200.
+But suppose iterations beyond the eighth each cut the remaining residual by only
+$10\%$. The first eight iterations capture the bulk of the value; iterations
+fifteen through thirty might cost another \$8 to chase quality the reviewer cannot
+distinguish from the eighth. More iterations are not the problem in themselves; the
+budget should be set where marginal value crosses marginal cost (here, somewhere
+around iteration eight to ten), and the loop should stop there by rule rather than
+run to exhaustion. (All figures here are illustrative.)
+\end{context}
+
+\begin{remark}
+Latency deserves separate attention from dollar cost. A loop that converges in
+thirty cheap iterations but takes forty minutes of wall-clock time may be
+unusable in an interactive setting even though its dollar cost is trivial. When
+the loop sits in a human's critical path, wall-clock time is often the binding
+budget; when it runs unattended overnight, dollar and token cost bind instead.
+The design should name which budget is the binding one for the intended
+deployment.
+\end{remark}
+
+% --- Section: Example 1: A Naive Derivative-Free Root-Finding Loop ---
+\section{Example 1: A Naive Derivative-Free Root-Finding Loop}\label{sec:example-root-finding}
+
+We now ground the abstract loop in a deliberately simple worked example. The
+problem is chosen to be transparent: a single scalar root, solved to a stated
+tolerance, with a validator anyone can check by hand. The pedagogical point is
+\emph{not} numerical analysis. We are not teaching Newton's method, the secant
+method, or bisection as algorithms. The point is to show that an iteration loop
+can improve a state variable using \emph{feedback alone}, reading the sign and
+size of an error and adjusting a guess accordingly, without the agent ever being
+told an update formula. The agent is an iterator, the evaluator is the validator,
+and the goal file plus a hook supply the control signal and the guardrail. Once
+you see the loop work on a root, you have seen the machinery that drives every
+example in this book.
+
+\subsection{Problem Setup: A Zero of \texorpdfstring{$f(x)=x^3-x-2$}{f(x)=x^3-x-2} Without Derivatives}\label{subsec:rootfind-setup}
+
+We seek a value $x$ such that
+\begin{equation}\label{eq:rootfind}
+  f(x) = x^3 - x - 2 \approx 0,
+\end{equation}
+to within a tolerance $|f(x)| < 10^{-3}$. The function is monotonically
+increasing for $x \gtrsim 0.6$ and has a single real root near $x \approx 1.52$.
+The crucial constraint is this: the agent is permitted to \emph{evaluate} $f$ at
+any point it chooses, but it is \textbf{forbidden from using derivatives}. It may
+not compute $f'(x)=3x^2-1$, and it may not apply Newton's update
+$x_{n+1}=x_n-f(x_n)/f'(x_n)$. All it has is the ability to ask ``what is $f$ at
+this point?'' and read the answer. This makes the procedure Newton-\emph{inspired}
+only in the loosest sense (it is iterative approximation toward a root), while
+the actual mechanics are sign-and-magnitude guided search, closer in spirit to
+bisection or the method of false position.
+
+\begin{remark}[Finance analogue]
+This is not a contrived setup. The same mechanics solve for an implied yield or
+an internal rate of return (IRR). To find the IRR of a cash-flow stream we seek
+the discount rate $r$ at which net present value is zero,
+$\mathrm{NPV}(r)=\sum_t c_t/(1+r)^t = 0$. There is no closed-form inverse, and in
+practice one evaluates $\mathrm{NPV}$ at trial rates and moves the guess according
+to the sign of the result: too high an NPV means the rate is too low, and vice
+versa. An implied volatility is found the same way: evaluate the option price at
+a trial volatility, compare to the market price, and bracket. The root-finding
+loop below is, mechanically, an IRR solver with $f$ swapped out.
+\end{remark}
+
+The evaluator the agent is allowed to call is a single function with no
+derivative information:
+
+\begin{minted}{python}
+def f(x: float) -> float:
+    """Evaluate the target function. No derivative is exposed."""
+    return x**3 - x - 2
+
+if __name__ == "__main__":
+    import sys
+    x = float(sys.argv[1])
+    print(f"x={x}  f(x)={f(x)}")
+\end{minted}
+
+Everything the loop learns about the landscape of $f$ it must learn by calling
+this evaluator and reading the printed residual.
+
+\subsection{The Supporting Artifacts: Goal File, Skill, and Hook}\label{subsec:rootfind-artifacts}
+
+The loop is defined by three checked-in artifacts, one for each component from
+\Cref{sec:designing-loop}: a goal file that encodes the success predicate, a skill
+that describes how to run the evaluator, and a hook that enforces the tolerance so
+the agent cannot declare victory prematurely.
+
+First, the goal file. It states the objective, the success predicate, and the
+budget in plain terms a human and an agent can both read:
+
+\begin{minted}{text}
+# GOAL: root of f(x) = x^3 - x - 2
+
+Objective : find x such that |f(x)| < 0.001
+Variable  : x (real scalar)
+Allowed   : evaluate f(x) at any x
+Forbidden : derivatives, f'(x), Newton's update formula
+Budget    : at most 12 iterations
+Success   : the evaluator prints |f(x)| < 0.001
+\end{minted}
+
+Second, the skill---a short, deterministic recipe for running the evaluator and
+recording the result so the next iteration can read it. The skill is what
+\texttt{validate} in the pseudocode actually invokes:
+
+\begin{minted}{bash}
+# skill: evaluate a candidate x and append the result to the log
+x="$1"
+python evaluator.py "$x" | tee -a results.log
+\end{minted}
+
+Each call appends a line such as \texttt{x=1.5\ \ f(x)=-0.125} to
+\texttt{results.log}, which becomes the loop's on-disk memory
+(\Cref{subsec:state-memory-context}): the next turn reads the last line to recover
+the current guess and residual.
+
+Third, the hook---the guardrail that blocks a ``success'' declaration unless the
+most recent residual actually meets tolerance. It parses the last logged value of
+$f(x)$, takes its absolute value, and exits nonzero if it is not strictly below
+$10^{-3}$. Because the harness treats a nonzero exit from a stop hook as a veto,
+the agent literally cannot end the loop claiming success while the residual is too
+large:
+
+\begin{minted}{bash}
+#!/usr/bin/env bash
+# stop-hook: veto "success" unless the latest |f(x)| < 0.001
+last=$(grep -o 'f(x)=[-0-9.eE]*' results.log | tail -n1 | cut -d= -f2)
+abs=$(python -c "print(abs(float('$last')))")
+ok=$(python -c "print(1 if abs(float('$last')) < 0.001 else 0)")
+if [ "$ok" -ne 1 ]; then
+  echo "BLOCKED: |f(x)|=$abs >= 0.001 -- not converged" >&2
+  exit 1
+fi
+echo "OK: |f(x)|=$abs < 0.001"
+exit 0
+\end{minted}
+
+These three artifacts are the entire control structure. Notice that none of them
+contains a root-finding algorithm. The goal says \emph{what} convergence means,
+the skill says \emph{how} to measure progress, and the hook \emph{enforces} that
+the goal is met before the loop can claim success. How to actually move the guess
+is left entirely to the agent's reasoning over feedback, which is the subject of
+the next subsection.
+
+\subsection{A Realistic Iteration Trace from a Poor Start}\label{subsec:rootfind-trace}
+
+To show that feedback alone suffices, we start the agent from a deliberately poor
+guess, $x=0$, with no hint about where the root lies. \Cref{tab:rootfind-trace}
+records the run. At each step the agent calls the evaluator, reads the sign and
+magnitude of $f(x)$, and reasons informally---in a bracketing,
+false-position-like way---about where to place the next guess. It never computes a
+derivative.
+
+\begin{table}[t]
+  \centering
+  \begin{tabular}{@{}rrrl@{}}
+    \toprule
+    Iteration & $x$ & $f(x)$ & Agent's reasoning \\
+    \midrule
+    1 & $0$      & $-2$        & Negative; root is to the right. Jump up. \\
+    2 & $2$      & $4$         & Positive now; root is bracketed in $(0,2)$. \\
+    3 & $1.5$    & $-0.125$    & Negative but small; root just above $1.5$. \\
+    4 & $1.6$    & $0.496$     & Positive; root bracketed in $(1.5,1.6)$. \\
+    5 & $1.52$   & $-0.008192$ & Tiny negative; nudge up slightly. \\
+    6 & $1.522$  & $\approx 0.004$ & Overshot to small positive; back off a touch. \\
+    7 & $1.5214$ & $\approx 0$ & $|f(x)| < 0.001$: tolerance met, hook passes. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Iteration trace of the derivative-free root-finding loop from the poor
+  start $x=0$. The agent uses only the sign and magnitude of the residual to
+  bracket and refine the next guess.}
+  \label{tab:rootfind-trace}
+\end{table}
+
+The reasoning is worth walking through, because it is the same reasoning that
+appears, dressed in domain clothing, throughout the book. At iteration~1 the only
+fact available is $f(0)=-2$: the residual is negative, and since the agent has
+observed (from this single point) nothing else, its sensible move is to step in
+the direction that should raise $f$. At iteration~2 the jump to $x=2$ yields
+$f(2)=4$, positive. Now the agent has a \emph{bracket}: the sign changed between
+$x=0$ and $x=2$, so a root lies between them. This sign change is the entire
+engine of the search: no derivative is needed to know that a continuous function
+going from negative to positive crosses zero in between.
+
+From iteration~3 on, the agent refines the bracket. At $x=1.5$ the residual is
+$-0.125$: still negative, so the root is above $1.5$, but the magnitude is now
+small, signalling the agent is close and should take smaller steps. At $x=1.6$ the
+residual is $+0.496$, positive, tightening the bracket to $(1.5,1.6)$. Because the
+residual at $1.5$ is much smaller in magnitude than at $1.6$, a
+false-position-style reading (weighting the next guess toward the endpoint with
+the smaller residual) suggests the root is much closer to $1.5$, so the agent
+tries $x=1.52$. There the residual is $-0.008192$: a hair negative, so nudge up.
+At $x=1.522$ it overshoots to roughly $+0.004$, positive, so it backs off a touch
+to $x=1.5214$, where $|f(x)|$ finally falls below $10^{-3}$.
+
+At that point the agent attempts to declare success. The stop hook from
+\Cref{subsec:rootfind-artifacts} re-reads the last logged residual, confirms
+$|f(x)| < 0.001$, and exits zero, permitting the loop to terminate. Had the agent
+tried to declare success at iteration~5 ($|f(x)|=0.008192$) the hook would have
+exited nonzero and vetoed the claim, forcing another iteration. The guardrail and
+the iterator are doing exactly the jobs assigned to them in \Cref{sec:designing-loop}:
+the agent supplies directed but informal search, and the hook supplies the
+non-negotiable definition of done.
+
+\begin{remark}
+Notice that the agent's path is not optimal: a textbook bisection or secant
+method would converge in a comparable number of steps with a fixed formula, and a
+human numerical analyst would not zig-zag past the root at iteration~6. That
+inefficiency is the point. The loop reaches tolerance \emph{without} an algorithm,
+using only feedback, which means the same loop works when no update formula exists
+at all, as when the ``residual'' is a failing test, a style violation, or a
+reviewer's objection rather than a number.
+\end{remark}
+
+\subsection{The Final Report}\label{subsec:rootfind-report}
+
+When the loop terminates it emits a short, human-readable report. This is the
+\texttt{emit\_report} step of the pseudocode: a summary the next reader (or
+auditor) can consume in one pass, reconstructed entirely from \texttt{results.log}
+and the git history, not from the agent's memory.
+
+\begin{minted}{text}
+ROOT-FINDING LOOP -- FINAL REPORT
+=================================
+Target      : f(x) = x^3 - x - 2,  tolerance |f(x)| < 0.001
+Start        : x = 0   (poor initial guess, residual -2)
+Iterations  : 7 of 12 budgeted
+Method       : derivative-free, sign-and-magnitude guided search
+              (no f'(x), no Newton update used)
+
+Final x      : 1.5214
+Final f(x)   : ~0.0001   ->  |f(x)| < 0.001   PASS
+Stop hook    : PASS (verified latest residual below tolerance)
+Exit reason  : success predicate satisfied
+
+Trace        : 0 -> 2 -> 1.5 -> 1.6 -> 1.52 -> 1.522 -> 1.5214
+\end{minted}
+
+The report closes the loop in both senses. It confirms the outcome (a root at
+$x \approx 1.5214$ with $|f(x)| < 10^{-3}$) and records the evidence that the
+tolerance hook passed, so the success claim is not the agent's word but the
+validator's. Everything needed to trust or reproduce the run is on disk: the goal
+file states what was asked, \texttt{results.log} holds the full trace, the hook's
+exit code certifies convergence, and the git history orders the accepted states.
+This is the template every later chapter instantiates; only the state variable,
+the validator, and the definition of ``residual'' change.
+
+% =====================================================================
+% --- Section: Example 2: A Credit-Risk Stress-Testing Agent Loop ---
+\section{Example 2: A Credit-Risk Stress-Testing Agent Loop}\label{sec:example-credit-risk}
+% =====================================================================
+
+The root-finding loop of \Cref{sec:example-root-finding} optimized a single
+scalar against a sharp, machine-checkable target. Most decisions that matter in
+finance are not like that. They optimize a \emph{judgment}: a position that
+must be internally consistent, empirically grounded, stress-tested, and able to
+survive an adversarial reading by people whose job is to find the hole in it.
+This section is the capstone of the chapter: it takes the goal--agent--skill--hook
+machinery of \Cref{sec:agents-as-iterators,sec:skills-as-procedures,%
+sec:hooks-as-guardrails,sec:designing-loop} and applies it end to end to a problem
+that has no closed form.
+
+Consider \emph{Meridian Components}, a fictional mid-sized private manufacturer of
+specialized industrial parts. Meridian has approached its bank for a \$40~million
+committed revolving credit facility to fund working capital and a capacity
+expansion. On the surface the borrower looks comfortable: three years of revenue
+growth, positive and rising reported EBITDA, and leverage that sits inside the
+bank's appetite. The base case all but writes the approval memo by itself. But
+Meridian sells into two cyclical end markets, carries specialized inventory that is
+hard to liquidate, and concentrates its receivables in a handful of customers. A
+combined macro-financial shock, a demand contraction arriving at the same time
+as higher funding costs and slower collections, could move this credit from
+``comfortable'' to ``covenant breach'' faster than the base case suggests.
+
+\begin{remark}[All figures are illustrative]
+Meridian Components is a fictional company, and every number in this section
+(financial statements, ratios, model coefficients, probabilities of default,
+recovery rates, and dollar losses) is hypothetical and chosen for pedagogical
+clarity. The figures are constructed to be internally consistent (in particular,
+expected loss always satisfies $\mathrm{EL} = \mathrm{PD}\times\mathrm{LGD}\times
+\mathrm{EAD}$), and they are deliberately round and plausible for a mid-market
+borrower, but they are not drawn from any real entity and must not be read as
+benchmarks.
+\end{remark}
+
+What makes this a \emph{loop} rather than a checklist is that the optimized object,
+the credit judgment itself, is repeatedly revised in response to feedback the
+system generates about itself. An accounting-quality pass changes the inputs; a
+leakage check rejects a model; a stress scenario flips a covenant from green to
+red; a skeptic demands a sensitivity the first pass never ran. Each piece of
+feedback changes the \emph{next} action. By the end, the system has produced not a
+number but a defensible position, together with the trail of revisions
+that makes it defensible.
+
+% ---------------------------------------------------------------------
+\subsection{The Goal: A Defensible Credit-Committee Memo}\label{subsec:credit-goal}
+% ---------------------------------------------------------------------
+
+The goal, in the sense of \Cref{sec:goals-as-control}, is not ``estimate the
+probability of default.'' A point estimate is an output, not a goal; it carries no
+acceptance criteria and nothing can fail against it. The goal is a
+\emph{credit-committee memo} that a committee would actually accept, and that
+acceptance is what makes the goal a control object: it is checkable, and the loop
+runs until the checks pass.
+
+Before stating the goal we fix the vocabulary of expected credit loss.
+
+\begin{definition}[The expected-loss decomposition]\label{def:el-decomposition}
+For a credit exposure, the \emph{probability of default} (PD) is the probability
+the borrower fails to meet its obligations over a stated horizon (here, one year).
+The \emph{loss given default} (LGD) is the fraction of the exposure not recovered
+if default occurs, $\mathrm{LGD} = 1 - \text{recovery rate}$. The \emph{exposure
+at default} (EAD) is the dollar amount outstanding when default occurs: for a
+revolver, the drawn balance plus an estimate of further drawdown as the borrower
+deteriorates. The one-year \emph{expected loss} is
+\begin{equation}\label{eq:expected-loss}
+  \mathrm{EL} \;=\; \mathrm{PD}\times \mathrm{LGD}\times \mathrm{EAD}.
+\end{equation}
+\end{definition}
+
+A memo that a credit committee will accept must, at minimum, (i) assign a PD with a
+stated horizon and method, (ii) state explicit LGD assumptions and the collateral
+or recovery logic behind them, (iii) state the EAD and the drawdown assumption for
+the revolver, (iv) compute expected loss under \cref{eq:expected-loss} in both
+dollars and basis points of EAD, (v) identify the key risk drivers and how they
+behave under stress, and (vi) give a clear recommendation --- lend, lend on
+modified terms, or decline --- with reasoning a committee member can interrogate.
+Credit scoring and PD estimation have a long quantitative tradition that this memo
+is expected to respect rather than reinvent \citep{thomas2002credit}; and because
+any PD model used to make a lending decision is a \emph{model} in the supervisory
+sense, the memo is also a model-risk artifact subject to development, validation,
+and governance expectations \citep{sr117}.
+
+We therefore encode the goal as a control object: a short, checkable
+specification the loop is run against. \Cref{tab:credit-goal} lists the acceptance
+criteria. The loop is not done when the agents are tired; it is done when every row
+in this table is satisfied and the skeptic agent (\Cref{subsec:credit-agents}) has
+signed off.
+
+\begin{table}[t]
+\centering
+\caption{The goal as a checkable control object: acceptance criteria for the
+Meridian credit memo. The loop terminates only when every criterion is met. All
+thresholds are illustrative.}
+\label{tab:credit-goal}
+\begin{tabularx}{\linewidth}{@{}l X l@{}}
+\toprule
+Deliverable & Acceptance criterion & Checked by \\
+\midrule
+PD (base \& stressed) & Out-of-sample validated; horizon stated & Hook + skeptic \\
+LGD (base \& stressed) & Tied to collateral; recovery logic stated & Skeptic \\
+EAD                    & Drawdown assumption stated                & Hook \\
+Expected loss          & $\mathrm{EL}=\mathrm{PD}\cdot\mathrm{LGD}\cdot\mathrm{EAD}$ reconciles & Hook \\
+Risk drivers           & Each traced to source statement           & Hook \\
+Scenarios              & Base / adverse / severe, parameterized    & Hook \\
+Recommendation         & One of lend / modify / decline, justified & Skeptic \\
+``Low risk'' language   & Only if base \emph{and} stressed EL below thresholds & Hook \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{context}
+A useful test for whether you have a goal or merely a task: ask what it would mean
+for the work to be \emph{wrong}. ``Estimate the PD'' cannot be wrong: any number
+is an estimate. ``Produce a memo whose stressed expected loss reconciles to
+\cref{eq:expected-loss}, whose every ratio ties to a source statement, and which
+the skeptic cannot break'' can be wrong in a dozen concrete ways, and each of those
+ways is a hook waiting to fire. Goals that can fail are the ones a loop can
+optimize.
+\end{context}
+
+% ---------------------------------------------------------------------
+\subsection{The Combined Macro-Financial Shock}\label{subsec:credit-shock}
+% ---------------------------------------------------------------------
+
+A credit that looks safe in expectation can be unsafe in the tail, and the point of
+stress testing is to price the tail rather than the mean. Sound practice does not
+ask ``what is the most likely outcome?'' but ``what coherent adverse outcome would
+hurt this borrower, and does the credit survive it?'', framing the question as a
+combined, internally consistent scenario rather than a menu of one-at-a-time bumps
+\citep{bcbs2018stress}. We layer three scenarios of increasing severity.
+
+\begin{definition}[Scenario layering]\label{def:scenario-layering}
+The \emph{base case} reflects the borrower's and bank's central expectation. The
+\emph{adverse} case applies a plausible but unfavorable combined shock. The
+\emph{severe} case stresses the same drivers further, into the tail, to test
+whether the structure (covenants, collateral, liquidity) holds when several risks
+correlate and arrive together.
+\end{definition}
+
+The combined shock is specified as a parameter table, not as prose, so that every
+downstream agent consumes the same assumptions and the cash-flow and PD models can
+regenerate their outputs deterministically. \Cref{tab:credit-shock} gives the
+adverse and severe parameterizations.
+
+\begin{table}[t]
+\centering
+\caption{The combined macro-financial shock applied to Meridian Components,
+relative to base case. All parameters are illustrative. ``bps'' denotes basis
+points; DSO is days sales outstanding; ICR is the interest-coverage ratio
+covenant.}
+\label{tab:credit-shock}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Shock parameter & Adverse & Severe \\
+\midrule
+Revenue                       & $-20\%$    & $-30\%$ \\
+Gross margin                  & $-300$ bps & $-450$ bps \\
+Benchmark interest rate       & $+250$ bps & $+350$ bps \\
+Days sales outstanding (DSO)  & $+25$ days & $+40$ days \\
+Inventory days               & $+20$ days & $+35$ days \\
+Refinancing of maturing debt  & at $+250$ bps & partial / curtailed \\
+ICR covenant                  & tightened to $2.5\times$ & tightened to $2.5\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each parameter maps to a mechanism. Revenue down 20\% with gross margin down
+300~basis points compresses operating cash flow far more than either alone, because
+fixed costs do not scale down with sales: this is operating leverage working in
+reverse. A 250~basis-point rise in the benchmark rate raises interest expense on
+the floating-rate revolver and on any maturing debt that must be refinanced, which
+is where \emph{refinancing risk} bites: debt that was cheap to roll becomes
+expensive or, in the severe case, only partially available. DSO (the average
+number of days between a sale and cash collection) rising by 25 days means
+customers pay more slowly precisely when the borrower most needs cash. Combined with
+inventory days rising (inventory turning over more slowly, so cash is tied up in
+unsold goods longer), it lengthens the \emph{cash conversion cycle}, the time
+between paying suppliers and collecting from customers. Finally, covenant tightening
+captures the reality that lenders cut headroom in a downturn, so the borrower has
+less room before a technical breach.
+
+\begin{deepdive}
+The reason the scenario is \emph{combined} rather than a set of independent
+sensitivities is that the parameters are not independent in the world. A demand
+shock that cuts revenue is the same macro event that widens credit spreads (raising
+the refinancing rate) and slows customer payments (raising DSO), because the
+borrower's customers are under the same pressure. Running one-at-a-time stresses and
+adding the losses understates the joint tail, because it ignores this correlation
+and the nonlinearities (covenant breaches, liquidity exhaustion) that only
+trigger when several stresses coincide. The adverse and severe columns of
+\Cref{tab:credit-shock} are deliberately constructed as coherent states of the
+world, which is what makes a breach under stress informative rather than an
+artifact of double-counting.
+\end{deepdive}
+
+% ---------------------------------------------------------------------
+\subsection{The Agent Ensemble}\label{subsec:credit-agents}
+% ---------------------------------------------------------------------
+
+No single agent should hold the whole problem. Following the multi-agent design
+philosophy in which specialized, role-scoped agents collaborate through structured
+handoffs \citep{wu2023autogen,xi2023rise}, the credit loop is built from nine
+agents, each with one responsibility and one well-defined output that becomes the
+next agent's input. The narrow scope is not bureaucracy: it is what lets a hook
+attach a crisp pass/fail to each handoff, and it is what lets the skeptic attack one
+link at a time.
+
+\begin{enumerate}
+\item \textbf{Data-ingestion agent}: pulls and parses Meridian's financial
+statements, debt schedule, and covenant terms; hands a structured, typed dataset to
+the accounting-quality agent.
+\item \textbf{Accounting-quality agent}: scrutinizes reported figures for
+add-backs, definitional inconsistencies, and aggressive recognition; hands
+\emph{normalized} statements to the feature-engineering agent.
+\item \textbf{Feature-engineering agent}: builds credit features (leverage,
+coverage, liquidity, payment behavior, concentration, cash conversion cycle); hands
+a clean feature matrix to the PD-model agent.
+\item \textbf{PD-model agent}: fits and validates a probability-of-default model
+out of sample; hands a base-case PD and the fitted model to the stress-scenario
+agent.
+\item \textbf{Stress-scenario agent}: applies the parameter table of
+\Cref{tab:credit-shock} to inputs and re-derives stressed features; hands stressed
+features and stressed PD to the cash-flow agent.
+\item \textbf{Cash-flow agent}: projects operating cash flow, liquidity, and
+covenant compliance under each scenario; hands the covenant and liquidity verdict to
+the LGD agent.
+\item \textbf{LGD agent}: values collateral and estimates recovery and loss given
+default by scenario; hands LGD and EAD to the memo-writing agent and the skeptic.
+\item \textbf{Skeptic agent}: adversarially reviews every prior output, demands
+missing sensitivities and benchmarks, and either returns the work for revision or
+signs off; gates the memo-writing agent.
+\item \textbf{Memo-writing agent}: assembles the validated PD, LGD, EAD, expected
+loss, drivers, and scenarios into the committee memo with a recommendation; produces
+the final deliverable.
+\end{enumerate}
+
+The handoff graph is mostly a pipeline, but with two feedback edges that make it a
+loop rather than a chain: the skeptic can return control to any upstream agent, and
+a failing hook can bounce an output back to its producer. \Cref{lst:agent-pipeline}
+sketches the topology.
+
+\begin{listing}[t]
+\begin{minted}{text}
+data-ingestion
+  -> accounting-quality        (normalized statements)
+    -> feature-engineering     (clean feature matrix)
+      -> PD-model              (base-case PD)   <--- leakage hook can reject
+        -> stress-scenario     (stressed features + stressed PD)
+          -> cash-flow         (covenant + liquidity verdict)
+            -> LGD             (recovery, LGD, EAD)
+              -> skeptic       (review)  --- returns to ANY agent above
+                -> memo-writing  (final memo)   [gated by skeptic sign-off]
+\end{minted}
+\caption{The Meridian agent pipeline. Solid edges carry validated artifacts
+forward; the skeptic and the hooks supply the backward edges that turn the pipeline
+into an iteration loop.}
+\label{lst:agent-pipeline}
+\end{listing}
+
+% ---------------------------------------------------------------------
+\subsection{The Skills}\label{subsec:credit-skills}
+% ---------------------------------------------------------------------
+
+The agents are the actors; the skills are the reusable procedures they invoke, in
+the sense of \Cref{sec:skills-as-procedures}. A skill freezes ``how we do X here''
+so that the same normalization, the same feature definitions, and the same modeling
+discipline are applied every time, on this borrower and the next. Seven skills
+carry the loop:
+
+\begin{itemize}
+\item \textbf{financial-statement-normalization}: standardizes line items,
+strips non-recurring add-backs, and enforces one consistent working-capital
+definition.
+\item \textbf{credit-feature-engineering}: computes the credit feature set from
+normalized statements with documented, versioned formulas.
+\item \textbf{pd-modeling}: fits, validates out of sample, and checks a PD model
+for leakage before reporting any number.
+\item \textbf{macro-stress-scenario-design}: expands a parameter table into
+internally consistent base / adverse / severe input sets.
+\item \textbf{covenant-liquidity-analysis}: projects coverage ratios, headroom,
+and minimum-liquidity compliance per scenario.
+\item \textbf{lgd-collateral-valuation}: values collateral, applies haircuts,
+and derives recovery and LGD by scenario.
+\item \textbf{credit-memo-writing}: assembles validated artifacts into the
+committee memo in the required structure.
+\end{itemize}
+
+Because the procedure is captured once, it is auditable and repeatable.
+\Cref{lst:pd-skill} shows the \texttt{pd-modeling} skill in the
+inputs/steps/outputs form used throughout this book. Note that the
+out-of-sample-validation and leakage steps are written into the skill itself, so an
+agent cannot quietly skip them; the corresponding hook (\Cref{subsec:credit-hooks})
+enforces the same discipline from outside.
+
+\begin{listing}[t]
+\begin{minted}{markdown}
+# Skill: pd-modeling
+inputs:
+  - clean_feature_matrix.parquet   # from credit-feature-engineering
+  - target: default_flag           # 1-year default indicator
+steps:
+  1. Split train/test BEFORE any fitting (time-based holdout).
+  2. Fit candidate models on train only.
+  3. Run leakage checks: no target-derived features; no future info.
+  4. Validate out-of-sample (AUC, calibration) on the holdout.
+  5. Reject and stop if leakage check fails or calibration is poor.
+outputs:
+  - base_case_pd                   # calibrated 1-year PD
+  - model_card.md                  # method, features, validation
+\end{minted}
+\caption{The \texttt{pd-modeling} skill. The train/test split, leakage check, and
+out-of-sample validation are part of the procedure, not optional add-ons, so every
+invocation inherits the same discipline.}
+\label{lst:pd-skill}
+\end{listing}
+
+% ---------------------------------------------------------------------
+\subsection{The Hooks}\label{subsec:credit-hooks}
+% ---------------------------------------------------------------------
+
+Skills describe the intended procedure; hooks enforce it whether or not the agent
+cooperates (\Cref{sec:hooks-as-guardrails}). In a regulated credit process the hooks
+are the difference between a memo and a liability. They convert the soft question
+``is this analysis sound?'' into a set of automatic, pass/fail gates that fire at
+defined points in the loop. The Meridian loop runs the following checklist:
+
+\begin{enumerate}
+\item \textbf{No uncited factual claims.} Every factual assertion in the memo must
+point to a source line item or document; unsourced claims block the write.
+\item \textbf{Ratios reconcile.} Every ratio in the memo must recompute from the
+normalized source statements within tolerance.
+\item \textbf{Train/test separation.} The PD model's holdout must be carved out
+before any fitting; an overlap aborts the run.
+\item \textbf{Target-leakage check.} No feature may encode the default outcome,
+directly or through a proxy; a positive leakage signal rejects the model before any
+PD is reported.
+\item \textbf{Parameterized scenarios.} Every scenario must ship with a parameter
+table; a scenario described only in prose is rejected.
+\item \textbf{Skeptic sign-off.} The recommendation is not final until the skeptic
+agent has explicitly signed off.
+\item \textbf{End-to-end regeneration.} All tables, figures, and exhibits must be
+regenerable from code in one pass; a stale or hand-edited exhibit fails the gate.
+\item \textbf{``Low risk'' threshold gate.} The memo may not use the phrase ``low
+risk'' unless \emph{both} the base-case and the stressed expected loss fall below
+explicit thresholds.
+\end{enumerate}
+
+Two of these deserve emphasis because they are where naive credit automation fails.
+The leakage check (item~4) exists because the easiest way to get a beautiful
+backtest is to let the model peek at the answer; an agent rewarded for a high AUC
+will, if unguarded, find a leaky feature and report a fraudulently low PD. The
+``low risk'' gate (item~8) exists because language is a control surface: a memo that
+\emph{says} ``low risk'' nudges a committee, so the phrase must be earned by the
+arithmetic, not chosen by the writer. \Cref{lst:lowrisk-hook} shows the gate as a
+post-write hook.
+
+\begin{listing}[t]
+\begin{minted}{bash}
+#!/usr/bin/env bash
+# Hook: block "low risk" unless base AND stressed EL are below thresholds.
+# EL values are in basis points of EAD; thresholds are illustrative.
+BASE_EL_BPS=$(jq -r '.base.el_bps'     results/credit_summary.json)
+STRESS_EL_BPS=$(jq -r '.stressed.el_bps' results/credit_summary.json)
+BASE_MAX=50; STRESS_MAX=150
+
+if grep -qi "low risk" memo/credit_memo.md; then
+  if (( $(echo "$BASE_EL_BPS > $BASE_MAX || $STRESS_EL_BPS > $STRESS_MAX" | bc) )); then
+    echo "BLOCKED: 'low risk' not justified (base=$BASE_EL_BPS bps, stressed=$STRESS_EL_BPS bps)"
+    exit 1
+  fi
+fi
+exit 0
+\end{minted}
+\caption{The ``low risk'' threshold gate as a post-write hook. The phrase is only
+permitted when both expected-loss figures clear explicit thresholds, removing the
+writer's discretion over a load-bearing word.}
+\label{lst:lowrisk-hook}
+\end{listing}
+
+\begin{remark}[Hooks and Goodhart's law]
+Every hook is a metric, and any metric an agent is optimized against can be gamed.
+This is Goodhart's law \citep{goodhart1984}, treated at length in
+\Cref{subsec:goodhart-overfitting}. A model agent rewarded for AUC will reach for leakage; a memo
+agent rewarded for a clean checklist will phrase around it. The structural defense
+is the skeptic agent, which plays the role of a Reflexion-style critic
+\citep{shinn2023reflexion}: rather than scoring an output, it verbally critiques
+it, demands the analyses that would falsify it, and feeds that critique back into
+the next iteration. Hooks catch the violations you can specify in advance; the
+skeptic catches the ones you cannot.
+\end{remark}
+
+% ---------------------------------------------------------------------
+\subsection{The Eleven-Iteration Narrative}\label{subsec:credit-iterations}
+% ---------------------------------------------------------------------
+
+We now watch the loop run. Each iteration is driven by feedback from the previous
+one: a hook fires, an agent objects, a scenario flips a covenant, and that signal
+changes the next action. The numbers below are illustrative and evolve as the
+analysis improves, which is exactly the point. A first impression of a 1.2\%
+default probability becomes, after cleanup and stress, a very different credit.
+
+\begin{enumerate}
+\item \textbf{The naive memo.} The memo-writing agent, given only reported
+profitability and leverage, drafts an approval. Reported EBITDA is healthy,
+leverage is $3.0\times$, and a quick lookup-table PD reads about \textbf{1.2\%}. The
+draft says ``low risk.'' The hook of \Cref{lst:lowrisk-hook} has nothing to check
+yet, since there is no stressed number, so the phrase survives, provisionally.
+
+\item \textbf{Accounting quality intervenes.} The accounting-quality agent finds
+that reported EBITDA includes \$3~million of non-recurring add-backs and that
+working capital is computed two different ways across exhibits. Normalizing pushes
+true leverage from $3.0\times$ to about $3.8\times$. The base inputs change, so the
+whole downstream chain must rerun.
+
+\item \textbf{Feature engineering enriches the view.} On the normalized statements,
+the feature-engineering agent adds payment-delay trends, customer concentration
+(top two customers $=$ 45\% of receivables), a cash conversion cycle that has crept
+from 70 to 95 days, and covenant headroom. These features did not exist in
+iteration~1; they materially change what the model can see.
+
+\item \textbf{The first PD model is rejected.} The PD-model agent fits a model that
+posts a suspiciously strong fit and a base PD near \textbf{0.9\%}. The leakage hook
+(item~4 of \Cref{subsec:credit-hooks}) fires: one feature was derived from a
+post-default collections field. The model is rejected before any PD reaches the
+memo. This is the loop refusing a good-looking but invalid answer.
+
+\item \textbf{The model is rebuilt clean.} On a leakage-free feature set with a
+time-based holdout and out-of-sample validation, the rebuilt model gives a base-case
+PD of about \textbf{2.5\%}, roughly double the naive 1.2\% and now defensible.
+The model card records the method and validation.
+
+\item \textbf{The stress scenario is imposed.} The stress-scenario agent applies the
+parameter table of \Cref{tab:credit-shock}: revenue $-20\%$, gross margin
+$-300$~bps, rates $+250$~bps, DSO $+25$~days, and slower inventory turnover.
+Re-deriving features and re-scoring, the stressed (adverse) PD rises to about
+\textbf{9\%}.
+
+\item \textbf{Cash flow finds the breach.} The cash-flow agent projects that
+Meridian \emph{survives} the base case comfortably. Under the adverse shock,
+however, operating cash flow falls enough that the interest-coverage ratio drops
+below the tightened $2.5\times$ covenant and projected liquidity falls below the
+minimum, with a peak shortfall around \textbf{\$6~million}. The base case is green;
+the stress case breaches.
+
+\item \textbf{LGD worsens the recovery.} The LGD agent values the collateral and
+finds recovery weaker than assumed: the inventory is specialized and illiquid (deep
+haircut), and the receivables are concentrated in two customers who are stressed by
+the same shock. Base-case LGD is about \textbf{40\%}; under stress, recovery
+deteriorates to an LGD of about \textbf{55\%}.
+
+\item \textbf{The skeptic pushes back.} The skeptic agent refuses to sign off. It
+demands an alternative macro path, peer benchmarking of the PD against comparable
+mid-market manufacturers, and a recovery-rate sensitivity. It also flags that the
+analysis has tested adverse but not severe. The critique sends work back upstream.
+
+\item \textbf{Everything reruns under three scenarios.} In response, the agents
+recompute PD, LGD, expected loss, and covenant compliance under base, adverse, and
+severe (\Cref{tab:credit-shock}). Severe pushes stressed PD toward \textbf{13\%} and
+LGD toward \textbf{60\%}, deepening both the breach and the liquidity shortfall. The
+peer benchmark places the base PD as slightly worse than median, consistent rather than
+alarming.
+
+\item \textbf{The final memo.} With the skeptic satisfied and every hook passing,
+the memo-writing agent assembles the recommendation. It is \emph{not} a clean
+approval and \emph{not} a flat decline: conditional approval at a \emph{reduced}
+\$30~million facility, with a tightened interest-coverage covenant, additional
+collateral to lift recovery, and pricing that compensates for the stressed expected
+loss. The phrase ``low risk'' never appears, because the gate would have blocked it.
+\end{enumerate}
+
+% ---------------------------------------------------------------------
+\subsection{The Compact Final Result Table}\label{subsec:credit-table}
+% ---------------------------------------------------------------------
+
+The eleven iterations collapse into a single exhibit the committee can read in
+under a minute. \Cref{tab:credit-summary} reports the credit under base and stressed
+(adverse) conditions, with expected loss reconciled to \cref{eq:expected-loss} on an
+exposure at default of \$40~million.
+
+\begin{table}[t]
+\centering
+\caption{Compact final result for Meridian Components, base vs.\ stressed
+(adverse) scenario, on $\mathrm{EAD}=\$40$\,m. Expected loss satisfies
+$\mathrm{EL}=\mathrm{PD}\times\mathrm{LGD}\times\mathrm{EAD}$ in every column; bps
+are relative to EAD. All figures are illustrative.}
+\label{tab:credit-summary}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Metric & Base case & Stressed (adverse) \\
+\midrule
+Probability of default (PD)      & 2.5\%      & 9.0\% \\
+Loss given default (LGD)         & 40\%       & 55\% \\
+Exposure at default (EAD)        & \$40.0\,m  & \$40.0\,m \\
+Expected loss (\$)               & \$0.40\,m  & \$1.98\,m \\
+Expected loss (bps of EAD)       & 100 bps    & 495 bps \\
+Covenant breach?                 & No         & Yes (ICR \& liquidity) \\
+Liquidity shortfall (\$)         & ---        & $\approx$\$6.0\,m \\
+Recommended action               & \multicolumn{2}{@{}>{\raggedleft\arraybackslash}p{0.55\linewidth}@{}}{Conditional: \$30\,m, tighter covenants, more collateral, repriced} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The arithmetic reconciles by construction: base-case
+$\mathrm{EL}=0.025\times0.40\times\$40\text{m}=\$0.40$~million (100~bps), and
+stressed $\mathrm{EL}=0.09\times0.55\times\$40\text{m}=\$1.98$~million (495~bps).
+The story the table tells is the one the loop discovered and the naive first memo
+missed: Meridian is a sound credit \emph{in expectation} but a fragile one
+\emph{in the tail}. Expected loss nearly quintuples under a coherent combined
+shock, and the damage is structural (a covenant breach and a \$6~million
+liquidity hole), not merely a higher loss rate. A point estimate of 1.2\% would
+have hidden every bit of this.
+
+The recommendation follows directly. Rather than approve the full \$40~million or
+decline outright, the memo proposes conditional approval at a reduced \$30~million
+facility, a tighter interest-coverage covenant that gives the bank an earlier
+warning, additional collateral to lift the stressed recovery, and pricing that
+compensates for the stressed expected loss. That is a defensible credit judgment: it
+states its assumptions, survives its own stress test, and carries the audit trail of
+the eleven revisions that produced it, which is the subject of governance and
+accountability in \Cref{sec:human-oversight} and the basis for the reusable
+credit-model pattern distilled in \Cref{subsec:pattern-credit-model}. It is also,
+deliberately, a recommendation and not a decision: the failure modes of agentic
+iteration in \Cref{sec:failure-modes} are precisely why a human credit officer, not
+the loop, signs the line.
+
+% --- Section: Human Oversight, Accountability, and Audit Trails ---
+\section{Human Oversight, Accountability, and Audit Trails}\label{sec:human-oversight}
+
+The credit memo of \Cref{sec:example-credit-risk} ended not in a decision but in
+a recommendation for a human to sign, which raises the question this section
+answers: what does that signature add that the loop cannot? The hooks of
+\Cref{sec:hooks-as-guardrails} are mechanical guardrails: they fire
+automatically, they have no standing in law, and they answer the question ``did
+the artifact pass the checks?'' but never the question ``who is answerable for
+the artifact?'' In regulated finance the second question is the one that
+matters. A credit decision, a capital calculation, or a trade recommendation is
+not merely a number that survived a validator; it is a judgment that some named
+human being is willing to put a signature next to. The loop can manufacture the
+analysis, but it cannot manufacture accountability, and it cannot manufacture
+the legal and institutional standing required to act on the analysis.
+
+This section draws a sharp line between automated control and human oversight.
+A hook can refuse to let a memo be marked complete until the skeptic agent has
+signed off (\Cref{subsec:credit-hooks}); it cannot make a managing director
+accountable to a regulator for the lend decision. The credit-memo example of
+\Cref{sec:example-credit-risk} produced a defensible recommendation, but
+``defensible'' is a property that only becomes real when a person is prepared to
+defend it. So the example raises, and this section answers, three linked
+questions: where must a human enter the loop before it proceeds; who owns,
+validates, and signs off on the result; and how is the entire process recorded
+so that a third party can reconstruct exactly how every number was produced?
+
+\subsection{Human-in-the-Loop and Escalation Points}\label{subsec:human-in-the-loop}
+
+An autonomous loop is appropriate for work whose consequences are bounded and
+reversible. The moment a loop's output can move money, bind the institution, or
+affect a customer, the loop needs designated points at which it pauses and waits
+for a human to approve before it proceeds. These are not the same as ordinary
+stopping criteria. A stopping criterion (\Cref{subsec:stopping-criteria}) halts
+the loop when it has done its job or run out of budget; a human approval point
+halts the loop in the middle of its job because the next action requires
+authority that the agent does not have.
+
+The cleanest way to build this in is to make ``human-review-required'' an
+explicit terminal state of the loop, alongside ``success'' and ``failure.''
+When the loop reaches a configured checkpoint, it does not continue and it does
+not silently stop; it writes its current state to disk, emits a summary of what
+it has done and what it proposes to do next, and yields control. A human reads
+the summary, inspects the artifacts, and either signs the approval that lets the
+loop resume or rejects it and sends the loop back with revised instructions.
+This is the same mechanism described in \Cref{subsec:stopping-criteria}, used
+deliberately as a control point rather than as a fallback.
+
+\begin{definition}[Escalation trigger]\label{def:escalation-trigger}
+An \emph{escalation trigger} is a predicate, evaluated automatically at the end
+of an iteration, that forces the loop into the human-review-required state when
+it is true. Unlike a hook, which blocks a single bad artifact, an escalation
+trigger blocks the loop's authority to proceed and transfers the decision to a
+named human.
+\end{definition}
+
+Good escalation triggers are stated in advance, in the goal file, not improvised
+by the agent at runtime. Typical triggers in financial work include: the
+recommendation crosses a materiality threshold (for example, a facility above a
+hypothetical \$25M limit); the model's confidence is low or its inputs fall
+outside the range on which it was validated; two specialized agents disagree and
+cannot reconcile (the PD model and the skeptic, say); a hook has fired more than
+some number of times on the same issue, signalling that the loop is stuck rather
+than converging; or the proposed action is irreversible. The discipline is to
+treat the absence of an escalation as itself a claim that the work was routine,
+and to make that claim auditable.
+
+\begin{remark}
+A loop that never escalates is not necessarily trustworthy; it may simply have
+been given no triggers. When reviewing an agentic financial system, a useful
+first question is not ``how often did it succeed?'' but ``under what conditions
+was it required to stop and ask a human?'' A system with no such conditions has
+quietly assumed that nothing it does is consequential.
+\end{remark}
+
+\subsection{Accountability and Sign-Off in Regulated Finance}\label{subsec:accountability-signoff}
+
+Supervisory guidance on model risk treats a model as an institutional liability
+to be governed, not a tool to be trusted. The U.S. interagency guidance on model
+risk management, SR~11-7, organizes that governance around three pillars:
+sound development, independent validation, and active governance with clear
+ownership and accountability \citep{sr117}. None of these pillars is dissolved
+by automating the model's construction with an agentic loop. If anything, the
+loop sharpens the questions, because it makes it tempting to believe that
+because the machine produced the analysis, no human need own it.
+
+The first principle is the separation of roles. The party that develops a model
+must not be the sole party that validates it. In the credit example, the
+worker agents (data ingestion, feature engineering, the PD model) are the
+developers; the skeptic agent (\Cref{subsec:credit-agents}) plays the role of
+challenge, but an internal challenger implemented by the same team that wrote
+the workers is not independent validation in the regulatory sense. Independent
+validation must sit outside the development loop: a model-validation function
+that re-derives results, probes assumptions, and can veto deployment. The
+agentic skeptic reduces the number of defects that reach the validator; it does
+not replace the validator.
+
+\begin{definition}[Model ownership and sign-off]\label{def:model-ownership}
+A model is \emph{owned} by a named individual or committee accountable for its
+use and its consequences. \emph{Sign-off} is the recorded act by which that
+owner, and an independent validator, attest that the model has been developed,
+tested, and validated to standard and is approved for a specific use. Sign-off
+is an event with a time, an identity, and a scope; it is not a property of the
+artifact.
+\end{definition}
+
+This is why the skeptic agent's approval in the credit loop, although it is a
+real and useful gate, is not sign-off. The skeptic's approval is a precondition
+that makes the memo eligible for human review; the sign-off is the credit
+officer's recorded decision to accept the memo's recommendation and the
+validator's recorded attestation that the model behind it is fit for purpose.
+The loop should make sign-off easy and well-evidenced, but it must never
+simulate sign-off. A useful design rule is that the artifact carries an explicit,
+unsigned sign-off block that only a human can complete; the loop fills in
+everything except the signature.
+
+\begin{context}
+Stress testing makes the ownership question concrete. Supervisory principles for
+sound stress testing emphasize that stress tests are a governance tool owned by
+senior management and the board, used to challenge the institution's own
+assumptions, not a compliance exercise delegated to whoever runs the model
+\citep{bcbs2018stress}. When the stress-scenario agent of the credit loop
+imposes a combined macro-financial shock and the cash-flow agent finds a covenant
+breach under stress, the value of that finding is realized only if a human owner
+treats it as a reason to challenge the lend decision. An agentic stress test that
+produces a beautifully formatted severe-scenario table that no accountable human
+ever interrogates has automated the form of stress testing and lost its
+substance.
+\end{context}
+
+The practical consequence for loop design is that the loop's records must be
+sufficient for an owner and a validator to discharge their duties without
+re-running the entire analysis by hand. That is the subject of the next
+subsection.
+
+\subsection{Reproducible Audit Trails}\label{subsec:audit-trails}
+
+An audit trail is the loop's memory made permanent and inspectable. The standard
+for a high-stakes financial loop is exacting: it should be possible, months
+later, for someone who was not present to reconstruct exactly how every number in
+the final memo was produced: which input data, which code, which model
+version, which scenario parameters, and which human approvals. If any number in
+the final artifact cannot be traced back to a deterministic, recorded
+computation, then the memo contains a figure that nobody can defend, which is
+precisely the situation regulated finance exists to prevent.
+
+Three records, taken together, are usually enough. First, version control: every
+change to code, goals, scenario parameters, and the artifact itself is a commit
+with an author, a timestamp, and a message. Second, a structured run log: each
+iteration of the loop appends a machine-readable record of which agent ran, which
+skill it invoked, which hooks fired, and what the artifact's measured state was
+afterward. Third, content-addressed inputs: the input data and any model weights
+are referenced by a hash, so that ``the data'' is an unambiguous object rather
+than a file that might have changed. The hooks of \Cref{sec:hooks-as-guardrails}
+contribute here too: a hook that regenerates every table and figure from code
+end-to-end is what guarantees that the trail is complete rather than partial.
+
+\begin{example}[An audit-ready run log]\label{ex:audit-run-log}
+A structured run log makes the loop's history queryable. The fragment below shows
+two iterations of the credit loop: the leakage hook firing on iteration~4 and
+the rebuilt model passing on iteration~5. Every line is appended automatically;
+no agent edits earlier lines.
+
+\begin{minted}{text}
+iter=04 agent=pd-model   skill=pd-modeling     hooks=[leakage:FAIL]
+        result=rejected   note="DSO_next_quarter is post-outcome; target leakage"
+iter=05 agent=pd-model   skill=pd-modeling     hooks=[leakage:PASS,oos:PASS]
+        result=accepted   pd_base=0.031 pd_stress=0.094 auc_oos=0.78
+iter=09 agent=skeptic    skill=red-team        hooks=[citations:PASS]
+        result=challenge  note="recovery-rate sensitivity missing; rerun LGD"
+iter=11 agent=memo-writer skill=committee-memo hooks=[thresholds:PASS]
+        result=human-review-required  el_stress=0.0089  action=smaller-facility
+\end{minted}
+
+\noindent The trail can be joined to version control. Because each iteration also
+records the commit it ran against, an auditor can check out the exact state of
+the repository at iteration~5 and re-run the PD model to confirm the reported
+out-of-sample AUC.
+
+\begin{minted}{bash}
+# Reconstruct the model state behind the accepted PD on iteration 5
+git log --oneline --grep="iter=05"
+#   3f9a1c2 fix(credit): rebuild PD on clean features; leakage+oos hooks pass
+git checkout 3f9a1c2
+python -m credit.pd_model --config configs/pd.yaml --report   # regenerates pd_base=0.031
+\end{minted}
+\end{example}
+
+The illustrative figures above (a base-case PD of 3.1\%, a stressed PD of 9.4\%)
+are hypothetical; the point is structural. An auditor does not have to trust the
+numbers in the memo, because the trail lets them regenerate the numbers. This is
+the operational meaning of reproducibility: not that the analysis is correct, but
+that its derivation is fully recoverable and therefore challengeable. A loop that
+produces a defensible recommendation but no reproducible trail has, in the end,
+produced only an assertion.
+
+% --- Section: Failure Modes in Agentic Iteration ---
+\section{Failure Modes in Agentic Iteration}\label{sec:failure-modes}
+
+Iteration is powerful precisely because it is open-ended, and open-ended
+processes fail in open-ended ways. A loop that can keep improving an artifact can
+also keep ``improving'' it forever, can drift away from the goal it started with,
+or can learn to satisfy its checks without satisfying its purpose. This section
+catalogues the failure modes that recur in agentic financial work. The unifying
+message is that hooks and explicit stopping rules are the primary defenses: a
+failure mode that is caught by an automatic check at the end of each iteration is
+a nuisance, while the same failure mode discovered weeks later in production is an
+incident. Most of what follows is the discipline of converting the latter into
+the former.
+
+\subsection{Infinite Loops and Fake Convergence}\label{subsec:infinite-fake-convergence}
+
+The most basic failure is a loop that does not stop. This takes two forms that
+look similar but have different cures. The first is the genuinely non-terminating
+loop: the goal is unsatisfiable, or the agent oscillates between two states,
+undoing on iteration $n+1$ the change it made on iteration $n$. The cure is a
+hard iteration budget and a cost ceiling, treated as stopping rules rather than
+as suggestions (\Cref{subsec:economics-of-iteration}). A loop must always have a
+maximum number of iterations after which it halts and escalates, even if the goal
+is unmet; ``unmet after the budget'' is a legitimate and informative outcome.
+
+The second form is more insidious: \emph{fake convergence}, where the loop
+declares success without making real progress. The artifact stops changing, or
+the agent reports ``done,'' but the measured quality has plateaued below the goal
+or the agent has simply stopped trying. Fake convergence is dangerous because it
+masquerades as the desired outcome: a quiet loop looks like a finished loop.
+
+\begin{definition}[Fake convergence]\label{def:fake-convergence}
+\emph{Fake convergence} occurs when a loop terminates, or appears to stabilize,
+without the goal's success criterion being independently verified to hold. The
+loop's quiescence is mistaken for the goal's satisfaction.
+\end{definition}
+
+The warning sign is a divergence between the agent's self-report and the
+validator's measurement: the agent says the memo is complete, but the
+threshold hook has not actually been evaluated, or was evaluated and is being
+ignored. The remedy is to never let the agent's own ``done'' end the loop.
+Termination must be conditioned on a check the agent does not control: the loop
+ends because the validation script returned success, not because the agent
+announced it. This is the difference, drawn in \Cref{subsec:loops-vs-repetition},
+between feedback-driven iteration and repetition, and it is enforced by making
+the stopping condition external to the agent.
+
+\subsection{Goal Drift and Premature Success}\label{subsec:goal-drift-premature}
+
+Over a long loop, the goal itself can quietly mutate. The agent, working through
+many iterations and a finite context window, gradually substitutes a more
+convenient objective for the original one: the goal was ``produce a memo whose
+stressed expected loss is below the threshold,'' but somewhere in the iterations
+it becomes ``produce a memo that reads as if the risk is acceptable.'' No single
+step makes an indefensible leap; the objective erodes by small reinterpretations.
+This is \emph{goal drift}, and it is especially likely when the goal lives only
+in the original prompt and is slowly forgotten as the context fills with
+intermediate work.
+
+The structural defense is the file-based goal of \Cref{sec:goals-as-control}. A
+goal that lives in \texttt{TASK.md} or a rubric on disk is re-read at the start
+of each iteration; it does not decay with the context window, and any change to
+it is a visible commit rather than a silent reinterpretation. The agent is
+measured against the file, not against its own recollection of the file.
+
+The complementary failure is \emph{premature success}: the agent declares the
+goal met before it actually is. Where goal drift moves the target, premature
+success misreports the distance to it. The defense is a tolerance hook: a
+machine check that evaluates the real success criterion and refuses to let the
+loop terminate until the criterion is satisfied to the stated tolerance. In the
+credit loop, the rule that the memo ``may not state low risk unless both
+base-case and stressed expected loss are below explicit thresholds''
+(\Cref{subsec:credit-hooks}) is exactly such a tolerance hook: it converts the
+subjective claim ``low risk'' into a numeric condition that the agent cannot talk
+its way past. File-based goals prevent the target from moving; tolerance hooks
+prevent the agent from claiming to have reached it early.
+
+\subsection{Overfitting to Validation Checks (Goodhart's Law)}\label{subsec:goodhart-overfitting}
+
+When a loop optimizes against a fixed set of checks, it will, given enough
+iterations, find ways to satisfy the checks that do not serve the underlying
+purpose. This is Goodhart's law: when a measure becomes a target, it ceases to be
+a good measure \citep{goodhart1984}. The agent is not malicious; it is doing
+exactly what the loop rewards. If the only test of a PD model is its in-sample
+fit, the loop will produce a model with excellent in-sample fit and no
+predictive power. If the only test of a memo is that it cites a source for every
+claim, the loop will attach plausible-looking citations without checking that
+they support the claims.
+
+\begin{theorem}[Goodhart degradation, informal]\label{thm:goodhart}
+Let a loop optimize an artifact against a fixed, finite validator $V$ as a proxy
+for an unobserved true objective $U$. As optimization pressure increases, the
+correlation between $V$ and $U$ on the optimized artifacts weakens: the artifacts
+that maximize $V$ are increasingly those that exploit the gap between $V$ and $U$
+rather than those that achieve $U$.
+\end{theorem}
+
+\begin{remark}
+The theorem is informal but the mechanism is precise: the loop searches the space
+of artifacts for those scoring highest on $V$, and that search is indifferent to
+whether a high $V$ score comes from genuinely achieving $U$ or from finding a
+region where $V$ overstates $U$. The more aggressively the loop optimizes, the
+more of the latter it will find. This is why ``the validator passes'' is
+reassuring only to the extent the validator is hard to game.
+\end{remark}
+
+\begin{context}
+Goodhart's law is not a quirk of language models; it is the standard pathology of
+metric-driven finance. A trading desk rewarded purely on realized volatility
+learns to sell tail risk, looking calm until the tail arrives. A bank managed to
+a single regulatory capital ratio learns to optimize that ratio while shifting
+risk into the corners the ratio does not measure. ``Teaching to the regulatory
+metric'' (arranging the portfolio so the reported number looks healthy while
+the underlying risk is unchanged or worse) is Goodhart's law applied to
+supervision. An agentic loop that optimizes against a single compliance check
+will reinvent this behavior automatically, with no intent and at high speed.
+\end{context}
+
+The remedies all attack the gap between the proxy and the purpose. First, use
+diverse checks: a battery of heterogeneous validators is harder to game
+simultaneously than any one of them. Second, hold out validation data the loop
+never sees during optimization, so that fit to the test set cannot be
+manufactured. Third, and most powerful, use adversarial review: a critic whose
+explicit job is to find the ways the artifact games the checks, rotated or
+re-specified over time so the loop cannot overfit to the critic either. This is
+the design discipline of trustworthy validators (\Cref{subsec:trustworthy-validators}):
+a validator is trustworthy in proportion to how costly it is to satisfy
+without achieving the real goal.
+
+\subsection{Excessive Agent Delegation}\label{subsec:excessive-delegation}
+
+Not every failure is the loop doing too little; a common one is the architecture
+doing too much. \emph{Excessive delegation} is spawning an agent, with its own
+context, prompt, and iteration loop, where a deterministic function or a single
+prompt would have sufficed. A nine-agent ensemble to compute a ratio that a line
+of code computes exactly is not sophistication; it is overhead. Each agent adds
+latency, token cost, a fresh opportunity for error, and a coordination burden,
+since state must be handed off, summarized, and re-grounded between agents
+(\Cref{subsec:agent-handoffs}), and beyond a point the coordination cost
+swamps any benefit from specialization.
+
+The diagnostic is the one from \Cref{subsec:when-not-to-loop}: an agentic loop
+earns its cost only when the task is open-ended, the success criterion is
+non-trivial to satisfy in one pass, and feedback can genuinely change the next
+action. A subtask that is deterministic (compute a ratio), closed-form (apply a
+formula), or already solved by a library does not need an agent; it needs a
+function call, which the agent should make. The healthy pattern is a small number
+of agents that each own a genuinely open-ended subproblem, calling deterministic
+tools for everything that is not. Excessive delegation is the failure mode
+counterpart of over-engineering the loop: both spend iteration where computation
+would do.
+
+\subsection{Warning Signs and Remedies}\label{subsec:warning-signs-remedies}
+
+The failure modes above share a structure: each has an early warning sign visible
+in the loop's own telemetry, and each has a hook or stopping rule that mitigates
+it. \Cref{tab:failure-remedies} consolidates them. The table is meant to be read
+as a design checklist: for each failure mode, confirm that the loop emits the
+warning sign in its run log and that the corresponding control is actually wired
+in, not merely intended.
+
+\begin{table}[t]
+\centering
+\caption{Failure modes in agentic iteration, their early warning signs, and the
+hook or stopping rule that mitigates each. The controls are the mechanisms of
+\Cref{sec:hooks-as-guardrails} and \Cref{subsec:stopping-criteria} applied to
+specific pathologies.}
+\label{tab:failure-remedies}
+\small
+\begin{tabular}{@{}p{0.24\linewidth}p{0.36\linewidth}p{0.34\linewidth}@{}}
+\toprule
+\textbf{Failure mode} & \textbf{Early warning sign} & \textbf{Mitigating control} \\
+\midrule
+Infinite loop &
+Iteration count climbing with no artifact change; oscillation between two states &
+Hard iteration budget and cost ceiling as stopping rules \\
+\addlinespace
+Fake convergence &
+Agent reports ``done'' but the success metric has plateaued below goal &
+Termination conditioned on an external validator, not on the agent's self-report \\
+\addlinespace
+Goal drift &
+Later iterations optimize a subtly different objective than the goal file states &
+File-based goal re-read each iteration; goal changes only via visible commits \\
+\addlinespace
+Premature success &
+``Low risk'' / ``complete'' asserted before the criterion is numerically met &
+Tolerance hook that blocks termination until the real criterion holds \\
+\addlinespace
+Goodhart overfitting &
+Single check passes easily; held-out or out-of-sample performance lags &
+Diverse checks, held-out validation, rotating adversarial review \\
+\addlinespace
+Excessive delegation &
+Agents spawned for deterministic subtasks; coordination dominates run time &
+Replace agents with functions for closed-form work; apply the when-not-to-loop test \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The table also makes a meta-point. Every remedy in the right-hand column is a
+mechanism introduced earlier in the chapter: a stopping rule, a file-based
+goal, a hook, a validator design choice, a delegation test. The failure modes are
+not new dangers requiring new machinery; they are the predictable consequences of
+omitting machinery the chapter has already argued for. A loop built with explicit
+goals, external validators, diverse checks, and honest stopping rules has already
+defended against most of this table by construction.
+
+% --- Section: Practical Design Patterns ---
+\section{Practical Design Patterns}\label{sec:design-patterns}
+
+The preceding sections developed the components of an iterative system --- goals,
+agents, skills, hooks, stopping rules --- and the ways they fail. This section
+assembles them into a small catalogue of reusable loop architectures. Each
+pattern is a named arrangement of roles and feedback channels that recurs across
+problems; treating them as patterns lets a designer start from a known-good
+skeleton rather than rediscovering structure each time. The patterns are not
+mutually exclusive, and real systems often nest one inside another, but each has
+a characteristic shape, a characteristic kind of goal it serves, and
+characteristic failure modes it guards against.
+
+\subsection{Planner--Executor--Critic}\label{subsec:pattern-planner-executor-critic}
+
+The planner--executor--critic pattern separates three cognitively distinct jobs
+into three roles. The planner decomposes the goal into a sequence of steps and
+decides what to do next; the executor carries out a step, typically by calling
+tools or writing code; the critic evaluates the result against the goal and feeds
+its judgment back to the planner, which revises the plan. The value of the
+separation is that planning and execution have different failure modes (planners
+hallucinate steps, executors mishandle details), and a critic that
+sits between them catches errors that neither would catch about itself.
+
+This pattern is the design-time generalization of two ideas from the literature
+(\Cref{subsec:agentic-literature}). The interleaving of reasoning and action
+within the executor is the ReAct pattern \citep{yao2022react}; the critic's role
+of producing verbal feedback that the planner uses to improve on the next attempt
+is Reflexion \citep{shinn2023reflexion}. The pattern pays off
+when the task requires genuine planning, the multi-step work where the right next
+step depends on the results of earlier steps, and is overkill when the
+sequence of steps is fixed and known in advance.
+
+\subsection{Generate--Test--Revise}\label{subsec:pattern-generate-test-revise}
+
+Generate--test--revise is the tightest feedback loop in the catalogue and the
+workhorse for well-specified, machine-checkable goals. The agent generates a
+candidate artifact, an automatic test evaluates it, and if the test fails the
+agent revises the artifact using the test's output as feedback; the loop repeats
+until the test passes or the budget is exhausted. The defining feature is that
+the test is fast, deterministic, and decisive: a unit-test suite, a compiler, a
+schema validator, a numerical tolerance check. When the goal can be expressed as
+``make this check pass,'' this is the default pattern.
+
+The revision step is what distinguishes this from blind regeneration. Rather than
+sampling a fresh attempt, the agent reads the test's diagnostic output and edits
+the existing artifact to fix the specific failure, the Self-Refine loop of
+\Cref{subsec:agentic-literature} \citep{madaan2023selfrefine}. Because the feedback is
+machine-generated and exact, this pattern is cheap and reliable where it applies;
+its weakness is precisely its strength inverted, since it is only as good as the
+test. A generate--test--revise loop with a weak test is the natural breeding
+ground for the Goodhart overfitting of \Cref{subsec:goodhart-overfitting}.
+
+\subsection{Scaffold--Draft--Audit--Repair}\label{subsec:pattern-scaffold-draft-audit-repair}
+
+When the goal is subjective and rubric-scored rather than machine-checkable, the
+generate--test loop needs a richer evaluator, and the pattern becomes
+scaffold--draft--audit--repair. First a scaffolding step lays down structure:
+the skeleton of the artifact, its required sections, its placeholders. Then a
+drafting step fills the structure with content. Then an audit step scores the
+draft against a rubric, producing per-dimension scores and specific findings.
+Finally a repair step addresses the findings, and the audit re-runs until every
+dimension clears its threshold.
+
+This is the pattern behind this very book. The \texttt{/new-topic} skill
+scaffolds a chapter, lecture, and notebook unit; \texttt{/draft-chapter} writes
+the content; the audit skills score each chapter on its rubric dimensions; and an
+iterate-and-repair loop drives every dimension to its target before the chapter
+is considered done. The audit step is the analogue of the test in
+generate--test--revise, but because the goal is subjective the audit is itself a
+judgment, which is why the trustworthy-validator discipline of
+\Cref{subsec:trustworthy-validators} and the adversarial-review remedy of
+\Cref{subsec:goodhart-overfitting} matter so much here. A rubric that is easy to
+satisfy without writing a good chapter will be satisfied without writing a good
+chapter.
+
+\subsection{Data-Pipeline: Build--Validate--Document}\label{subsec:pattern-data-pipeline}
+
+Reproducible data work has its own pattern, because in data work the artifact is a
+process, not a document, and the thing that must be trustworthy is the lineage of
+every output. Build--validate--document constructs the pipeline that transforms
+raw inputs into analysis-ready data, validates the outputs against expectations
+(schemas, row counts, distributional checks, reconciliation to source totals),
+and documents the provenance so that every derived field can be traced to its
+source and transformation. The loop iterates when validation fails: a failed
+reconciliation sends the build step back to find the discrepancy.
+
+The pattern's distinguishing concern is provenance. It is not enough that the
+final table is correct today; it must be possible to state where each number came
+from and to regenerate it from the raw inputs. This is the data-work counterpart
+of the audit trail of \Cref{subsec:audit-trails}: the documentation step is not
+an afterthought but a first-class output of the loop, enforced by a hook that
+refuses to mark the pipeline complete unless the lineage record is present and
+the validation suite passes, because a pipeline that skips the document step
+produces numbers that work only until someone asks where they came from.
+
+\subsection{Credit-Model: Build--Stress-Test--Red-Team--Finalize}\label{subsec:pattern-credit-model}
+
+The credit-risk example of \Cref{sec:example-credit-risk} generalizes into a
+pattern for any high-stakes financial model. Build constructs the model on clean,
+leakage-free features with out-of-sample validation. Stress-test subjects the
+model to adverse and severe scenarios, recording its behavior under combined
+shocks rather than only at the base case. Red-team turns an adversarial critic
+loose on the result, challenging assumptions, demanding sensitivities,
+benchmarking against peers, and hunting for the ways the conclusion could be wrong.
+Finalize produces the governed artifact: a recommendation with explicit
+assumptions, a stressed view, and an unsigned sign-off block awaiting human
+approval.
+
+What makes this a distinct pattern rather than an instance of
+scaffold--draft--audit--repair is the mandatory stress-test and red-team stages.
+A high-stakes model is not finished when it fits well; it is finished when it has
+been shown to behave acceptably under conditions worse than the present and has
+survived a determined attempt to break its conclusion. This is the design-pattern
+encoding of the governance principles of \Cref{subsec:accountability-signoff}:
+independent challenge and stress testing are not optional polish but required
+stages, exactly as model-risk guidance demands of any model whose output can move
+the institution \citep{sr117}. The pattern is the reusable shell; the credit memo
+was one filling of it, and a market-risk model, a capital model, or an
+algorithmic-trading strategy would be others.
+
+\subsection{Choosing a Pattern}\label{subsec:choosing-a-pattern}
+
+The patterns are differentiated by the properties of the goal they serve: whether
+success is machine-checkable or requires judgment, whether the output is a single
+number or a complex artifact, the stakes of being wrong, and how strong the
+reproducibility requirement is. \Cref{tab:pattern-choice} maps these properties
+to the appropriate pattern. The mapping is a starting point, not a law; the right
+question to ask of any candidate pattern is whether its feedback signal actually
+measures the goal, because a pattern with the wrong feedback signal will fail no
+matter how well it fits the table.
+
+\begin{table}[t]
+\centering
+\caption{Choosing a design pattern from the properties of the goal. Read each row
+as ``when the goal looks like this, start from this pattern.'' Patterns nest:
+a stage of one pattern is often a full instance of another.}
+\label{tab:pattern-choice}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{0.30\linewidth}p{0.20\linewidth}p{0.20\linewidth}p{0.24\linewidth}@{}}
+\toprule
+\textbf{Goal properties} & \textbf{Checkability} & \textbf{Stakes / repro.} & \textbf{Pattern} \\
+\midrule
+Single artifact, exact pass/fail (code compiles, tests pass) &
+Machine-checkable & Low--moderate &
+Generate--test--revise \\
+\addlinespace
+Multi-step task where next step depends on earlier results &
+Mixed & Moderate &
+Planner--executor--critic \\
+\addlinespace
+Complex artifact judged on a rubric (a chapter, a report) &
+Subjective & Moderate &
+Scaffold--draft--audit--repair \\
+\addlinespace
+Derived data that others will rely on; lineage matters &
+Machine-checkable & High reproducibility &
+Data-pipeline build--validate--document \\
+\addlinespace
+Model whose output moves money or binds the firm &
+Mixed; governed & High stakes &
+Credit-model build--stress-test--red-team--finalize \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In practice a single financial workflow uses several patterns at once. The
+credit-model pattern's build stage is a generate--test--revise loop over the PD
+model; its red-team stage is a planner--executor--critic loop over the
+challenge; its data ingestion is a build--validate--document pipeline; and the
+whole thing, if it were a chapter explaining the model rather than the model
+itself, would be scaffold--draft--audit--repair. The patterns compose. What does
+not change across all of them is the requirement that the loop's feedback be
+informative, the thesis to which the chapter now returns.
+
+% --- Section: Summary and Takeaways ---
+\section{Summary and Takeaways}\label{sec:loops-summary}
+
+This chapter argued for a single shift in stance: from issuing instructions to a
+language model and accepting whatever comes back, to designing a goal-directed
+loop in which the model's output is repeatedly observed, evaluated, and revised
+against an explicit objective. Agents, skills, and hooks are the building blocks
+of that loop; goals, validators, and stopping rules are its controls; and the
+failure modes and design patterns are the accumulated craft of building loops
+that converge on something defensible rather than merely something finished.
+
+\subsection{Iteration Is Useful Only When Feedback Is Informative}\label{subsec:takeaway-feedback}
+
+The central thesis is narrow and load-bearing: a loop adds value exactly to the
+degree that each iteration's feedback informs the next action. Strip the feedback
+away and a loop is just repetition: the same prompt issued again, the same
+work redone, at multiplied cost and no gain. Everything else in the chapter
+serves this thesis. Goals exist so there is something for feedback to measure
+against. Validators exist so the feedback is honest. Stopping rules exist so the
+loop ends when feedback stops being informative. When a loop disappoints, the
+first diagnosis is almost always the feedback signal: it is missing, it is weak,
+or it measures the wrong thing. Fix the feedback and the loop fixes itself.
+
+\subsection{Agents Specialize the Loop; Skills Reuse It; Hooks Enforce It}\label{subsec:takeaway-three-blocks}
+
+The three building blocks divide the labor of iteration cleanly. Agents
+specialize parts of the loop: a worker drafts, a critic challenges, a validator
+checks, a planner decomposes, and giving each role its own context and mandate
+makes each better at its narrow job than a single generalist would be. Skills
+make procedures reusable: a skill captures a multi-step operation (scaffold a
+unit, score a chapter, normalize a financial statement) once, so it runs the
+same way every time and encodes the project's conventions rather than
+rediscovering them. Hooks make quality control automatic: a hook fires without
+being asked, turning a standard the team cares about into a check the loop cannot
+skip. Agents are who does the work, skills are how recurring work is done the same
+way twice, and hooks are what the work is never allowed to violate.
+
+\subsection{Complex Finance Workflows Demand Explicit Goals, Validation, Stress Testing, and Skepticism}\label{subsec:takeaway-finance}
+
+Finance raises the stakes of every claim in this chapter. When a loop's output
+can move money, bind an institution, or affect a customer, the discipline that
+was good practice elsewhere becomes a requirement. Goals must be explicit and
+recorded, because a credit decision driven by a forgotten objective is
+indefensible. Validation must be real and independent, because a model that
+merely passed its author's checks has not been validated in any sense a
+supervisor recognizes. Stress testing must be mandatory, because a model
+evaluated only at the base case is silent about exactly the conditions under
+which it matters. And skepticism must be built in, whether as an adversarial agent, an
+independent validator, or a red-team stage, because a loop optimizing against
+fixed checks will, left alone, learn to game them.
+
+The credit-risk example threaded these requirements into a single story: a memo
+that started as a naive read of profitability and leverage, was forced by hooks
+to confront accounting quality and target leakage, was put under a combined
+macro-financial shock, was challenged by a skeptic until it produced
+sensitivities and benchmarks, and ended not as a number the machine asserted but
+as a reproducible, stress-tested, signed-off recommendation a human could defend
+to a committee. That arc, from assertion to defensible judgment, is what
+the machinery of this chapter is for, and it is what separates an agentic system
+that is merely impressive from one that is trustworthy.
+
+This is the final chapter of the book's main matter, and it is fitting that it is
+about method rather than any single model or application. The specific
+models will change; the financial questions and the obligation to answer them
+defensibly will not. The earlier chapters built the components: language
+models, agents, and the domain knowledge to point them at credit, markets,
+compliance, and valuation. This chapter built the loop that holds those
+components to account. A practitioner who internalizes one idea from this book
+should internalize this one: in finance, the goal is never to produce an answer,
+but to produce an answer someone can stand behind, and that is achieved not by
+a better prompt but by a better loop.

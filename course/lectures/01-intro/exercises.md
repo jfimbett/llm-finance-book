@@ -22,7 +22,7 @@ Given the following three sentences from earnings call transcripts:
 
 **Exercise 1.2 [I]** *(Section 4 — Word Embeddings / PCA Case Study)*
 
-Using the pre-trained `finance-word2vec` embeddings provided in `code/notebooks/01-intro/demo.ipynb`:
+Using the pre-trained `finance-word2vec` embeddings provided in `code/practicals/01-intro/practical.ipynb`:
 
 (a) Retrieve the embeddings for the words: `profit`, `loss`, `dividend`, `risk`, `volatility`, `merger`.
 (b) Compute pairwise cosine similarities and display as a heatmap.

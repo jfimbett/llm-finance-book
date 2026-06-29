@@ -1,0 +1,199 @@
+{
+  "file": "book/chapters/13-llm-limitations-evaluation/chapter.tex",
+  "reading_index": 14,
+  "slug": "13-llm-limitations-evaluation",
+  "title": "LLM Limitations and Rigorous Evaluation in Finance",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:113-121 — ECE worked example arithmetic verified independently: ECE = 0.115, bins sum to 1000.",
+        "chapter.tex:144-164 — RLHF / token-vs-claim / distribution-shift decomposition of overconfidence is correct and precise.",
+        "chapter.tex:443-449 — Grossman-Stiglitz impossibility argument stated correctly."
+      ],
+      "blocking_issues": [
+        "MINOR correctness chapter.tex:118 — first bin weight displayed as 0.012 instead of 0.12 (final answer 0.115 still correct; display typo only)."
+      ],
+      "recommended_action": "Fix the 0.012 -> 0.12 display factor at line 118. No conceptual errors found; otherwise release-grade."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:25-35 — section opens with intuition before formalism.",
+        "chapter.tex:151-157 — token-level vs claim-level confidence cleanly separates the under-the-hood mechanism from the big picture.",
+        "chapter.tex:429-472 — theoretical (EMH) layer separated from empirical-evidence subsection 474-515."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE. Could promote a couple of mechanism paragraphs into deepdive boxes but not required."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": null,
+      "pass": true,
+      "evidence": [
+        "No \\includegraphics or figure inputs in chapter.tex; figures/ contains only .gitkeep. Worked numeric example (ex:ch13-ece-credit) verified correct — N/A for figures."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "N/A — no code or figures in the chapter."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:44 — def:ch13-perfect-calibration; chapter.tex:578-637 — Sharpe/IR/factor-alpha defined here.",
+        "06-credit-risk/chapter.tex:381 — def:calibration + reliability diagrams + ECE used at reading position 10 (before this chapter, position 14).",
+        "10-portfolio-quant-trading/chapter.tex:69+ — Sharpe ratio used extensively at reading position 11, before defined here."
+      ],
+      "blocking_issues": [
+        "MAJOR concept_ordering cross-chapter — calibration/ECE/reliability diagrams defined and used in ch06 (read #10) and Sharpe ratio in ch10 (read #11) BEFORE this 'foundational' chapter (read #14); no cross-references reconcile the order."
+      ],
+      "recommended_action": "Reconcile SSOT (editor-plan MUST_FIX 2 / B2,B3): designate one owner for calibration & Sharpe and add explicit \\Cref bridges in reading order."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-19 — measurable learning objectives.",
+        "chapter.tex:674 — \\ref{ch:llm-training-finetuning}; chapter.tex:967 — \\ref{ch:portfolio-quant-trading} provide forward/backward bridges.",
+        "chapter.tex:880-928 — Summary recaps and integrates the five strands."
+      ],
+      "blocking_issues": [
+        "MAJOR (shared with concept_ordering) — chapter presents itself as foundational for calibration/Sharpe yet those were already used earlier; missing bridges back to ch06/ch10 break the build-up narrative."
+      ],
+      "recommended_action": "Add 'as introduced in \\Cref{...}' bridges to ch06 (calibration) and ch10 (Sharpe); raises to >=90 once B2/B3 resolved."
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:44 vs 06-credit-risk/chapter.tex:381 — perfect-calibration defined twice.",
+        "chapter.tex:215-223 — Platt scaling + isotonic regression re-introduced with the same citations (platt1999probabilistic, zadrozny2002transforming) already used at 06:393 and 06:404.",
+        "chapter.tex:53 vs 06:391 — reliability-diagram prose near-duplicated."
+      ],
+      "blocking_issues": [
+        "MAJOR non_repetition book-repetition — two parallel calibration definitions and a duplicated recalibration menu (Platt/isotonic/ECE) across ch06 and ch13 with no \\Cref linking them; one source of truth required."
+      ],
+      "recommended_action": "Pick one SSOT and convert the other to a cross-reference (editor-plan MUST_FIX 2)."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:25-31 — calibration motivated by portfolio/loan-book/regulatory cost of confident error.",
+        "chapter.tex:159-177 — overconfidence instantiated as EPS estimates, credit assessments, compliance verdicts.",
+        "chapter.tex:429-472 — every technique framed against market efficiency / alpha decay, not bolted on."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE. Exemplary finance-first framing throughout."
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:91-128 — ex:ch13-ece-credit, worked ECE on a credit-default classifier (arithmetic verified).",
+        "chapter.tex:390-412 — ex:ch13-contamination-audit, 13-gram membership + anonymisation ablation (62%->54%).",
+        "chapter.tex:730-739 — concrete trading-grade evaluation checklist."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE. Examples realistic, integrated, and actionable; only blemish is the line-118 display typo."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 70,
+      "pass": false,
+      "evidence": [
+        "All 43 \\cite keys used by the chapter resolve to exactly one bib entry (verified by per-key grep).",
+        "book/bibliography.bib:1727 and :3175 — duplicate @article{wei2022emergent} (only duplicate in the whole .bib per uniq -d).",
+        "book/bibliography.bib — zhang2024financebench carries a live '% [CHECK]' comment; ziemke2024temporal author = 'Ziemke, Matthias and others'."
+      ],
+      "blocking_issues": [
+        "BLOCKER citation_hygiene bibliography.bib:1727/:3175 — duplicate key wei2022emergent (build blocker).",
+        "MINOR citation_hygiene — unresolved [CHECK] flag on zhang2024financebench; stub-like author field + year/arXiv-id inconsistency on ziemke2024temporal."
+      ],
+      "recommended_action": "Delete one wei2022emergent entry; clear the [CHECK] and fix ziemke author/year (editor-plan B1, SHOULD_FIX 6-7)."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 82,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:480-494 — LopezLiraTang2023 / VidalSSRN2024 / xu2024stock descriptions consistent with titles; 59.4% figure traced to VidalSSRN2024.",
+        "chapter.tex:631-636 — Fama-French market/SMB/HML factors cited to fama1970efficient (the 1970 EMH paper), not Fama & French (1993).",
+        "chapter.tex:856-858 — FinanceBench 'high hallucination rates' claim sourced only to zhang2024financebench without a specific figure."
+      ],
+      "blocking_issues": [
+        "MAJOR citation_accuracy chapter.tex:636 — three-factor model mis-attributed to fama1970efficient; needs a Fama & French (1993) key.",
+        "Several SSRN/arXiv descriptions plausible but not locally verifiable against the source PDFs."
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — fix Fama-French citation (add famafrench1993) and verify VidalSSRN2024 59.4%, kang2023hallucination 15-30%, FinanceBench claims against sources. Capped at 89 pending external check."
+    },
+    {
+      "dimension": "completeness",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:84-89, 235-241, 838-845 — caveats via remark boxes (binning sensitivity, distribution-shift re-calibration cadence/SR 11-7, grounding does not eliminate hallucination).",
+        "Five failure modes each get definition + mechanism + finance instantiation + mitigation; Summary 880-928 closes each.",
+        "chapter.tex:560-563 — explicit methodological caveat that random-walk baselines are insufficient."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE. Coverage is comprehensive including caveats."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 85,
+      "pass": false,
+      "evidence": [
+        "All internal \\ref/\\eqref targets (def:ch13-temporal-split, eq:ch13-factor-alpha, etc.) have matching \\label in-file.",
+        "chapter.tex:967 — uses \\ref{ch:portfolio-quant-trading} rather than hard-coded chapter number (good).",
+        "chapter.tex:711-714 — Almgren-Chriss prose defines 'P the price' but the impact expression eta*(q/V) never uses P."
+      ],
+      "blocking_issues": [
+        "MINOR notation_crossref chapter.tex:711-714 — dangling symbol P (defined, unused).",
+        "Cross-chapter: no \\Cref to ch06's def:calibration despite re-defining the same concept (see non_repetition)."
+      ],
+      "recommended_action": "Remove/relocate the P gloss at line 713; add the missing cross-chapter calibration reference. Raises to >=90."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 60,
+      "pass": false,
+      "evidence": [
+        "code/notebooks/13-llm-limitations-evaluation/demo.ipynb is a 2-cell stub (imports numpy/pandas + a print; no computation).",
+        "exercises.ipynb (11 KB) present but not validated in this audit.",
+        "Chapter prose/math does not depend on a notebook; ECE example is hand-reproducible and verified."
+      ],
+      "blocking_issues": [
+        "MINOR reproducibility — demo.ipynb is a placeholder; the chapter's worked ECE and contamination-audit examples are not backed by runnable code."
+      ],
+      "recommended_action": "Either add a runnable ECE/reliability-diagram + n-gram contamination demo, or mark the notebook explicitly illustrative. Does not block chapter prose. (Scored low but non-N/A because a notebook exists and is a stub.)"
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:4-19 — five specific, measurable learning objectives.",
+        "chapter.tex:880-928 — Summary maps one-to-one onto the five sections.",
+        "chapter.tex:931-976 — curated Further Reading grouped by theme; terms defined for the mixed audience (e.g., PIT data 303-312, purge period 662-666)."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE. Strong scaffolding; NIT only (LoRA parenthetical inside a definition at line 674)."
+    }
+  ],
+  "pass": false,
+  "notes": "Audit-only, iteration 0, 2026-06-20. Strong, finance-first chapter; content quality is high and well cited. Blocked from pass by: (1) BLOCKER duplicate bib key wei2022emergent (book-build, bibliography.bib:1727/:3175); (2) book-wide calibration SSOT conflict + repetition with ch06 (read #10 defines def:calibration before this read-#14 'foundational' chapter), plus Sharpe used in ch10 (read #11) before defined here; (3) MAJOR citation_accuracy: Fama-French 3-factor mis-cited to fama1970efficient (line 636). citation_accuracy capped at 89 pending NEEDS_EXTERNAL_VERIFICATION of SSRN/arXiv figures. code_figure_correctness = null (no figures). reproducibility scored 60 (demo.ipynb stub). All 43 cited keys resolve uniquely."
+}

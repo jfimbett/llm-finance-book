@@ -72,13 +72,13 @@ firm-level payroll and employment records over 2010--2023.  Their principal
 findings are:
 
 \begin{enumerate}
-  \item A one standard-deviation increase in task-level AI exposure reduces
-        relative labour demand by approximately 2\%---a modest aggregate effect
+  \item A one standard-deviation increase in task-level AI exposure is associated with a
+        modest reduction in relative labour demand---an aggregate effect
         that is nevertheless concentrated among workers whose entire job consists
         of highly exposed tasks.
   \item When AI exposure is near-complete---when virtually all tasks within an
         occupation are susceptible to substitution, leaving no room for
-        reallocation---employment declines by approximately 14\%.
+        reallocation---the authors report a substantial relative employment decline.
   \item Workers who can \emph{reallocate} effort toward tasks where they retain
         a comparative advantage---judgment, relationship management, creative
         problem-setting, domain-specific synthesis---are insulated from and may
@@ -302,9 +302,9 @@ an unordered multiset of words, discarding the sequential structure that makes l
 meaningful.  Negation, qualification, conditionality, and argumentative structure are
 all lost.  This was the central motivation for the neural turn.
 
-A transformative shift came with the introduction of \emph{word2vec} by Mikolov et al.\
+A transformative shift came with the introduction of \emph{Word2Vec} by Mikolov et al.\
 in 2013 \cite{mikolov2013efficient}. % [CITE: Mikolov, T., Chen, K., Corrado, G. & Dean, J. (2013). Efficient Estimation of Word Representations in Vector Space. ICLR Workshop.]
-Word2vec trains a shallow neural network to predict either a word from its context
+Word2Vec trains a shallow neural network to predict either a word from its context
 (the Continuous Bag-of-Words model) or the context from a word (the Skip-gram model).
 As a by-product, each word receives a dense vector representation---an
 \emph{embedding}---in $\mathbb{R}^d$ for some moderate $d$ (typically 100--300).
@@ -314,7 +314,7 @@ $\text{vec}(\textit{king}) - \text{vec}(\textit{man}) + \text{vec}(\textit{woman
 \approx \text{vec}(\textit{queen})$.
 
 For finance, word embeddings offered the prospect of capturing semantic similarity
-without hand-crafted dictionaries.  Researchers trained word2vec on large corpora of
+without hand-crafted dictionaries.  Researchers trained Word2Vec on large corpora of
 earnings call transcripts, news articles, and 10-K filings and used the resulting
 embeddings as features for downstream tasks such as sentiment classification and return
 prediction.  \citet{ke2019predicting} introduced a supervised
@@ -358,7 +358,7 @@ fine-tuned BERT on financial text; \citeauthor{yang2020finbert} retrained BERT f
 scratch on financial corpora) and a succession of similar models pre-trained on
 financial corpora achieved markedly better sentiment classification accuracy on
 financial datasets than generic BERT.  They
-represent the direct antecedents of the large language models---GPT-4, Claude, Gemini,
+represent the direct antecedents of the large language models---GPT-5, Claude, Gemini,
 Llama---that form the subject of this book.
 
 The history just sketched is not merely background; it is directly relevant to how one
@@ -399,7 +399,7 @@ machine-readable corporate disclosures.
 A striking empirical regularity emerges from this corpus: the textual content
 of annual filings has grown substantially over time, both in absolute length
 and as a share of total filing content.  The mean word count of a 10-K filing
-roughly tripled between 1993 and 2023 \citep{loughran2020textual},
+rose markedly between 1993 and 2023 \citep{loughran2020textual},
 driven by expansions in the risk factors section (introduced as a mandatory
 disclosure by SEC Release 33-8591 in 2005), the Management's Discussion and
 Analysis narrative, and increasingly detailed litigation and regulatory
@@ -958,6 +958,7 @@ $\tilde{X} \in \mathbb{R}^{3 \times 8}$:
 
 \medskip
 \begin{center}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrr}
 \toprule
 Token & $\tilde{x}_{1,v}$ & $\tilde{x}_{2,v}$ & $\tilde{x}_{3,v}$ \\
@@ -993,7 +994,7 @@ The cosine similarity between $d_1$ and $d_3$ reflects their shared tokens
   &= \frac{\tilde{\mathbf{x}}(d_1)^\top \tilde{\mathbf{x}}(d_3)}
           {\|\tilde{\mathbf{x}}(d_1)\|_2\, \|\tilde{\mathbf{x}}(d_3)\|_2} \\
   &= \frac{2 \times (0.101)^2}
-          {\sqrt{(0.275)^2 + (0.101)^2 + (0.101)^2}\;\sqrt{(0.275)^2 + (0.101)^2 + (0.101)^2}} \\
+          {\sqrt{(0.275)^2 + 2(0.101)^2}\;\sqrt{(0.275)^2 + 2(0.101)^2}} \\
   &= \frac{2 \times 0.0102}{(0.275)^2 + 2(0.101)^2}
    \approx \frac{0.0204}{0.0756 + 0.0204}
    \approx \frac{0.0204}{0.0960}
@@ -1003,11 +1004,13 @@ a modest positive similarity consistent with the two documents sharing a positiv
 vocabulary (\texttt{revenue} grew or was mentioned, \texttt{strong} appears in both).
 The similarity between $d_1$ and $d_2$ is lower, since they share only \texttt{earnings}:
 \[
+\begin{aligned}
   \mathrm{sim}(d_1, d_2)
-  = \frac{(0.101)^2}{\sqrt{(0.275)^2 + 2(0.101)^2}\;\sqrt{(0.275)^2 + 2(0.101)^2}}
-  = \frac{(0.101)^2}{(0.275)^2 + 2(0.101)^2}
-  \approx \frac{0.0102}{0.0960}
-  \approx 0.106,
+  &= \frac{(0.101)^2}{\sqrt{(0.275)^2 + 2(0.101)^2}\;\sqrt{(0.275)^2 + 2(0.101)^2}} \\
+  &= \frac{(0.101)^2}{(0.275)^2 + 2(0.101)^2}
+   \approx \frac{0.0102}{0.0960}
+   \approx 0.106,
+\end{aligned}
 \]
 correctly reflecting minimal lexical overlap between the optimistic $d_1$ and the
 negative $d_2$.
@@ -1049,7 +1052,7 @@ represented by geometrically close vectors.
 \begin{deepdive}
 
 The Bag-of-Words and TF-IDF representations introduced in
-Section~\ref{sec:classical} treat every word as an isolated symbol.
+\Cref{sec:classical} treat every word as an isolated symbol.
 Two terms that never co-occur with each other but share essentially
 the same contextual neighbours — \emph{equity} and \emph{stock}, for
 instance — receive orthogonal vectors with cosine similarity exactly
@@ -1087,9 +1090,9 @@ representation has two critical deficiencies:
         each word is represented by a vector that is $50{,}000$-dimensional
         but contains exactly one non-zero entry.  Storage, computation, and
         learning all scale poorly with this dimensionality.
-  \item \textbf{No semantic structure.} Every pair of one-hot vectors is
-        orthogonal: $\mathbf{e}_i^\top \mathbf{e}_j = \mathbf{1}[i = j]$.
-        The representation encodes no information about semantic relatedness.
+  \item \textbf{No semantic structure.} As established for the one-hot encoding
+        (\Cref{def:one-hot}), every pair of distinct word vectors is orthogonal, so the
+        representation encodes no information about semantic relatedness.
 \end{enumerate}
 
 A word embedding is a function that maps discrete vocabulary items to
@@ -1125,11 +1128,9 @@ The power of word embeddings lies not only in their compactness but in
 their geometry.  Under a well-trained embedding, the Euclidean distance
 or cosine similarity between two embedding vectors reflects the semantic
 distance between the corresponding words.  Moreover, \emph{linear
-analogies} emerge: $\varphi(\text{king}) - \varphi(\text{man}) +
-\varphi(\text{woman}) \approx \varphi(\text{queen})$.  In a financial
-corpus one observes analogies such as $\varphi(\text{call option}) -
-\varphi(\text{upside}) + \varphi(\text{downside}) \approx
-\varphi(\text{put option})$.
+analogies} emerge---the king/man/woman/queen relation previewed earlier and formalised
+in \eqref{eq:analogy-royalty}---which we visualise on real pre-trained vectors in
+\Cref{sec:embeddings-pca}.
 \end{remark}
 
 % ----------------------------------------------------------------
@@ -1242,13 +1243,15 @@ A celebrated property of Word2Vec embeddings is the emergence of
   \hat{\mathbf{v}}_{\text{queen}}.
   \label{eq:analogy-royalty}
 \end{equation}
-In a financial corpus one encounters analogies such as
-$\hat{\mathbf{v}}_{\text{equity}} - \hat{\mathbf{v}}_{\text{dividend}}
-+ \hat{\mathbf{v}}_{\text{coupon}} \approx \hat{\mathbf{v}}_{\text{bond}}$.
-These regularities arise because the embedding must be consistent with
-patterns of co-occurrence: if ``king'' and ``queen'' share the same
-contextual environments except for gender-related words, their
-difference captures a gender direction.
+These regularities arise when the embedding is
+consistent with patterns of co-occurrence: if ``king'' and ``queen''
+share the same contextual environments except for gender-related words,
+their difference captures a gender direction.  Whether comparable
+\emph{financial} analogies emerge depends on the training corpus: the
+constituent terms must appear often enough, and in their technical sense,
+for the relation to be encoded as a direction---which is precisely why
+finance-specific embeddings (Section~\ref{sec:embeddings-finance}) are
+sometimes necessary.
 
 % ............................................................
 \subsubsection{GloVe: Global Vectors for Word Representation}
@@ -1327,6 +1330,7 @@ to streaming corpora.
 
 % ............................................................
 \subsubsection{Finance-Specific Embeddings and Domain Adaptation}
+\label{sec:embeddings-finance}
 
 General-purpose embeddings trained on Wikipedia or Common Crawl encode
 the general-English meaning of financial terms, which can differ
@@ -1385,81 +1389,64 @@ SEC annual reports (10-K filings).
 \end{example}
 
 % ----------------------------------------------------------------
-\subsection{Case Study: PCA on Financial Vocabulary}
+\subsection{Case Study: Visualising a Word Analogy with PCA}
 \label{sec:embeddings-pca}
 
-This case study provides a concrete, visual demonstration that word
-embeddings encode domain-specific semantic structure.  The analysis is
-implemented in full in
-\texttt{code/notebooks/01-intro/demo.ipynb}.
+To see the linear-analogy structure of Remark~\ref{rem:embedding-geometry}
+concretely, we load a pre-trained GloVe model---the 300-dimensional
+\texttt{glove-wiki-gigaword-300} release, fetched and cached locally via
+\texttt{gensim} (no API key required)---and evaluate the canonical analogy
+$\text{king} - \text{man} + \text{woman}$.  Searching the entire
+$400{,}000$-word vocabulary, the nearest vector to this combination is indeed
+\emph{queen} (cosine similarity $0.67$), ahead of \emph{princess} and
+\emph{throne}.
 
-To begin, we load a pre-trained GloVe model (either the 300-dimensional
-\texttt{glove.6B.300d} release or a finance-tuned variant) and extract
-the embedding vectors for the following 30 financial terms:
+Because the vectors live in $\mathbb{R}^{300}$, we visualise them by projecting
+onto two dimensions with principal component analysis (PCA): we stack the
+relevant ($\ell_2$-normalised) vectors as the rows of a matrix $\mathbf{E}$ and
+keep their coordinates along the two directions of greatest variance---the
+eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$ with the largest eigenvalues.
+PCA is a linear map, so the projection of $\text{king} - \text{man} +
+\text{woman}$ equals the same arithmetic applied to the projected anchors;
+Figure~\ref{fig:king-analogy} therefore depicts the operation faithfully rather
+than re-deriving it in two dimensions.
+
 \begin{center}
-  \textit{equity, bond, yield, spread, volatility, risk, return,
-  portfolio, hedge, derivative, option, futures, dividend, earnings,
-  revenue, profit, loss, merger, acquisition, default, credit,
-  inflation, central bank, interest rate, liquidity, leverage,
-  sentiment, alpha, beta, factor.}
+  \includegraphics[width=0.78\linewidth]{chapters/01-intro/figures/fig_king_analogy}
+  \captionof{figure}{The classic word analogy
+    $\text{king} - \text{man} + \text{woman} \approx \text{queen}$, computed
+    from real pre-trained GloVe (300d) vectors and projected to two dimensions
+    by PCA.  The orange arrow is the vector arithmetic; the dotted line shows
+    that the result lands next to \emph{queen}, whose cosine similarity to the
+    computed vector ($0.67$) is the highest in the vocabulary.  Generated
+    deterministically by \texttt{code/figures/01-intro/gen\_king\_analogy.py} from the
+    pinned \texttt{glove-wiki-gigaword-300} release (downloaded once and cached locally;
+    PCA uses a fixed seed), so the figure regenerates identically.}
+  \label{fig:king-analogy}
 \end{center}
-These terms span four semantic groups:
-\begin{enumerate}
-  \item \textbf{Rates \& macro:} yield, spread, inflation, central bank,
-        interest rate.
-  \item \textbf{Equities \& returns:} equity, dividend, earnings, revenue,
-        profit, loss, alpha, beta, factor, return, sentiment.
-  \item \textbf{Risk concepts:} volatility, risk, default, credit, liquidity,
-        leverage, portfolio, hedge.
-  \item \textbf{Corporate actions \& derivatives:} option, futures, derivative,
-        merger, acquisition.
-\end{enumerate}
 
-To project the embeddings into two dimensions, let $\mathbf{E} \in \mathbb{R}^{30 \times d}$ be the matrix whose
-$i$-th row is the (mean-centred) embedding vector of the $i$-th term.
-We apply principal component analysis (PCA), projecting onto the first two
-principal components (the eigenvectors of $\mathbf{E}^{\top}\mathbf{E}$ with
-the largest eigenvalues), to obtain a $30 \times 2$ matrix of scores.
-
-The resulting scatter plot of the 30 terms
-in the two-dimensional PCA space, coloured by semantic group, is produced by the notebook at \texttt{code/notebooks/01-intro/demo.ipynb}.
-
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
-
-Several patterns are consistently observable across different
-pre-trained models:
-\begin{itemize}
-  \item \emph{option}, \emph{futures}, and \emph{derivative} form a tight
-        cluster, reflecting their shared contextual vocabulary (premium,
-        contract, expiry, strike).
-  \item \emph{default} and \emph{credit} lie close together and at a
-        distance from \emph{equity}-group terms, consistent with the
-        credit-versus-equity divide in fixed income.
-  \item \emph{merger} and \emph{acquisition} are nearly synonymous in
-        this corpus, mapping to almost identical embedding vectors.
-  \item \emph{alpha}, \emph{beta}, and \emph{factor} cluster together,
-        reflecting their shared origin in the asset-pricing literature
-        and their frequent co-occurrence in portfolio management texts.
-  \item The rates cluster (\emph{yield}, \emph{spread}, \emph{inflation},
-        \emph{interest rate}, \emph{central bank}) is the most cohesive,
-        owing to the highly formulaic language of fixed-income analysis.
-\end{itemize}
+The figure makes the mechanism visible: the displacement from \emph{man} to
+\emph{king} is nearly parallel to that from \emph{woman} to \emph{queen}, so
+subtracting \emph{man} and adding \emph{woman} transports the ``royal'' sense
+from the masculine term to the feminine one.  As noted above, whether an
+equally clean analogy exists for specialised \emph{financial} terms depends on
+the training corpus---the rationale for the finance-specific embeddings of
+Section~\ref{sec:embeddings-finance}.
 
 \begin{remark}
 \label{rem:pca-directions}
-The principal component directions $\mathbf{p}_1, \mathbf{p}_2$
-are not directly interpretable as named financial concepts.  They are
-the linear combinations of the original $d = 300$ embedding dimensions
-that explain the most variance \emph{among the 30 selected terms}.  A
-different selection of terms would produce different axes.  The visual
-clustering is informative, but one should resist assigning
-domain-specific names to the $x$- and $y$-axes without rigorous
-validation.  Rotation methods (e.g.\ Varimax) and supervised probing
-classifiers offer more principled approaches to identifying
-interpretable directions in embedding space; see \cite{tenney2019} % [CITE: Tenney et al. (2019). BERT Rediscovers the Classical NLP Pipeline. ACL]
+The principal component directions are not directly interpretable as named
+concepts: they are the linear combinations of the original $d = 300$ embedding
+dimensions that explain the most variance \emph{among the few selected terms},
+and a different selection would produce different axes.  The two components also
+capture only part of the total variance, so the 2D layout is a lossy
+summary---proximity in the projection is suggestive, not definitive, and exact
+relationships should be read from the full-dimensional cosine similarities.
+Rotation methods (e.g.\ Varimax) and supervised probing classifiers offer more
+principled approaches to identifying interpretable directions in embedding
+space; see \cite{tenney2019} % [CITE: Tenney et al. (2019). BERT Rediscovers the Classical NLP Pipeline. ACL]
 for an overview in the transformer setting.
 \end{remark}
-
 
 \end{deepdive}
 
@@ -1472,21 +1459,22 @@ for an overview in the transformer setting.
            coverage; high values identify company-specific vocabulary.
            The heatmap illustrates how TF-IDF converts a raw corpus into a
            discriminating, sparse representation---the classical baseline for
-           financial text analysis (Section~\ref{sec:classical}).}
+           financial text analysis (\Cref{sec:classical}). Generated deterministically by
+           \texttt{gen\_tfidf\_headlines.py} from a fixed set of representative headlines
+           (no live data).}
   \label{fig:ch01-illustration}
 \end{figure}
 
-\begin{exercise}[Illustration: TF-IDF on Financial News]
+\begin{illustration}[TF-IDF on Financial News]
 \label{ex:ch01-illustration}
-Using recent news headlines retrieved via the \texttt{yfinance} API for
-\textsc{aapl}, \textsc{msft}, and \textsc{jpm}, reproduce
-Figure~\ref{fig:ch01-illustration}.
-(\textit{a})~Identify the three terms with the highest TF-IDF weight for each
-ticker and explain intuitively why they are company-specific.
-(\textit{b})~Add a fourth ticker of your choice, regenerate the heatmap, and
-describe how the new column alters the discriminating vocabulary.
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Illustration Exercise.
-\end{exercise}
+The script \texttt{gen\_tfidf\_headlines.py} reproduces \Cref{fig:ch01-illustration} from a
+fixed, committed set of representative headlines for \textsc{aapl}, \textsc{msft}, and
+\textsc{jpm} (so the figure is fully deterministic). The companion notebook extends the
+example to live headlines retrieved via the \texttt{yfinance} API, identifies the three
+terms with the highest TF-IDF weight for each ticker, and shows how adding a fourth ticker
+alters the discriminating vocabulary.
+See \texttt{code/figures/01-intro/gen\_tfidf\_headlines.py} (deterministic figure generator).
+\end{illustration}
 
 % ---------------------------------------------------------------
 \section{Recurrent Neural Networks and the Vanishing Gradient}
@@ -1500,166 +1488,67 @@ vocabulary yet mean opposite things.  Recurrent neural networks (RNNs)
 were the first architecture to process sequences token by token, carrying
 a hidden state that accumulates contextual information.  They powered a
 generation of strong financial NLP models in the early 2010s before being
-superseded by the Transformer — but understanding their central failure
-mode, the vanishing gradient, is essential for appreciating why a new
-architecture was necessary.
+superseded by the Transformer.  This section previews their central idea
+and their central failure mode---the vanishing gradient---to motivate why
+a new architecture was needed; \Cref{ch:llm-foundations} develops
+both from first principles.
 \end{context}
 
 \begin{deepdive}
 
-\subsection{The Vanilla RNN Recurrence}
+\subsection{The Recurrence and Why Gradients Vanish}
 \label{sec:rnn-vanilla}
 
-Let $\mathbf{x}_t \in \mathbb{R}^d$ denote the embedding of the $t$-th
-token in a sequence of length $T$.  A \emph{vanilla recurrent neural
-network} maintains a hidden state $\mathbf{h}_t \in \mathbb{R}^m$:
-\begin{equation}
+A \emph{vanilla recurrent neural network} reads a sequence one token at a
+time, folding each token embedding $\mathbf{x}_t$ into a hidden state
+$\mathbf{h}_t$ that summarises everything seen so far:
+\[
   \mathbf{h}_t
   \;=\;
   \tanh\!\bigl(\mathbf{W}_h\,\mathbf{h}_{t-1}
                + \mathbf{W}_x\,\mathbf{x}_t
-               + \mathbf{b}\bigr),
-  \qquad \mathbf{h}_0 = \mathbf{0},
-  \label{eq:rnn-recurrence}
-\end{equation}
-with $\mathbf{W}_h \in \mathbb{R}^{m \times m}$,
-$\mathbf{W}_x \in \mathbb{R}^{m \times d}$, and $\mathbf{b} \in \mathbb{R}^m$
-learnable.  The final state $\mathbf{h}_T$ is passed to a task head —
-a logistic regression for sentiment, an auto-regressive softmax for
-language modelling, and so on.
+               + \mathbf{b}\bigr).
+\]
+The final state $\mathbf{h}_T$ feeds a task head---a logistic regression
+for sentiment, an auto-regressive softmax for language modelling.
 
 \begin{example}[Earnings-call sentiment with a vanilla RNN]
 \label{ex:rnn-earnings}
 A binary classifier for earnings-call transcripts maps each call to
-$p = \sigma(\mathbf{w}^{\top}\mathbf{h}_T + b_0)$.  Calls vary from a
-few hundred to several thousand tokens; gradient signals must travel
-back through the entire unrolled recurrence, which is precisely what
-makes training challenging on long financial documents.
+$p = \sigma(\mathbf{w}^{\top}\mathbf{h}_T + b_0)$.  Calls run from a few
+hundred to several thousand tokens, and the gradient that trains the model
+must travel back through the entire unrolled recurrence---which is exactly
+what makes long financial documents hard to learn from.
 \end{example}
 
-\subsection{The Vanishing Gradient Problem}
-\label{sec:rnn-vanishing}
+The obstacle is the \emph{vanishing gradient}.  Propagating the training
+error back across $T-k$ steps multiplies together $T-k$ copies of the
+recurrence's Jacobian; when the typical factor has magnitude below one,
+the product shrinks \emph{exponentially} in the lag.  Concretely, a
+per-step contraction of $0.95$ across a $500$-token filing leaves a
+gradient of order $0.95^{500}\approx 5\times10^{-12}$: information from the
+opening paragraph is numerically gone before training can use it, so the
+network never learns dependencies such as a hedging clause that only pays
+off hundreds of tokens later.  \Cref{ch:llm-foundations} makes this
+precise and states it as a spectral-norm bound
+(Theorem~\ref{thm:vanish-explode}).
 
-Training by backpropagation requires computing the Jacobian product
-\begin{equation}
-  \frac{\partial \mathbf{h}_T}{\partial \mathbf{h}_k}
-  \;=\;
-  \prod_{t=k+1}^{T}
-  \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_{t-1}}
-  \;=\;
-  \prod_{t=k+1}^{T}
-  \operatorname{diag}\!\bigl(1 - \mathbf{h}_t^2\bigr)\,\mathbf{W}_h.
-  \label{eq:rnn-jacobian}
-\end{equation}
-
-\begin{theorem}[Vanishing Gradient Bound]
-\label{thm:vanishing-gradient}
-Let $\|\mathbf{A}\|_2 = \max_{\|\mathbf{x}\|=1}\|\mathbf{A}\mathbf{x}\|_2$ denote the
-spectral (operator) norm of a matrix.
-Let $\alpha = \max_t \|\operatorname{diag}(1-\mathbf{h}_t^2)\|_2 < 1$
-be the maximum $\tanh$-derivative magnitude.  Then
-\begin{equation}
-  \Bigl\|\frac{\partial \mathbf{h}_T}{\partial \mathbf{h}_k}\Bigr\|_2
-  \;\leq\;
-  \bigl(\alpha\,\|\mathbf{W}_h\|_2\bigr)^{T-k}.
-  \label{eq:vanishing-bound}
-\end{equation}
-When $\alpha\,\|\mathbf{W}_h\|_2 < 1$, the gradient norm decays
-\emph{exponentially} in the lag $T - k$.
-\end{theorem}
-
-\begin{proof}
-By sub-multiplicativity of the operator norm,
-\[
-  \Bigl\|\prod_{t=k+1}^{T}
-    \operatorname{diag}(1-\mathbf{h}_t^2)\,\mathbf{W}_h
-  \Bigr\|_2
-  \;\leq\;
-  \prod_{t=k+1}^{T}
-    \bigl\|\operatorname{diag}(1-\mathbf{h}_t^2)\bigr\|_2
-    \cdot\|\mathbf{W}_h\|_2
-  \;\leq\;
-  \alpha^{T-k}\,\|\mathbf{W}_h\|_2^{T-k}.
-  \qedhere
-\]
-\end{proof}
-
-With $T = 500$ tokens and $\alpha\|\mathbf{W}_h\|_2 = 0.95$, the bound
-gives $0.95^{500} \approx 5 \times 10^{-12}$: gradient information from
-the opening paragraph of a 10-K filing is numerically zero by the time
-it reaches the parameters, preventing the model from learning long-range
-dependencies such as hedging clauses that span hundreds of tokens.
-
-\subsection{The Long Short-Term Memory Cell}
+\subsection{The LSTM Fix, in One Idea}
 \label{sec:lstm}
 
 \citet{hochreiter1997long}
-% [CITE: Hochreiter, S. & Schmidhuber, J. (1997). Long Short-Term Memory. Neural Computation, 9(8), 1735–1780.]
-introduced the LSTM, which adds a \emph{cell state}
-$\mathbf{c}_t \in \mathbb{R}^m$ that flows through time via additive
-rather than multiplicative interactions.
-
-\begin{definition}[LSTM Cell State Update]
-\label{def:lstm}
-At each step $t$, given $(\mathbf{h}_{t-1}, \mathbf{c}_{t-1}, \mathbf{x}_t)$:
-\begin{align}
-  \mathbf{f}_t &= \sigma\!\bigl(\mathbf{W}_f\,[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_f\bigr),
-  \label{eq:lstm-forget}\\
-  \mathbf{i}_t &= \sigma\!\bigl(\mathbf{W}_i\,[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_i\bigr),
-  \label{eq:lstm-input}\\
-  \tilde{\mathbf{c}}_t &= \tanh\!\bigl(\mathbf{W}_c\,[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_c\bigr),
-  \label{eq:lstm-candidate}\\
-  \mathbf{c}_t &= \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t,
-  \label{eq:lstm-cell}\\
-  \mathbf{o}_t &= \sigma\!\bigl(\mathbf{W}_o\,[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_o\bigr),
-  \label{eq:lstm-output}\\
-  \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{c}_t),
-  \label{eq:lstm-hidden}
-\end{align}
-where $\mathbf{f}_t$ is the \emph{forget gate}, $\mathbf{i}_t$ the
-\emph{input gate}, $\mathbf{o}_t$ the \emph{output gate}, $\odot$
-element-wise multiplication, and $[\cdot;\cdot]$ concatenation.
-\end{definition}
-
-The cell-state highway in \eqref{eq:lstm-cell} is additive, so the
-gradient $\partial L / \partial \mathbf{c}_k = (\partial L / \partial \mathbf{c}_T)
-\prod_{t=k+1}^{T} \mathbf{f}_t$.  When the network learns
-$\mathbf{f}_t \approx \mathbf{1}$ for a retained signal, this product
-remains close to one across long lags, circumventing
-Theorem~\ref{thm:vanishing-gradient}.
-
-\begin{exercise}[Vanishing gradient magnitude]
-\label{ex:lstm-vanishing-b}
-\textbf{[B]} Suppose a vanilla RNN has $m = 128$ hidden units,
-$\|\mathbf{W}_h\|_2 = 0.9$, and the $\tanh$ derivative is bounded by
-$\alpha = 0.8$.  Compute the upper bound from
-\eqref{eq:vanishing-bound} for lags $T - k \in \{10, 50, 200\}$.
-What do these numbers imply for a financial document of 500 tokens?
-\end{exercise}
-
-\begin{exercise}[LSTM forget-gate semantics]
-\label{ex:lstm-intermediate-i}
-\textbf{[I]} Consider an LSTM reading a quarterly earnings transcript
-token by token.  The transcript has three segments: (1) a forward-looking
-``management commentary'' section (200 tokens), (2) a Q\&A section (300
-tokens), (3) a boilerplate legal disclaimer (100 tokens).
-Explain, in terms of Definition~\ref{def:lstm}, which gate the network
-must learn to set close to zero when transitioning from segment (2) to
-segment (3).  What input feature would the network likely use to detect
-this transition?
-\end{exercise}
-
-\begin{exercise}[Bidirectional LSTM for event detection]
-\label{ex:lstm-advanced-a}
-\textbf{[A]} A bidirectional LSTM processes a sequence both left-to-right
-and right-to-left, concatenating the two hidden states at each position.
-Formally define the bidirectional hidden state $\overleftrightarrow{\mathbf{h}}_t$
-in terms of the forward and backward LSTM outputs.  Then prove that if
-the forward and backward $\|\mathbf{W}_h\|_2$ both satisfy the vanishing
-condition in Theorem~\ref{thm:vanishing-gradient}, the bidirectional model
-still cannot propagate gradients over arbitrarily long ranges in the
-forward direction.  What architectural modification resolves this?
-\end{exercise}
+% [CITE: Hochreiter, S. & Schmidhuber, J. (1997). Long Short-Term Memory. Neural Computation, 9(8), 1735--1780.]
+introduced the Long Short-Term Memory (LSTM) cell, which adds a
+\emph{cell state} updated \emph{additively} rather than by repeated matrix
+multiplication.  Learned \emph{gates} decide what the cell keeps, what it
+overwrites, and what it reads out; when a gate stays open the cell state
+behaves like a near-lossless highway that carries the gradient across long
+lags, sidestepping the exponential decay above.  LSTMs powered the
+strongest financial NLP models of the early-to-mid 2010s before attention
+displaced them.  Section~\ref{sec:sequential-lstm} of
+\Cref{ch:llm-foundations} derives the gating equations
+(Definition~\ref{def:lstm}) and shows formally why the additive update
+preserves the gradient.
 
 \end{deepdive}
 
@@ -1672,150 +1561,65 @@ The Transformer architecture \cite{vaswani2017attention}
 % [CITE: Vaswani, A. et al. (2017). Attention Is All You Need. NeurIPS, 30.]
 discards recurrence entirely and instead lets every token attend
 \emph{directly} to every other token in a single matrix operation.
-This ``scaled dot-product attention'' has three advantages over the
-RNN: it runs in parallel across the sequence (crucial for GPU-scale
-training), it can attend to any position with equal representational
-power regardless of distance, and its gradient flows directly between
-any pair of positions rather than decaying exponentially with lag.
-Every large language model in use today is a Transformer or a
-close descendant.
+This ``scaled dot-product attention'' has three advantages over the RNN:
+it runs in parallel across the sequence (crucial for GPU-scale training),
+it can attend to any position with equal representational power regardless
+of distance, and its gradient flows directly between any pair of positions
+rather than decaying exponentially with lag.  Every large language model in
+use today is a Transformer or a close descendant.  This section previews
+the mechanism; \Cref{ch:llm-foundations} derives it in full.
 \end{context}
 
 \begin{deepdive}
 
-\subsection{The Attention Mechanism}
+\subsection{Attention as Content-Based Lookup}
 \label{sec:attention-mechanism}
 
-Given a sequence of $n$ input vectors, attention projects them into
-three matrices: queries $\mathbf{Q} \in \mathbb{R}^{n \times d_k}$,
-keys $\mathbf{K} \in \mathbb{R}^{n \times d_k}$, and values
-$\mathbf{V} \in \mathbb{R}^{n \times d_v}$ via learned linear maps.
-
-\begin{definition}[Scaled Dot-Product Attention]
-\label{def:attention}
-\begin{equation}
+Attention replaces the RNN's step-by-step state with a single parallel
+operation.  Each token emits a \emph{query}, every token exposes a
+\emph{key} and a \emph{value}, and a token's updated representation is the
+average of the values weighted by how well its query matches each key:
+\[
   \operatorname{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V})
   \;=\;
-  \operatorname{softmax}\!\!\left(\frac{\mathbf{Q}\mathbf{K}^{\top}}{\sqrt{d_k}}\right)\mathbf{V}.
-  \label{eq:attention}
-\end{equation}
-The $(i,j)$ entry of the softmax argument, $q_i^{\top} k_j / \sqrt{d_k}$,
-is the \emph{attention score} of position $i$ towards position $j$.
-Here $\operatorname{softmax}(\mathbf{M})_{ij} = \exp(M_{ij})/\sum_{l}\exp(M_{il})$
-applies the normalised exponential row-wise.
-\end{definition}
+  \operatorname{softmax}\!\!\left(\frac{\mathbf{Q}\mathbf{K}^{\top}}{\sqrt{d_k}}\right)\mathbf{V},
+\]
+where $\operatorname{softmax}$ turns each row of match scores into
+non-negative weights that sum to one.  Because every pair of positions is
+compared directly, attention spans an entire filing in one step and its
+gradient does not decay with distance---precisely the two properties the
+RNN lacked.
 
-\subsection{Why Divide by \texorpdfstring{$\sqrt{d_k}$}{sqrt(d\_k)}: A Variance Derivation}
-\label{sec:attention-scaling}
+The $\sqrt{d_k}$ divisor is the one detail worth flagging now: the dot
+product of two $d_k$-dimensional vectors has variance that grows with
+$d_k$, so without rescaling the softmax is driven into its saturated,
+near-zero-gradient regime.  Dividing by $\sqrt{d_k}$ restores unit-scale
+scores.  \Cref{ch:llm-foundations} derives attention from first
+principles (Definition~\ref{def:scaled-dot-product-attn}) and proves the
+scaling result (Theorem~\ref{thm:sqrt-dk-scaling}).
 
-The $\sqrt{d_k}$ factor is not arbitrary.  The following proposition
-shows it is necessary to keep the softmax input well-conditioned.
-
-\begin{proposition}[$\sqrt{d_k}$ Variance Normalisation]
-\label{prop:sqrt-dk}
-Let the query and key vectors have independent entries each with mean
-zero and variance one: $q_i \sim (0, 1)$ and $k_j \sim (0, 1)$.
-Then the dot product $s = \mathbf{q}^{\top}\mathbf{k} = \sum_{l=1}^{d_k} q_l k_l$
-satisfies
-\begin{equation}
-  \mathbb{E}[s] = 0,
-  \qquad
-  \operatorname{Var}(s) = d_k.
-  \label{eq:dotprod-variance}
-\end{equation}
-The scaled score $s / \sqrt{d_k}$ therefore has unit variance.
-\end{proposition}
-
-\begin{proof}
-Each term $q_l k_l$ has $\mathbb{E}[q_l k_l] = \mathbb{E}[q_l]\mathbb{E}[k_l] = 0$
-by independence.  Its variance is
-$\operatorname{Var}(q_l k_l)
-= \mathbb{E}[q_l^2 k_l^2] - (\mathbb{E}[q_l k_l])^2
-= \mathbb{E}[q_l^2]\mathbb{E}[k_l^2] = 1$.
-By independence across $l$, $\operatorname{Var}(s) = d_k$.
-Dividing by $\sqrt{d_k}$ rescales the variance to one. \qedhere
-\end{proof}
-
-Without the $\sqrt{d_k}$ scaling the dot products grow with $d_k$,
-pushing the softmax into its near-zero-gradient saturation region and
-severely damaging gradient flow — precisely the problem that motivated
-moving away from RNNs in the first place.
-
-\subsection{Multi-Head Attention}
+\subsection{Multiple Heads, Multiple Relations}
 \label{sec:attention-multihead}
 
-A single attention head captures one type of pairwise relationship.
-\emph{Multi-head attention} runs $h$ independent attention operations
-in lower-dimensional subspaces and concatenates their outputs.
-Let $d_{\mathrm{model}}$ denote the model's hidden dimension (the input and output
-width of each Transformer layer).
+A single attention pattern can track only one kind of relationship.
+\emph{Multi-head attention} runs several attention operations in parallel
+on lower-dimensional projections and concatenates their outputs, letting
+different heads specialise.  In financial text one head may follow temporal
+links (\emph{prior quarter} vs.\ \emph{current quarter}), another entity
+coreference (\emph{the company}, \emph{it}, \emph{JPMorgan}), and another
+negation scope (\emph{did not}, \emph{failed to}).
+Section~\ref{sec:transformer-mha} of \Cref{ch:llm-foundations} gives
+the construction (Definition~\ref{def:mha}).
 
-\begin{definition}[Multi-Head Attention]
-\label{def:multihead}
-For head $i$, let $\mathbf{W}_i^Q, \mathbf{W}_i^K \in \mathbb{R}^{d_{\mathrm{model}} \times d_k}$
-and $\mathbf{W}_i^V \in \mathbb{R}^{d_{\mathrm{model}} \times d_v}$ be learned projections.
-Then
-\begin{equation}
-  \operatorname{MultiHead}(\mathbf{Q},\mathbf{K},\mathbf{V})
-  \;=\;
-  \left[\mathrm{head}_1;\,\ldots;\,\mathrm{head}_h\right]\mathbf{W}^O,
-  \label{eq:multihead}
-\end{equation}
-where $\mathrm{head}_i = \operatorname{Attention}(\mathbf{Q}\mathbf{W}_i^Q,
-\mathbf{K}\mathbf{W}_i^K, \mathbf{V}\mathbf{W}_i^V)$ and
-$\mathbf{W}^O \in \mathbb{R}^{hd_v \times d_{\mathrm{model}}}$ projects back
-to the model dimension.
-\end{definition}
-
-In practice, $d_k = d_v = d_{\mathrm{model}} / h$, so the total
-parameter count is the same as a single head with dimension
-$d_{\mathrm{model}}$.  Different heads learn to attend to different
-relational patterns: in financial documents, one head may specialise in
-temporal relationships (\emph{prior quarter} vs.\ \emph{current quarter}),
-another in entity coreference (\emph{the company}, \emph{it}, \emph{JPMorgan}),
-and another in negation scope (\emph{did not}, \emph{failed to}).
-
-\begin{remark}[Attention in the financial context]
+\begin{remark}[Why attention matters for financial text]
 \label{rem:attention-finance}
-\citet{ke2019predicting} % [CITE: Ke, Zheng T., Kelly, B., & Xiu, D. (2019). Predicting Returns with Text Data. NBER Working Paper.]
-applied attention-based models to financial news and found that the
-attention weights provide an interpretable signal: the model up-weights
-sentences containing forward-looking language (guidance, outlook) when
-predicting near-term earnings surprises, offering a degree of explainability
-that pure bag-of-words models cannot provide.
+Beyond raw accuracy, attention offers a degree of \emph{interpretability}
+that bag-of-words models cannot: the attention weights expose which parts
+of a document a prediction rests on, letting an analyst see when a model
+keys on forward-looking guidance or on a specific risk-factor disclosure.
+We return to attention-based interpretability for finance in the
+explainability and evaluation chapters.
 \end{remark}
-
-\begin{exercise}[Attention score computation]
-\label{ex:attention-b}
-\textbf{[B]} Suppose $d_k = 4$ and a single-head attention block receives
-one query $\mathbf{q} = [1,0,1,0]^{\top}$ and two keys
-$\mathbf{k}_1 = [1,1,0,0]^{\top}$, $\mathbf{k}_2 = [0,1,1,0]^{\top}$.
-Compute the attention scores before and after the $\sqrt{d_k}$ scaling.
-Then apply softmax to the scaled scores and interpret the resulting weights.
-\end{exercise}
-
-\begin{exercise}[Variance proof extension]
-\label{ex:attention-i}
-\textbf{[I]} Proposition~\ref{prop:sqrt-dk} assumed entries with zero mean
-and unit variance.  Repeat the derivation for entries with zero mean and
-variance $\sigma^2 \neq 1$, and show that the correct scaling factor
-becomes $\sqrt{d_k}\,\sigma^2$.  Why does the standard Transformer use
-$\sigma = 1$ (achieved via layer normalisation before the projection)?
-\end{exercise}
-
-\begin{exercise}[Attention complexity and long documents]
-\label{ex:attention-a}
-\textbf{[A]} The attention matrix $\mathbf{Q}\mathbf{K}^{\top} \in
-\mathbb{R}^{n \times n}$ has $\mathcal{O}(n^2)$ entries.  For a 10-K
-filing with $n = 8{,}192$ tokens and $d_k = 64$:
-(\textit{a})~compute the memory requirement in gigabytes if each entry
-is stored in 16-bit float;
-(\textit{b})~explain how \emph{sparse attention} patterns (e.g.\ sliding
-windows, global tokens) reduce this cost while preserving most of the
-representational power;
-(\textit{c})~identify at least one sparse attention variant designed for
-long financial documents.
-\end{exercise}
 
 \end{deepdive}
 
@@ -1847,6 +1651,10 @@ be the model probability; the training objective is
   -\sum_{t=1}^{T} \log p_\theta(w_t \mid w_1, \ldots, w_{t-1}).
   \label{eq:ar-objective}
 \end{equation}
+This negative log-likelihood is the \emph{cross-entropy} loss between the model's
+predicted next-token distribution and the one-hot distribution of the observed token;
+the masked objective below and essentially every language-model loss in later chapters
+are the same cross-entropy, summed over different positions.
 GPT-1 \cite{radford2018gpt}
 % [CITE: Radford, A. et al. (2018). Improving Language Understanding by Generative Pre-Training. OpenAI blog.]
 used a 12-layer Transformer decoder trained on the Books corpus
@@ -1867,7 +1675,7 @@ deployed in financial applications today.
 \label{sec:llm-bert}
 
 \begin{definition}[Masked Language Modelling Objective]
-\label{def:mlm}
+\label{def:mlm-intro}
 In the Masked Language Model (MLM) training objective, a fraction $p$
 of input tokens (typically $p = 0.15$) is replaced with a \texttt{[MASK]}
 token and the model is trained to predict the original token:
@@ -1957,35 +1765,6 @@ run in real time on a single A100 GPU, while 70B+ models require
 multi-GPU inference pipelines.
 \end{remark}
 
-\begin{exercise}[Autoregressive vs.\ masked training]
-\label{ex:llm-families-b}
-\textbf{[B]} Explain in one or two sentences why a BERT-style encoder model
-cannot be used \emph{directly} to generate new text, and why a GPT-style
-decoder model would underperform BERT on a named-entity recognition task
-over financial news.
-\end{exercise}
-
-\begin{exercise}[T5 for financial multi-task learning]
-\label{ex:llm-families-i}
-\textbf{[I]} You have three financial NLP tasks: (a) classifying 10-K
-risk-factor paragraphs as high/medium/low risk, (b) extracting numeric
-EPS figures from earnings transcripts, (c) summarising MD\&A sections
-in at most 150 words.  For each task, write the T5 input prompt prefix
-that maps the task into the text-to-text format, and describe the target
-string format.
-\end{exercise}
-
-\begin{exercise}[Compliance trade-offs in model selection]
-\label{ex:llm-families-a}
-\textbf{[A]} A large investment bank wants to use an LLM for automated
-analysis of non-public client communications as part of its AML (anti-money
-laundering) compliance workflow.  Evaluate each of the following four
-options — GPT-4 API, LLaMA-3 deployed on-premise, BloombergGPT via
-enterprise agreement, and a fine-tuned T5-small — against the following
-criteria: data residency, performance, latency, and cost.  Justify your
-recommended architecture.
-\end{exercise}
-
 \end{deepdive}
 
 % ---------------------------------------------------------------
@@ -1993,7 +1772,7 @@ recommended architecture.
 \label{sec:llm-apis}
 
 \begin{context}
-Every model family discussed in Section~\ref{sec:llm-families} is
+Every model family discussed in \Cref{sec:llm-families} is
 accessible via a Python API.  For practitioners, the three most relevant
 are the OpenAI API (GPT family), the Anthropic API (Claude family), and
 the HuggingFace \texttt{transformers} library (open-weight models
@@ -2012,56 +1791,95 @@ OpenAI exposes models through a REST API wrapped by the
 \emph{chat completion}: a list of role-tagged messages is sent to the
 model and the response is returned as a structured JSON object.
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
+\begin{minted}{python}
+import openai
+
+client = openai.OpenAI()  # reads OPENAI_API_KEY from the environment
+resp = client.chat.completions.create(
+    model="gpt-5.6-luna",
+    messages=[
+        {"role": "system", "content": "You are a financial analyst."},
+        {"role": "user", "content": "Sentiment of 'Revenue fell 12%.'? One word."},
+    ],
+)
+print(resp.choices[0].message.content)  # -> 'Negative'
+\end{minted}
 
 \subsection{The Anthropic API}
 \label{sec:api-anthropic}
 
-Anthropic's Claude models are queried through a similar interface.
+Anthropic's Claude models are queried through a similar interface: a list of
+role-tagged messages is sent and a structured response is returned. A minimal
+finance query looks like:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
+\begin{minted}{python}
+import anthropic
+
+client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
+resp = client.messages.create(
+    model="claude-opus-4-8",
+    max_tokens=256,
+    system="You are a financial analyst. Answer concisely.",
+    messages=[{"role": "user",
+               "content": "Classify the sentiment of: "
+                          "'Revenue fell 12% on weak demand.' "
+                          "Answer with one word."}],
+)
+print(resp.content[0].text)  # -> 'Negative'
+\end{minted}
+
+\noindent The two proprietary APIs share the same request shape; richer prompt templates
+are developed as an exercise in the student practical \texttt{code/practicals/01-intro/practical.ipynb}.
 
 \subsection{HuggingFace \texttt{transformers}: Open-Weight Inference}
 \label{sec:api-huggingface}
 
 For open-weight models (LLaMA, FinBERT, T5-finance), the HuggingFace
-\texttt{transformers} library provides a unified interface.
+\texttt{transformers} library provides a unified interface that runs the model locally
+rather than over a network API:
 
-\textit{The complete Python implementation for this example is available in \texttt{code/notebooks/01-intro/demo.ipynb}.}
+\begin{minted}{python}
+from transformers import pipeline
+
+clf = pipeline("text-classification", model="ProsusAI/finbert")
+print(clf("Revenue fell 12% on weak demand."))
+# -> [{'label': 'negative', 'score': 0.95}]
+\end{minted}
 
 \subsection{Token Costs and Latency Trade-offs}
 \label{sec:api-costs}
 
-API calls to proprietary models are billed per token.  Table~\ref{tab:api-costs}
-summarises representative pricing and latency benchmarks as of 2024.
+API calls to proprietary models are billed per token.  \Cref{tab:api-costs}
+summarises representative pricing and latency benchmarks as of mid-2026.
 
 \begin{center}
   \captionof{table}{Representative API costs and latency for common LLM
-             inference tasks (2024 pricing; subject to change).
+             inference tasks (mid-2026 pricing; subject to change).
              ``Tokens/s'' is output throughput; ``P99 latency'' is the
              99th-percentile first-token latency on a 200-token prompt.}
   \label{tab:api-costs}
+  \small
   \begin{tabular}{lrrrr}
     \toprule
     Model & Input (\$/M tok) & Output (\$/M tok) & Tokens/s & P99 (s) \\
     \midrule
-    \texttt{gpt-4o}         & 2.50 & 10.00 & 60  & 1.2 \\
-    \texttt{gpt-4o-mini}    & 0.15 &  0.60 & 120 & 0.4 \\
-    \texttt{claude-sonnet}  & 3.00 & 15.00 & 80  & 1.0 \\
-    \texttt{claude-haiku}   & 0.25 &  1.25 & 200 & 0.3 \\
-    LLaMA-3 70B (on-prem)  & ---  &  ---  & 45  & 0.8 \\
+    \texttt{gpt-5.6-sol}    & 5.00 & 30.00 & 60  & 1.2 \\
+    \texttt{gpt-5.6-luna}   & 1.00 &  6.00 & 120 & 0.4 \\
+    \texttt{claude-sonnet-4-6} & 3.00 & 15.00 & 80  & 1.0 \\
+    \texttt{claude-haiku-4-5}  & 1.00 &  5.00 & 200 & 0.3 \\
+    Llama 4 (on-prem)      & ---  &  ---  & 45  & 0.8 \\
     \bottomrule
   \end{tabular}
 \end{center}
 
 \begin{remark}[Note on Pricing Data]
-The figures in Table~\ref{tab:api-costs} are approximate list prices and throughput benchmarks as of early 2024; these change frequently. Verify current rates at provider pricing pages before any production deployment~\citep{anthropic2025api}.
+The figures in \Cref{tab:api-costs} are approximate list prices and throughput benchmarks as of mid-2026; these change frequently. Verify current rates at provider pricing pages before any production deployment~\citep{anthropic2025api}.
 \end{remark}
 
 For high-frequency applications (real-time news classification of thousands
-of headlines per minute), the cost difference between \texttt{gpt-4o}
-and \texttt{gpt-4o-mini} is economically material: classifying one million
-headlines with a 100-token context costs roughly \$250 with a frontier model versus \$15 with a lightweight alternative (at the illustrative prices in Table~\ref{tab:api-costs}).  In
+of headlines per minute), the cost difference between \texttt{gpt-5.6-sol}
+and \texttt{gpt-5.6-luna} is economically material: classifying one million
+headlines with a 100-token context costs roughly \$500 with a frontier model versus \$100 with a lightweight alternative (at the illustrative prices in \Cref{tab:api-costs}).  In
 batch analytical applications where latency is less critical (overnight
 processing of 10-K filings), the smaller latency advantage of smaller
 models is less relevant and accuracy differences dominate.
@@ -2072,48 +1890,13 @@ The single most effective cost-reduction strategy is prompt brevity: the
 fewer input tokens, the lower the cost.  In classification tasks, a one-line
 system prompt with a one-sentence instruction (as in the example above)
 typically outperforms a lengthy five-paragraph
-prompt on accuracy while costing 80\%\ less.  Chain-of-thought prompting
+prompt on accuracy while costing far less.  Chain-of-thought prompting
 \cite{wei2022chain}
 % [CITE: Wei, J. et al. (2022). Chain-of-Thought Prompting Elicits Reasoning in Large Language Models. NeurIPS.]
-can improve accuracy on multi-step financial reasoning tasks but may triple
+can improve accuracy on multi-step financial reasoning tasks but substantially increases
 output-token counts, making it cost-effective only when accuracy improvements
 justify the expense.
 \end{remark}
-
-\begin{exercise}[API call anatomy]
-\label{ex:api-b}
-\textbf{[B]} Using the notebook at \texttt{code/notebooks/01-intro/demo.ipynb} as a
-template, write a function \texttt{extract\_eps(text: str) -> float} that
-queries \texttt{gpt-4o-mini} to extract the earnings-per-share figure from
-a single sentence of an earnings release.  The function should return a
-Python \texttt{float}, raising a \texttt{ValueError} if the model cannot
-identify a numeric EPS figure.
-\end{exercise}
-
-\begin{exercise}[Cost-accuracy trade-off experiment]
-\label{ex:api-i}
-\textbf{[I]} Download the Financial PhraseBank dataset
-(Malo et al., 2014, available via HuggingFace datasets) and evaluate three
-models on the task of classifying sentences as positive/negative/neutral:
-\texttt{gpt-4o-mini} (via API), \texttt{claude-haiku} (via API), and
-FinBERT (local, via \texttt{code/notebooks/01-intro/demo.ipynb}).
-Compute accuracy, cost per 1{,}000 sentences (estimating from token counts),
-and mean latency per sentence.  Present your results in a single table and
-recommend a model for a use case where 95\%\ accuracy is required at minimum
-cost.
-\end{exercise}
-
-\begin{exercise}[Structured output for financial extraction]
-\label{ex:api-a}
-\textbf{[A]} The OpenAI API supports \emph{structured output} via
-\texttt{response\_format=\{"type": "json\_schema", ...\}}, which enforces
-the model to return JSON matching a user-defined schema.  Design a schema
-for extracting from an earnings press release: (a) the EPS beat/miss in
-cents, (b) the revenue figure in millions of USD, (c) a list of forward-looking
-guidance items, each with a metric name and direction (up/down/unchanged).
-Implement the extraction function using the OpenAI client and validate it on
-three real earnings press releases.
-\end{exercise}
 
 \end{deepdive}
 
@@ -2190,7 +1973,7 @@ financial documents, this constraint is binding:
   \label{tab:context-windows}
   \begin{tabular}{lrr}
     \toprule
-    Document type & Median tokens & Exceeds GPT-4 (128K)? \\
+    Document type & Median tokens & Exceeds 128K? \\
     \midrule
     Earnings press release & 800    & No  \\
     Earnings call transcript & 6{,}000 & No  \\
@@ -2202,8 +1985,9 @@ financial documents, this constraint is binding:
   \end{tabular}
 \end{center}
 
-While 128K-token context windows (GPT-4, Claude 3) handle most standard
-filings, very long regulatory documents still require chunking strategies.
+While 128K+ context windows (e.g.\ GPT-5, Claude Opus 4.8) handle most standard
+filings---and frontier models now reach 1M+ tokens (e.g.\ Gemini 3 Pro)---very long
+regulatory documents still require chunking strategies.
 Moreover, empirical work shows that retrieval accuracy degrades for
 information placed in the middle of long contexts — a phenomenon termed
 \emph{lost in the middle} \cite{liu2023lost}
@@ -2255,39 +2039,6 @@ that LLM outputs that influence investment decisions are subject to the
 same fiduciary duty standards as human advisor recommendations.
 \end{remark}
 
-\begin{exercise}[Hallucination rate measurement]
-\label{ex:limitations-b}
-\textbf{[B]} You ask GPT-4 to extract the reported net income from a
-500-word earnings press release ten times (temperature $= 0.7$).  The
-model returns the correct figure seven times, a figure off by 5\%\ twice,
-and an entirely fabricated figure once.  Define a hallucination rate
-estimator and compute it.  Why does temperature $> 0$ matter for this
-measurement?
-\end{exercise}
-
-\begin{exercise}[Regulatory classification under the EU AI Act]
-\label{ex:limitations-i}
-\textbf{[I]} For each of the following financial AI deployments, determine
-the applicable EU AI Act risk tier and list the primary compliance obligations:
-(\textit{a})~an LLM chatbot that answers retail client questions about bond
-yields with no binding output;
-(\textit{b})~an LLM-driven credit scoring tool used to approve or reject
-SME loan applications;
-(\textit{c})~an LLM summarisation service that generates internal analyst
-briefings not shared with clients.
-\end{exercise}
-
-\begin{exercise}[RAG pipeline for hallucination mitigation]
-\label{ex:limitations-a}
-\textbf{[A]} Design a retrieval-augmented generation pipeline for answering
-questions about a firm's 10-K filing.  Your design should specify: the
-chunking strategy (chunk size and overlap), the embedding model, the
-retrieval mechanism (dense, sparse, or hybrid), the prompt template, and a
-hallucination detection step.  Implement a prototype using LangChain or
-LlamaIndex and evaluate it on five factual questions drawn from an actual
-10-K, measuring both accuracy and citation precision.
-\end{exercise}
-
 \end{deepdive}
 
 % ---------------------------------------------------------------
@@ -2306,15 +2057,15 @@ operation of every modern LLM; and the survey of model families, API interfaces,
 and limitations (Sections~\ref{sec:llm-families}–\ref{sec:llm-limitations}) equips
 the reader with practical orientation before the technical treatment deepens.
 
-Chapter~\ref{ch:llm-foundations} develops each of these threads to full depth.
-The Transformer architecture is derived from first principles in §\ref{sec:attention}
-of that chapter, including positional encoding, layer normalisation, and the
-full pre-training objective; the attention mechanism introduced here in
-Section~\ref{sec:attention} reappears there with a complete treatment of causal
-masking and key-value caching.  Fine-tuning, instruction tuning, and
+\Cref{ch:llm-foundations} develops each of these threads to full depth.
+The Transformer architecture is derived from first principles in
+Section~\ref{sec:transformer} of that chapter, including positional encoding,
+layer normalisation, and the full pre-training objective; the attention
+mechanism previewed here in Section~\ref{sec:attention} reappears there with a
+complete treatment of causal masking and key-value caching.  Fine-tuning, instruction tuning, and
 parameter-efficient adaptation (LoRA, prefix tuning) are taken up in the chapters
 on domain adaptation, where the domain-specific models surveyed in
-Section~\ref{sec:llm-families} are evaluated empirically.
+\Cref{sec:llm-families} are evaluated empirically.
 The hallucination taxonomy of Section~\ref{sec:llm-limitations} is revisited
 with formal metrics and mitigation benchmarks in the chapter on evaluation.
 
@@ -2339,49 +2090,63 @@ protocols developed throughout this book.
 
 \end{context}
 
-% ---------------------------------------------------------------
-\section{Data Lab}\label{sec:ch01-data-lab}
+% -----------------------------------------------------------------------
+% --- Section: Roadmap ---
+\section{Roadmap: How This Book Is Organized}
+\label{sec:book-roadmap}
 
-The following exercises use live data retrieved from the SEC EDGAR REST API
-(\url{https://data.sec.gov}). Starter code and working solutions are in
-\texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-The \texttt{edgar\_get} helper enforces a 110\,ms inter-request delay to comply
-with the SEC's rate limit of ten requests per second.
+The remainder of this book is organized in six parts that move deliberately
+from simpler foundations to more advanced engineering: no concept is used
+before an earlier chapter has introduced it.
 
-\begin{exercise}[EDGAR Filing Browser]\label{ex:ch01-edgar-b}
-\textbf{[B]} Using the EDGAR submissions API, retrieve the filing history for
-Apple Inc.\ (\texttt{AAPL}).
-(\textit{a})~Print a table of the 20 most recent filings showing form type,
-filing date, and accession number.
-(\textit{b})~Count filings by form type (10-K, 10-Q, 8-K, DEF~14A, etc.)
-and display the result as a bar chart.
-(\textit{c})~Identify the date of the most recent 10-K filing.
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-\end{exercise}
+\textbf{Part~I, Foundations of Large Language Models}, builds the technical
+base.  \Cref{ch:llm-foundations} develops the architecture of
+transformer-based language models from the ground up, deriving the attention
+mechanism, the pre-training objectives, and the tokenization schemes that
+underlie all modern LLMs.  \Cref{ch:llm-training} covers training and
+fine-tuning --- supervised fine-tuning, reinforcement learning from human
+feedback, and parameter-efficient methods such as LoRA ---
+and \Cref{ch:domain-specific-llms} turns to language models trained or
+adapted specifically for finance (FinBERT, BloombergGPT, and the
+domain-adaptation recipes behind them).
 
-\begin{exercise}[MD\&A Keyword Landscape]\label{ex:ch01-edgar-i}
-\textbf{[I]} Download Apple's most recent 10-K filing in HTML format from
-EDGAR, strip all HTML tags, and extract the
-Management's Discussion and Analysis (MD\&A) section (Item~7).
-(\textit{a})~Compute TF-IDF scores for all tokens in the MD\&A section
-(IDF computed over sentences).
-(\textit{b})~Display the top-20 keywords as a horizontal bar chart.
-(\textit{c})~Remove common English stop words (define a set of at least
-30 stop words) and compare the top-20 with and without stop-word filtering.
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-\end{exercise}
+\textbf{Part~II, Agents, Tools, and Skills} (\Cref{ch:llm-agents}), extends
+the single-model view to systems that plan, call tools, retrieve external
+data, and coordinate as multiple agents.  It also introduces the file-based
+form of the agentic primitives --- agents, skills, and hooks as
+version-controlled Markdown and configuration artifacts
+(\Cref{subsec:file-based-pattern}) --- that the engineering chapter in
+Part~VI later composes into full iteration loops.
 
-\begin{exercise}[Cross-Sector Vocabulary Overlap]\label{ex:ch01-edgar-a}
-\textbf{[A]} Repeat the MD\&A extraction from Exercise~\ref{ex:ch01-edgar-i}
-for five companies spanning three sectors: AAPL and MSFT (technology),
-JPM and BAC (banking), XOM (energy).
-(\textit{a})~Build the vocabulary set for each company's MD\&A.
-(\textit{b})~Compute the pairwise Jaccard similarity
-$J(A,B) = |A \cap B| / |A \cup B|$ and display the $5 \times 5$ matrix
-as a heatmap with company tickers on both axes.
-(\textit{c})~Interpret the pattern: do within-sector pairs show higher
-overlap than cross-sector pairs? What does this imply for domain-adapted
-language model pre-training?
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Data Lab section.
-\end{exercise}
+\textbf{Part~III, Understanding Financial Text}, applies these foundations to
+reading: \Cref{ch:financial-nlp-sentiment} treats financial NLP and sentiment
+analysis, and \Cref{ch:financial-text-summarization} treats summarization,
+named-entity recognition, relation extraction, and table extraction from
+filings and reports.
+
+\textbf{Part~IV, Quantitative Finance Applications}, covers the numerical
+workhorses: business valuation (\Cref{ch:business-valuation}; discounted-cash-flow
+and comparable-company analysis), credit-risk analysis
+(\Cref{ch:credit-risk}; scoring, fairness, and calibration), and portfolio
+optimization and quantitative trading (\Cref{ch:portfolio-quant-trading}).
+These chapters can be read independently once Parts~I--II are in place; a
+reader with a specific use case can proceed directly to the relevant chapter.
+
+\textbf{Part~V, Trust, Governance, and Deployment}, turns to the controls that
+make the applications deployable: regulatory technology, compliance, and
+anti-money-laundering (\Cref{ch:regtech-compliance-aml}); explainability and
+interpretability (\Cref{ch:xai-explainability}); a systematic treatment of
+LLM limitations and evaluation methodology
+(\Cref{ch:llm-limitations-evaluation}); and privacy-preserving, locally
+deployed models (\Cref{ch:privacy-local-models}), addressing the
+data-residency and confidentiality concerns that constrain cloud-hosted
+models in financial institutions.
+
+\textbf{Part~VI, Engineering Agentic Workflows and Outlook}, is the
+methodology capstone.  \Cref{ch:loops-goals-iterations} shows how the agents,
+skills, and hooks of Part~II are composed into goal-directed iteration loops
+--- with worked examples that build on the credit-risk and governance material
+of Parts~IV--V --- and \Cref{ch:applications-future} closes with emerging
+applications, deployment patterns, and future directions.
+
 

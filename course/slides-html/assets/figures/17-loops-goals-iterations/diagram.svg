@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="system-ui, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#2f6fed"/>
+    </marker>
+    <marker id="arr-gold" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#B48228"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="360" y="32" text-anchor="middle" fill="#2a3340" font-size="18" font-weight="600">Goal-Directed Agent Loop</text>
+
+  <!-- Central goal -->
+  <circle cx="360" cy="185" r="52" fill="#eef2fb" stroke="#2f6fed" stroke-width="2.5"/>
+  <text x="360" y="180" text-anchor="middle" fill="#2a3340" font-size="14" font-weight="600">Goal</text>
+  <text x="360" y="198" text-anchor="middle" fill="#5b6472" font-size="12">objective state</text>
+
+  <!-- PLAN box (top) -->
+  <rect x="295" y="58" width="130" height="54" rx="12" fill="#2f6fed"/>
+  <text x="360" y="80" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">① Plan</text>
+  <text x="360" y="100" text-anchor="middle" fill="#eef2fb" font-size="12">decompose task</text>
+
+  <!-- ACT box (right) -->
+  <rect x="546" y="155" width="130" height="54" rx="12" fill="#B48228"/>
+  <text x="611" y="177" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">② Act</text>
+  <text x="611" y="197" text-anchor="middle" fill="#eef2fb" font-size="12">tool call / step</text>
+
+  <!-- OBSERVE box (bottom) -->
+  <rect x="295" y="268" width="130" height="54" rx="12" fill="#2a3340"/>
+  <text x="360" y="290" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">③ Observe</text>
+  <text x="360" y="310" text-anchor="middle" fill="#eef2fb" font-size="12">result / feedback</text>
+
+  <!-- REFLECT box (left) -->
+  <rect x="44" y="155" width="130" height="54" rx="12" fill="#5b6472"/>
+  <text x="109" y="177" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">④ Reflect</text>
+  <text x="109" y="197" text-anchor="middle" fill="#eef2fb" font-size="12">update memory</text>
+
+  <!-- Circular arrows connecting the 4 stages -->
+  <!-- Plan → Act -->
+  <path d="M425,82 C510,82 546,130 546,182" fill="none" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Act → Observe -->
+  <path d="M611,209 C611,268 490,290 425,290" fill="none" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Observe → Reflect -->
+  <path d="M295,290 C220,290 174,265 174,209" fill="none" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Reflect → Plan -->
+  <path d="M109,155 C109,102 220,82 295,82" fill="none" stroke="#2f6fed" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Goal reached indicator -->
+  <text x="360" y="348" text-anchor="middle" fill="#B48228" font-size="12" font-weight="600">Loop exits when goal state is reached or budget exhausted</text>
+</svg>

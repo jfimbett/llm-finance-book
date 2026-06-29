@@ -177,3 +177,114 @@
 | 2026-06-18 | 22 files | chore: session log 2026-06-18;fix(code): correct figure-generating notebook code across 4 chapters;chore: session log 2026-06-18; | — |
 | 2026-06-18 | 22 files | chore: session log 2026-06-18;chore: session log 2026-06-18;fix(code): correct figure-generating notebook code across 4 chapters; | — |
 | 2026-06-18 | 34 files | feat(exercises): add AAPL equity valuation multi-agent exercise;chore: session log 2026-06-18;chore: session log 2026-06-18; | — |
+| 2026-06-20 | 33 files | fix(ch08,ch10): add citealt macro and missing bib entries;chore: add tasks tracking file;chore: session log 2026-06-18; | — |
+| 2026-06-20 | 12 files | feat(ch01): empirical embedding-arithmetic case study with real GloVe;chore: session log 2026-06-20;fix(ch08,ch10): add citealt macro and missing bib entries; | — |
+| 2026-06-20 | 16 files | feat(ch01): accounting-identity comparison across two embedding models;chore: session log 2026-06-20;feat(ch01): empirical embedding-arithmetic case study with real GloVe; | — |
+| 2026-06-20 | 6 files | refine(ch01): simplify embeddings to a single clean king-queen analogy figure;chore: session log 2026-06-20;feat(ch01): accounting-identity comparison across two embedding models; | — |
+| 2026-06-20 | 29 files | refine(book): remove student exercises; keep worked illustrations;chore: session log 2026-06-20;refine(ch01): simplify embeddings to a single clean king-queen analogy figure; | — |
+| 2026-06-20 | 34 files | chore: session log 2026-06-20;refine(book): remove student exercises; keep worked illustrations;chore: session log 2026-06-20; | — |
+| 2026-06-20 | 34 files | chore: session log 2026-06-20;chore: session log 2026-06-20;refine(book): remove student exercises; keep worked illustrations; | — |
+| 2026-06-20 | 20 files | chore: session log 2026-06-20;chore: session log 2026-06-20;chore: session log 2026-06-20; | — |
+| 2026-06-20 | 20 files | chore: session log 2026-06-20;chore: session log 2026-06-20;chore: session log 2026-06-20; | — |
+| 2026-06-20 | 12 files | Fix ch01/ch02 single-source-of-truth overlap;chore: session log 2026-06-20;chore: session log 2026-06-20; | — |
+| 2026-06-20 | 8 files | refine(book): add SSOT bridges for SHAP/calibration/GDPR/FinBERT (non_repetition);docs(quality): write GOAL_STATUS.md — structural blockers cleared, repro blocker open;fix(ch09): accurate LM-lexicon example; mark backlog blockers resolved; | — |
+| 2026-06-20 | 28 files | docs(quality): update GOAL_STATUS — reproducibility prose+PII fixes done, B7/A12 done;refine(ch14,ch09): add dual-mode layering (B7) + Tetlock recall (A12);fix(repro): stop citing stub demo.ipynb as 'the complete implementation'; de-PII code; | — |
+| 2026-06-20 | 16 files | docs(quality): record ch05 first-pass milestone + demonstrated figure-determinism path;docs(quality): mark ch05 as first fully-passing chapter (14/14);feat(ch05): make DCF sensitivity figure deterministic (reproducibility/code_figure); | — |
+| 2026-06-20 | 15 files | chore: commit regenerated deterministic figure PDFs (timestamp-only diffs);regression: final book-quality gate GREEN — 16/16 pass, book-level pass YES;docs(quality): final scorecard — 16/16 chapters pass, goal met; | — |
+| 2026-06-20 | 13 files | docs(quality): add AUTHOR_DECISIONS.md — single editable list of pending author decisions;chore: session log 2026-06-20;chore: commit regenerated deterministic figure PDFs (timestamp-only diffs); | — |
+| 2026-06-20 | 13 files | docs(quality): GOAL_STATUS §4 reflects applied author decisions (RiskTagger, .bib deletion, About-This-Book);docs(quality): record all author decisions applied; refresh page count (628 pp);feat: apply author decisions A1/B1/B2/D2 from AUTHOR_DECISIONS.md; | — |
+| 2026-06-20 | 13 files | chore: session log 2026-06-20;docs(quality): GOAL_STATUS §4 reflects applied author decisions (RiskTagger, .bib deletion, About-This-Book);docs(quality): record all author decisions applied; refresh page count (628 pp); | — |
+| 2026-06-20 | 67 files | fix(course): eliminate all content-clipping slide overflows;fix(course): density pass on slide decks — split overpacked frames, fix fragile;feat(course): full lesson + practical slide decks for all 16 chapters; | — |
+| 2026-06-20 | 67 files | style(course): match book typography in slides — Palatino, smaller, top-aligned;chore: session log 2026-06-20;fix(course): eliminate all content-clipping slide overflows; | — |
+| 2026-06-20 | 68 files | content: make all exercises depend on LLMs/agents, not pure finance;chore: session log 2026-06-20;style(course): match book typography in slides — Palatino, smaller, top-aligned; | — |
+| 2026-06-21 | 68 files | chore: session log 2026-06-20;content: make all exercises depend on LLMs/agents, not pure finance;chore: session log 2026-06-20; | — |
+| 2026-06-21 | 68 files | chore: session log 2026-06-21;chore: session log 2026-06-20;content: make all exercises depend on LLMs/agents, not pure finance; | — |
+| 2026-06-21 | 7 files | chore: session log 2026-06-21;chore: session log 2026-06-21;chore: session log 2026-06-20; | — |
+| 2026-06-21 | 7 files | chore: session log 2026-06-21;chore: session log 2026-06-21;chore: session log 2026-06-21; | — |
+| 2026-06-26 | 45 files | chore: scaffold topic 17-loops-goals-iterations;feat(exercises): agentic business-valuation Claude Code exercise;docs(exercises): business valuation implementation plan; | — |
+| 2026-06-26 | 47 files | feat(ch17): draft Loops, Goals, and Iterations chapter;chore: session log 2026-06-26;chore: scaffold topic 17-loops-goals-iterations; | — |
+| 2026-06-26 | 12 files | feat(lec17): add exercises and solutions;feat(code-17): companion notebooks for iteration loops;feat(lec17): draft Loops, Goals, and Iterations lecture and practical; | — |
+| 2026-06-26 | 12 files | chore: session log 2026-06-26;feat(lec17): add exercises and solutions;feat(code-17): companion notebooks for iteration loops; | — |
+| 2026-06-26 | 11 files | chore: session log 2026-06-26;chore: session log 2026-06-26;feat(lec17): add exercises and solutions; | — |
+| 2026-06-26 | 13 files | refine(book): restructure chapter order for concept progression; add agentic-tooling intro;chore: session log 2026-06-26;chore: session log 2026-06-26; | — |
+| 2026-06-26 | 12 files | chore: session log 2026-06-26;refine(book): restructure chapter order for concept progression; add agentic-tooling intro;chore: session log 2026-06-26; | — |
+| 2026-06-26 | 14 files | revise(ch02): redraw Figure 3.1 as canonical Transformer encoder-decoder and add encoder/decoder explanation;chore: session log 2026-06-26;chore: session log 2026-06-26; | — |
+| 2026-06-26 | 14 files | chore: session log 2026-06-26;revise(ch02): redraw Figure 3.1 as canonical Transformer encoder-decoder and add encoder/decoder explanation;chore: session log 2026-06-26; | — |
+| 2026-06-26 | 4 files | revise(ch02): add tiny-GPT numerical forward-pass walk-through with FFN network figure;chore: session log 2026-06-26;chore: session log 2026-06-26; | — |
+| 2026-06-26 | 4 files | revise(ch02): show one-hot lookup, add special-tokens section, highlight matrix rows/cols;chore: session log 2026-06-26;revise(ch02): add tiny-GPT numerical forward-pass walk-through with FFN network figure; | — |
+| 2026-06-26 | 42 files | feat(slides): add all 17 practical-session HTML decks + fix currency rendering;feat(slides): convert all 16 remaining lectures to HTML decks;feat(slides): HTML/JS slide engine + Lecture 1 reference + landing page; | — |
+| 2026-06-28 | 39 files | chore: session log 2026-06-26;feat(slides): add all 17 practical-session HTML decks + fix currency rendering;feat(slides): convert all 16 remaining lectures to HTML decks; | — |
+| 2026-06-28 | 39 files | docs(slides): HTML slides overhaul design spec;chore: session log 2026-06-28;chore: session log 2026-06-26; | — |
+| 2026-06-28 | 3 files | docs(slides): HTML slides overhaul implementation plan;chore: session log 2026-06-28;docs(slides): HTML slides overhaul design spec; | — |
+| 2026-06-28 | 86 files | fix(slides): align ch10 practical badge to summer-school wording;chore(slides): delete legacy Beamer slide artifacts; HTML is the single source of truth;fix(slides): 17-loops — fix Park 2023 misattribution, align diagram caption; | — |
+| 2026-06-28 | 158 files | Merge feat/html-slides-overhaul: complete + de-MBA HTML decks, figures, delete Beamer;chore: session log 2026-06-28;fix(slides): align ch10 practical badge to summer-school wording; | — |
+| 2026-06-28 | 157 files | feat(slides): always-visible fullscreen button in the shared HUD;chore: session log 2026-06-28;Merge feat/html-slides-overhaul: complete + de-MBA HTML decks, figures, delete Beamer; | — |
+| 2026-06-28 | 156 files | chore: session log 2026-06-28;feat(slides): always-visible fullscreen button in the shared HUD;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 156 files | chore: session log 2026-06-28;chore: session log 2026-06-28;feat(slides): always-visible fullscreen button in the shared HUD; | — |
+| 2026-06-28 | 2 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 2 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 8 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 8 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 8 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 8 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 8 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 1 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 33 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 69 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-28 | 69 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-29 | 111 files | chore: session log 2026-06-28;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-29 | 111 files | chore: session log 2026-06-29;chore: session log 2026-06-28;chore: session log 2026-06-28; | — |
+| 2026-06-29 | 60 files | docs: hallucination audit report;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 28 files | fix(book): resolve hallucination-audit findings in 10 chapters;chore: session log 2026-06-29;docs: hallucination audit report; | — |
+| 2026-06-29 | 28 files | chore: session log 2026-06-29;fix(book): resolve hallucination-audit findings in 10 chapters;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 14 files | feat(skills): add audit-slides-coverage skill + slides-coverage-auditor agent;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 14 files | chore: session log 2026-06-29;feat(skills): add audit-slides-coverage skill + slides-coverage-auditor agent;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 7 files | docs: slides coverage audit report;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 7 files | chore: session log 2026-06-29;docs: slides coverage audit report;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 4 files | chore: session log 2026-06-29;chore: session log 2026-06-29;docs: slides coverage audit report; | — |
+| 2026-06-29 | 4 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 4 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 2 files | docs: design for practical verification harness;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 4 files | feat(lec02,lec09): close slides-coverage gaps from audit;chore: session log 2026-06-29;docs: design for practical verification harness; | — |
+| 2026-06-29 | 4 files | docs: fold validated claude -p headless recipe into harness spec;chore: session log 2026-06-29;feat(lec02,lec09): close slides-coverage gaps from audit; | — |
+| 2026-06-29 | 7 files | docs: mark slides-coverage audit findings resolved (e83346f);chore: session log 2026-06-29;docs: fold validated claude -p headless recipe into harness spec; | — |
+| 2026-06-29 | 6 files | docs: implementation plan for practical verification harness;chore: session log 2026-06-29;docs: mark slides-coverage audit findings resolved (e83346f); | — |
+| 2026-06-29 | 5 files | chore: session log 2026-06-29;docs: implementation plan for practical verification harness;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 7 files | feat(code): scaffold practical-verify package and data model;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 7 files | chore: session log 2026-06-29;feat(code): scaffold practical-verify package and data model;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 10 files | feat(lec01): add setup / tech-requirements slide deck;feat(code): discover and classify practicals;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 5 files | chore: session log 2026-06-29;feat(lec01): add setup / tech-requirements slide deck;feat(code): discover and classify practicals; | — |
+| 2026-06-29 | 5 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat(lec01): add setup / tech-requirements slide deck; | — |
+| 2026-06-29 | 5 files | feat(code): load and validate verify.yaml manifests;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 3 files | chore: session log 2026-06-29;feat(code): load and validate verify.yaml manifests;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 5 files | feat(code): add config-lint and reference-integrity checks;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 6 files | feat(lec01): rename setup deck to tech-requirements.html; link from root site;chore: session log 2026-06-29;feat(code): add config-lint and reference-integrity checks; | — |
+| 2026-06-29 | 6 files | chore: session log 2026-06-29;feat(lec01): rename setup deck to tech-requirements.html; link from root site;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 6 files | fix(code): defensive is_dir guards and null-yaml handling in static checks;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 7 files | feat(site): publish first 4 modules + book PDF on the landing page;feat(code): repo-safe temp copy and throwaway venv helpers;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 7 files | chore: session log 2026-06-29;feat(site): publish first 4 modules + book PDF on the landing page;feat(code): repo-safe temp copy and throwaway venv helpers; | — |
+| 2026-06-29 | 5 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat(site): publish first 4 modules + book PDF on the landing page; | — |
+| 2026-06-29 | 462 files | feat: practical harnesses, llmfin package, quality audits, site updates;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 460 files | chore: session log 2026-06-29;feat: practical harnesses, llmfin package, quality audits, site updates;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 460 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat: practical harnesses, llmfin package, quality audits, site updates; | — |

@@ -299,3 +299,4 @@
 | 2026-06-29 | 4 files | fix(site): open slide decks in a new tab;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 3 files | chore: session log 2026-06-29;fix(site): open slide decks in a new tab;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 4 files | refine(lec01): remove the TF-IDF by-hand problem from practical 1;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 5 files | refine(lec01): repoint practical links to the embedding-analogy code;refine(lec01): drop the practical deck; point to the embedding-analogy code;chore: session log 2026-06-29; | — |

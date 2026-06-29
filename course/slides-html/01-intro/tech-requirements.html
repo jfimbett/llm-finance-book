@@ -75,8 +75,8 @@
       <li class="frag"><strong>Use the official downloads only.</strong> Every link on these slides points to the vendor's own site. Avoid mirrors and "download helper" sites.</li>
       <li class="frag"><strong>Verify each step.</strong> After every install there is a one-line check (a <code class="inline">--version</code> command). If the check fails, fix it before moving on — later steps depend on earlier ones.</li>
     </ul>
-    <div class="block"><div class="block-title">You also need Git</div>
-      Git is used to download the course code and is used by Claude Code on Windows. Install it from <code class="inline">git-scm.com/downloads</code> (macOS/Linux usually already have it: check with <code class="inline">git --version</code>).
+    <div class="block"><div class="block-title">Git &amp; the GitHub CLI</div>
+      You will also install <strong>Git</strong> (to fetch the course code, and used by Claude Code on Windows) and the <strong>GitHub CLI</strong> <code class="inline">gh</code> — these get their own section (§6).
     </div>
     <div class="bigpicture callout frag">
       <span class="callout-tag">the bigger picture</span>
@@ -361,9 +361,67 @@ claude doctor</pre>
     </div>
   </section>
 
-  <!-- ============================ SECTION 06 — COURSE CODE + CHECK ============================ -->
+  <!-- ============================ SECTION 06 — GIT + GITHUB CLI ============================ -->
   <section class="slide section-slide">
     <div class="secnum">06</div>
+    <h2>Git &amp; the GitHub CLI</h2>
+    <div class="secsub">Version control to fetch the course code — and <code class="inline">gh</code> for everything else on GitHub.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Install · Git</div>
+    <h2>Git — you need it to clone the course repository</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Git is also what Claude Code uses for its Bash tool on Windows. Get it from <code class="inline">git-scm.com/downloads</code>, or via a package manager:</p>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">Windows</div>
+        Official installer, or:
+        <pre class="code">winget install Git.Git</pre>
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">macOS</div>
+        Often preinstalled; otherwise:
+        <pre class="code">brew install git</pre>
+        <span class="small">or <code class="inline">xcode-select --install</code></span>
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">Linux</div>
+        <pre class="code">sudo apt install git   # Debian/Ubuntu
+sudo dnf install git   # Fedora/RHEL</pre>
+      </div></div>
+    </div>
+    <div class="block frag"><div class="block-title">Verify &amp; introduce yourself</div>
+      <pre class="code">git --version
+git config --global user.name  "Your Name"
+git config --global user.email "you@example.com"</pre>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Install · GitHub CLI</div>
+    <h2>gh — GitHub from the terminal: auth, clone, pull requests, issues</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The GitHub CLI logs you in to GitHub once and then handles cloning over HTTPS, pull requests, and issues. Get it from <code class="inline">cli.github.com</code>, or:</p>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">Windows</div>
+        <pre class="code">winget install GitHub.cli</pre>
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">macOS</div>
+        <pre class="code">brew install gh</pre>
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">Linux</div>
+        <pre class="code">sudo dnf install gh   # Fedora/RHEL</pre>
+        <span class="small">Debian/Ubuntu: follow the signed-keyring <code class="inline">apt</code> steps at <code class="inline">cli.github.com</code>.</span>
+      </div></div>
+    </div>
+    <div class="block frag"><div class="block-title">Verify &amp; log in</div>
+      <pre class="code">gh --version
+gh auth login        # opens a browser to authenticate</pre>
+      After <code class="inline">gh auth login</code>, the CLI also manages Git's GitHub credentials for you — no tokens to paste.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 07 — COURSE CODE + CHECK ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">07</div>
     <h2>Get the course code &amp; check everything works</h2>
     <div class="secsub">Clone the repo, install into your environment, and run the final checklist.</div>
   </section>
@@ -390,15 +448,16 @@ python --version
 node --version
 claude --version
 git --version
+gh --version
 python -c "import pandas, numpy, sklearn, gensim; print('libs ok')"
 python -c "import anthropic; print('sdk ok')"</pre>
     <div class="statrow frag">
-      <div class="stat"><div class="num">7</div><div class="lbl">checks pass</div></div>
+      <div class="stat"><div class="num">8</div><div class="lbl">checks pass</div></div>
       <div class="stat"><div class="num">3</div><div class="lbl">extensions installed</div></div>
       <div class="stat"><div class="num">1</div><div class="lbl">key in your environment</div></div>
     </div>
     <div class="takeaway callout frag"><span class="callout-tag">you're ready</span>
-      If all seven lines run without error and Claude Code logged in, your machine is set up for the whole course. Bring it to the first session working.
+      If all eight lines run without error and Claude Code logged in, your machine is set up for the whole course. Bring it to the first session working.
     </div>
   </section>
 

@@ -1,0 +1,18 @@
+Iterate-to-target agent — Cline rules.
+
+Refine reports/draft.md until the gate tools/check.py says the target in data/target.json is
+met. The tools in tools/ measure and decide; you only draft and revise, never invent a figure
+and never judge the draft yourself.
+
+Loop (budget: 5 passes):
+1. Draft a one-paragraph summary of data/source.txt into reports/draft.md, using only figures
+   from the source.
+2. python -m tools.metric --candidate reports/draft.md   (coverage, missing facts, unsupported figures)
+3. python -m tools.check  --candidate reports/draft.md   (exit 0 == target met)
+4. If it fails, edit reports/draft.md to add each missing fact (figure from the source) and
+   remove/correct each unsupported figure; cite the source line. Repeat from 2.
+5. Save the score trajectory and final draft to reports/<slug>-trajectory.md.
+
+The loop stops only when the tool says the target is met. A PostToolUse hook in
+.claude/settings.json (.claude/hooks/after_edit.sh) re-scores the draft after every edit.
+Run tests with: python -m pytest -q

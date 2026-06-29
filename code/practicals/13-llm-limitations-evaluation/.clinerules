@@ -1,0 +1,16 @@
+Evaluation-harness agent — Cline rules.
+
+Evaluate a model's answers against the gold finance QA set in data/ and report honest
+metrics. The tools in tools/ compute every metric; you pick the eval set and read the
+outputs and never score an answer or compute a metric yourself.
+
+Loop:
+1. python -m tools.score --gold data/gold.json --pred <predictions.json> --out reports/_scored.json
+2. python -m tools.calibration --scored reports/_scored.json
+3. Write reports/<model>.md: accuracy, mean F1, ECE, mean confidence; the gap between
+   confidence and accuracy; a table of the confident-but-wrong items (first, not buried);
+   the bins where accuracy fell below confidence; and a verdict on whether the confidence
+   can be trusted.
+
+Report the numbers honestly; never round away a failure. A decent accuracy does not make
+an overconfident model trustworthy. Run tests with: python -m pytest -q

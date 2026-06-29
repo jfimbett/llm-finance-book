@@ -12,11 +12,10 @@
 
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
-    <div class="kicker">Large Language Models in Finance · Practical Session 3</div>
-    <h1>LoRA, Scaling, and Fine-Tuning</h1>
+    <div class="kicker">Large Language Models in Finance · Chapter 3 / Lecture 3 · Practical</div>
+    <h1>Training and Fine-Tuning Large Language Models</h1>
     <div class="sub">Hands-on: parameter counting, Chinchilla budgeting, instruction tuning, and FinBERT sentiment with PEFT.</div>
-    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
   </section>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -365,7 +364,7 @@ with torch.no_grad():
     <div class="title-rule"></div>
     <p class="lead">For each scenario, choose: zero-shot / few-shot ICL / LoRA fine-tune / full fine-tune — and say why.</p>
     <ol>
-      <li class="frag"><strong>Hedge fund.</strong> Classify 10-K risk-factor sections "material" vs. "immaterial" for one covenant type. 50 labelled examples, 2-hour deadline, using GPT-4o via API.</li>
+      <li class="frag"><strong>Hedge fund.</strong> Classify 10-K risk-factor sections "material" vs. "immaterial" for one covenant type. 50 labelled examples, 2-hour deadline, using GPT-5.6 Luna via API.</li>
       <li class="frag"><strong>Tier-1 bank.</strong> On-premise earnings-call sentiment (no external API), 200,000 docs/month, GDPR data-residency, 20,000 labelled examples.</li>
       <li class="frag"><strong>Fintech startup.</strong> General-purpose financial chatbot; no task-specific labelled data, but access to a pre-trained instruction-tuned LLM.</li>
       <li class="frag"><strong>Quant research.</strong> Test whether a 70B model can replicate an expert's reasoning on novel bond-structuring questions. No labelled data exists.</li>

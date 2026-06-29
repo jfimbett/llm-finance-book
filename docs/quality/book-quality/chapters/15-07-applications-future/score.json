@@ -1,0 +1,221 @@
+{
+  "file": "book/chapters/07-applications-future/chapter.tex",
+  "reading_index": 15,
+  "slug": "07-applications-future",
+  "title": "Other Applications in Finance and Future Trends",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:147 — FinanceBench 'roughly 80%' first-attempt claim unverifiable / likely overstated",
+        "chapter.tex:38 — 'Six chapters ago' is wrong: chapter is reading index 15, intro is index 1",
+        "chapter.tex:56-82 — tab:chapter-map numbers chapters 1-7 with stale folder numbers, contradicting reading order",
+        "chapter.tex:295-300 — RRF eq:rrf with k=60 correct; chapter.tex:408-416 fairness impossibility stated correctly"
+      ],
+      "blocking_issues": [
+        "MAJOR · correctness · chapter.tex:38 — stale 'Six chapters ago' count",
+        "MAJOR · correctness · chapter.tex:56-82 — chapter-map table uses pre-reorder numbering",
+        "MAJOR · citation_accuracy/correctness · chapter.tex:147 — unverified 80% FinanceBench figure"
+      ],
+      "recommended_action": "Fix stale counts (#3,#4 editor-plan); hedge or source the 80% claim."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 82,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:33-501 — nearly every subsection wrapped in a single large 'context' box",
+        "No 'deepdive' box despite under-the-hood material (RRF, SHAP-on-embeddings, KL drift)"
+      ],
+      "blocking_issues": [
+        "NIT/MINOR · concept_separation · whole chapter — big-picture/internal layering is flat; no deepdive boxes"
+      ],
+      "recommended_action": "Add >=1 deepdive box for the technical internals (editor-plan #8)."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 55,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:243,334 — prose claims 'complete Python implementation' in demo.ipynb, which is a 1-cell placeholder",
+        "demo.ipynb — single markdown cell ending '[Placeholder — fill in with working code]'",
+        "exercises.ipynb cells 2,4 — figure generation code is real and correct; fig_illustration.pdf present",
+        "exercises.ipynb cells 8-14 — EDGAR 8-K monitor code is real (requests to EDGAR endpoints)"
+      ],
+      "blocking_issues": [
+        "BLOCKER · code_figure_correctness · chapter.tex:243,334 — promised code points to a stub notebook"
+      ],
+      "recommended_action": "Repoint to exercises.ipynb or populate demo.ipynb (editor-plan #2)."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:116-160 — deployment patterns and architecture families defined before the selection tables use them",
+        "chapter.tex:208-217 — workflow DAG defined before the three patterns reference it",
+        "chapter.tex:381-405 — fairness criteria defined before prop:fairness-impossibility uses them",
+        "chapter.tex:56-82 — chapter-map presents a numbering inconsistent with actual reading order, harming the ordering narrative"
+      ],
+      "blocking_issues": [
+        "MAJOR · concept_ordering · chapter.tex:56-82,38 — stale numbering breaks the 'where we have been' ordering map"
+      ],
+      "recommended_action": "Fix the chapter-map and opening count (editor-plan #3,#4)."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:42-44 — explicit synthesis bridge back to prior chapters via \\ref{ch:...}",
+        "chapter.tex:225 — orchestrator-worker pattern explicitly attributed to \\ref{ch:llm-agents}",
+        "chapter.tex:38,56-82 — stale numbering undermines the consolidation/retrospective the chapter is built around"
+      ],
+      "blocking_issues": [
+        "MAJOR · progressive_learning · chapter.tex:38,56-82 — the recap/bridge relies on incorrect chapter numbering"
+      ],
+      "recommended_action": "Correct the retrospective references so the build-up is accurate."
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:381-416 — fairness criteria are NOT re-derived from credit-risk (credit-risk does not define them); single source of truth here",
+        "chapter.tex:225 — orchestrator-worker cross-referenced to ch:llm-agents, not re-derived",
+        "chapter.tex:363 — 'The credit chapter introduced bias' references prior content but lacks an explicit \\Cref hyperlink",
+        "chapter.tex:286-302 — RAG re-explained; lewis2020rag re-cited; overlaps ch:business-valuation RAG treatment but adds finance-document chunking specifics"
+      ],
+      "blocking_issues": [
+        "MINOR · non_repetition · chapter.tex:363 — prose recap of credit-risk bias without labelled cross-reference",
+        "MINOR · non_repetition · chapter.tex:286-302 — RAG partially re-explained vs business-valuation; add \\Cref instead of re-deriving chunking rationale"
+      ],
+      "recommended_action": "Add \\Cref{ch:credit-risk}/\\Cref{ch:business-valuation} at the recap points (editor-plan #6)."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:94-109 — portfolio/ESG/earnings-surprise/trading framed as finance problems first",
+        "chapter.tex:232-239 — three finance workflows (earnings call, EDGAR monitor, trade surveillance)",
+        "chapter.tex:453-489 — SR 11-7, EU AI Act, GDPR, MiFID II governance — finance-regulation-first",
+        "Every technique is motivated by a financial decision or compliance obligation"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:319-330 ex:openclaw-skills — four concrete finance skills (earnings alert, filing monitor, portfolio QA, macro digest)",
+        "chapter.tex:466-469 ex:sr117-checklist — actionable SR 11-7 documentation package",
+        "chapter.tex:232-239 — runnable EDGAR workflow (backed by exercises.ipynb)",
+        "chapter.tex:241-243,334 — but the promised runnable code is a placeholder, so the examples are not reader-runnable as claimed"
+      ],
+      "blocking_issues": [
+        "MAJOR · finance_examples · chapter.tex:243,334 — flagship examples promise runnable code that is absent (stub notebook)"
+      ],
+      "recommended_action": "Wire examples to real code (editor-plan #2)."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "All 26 \\cite keys resolve in book/bibliography.bib (verified)",
+        "No duplicate bib entries for the chapter's keys (each appears once)",
+        "SSRN working papers carry author/title/year/url fields (NoguerFAIR2025, chen2024uncertainty, didisheim2025memory, BaloghDidisheim2025)"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:147 — FinanceBench 'roughly 80%' first-attempt figure not verifiable locally",
+        "chapter.tex:505-514 / exercises.ipynb cell 1 — GPT-4 FinQA 0.68 (no official OpenAI figure), BloombergGPT FPB 0.85 (accuracy not F1) self-flagged for verification",
+        "chapter.tex:347 BaloghDidisheim2025 inverted-U context-length claim; chapter.tex:573 didisheim2025memory look-ahead-bias claim — SSRN papers, paraphrase plausible but unverifiable locally"
+      ],
+      "blocking_issues": [
+        "MAJOR · citation_accuracy · chapter.tex:147 — unverified 80% FinanceBench figure",
+        "MINOR · citation_accuracy · chapter.tex:505-514 — unverified benchmark scores in figure"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION (capped at 89); verify FinanceBench/benchmark numbers and SSRN paraphrases."
+    },
+    {
+      "dimension": "completeness",
+      "score": 85,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:208-256 — DAG, three patterns, integration levels all defined",
+        "chapter.tex:341-349 — deployment caveats (freshness, hallucination, routing, feedback) covered",
+        "chapter.tex:241-243 — the promised 'representative Python implementation' of the event-triggered pipeline is missing (stub notebook)",
+        "chapter.tex:594-596 — model-version reproducibility caveat present"
+      ],
+      "blocking_issues": [
+        "MAJOR · completeness · chapter.tex:241-243 — defined automation patterns not backed by the promised runnable implementation"
+      ],
+      "recommended_action": "Supply the promised code or remove the promise (editor-plan #2)."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 60,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:400 — \\label{def:calibration} COLLIDES with 06-credit-risk/chapter.tex:382 (different concept, same key)",
+        "chapter.tex:379 — \\ref{def:calibration} range ref resolves ambiguously due to the collision",
+        "All other \\ref/\\Cref targets resolve (ch:*, tab:*, fig:*, sec:*, def:demographic-parity, eq:rrf)",
+        "Cross-chapter refs use \\ref{ch:...} labels, not hard-coded numbers (good) — except the tab:chapter-map numeric column"
+      ],
+      "blocking_issues": [
+        "BLOCKER · notation_crossref · chapter.tex:400 — duplicate label def:calibration (book-wide)",
+        "MAJOR · notation_crossref · chapter.tex:56-82 — hard-coded stale chapter numbers in tab:chapter-map"
+      ],
+      "recommended_action": "Rename ch07 label to def:calibration-within-group; fix the chapter-map numbering (editor-plan #1,#4)."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 58,
+      "pass": false,
+      "evidence": [
+        "exercises.ipynb — real figure-generation + EDGAR lab code; exercises_executed.ipynb has executed outputs",
+        "fig_illustration.pdf present and regenerable from exercises.ipynb",
+        "demo.ipynb — STUB (1 placeholder cell); the two prose pointers to it are dead",
+        "Figure benchmark numbers hardcoded with explicit 'verify against original papers' note (transparent but unverified)"
+      ],
+      "blocking_issues": [
+        "BLOCKER · reproducibility · demo.ipynb — placeholder notebook referenced as the source of 'complete Python implementation'"
+      ],
+      "recommended_action": "Populate demo.ipynb or repoint prose to exercises.ipynb (editor-plan #2)."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 85,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-26 — eight explicit learning objectives matched to chapter sections",
+        "chapter.tex:130-188 — decision tables operationalise the choices for the mixed audience",
+        "chapter.tex:577-590 — separate 'for the researcher' / 'for the practitioner' guidance",
+        "Flat context-box-only structure (no deepdive) and the dead code pointers reduce hands-on learnability"
+      ],
+      "blocking_issues": [
+        "MAJOR · pedagogy · chapter.tex:243,334 — learning objective 3 ('implement ... in Python') is undermined by the stub notebook",
+        "MINOR · pedagogy · concept_separation flatness"
+      ],
+      "recommended_action": "Restore runnable code and add deepdive layering (editor-plan #2,#8)."
+    }
+  ],
+  "pass": false,
+  "notes": "Audit only — no edits applied. Chapter is finance-first, well-cited (26/26 keys resolve), and governance content is a genuine single source of truth. Fails on: (1) BLOCKER duplicate label def:calibration vs 06-credit-risk; (2) BLOCKER demo.ipynb is a placeholder yet prose (243,334) calls it the 'complete Python implementation', cascading into code_figure_correctness/reproducibility/completeness/finance_examples/pedagogy; (3) stale pre-reorder numbering ('Six chapters ago' line 38; tab:chapter-map Ch.1-7) breaking correctness/ordering. citation_accuracy capped at 89 (NEEDS_EXTERNAL_VERIFICATION) for the FinanceBench 80% figure, the hardcoded benchmark scores, and SSRN-paper paraphrases."
+}

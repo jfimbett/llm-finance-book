@@ -16,11 +16,42 @@
 
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
-    <div class="kicker">Large Language Models in Finance · Lecture 1</div>
-    <h1>From Text to Signals in Finance</h1>
+    <div class="kicker">Large Language Models in Finance · Chapter 1 / Lecture 1</div>
+    <h1>Introduction</h1>
     <div class="sub">How words in filings, calls, and headlines become numbers you can trade — and how LLMs change that.</div>
-    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+  </section>
+
+  <!-- ============================ INSTRUCTOR ============================ -->
+  <section class="slide">
+    <div class="eyebrow">Your instructor</div>
+    <h2>About the Instructor</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Juan F. Imbet</div>
+          <ul>
+            <li>EDHEC Business School / Paris Dauphine – PSL University</li>
+            <li>Email: <a href="mailto:juan.imbet@edhec.edu">juan.imbet@edhec.edu</a></li>
+            <li class="frag">Website: <a href="https://jfimbett.github.io">jfimbett.github.io</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Research &amp; background</div>
+          <ul>
+            <li class="frag">Research interests: Asset Pricing, Corporate Finance, Asset Management, NLP and ML in Finance</li>
+            <li class="frag">Ph.D. in Finance — Universitat Pompeu Fabra (UPF) &amp; Barcelona School of Economics (BSE)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why this course</span>
+      The full stack, end to end: how LLMs work and how to fine-tune and orchestrate them as agents; how to apply
+      them across finance — valuation, credit risk, trading, compliance, sentiment, summarization; and how to deploy
+      them responsibly — evaluated, explainable, and privacy-aware.
+    </div>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -34,7 +65,7 @@
           <li class="frag"><strong>AI, jobs, and tasks</strong> — the task-based lens on what LLMs actually do to finance careers.</li>
           <li class="frag"><strong>A brief history</strong> — dictionaries → topic models → embeddings → transformers.</li>
           <li class="frag"><strong>Why text matters</strong> — the EDGAR explosion and why signals survive efficient markets.</li>
-          <li class="frag"><strong>Classical toolkit</strong> — BoW, TF-IDF, their strengths and blind spots.</li>
+          <li class="frag"><strong>Classical toolkit</strong> — bag-of-words, the one-hot basis beneath it, TF-IDF, and their blind spots.</li>
           <li class="frag"><strong>Word embeddings</strong> — meaning as geometry; Word2Vec, GloVe, finance domain.</li>
           <li class="frag"><strong>RNNs, attention, and LLM families</strong> — from sequential state to parallel self-attention.</li>
           <li class="frag"><strong>APIs and limitations</strong> — querying models in Python; hallucinations and regulation.</li>
@@ -54,13 +85,13 @@
   <!-- ============================ SECTION 00 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">00</div>
-    <h2>AI, jobs, and tasks</h2>
+    <h2>Artificial Intelligence, Jobs, and Tasks</h2>
     <div class="secsub">LLMs affect tasks within jobs, not jobs wholesale — and that distinction is everything.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">The framework</div>
-    <h2>Automation acts task by task, not job by job</h2>
+    <h2>The Task-Based Framework</h2>
     <div class="title-rule"></div>
     <p class="lead">A job is a bundle of tasks. AI substitutes some tasks, complements others — and which tasks determines everything.</p>
     <div class="cols">
@@ -96,7 +127,7 @@
 
   <section class="slide">
     <div class="eyebrow">Finance professionals</div>
-    <h2>High AI exposure creates compound advantage — if you reallocate</h2>
+    <h2>Implications for Finance Professionals</h2>
     <div class="title-rule"></div>
     <p class="lead">Tools that compress low-value tasks free capacity for high-value ones where human judgment dominates.</p>
     <div class="cols">
@@ -130,7 +161,7 @@
   <!-- ============================ SECTION 01 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">01</div>
-    <h2>A brief history of textual analysis in finance</h2>
+    <h2>A Brief History of Textual Analysis in Finance</h2>
     <div class="secsub">From hand-coded dictionaries to neural methods — each generation fixed the failure of the one before.</div>
   </section>
 
@@ -170,7 +201,7 @@
 
   <section class="slide">
     <div class="eyebrow">Counting words, carefully</div>
-    <h2>Why a finance dictionary beat a general-English one</h2>
+    <h2>Early Approaches: Keyword Counting and Dictionary Methods</h2>
     <div class="title-rule"></div>
     <div class="cols">
       <div class="col">
@@ -200,7 +231,7 @@
 
   <section class="slide">
     <div class="eyebrow">The statistical turn</div>
-    <h2>Topic models: letting the data discover its own structure</h2>
+    <h2>The Shift to Statistical and Neural Methods</h2>
     <div class="title-rule"></div>
     <p class="lead">By the mid-2000s NLP moved beyond dictionaries to methods that learn structure from the data — no hand-coding required.</p>
     <div class="block">
@@ -229,13 +260,13 @@
   <!-- ============================ SECTION 02 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">02</div>
-    <h2>Why text matters in finance</h2>
+    <h2>Why Text Matters in Finance</h2>
     <div class="secsub">Where the words come from — and why a profitable signal can hide in plain sight.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">The raw material is exploding</div>
-    <h2>10-K filings have grown longer every decade since 1993</h2>
+    <h2>The Quantitative Growth of Financial Text</h2>
     <div class="title-rule"></div>
     <p class="lead">More text means more signal — but also more work for any human reader. That gap is where NLP tools earn their keep.</p>
     <figure class="deckfig">
@@ -253,7 +284,7 @@
 
   <section class="slide">
     <div class="eyebrow">The raw material</div>
-    <h2>Six places financial language lives</h2>
+    <h2>The Information Content of Earnings Calls, News, and Filings</h2>
     <div class="title-rule"></div>
     <div class="cols">
       <div class="col">
@@ -302,7 +333,7 @@
 
   <section class="slide">
     <div class="eyebrow">Four facts any theory must explain</div>
-    <h2>The stylised facts of text-and-returns</h2>
+    <h2>Text as a Signal: Evidence from the Literature</h2>
     <div class="title-rule"></div>
     <ol>
       <li class="frag"><strong>Negative tone → negative short-run returns, then reversal.</strong>
@@ -330,10 +361,13 @@
     <aside class="underhood" data-title="formal definition">
       A textual signal is a measurable function
       \[ f \colon \mathcal{D} \longrightarrow \mathbb{R}^k, \qquad s_t = f(d_t). \]
+      <p>where \(\mathcal{D}\) is the space of all possible documents, \(d_t\) is the document observed at time \(t\),
+      \(s_t\) is the number(s) it produces, and \(k\) is the output dimension — \(k=1\) for a single score, larger for a vector.</p>
       Examples of \(f\): fraction of LM-negative words (\(k=1\)); LDA topic proportions
       (\(k=\)#topics); a 300-dim sentence embedding (\(k=300\)); an LLM classifier (\(k=\)#classes).
-      The signal is <em>economically significant</em> if \(\mathrm{Cov}(s_t, r_{t+1}) \neq 0\) after
-      controlling for known return predictors and if the implied Sharpe ratio exceeds transaction costs.
+      The signal is <em>economically significant</em> if \(\mathrm{Cov}(s_t, r_{t+1}) \neq 0\) — i.e. the signal
+      co-moves with the next-period asset return \(r_{t+1}\) — after controlling for known return predictors,
+      and if the implied Sharpe ratio exceeds transaction costs.
     </aside>
     <div class="takeaway callout">
       <span class="callout-tag">the whole course in one line</span>
@@ -369,7 +403,7 @@
   <!-- ============================ SECTION 03 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">03</div>
-    <h2>The classic toolkit: counting words</h2>
+    <h2>Classical Text Representations</h2>
     <div class="secsub">Bag-of-words and TF-IDF — simple, fast, surprisingly strong, and fundamentally blind to order.</div>
   </section>
 
@@ -393,7 +427,7 @@
 
   <section class="slide">
     <div class="eyebrow">The workhorse</div>
-    <h2>Bag-of-words: a document as a pile of word counts</h2>
+    <h2>Vocabulary, Tokens, and the Bag-of-Words Model</h2>
     <div class="title-rule"></div>
     <p class="lead">Tip every document into a bag, count each word, forget the order. Crude — but a strong baseline.</p>
     <div class="cols">
@@ -413,7 +447,50 @@
     <aside class="underhood" data-title="the vector form">
       \[ \mathbf{x}(d) = \big(\mathrm{count}(v_1,d),\dots,\mathrm{count}(v_V,d)\big)^\top \in \mathbb{Z}_{\geq 0}^V. \]
       Stack all \(N\) documents to get the term-document matrix \(\mathbf{X}\in\mathbb{Z}_{\geq0}^{N\times V}\).
-      Each word is a one-hot basis vector \(\mathbf{e}_k\); a document is the sum of its words' one-hots.
+    </aside>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Zooming in · one word at a time</div>
+    <h2>One-Hot Encoding</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Bag-of-words counted words — but what <em>is</em> a single word, to a computer? It can't read
+      "revenue"; it reads numbers. Fix a vocabulary of \(V\) words, then represent word number \(k\) as a vector
+      that is all zeros except a single <strong>1</strong> in slot \(k\).</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">A 5-word vocabulary</div>
+          <ul>
+            <li><code>risk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ (1,0,0,0,0)</code></li>
+            <li><code>revenue&nbsp;&nbsp;&nbsp;→ (0,1,0,0,0)</code></li>
+            <li><code>income&nbsp;&nbsp;&nbsp;&nbsp;→ (0,0,1,0,0)</code></li>
+            <li><code>margin&nbsp;&nbsp;&nbsp;&nbsp;→ (0,0,0,1,0)</code></li>
+            <li><code>penguin&nbsp;&nbsp;&nbsp;→ (0,0,0,0,1)</code></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">This is what bag-of-words is built from</div>
+          <ul>
+            <li class="frag">No structure smuggled in — word #2 isn't "twice" word #1</li>
+            <li class="frag">The bag-of-words count vector we just saw is exactly the <strong>sum of its words' one-hot vectors</strong></li>
+            <li class="frag">The vector lives in \(\mathbb R^V\): one dimension <em>per vocabulary word</em>, so \(V\approx 10^4\text{–}10^5\) and almost every entry is zero</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag">
+      <span class="callout-tag">the cost this builds in</span>
+      Every distinct pair of words is <strong>orthogonal</strong> — <em>revenue</em> and <em>income</em> share no
+      dimension, so they are exactly as unrelated as <em>revenue</em> and <em>penguin</em>. That geometric flaw is
+      the subject of the next slide.
+    </div>
+    <aside class="underhood" data-title="the one-hot basis, formally">
+      Index the vocabulary \(\mathcal V=\{v_1,\dots,v_V\}\). Word \(v_k\) maps to the \(k\)-th standard basis vector
+      \[ \mathbf e_k=\big(0,\dots,\underbrace{1}_{k},\dots,0\big)^\top\in\{0,1\}^V,\qquad
+         \mathbf e_j^\top\mathbf e_k=\mathbb 1[j=k]. \]
+      The bag-of-words vector of a document is then \(\sum_i \mathbf e_{k(w_i)}\). The map is injective but maximally
+      sparse, and the inner product collapses all semantics to "same word, or not."
     </aside>
   </section>
 
@@ -421,8 +498,8 @@
     <div class="eyebrow">The hidden geometry problem</div>
     <h2>To a computer, "revenue" and "income" are total strangers</h2>
     <div class="title-rule"></div>
-    <p class="lead">When every word is its own dimension, no two distinct words share <em>any</em> similarity —
-      "revenue" is as far from "income" as it is from "penguin."</p>
+    <p class="lead">Under one-hot encoding every word is its own dimension, so no two distinct words share
+      <em>any</em> similarity — "revenue" is as far from "income" as it is from "penguin."</p>
     <aside class="underhood" data-title="orthogonality and the discrete metric">
       Each token maps to a basis vector \(\mathbf{e}_k=(0,\dots,1,\dots,0)^\top\). Then
       \[ \mathbf{e}_j^\top \mathbf{e}_k = \mathbb{1}[j=k] \;\Rightarrow\;
@@ -438,7 +515,7 @@
 
   <section class="slide">
     <div class="eyebrow">A smarter count</div>
-    <h2>TF-IDF: rare words carry more signal</h2>
+    <h2>TF-IDF Weighting</h2>
     <div class="title-rule"></div>
     <p class="lead">Raw counts are dominated by common words. TF-IDF up-weights words that are frequent in
       <em>this</em> document but rare across the corpus — the ones that actually distinguish it.</p>
@@ -451,7 +528,15 @@
       \[ \mathrm{tf}(v,d)=\frac{\mathrm{count}(v,d)}{|d|}, \qquad
          \mathrm{idf}(v,\mathcal{C})=\log\!\frac{|\mathcal{C}|}{\mathrm{df}(v,\mathcal{C})}, \qquad
          \mathrm{tfidf}=\mathrm{tf}\times\mathrm{idf}. \]
-      Document similarity is the cosine of the \(\ell_2\)-normalised TF-IDF vectors:
+      <p>where, for a vocabulary word \(v\) and a document \(d\):</p>
+      <ul>
+        <li>\(\mathrm{count}(v,d)\) — how many times \(v\) appears in \(d\); &nbsp; \(|d|\) — the document's length (total tokens)</li>
+        <li>\(\mathcal{C}\) — the <em>corpus</em>, the whole collection of documents; &nbsp; \(|\mathcal{C}|\) — the number of documents in it</li>
+        <li>\(\mathrm{df}(v,\mathcal{C})\) — the <em>document frequency</em>: how many documents in \(\mathcal{C}\) contain \(v\) at least once</li>
+      </ul>
+      <p>So \(\mathrm{tf}\) is high for words common <em>in this document</em>, and \(\mathrm{idf}\) is high for words rare <em>across the corpus</em> — their product rewards distinctive words.</p>
+      Document similarity is the cosine of the \(\ell_2\)-normalised TF-IDF vectors \(\tilde{\mathbf{x}}(d)\)
+      (each document's TF-IDF vector scaled to unit length):
       \[ \mathrm{sim}(d_i,d_j)=\frac{\tilde{\mathbf{x}}(d_i)^\top \tilde{\mathbf{x}}(d_j)}
          {\|\tilde{\mathbf{x}}(d_i)\|\,\|\tilde{\mathbf{x}}(d_j)\|}\in[0,1]. \]
     </aside>
@@ -485,13 +570,13 @@
   <!-- ============================ SECTION 04 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">04</div>
-    <h2>Word embeddings: meaning as geometry</h2>
+    <h2>Word Embeddings</h2>
     <div class="secsub">Give every word a location in space, and similarity becomes distance you can compute.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">The founding idea</div>
-    <h2>"You shall know a word by the company it keeps"</h2>
+    <h2>Distributional Semantics and the Embedding Idea</h2>
     <div class="title-rule"></div>
     <div class="bigpicture callout">
       <span class="callout-tag">the distributional hypothesis · Firth, 1957</span>
@@ -502,14 +587,16 @@
       <strong>direction and distance encode meaning</strong>.</p>
     <aside class="underhood" data-title="what an embedding is, formally">
       An injective map \(\varphi:\mathcal{V}\to\mathbb{R}^d\) with \(d\ll V\); the embedding matrix
-      \(\mathbf{W}\in\mathbb{R}^{V\times d}\) has row \(i = \varphi(w_i)\). Typically \(d\in\{50,100,300\}\),
+      \(\mathbf{W}\in\mathbb{R}^{V\times d}\) has row \(i = \varphi(w_i)\).
+      (\(\mathcal V\): the vocabulary; \(V\): its size; \(d\): the embedding dimension; \(w_i\): the \(i\)-th word.)
+      Typically \(d\in\{50,100,300\}\),
       a compression of \(\sim\!150\text{–}1000\times\). Cosine similarity then \(\approx\) semantic similarity.
     </aside>
   </section>
 
   <section class="slide">
     <div class="eyebrow">How the geometry gets learned · Word2Vec</div>
-    <h2>Predict the neighbours, and meaning falls out</h2>
+    <h2>Word2Vec and GloVe</h2>
     <div class="title-rule"></div>
     <p class="lead">Train a model to guess the words surrounding a target word. To do that well it's
       <em>forced</em> to place related words near each other. That arrangement <em>is</em> the embedding.</p>
@@ -517,12 +604,14 @@
       Each centre word \(w_t\) predicts its \(\pm c\) context words:
       \[ J_{\mathrm{SG}}=\frac1T\sum_{t=1}^{T}\sum_{k\neq 0}\log P(w_{t+k}\mid w_t),\quad
          P(w_{t+k}\mid w_t)=\frac{\exp(\mathbf{v}_{w_{t+k}}^\top \hat{\mathbf{v}}_{w_t})}{\sum_{w=1}^{V}\exp(\mathbf{v}_w^\top \hat{\mathbf{v}}_{w_t})}. \]
+      (\(\hat{\mathbf v}_w\): word \(w\)'s vector as a centre word; \(\mathbf v_w\): its vector as a context word; \(c\): window radius; \(T\): number of tokens.)
       The denominator sums over all \(V\approx10^4\text{–}10^5\) words at every step — intractable for a billion tokens, which is why negative sampling exists.
     </aside>
     <aside class="underhood" data-title="negative sampling (the speed trick)">
       Replace the full softmax with binary classification: one real context word vs. \(K\) random "noise" words.
       \[ \mathcal{L}=\log\sigma(\mathbf{v}_{w_{t+k}}^\top\hat{\mathbf{v}}_{w_t})
          +\sum_{j=1}^{K}\mathbb{E}_{w_j\sim P_n}\!\big[\log\sigma(-\mathbf{v}_{w_j}^\top\hat{\mathbf{v}}_{w_t})\big]. \]
+      (\(\sigma\): the logistic sigmoid; \(P_n\): the noise distribution the \(K\) decoy words are drawn from.)
       Only \(K{+}1\) rows update per step. Recommended \(K=5\text{–}20\), \(P_n(w)\propto \mathrm{freq}(w)^{3/4}\).
     </aside>
   </section>
@@ -540,6 +629,7 @@
     <aside class="underhood" data-title="GloVe objective">
       With \(X_{ij}\) = times word \(j\) occurs in the context of word \(i\), GloVe minimises:
       \[ J=\sum_{i,j=1}^{V} f(X_{ij})\big(\mathbf{w}_i^\top\tilde{\mathbf{w}}_j+b_i+\tilde b_j-\log X_{ij}\big)^2, \]
+      (\(\mathbf w_i,\tilde{\mathbf w}_j\): the two learned vectors for words \(i,j\); \(b_i,\tilde b_j\): their biases; \(f\): a weight that down-weights rare pairs,)
       with \(f(x)=(x/x_{\max})^{\alpha}\) for \(x \lt x_{\max}\) else 1.
       GloVe and Word2Vec learn similar representations in practice; GloVe is faster when co-occurrence counts are precomputed,
       Word2Vec scales more gracefully to streaming corpora.
@@ -571,7 +661,7 @@
 
   <section class="slide">
     <div class="eyebrow">The geometry at work · PCA case study</div>
-    <h2>king − man + woman ≈ queen: the analogy is visible in 2D</h2>
+    <h2>Case Study: Visualising a Word Analogy with PCA</h2>
     <div class="title-rule"></div>
     <p class="lead">Load pre-trained GloVe (300d), compute the analogy in full vector space, then project to 2D with PCA — the arithmetic lands next to <em>queen</em> (cosine similarity 0.67).</p>
     <figure class="deckfig">
@@ -592,13 +682,13 @@
   <!-- ============================ SECTION 05 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">05</div>
-    <h2>Recurrent networks and the vanishing gradient</h2>
+    <h2>Recurrent Neural Networks and the Vanishing Gradient</h2>
     <div class="secsub">Order finally matters — but reading 500 tokens by hand has a flaw the LSTM was built to fix.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">Sequential reading</div>
-    <h2>RNNs: the first architecture to process a document left to right</h2>
+    <h2>The Recurrence and Why Gradients Vanish</h2>
     <div class="title-rule"></div>
     <p class="lead">Each token folds into a running hidden state — a summary of everything read so far. But carrying that summary across 500 tokens breaks.</p>
     <div class="cols">
@@ -623,14 +713,14 @@
       \[ \left\|\frac{\partial \mathcal{L}}{\partial \mathbf{h}_t}\right\| \leq
          \left(\rho(\mathbf{W}_h)\cdot \sup_t \|\mathrm{diag}(1 - \mathbf{h}_t^2)\|\right)^{T-k}
          \cdot \left\|\frac{\partial \mathcal{L}}{\partial \mathbf{h}_T}\right\|, \]
-      where \(\rho(\mathbf{W}_h)\) is the spectral radius. When \(\rho \lt 1\), the bound decays exponentially in \(T - k\).
+      where \(\mathcal L\) is the training loss, \(\mathbf h_t\) the hidden state at step \(t\), and \(\rho(\mathbf{W}_h)\) the spectral radius (largest singular value) of the recurrent weight matrix. When \(\rho \lt 1\), the bound decays exponentially in \(T - k\).
       Gradients explode when \(\rho \gt 1\) — gradient clipping addresses this, but not vanishing.
     </aside>
   </section>
 
   <section class="slide">
     <div class="eyebrow">The fix</div>
-    <h2>LSTM: a cell state that can carry information across long lags</h2>
+    <h2>The LSTM Fix, in One Idea</h2>
     <div class="title-rule"></div>
     <p class="lead">Instead of repeatedly multiplying the hidden state, the LSTM cell state is updated <em>additively</em> — gradients flow like water through an open pipe.</p>
     <ul>
@@ -651,6 +741,7 @@
          \mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t, \]
       \[ \mathbf{o}_t = \sigma(\mathbf{W}_o[\mathbf{h}_{t-1};\mathbf{x}_t]+\mathbf{b}_o), \quad
          \mathbf{h}_t = \mathbf{o}_t \odot \tanh(\mathbf{c}_t). \]
+      (\(\mathbf f_t,\mathbf i_t,\mathbf o_t\): forget/input/output gates; \(\mathbf c_t\): cell state; \(\sigma\): sigmoid; \(\odot\): elementwise product; \([\,;\,]\): concatenation; \(\mathbf W_\bullet,\mathbf b_\bullet\): learned weights and biases.)
       The additive update \(\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t\)
       preserves gradients: when \(\mathbf{f}_t \approx 1\), \(\partial \mathbf{c}_t / \partial \mathbf{c}_{t-1} \approx 1\).
     </aside>
@@ -659,13 +750,13 @@
   <!-- ============================ SECTION 06 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">06</div>
-    <h2>Scaled dot-product attention and the Transformer</h2>
+    <h2>Scaled Dot-Product Attention and the Transformer</h2>
     <div class="secsub">Every token attends to every other token — in parallel, with no distance decay.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">Attention as content-based lookup</div>
-    <h2>Instead of a sequential state, every token looks at every other token</h2>
+    <h2>Attention as Content-Based Lookup</h2>
     <div class="title-rule"></div>
     <p class="lead">Each token asks a question (query), every token posts an answer (key + value); the update is a weighted average of all values, weighted by how well the query matches each key.</p>
     <div class="cols">
@@ -680,6 +771,7 @@
       <div class="col">
         <div class="block"><div class="block-title">The formula</div>
           \(\mathrm{Attention}(\mathbf{Q},\mathbf{K},\mathbf{V}) = \mathrm{softmax}\!\left(\tfrac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}\)
+          <p class="small">\(\mathbf Q,\mathbf K,\mathbf V\): the query, key and value matrices (one row per token); \(d_k\): the key/query dimension.</p>
         </div>
       </div>
     </div>
@@ -697,7 +789,7 @@
 
   <section class="slide">
     <div class="eyebrow">Multi-head attention</div>
-    <h2>Several attention patterns in parallel, each specialising</h2>
+    <h2>Multiple Heads, Multiple Relations</h2>
     <div class="title-rule"></div>
     <p class="lead">A single attention head can track only one kind of relationship. Multi-head attention runs several in parallel on lower-dimensional projections.</p>
     <ul>
@@ -720,7 +812,7 @@
   <!-- ============================ SECTION 07 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">07</div>
-    <h2>A taxonomy of modern LLM families</h2>
+    <h2>A Taxonomy of Modern Language Model Families</h2>
     <div class="secsub">Two design axes — training objective and domain — determine which model to reach for.</div>
   </section>
 
@@ -730,7 +822,7 @@
     <div class="title-rule"></div>
     <table>
       <tr><th>Objective</th><th>Architecture</th><th>Models</th><th>Best for</th></tr>
-      <tr><td>Autoregressive (next token)</td><td>Decoder-only</td><td>GPT-1/2/3, GPT-4</td><td>Generation, Q&amp;A, summarisation</td></tr>
+      <tr><td>Autoregressive (next token)</td><td>Decoder-only</td><td>GPT-1/2/3 → GPT-5, Claude, Gemini, Llama</td><td>Generation, Q&amp;A, summarisation</td></tr>
       <tr><td>Masked LM (fill the blank)</td><td>Encoder-only</td><td>BERT, FinBERT</td><td>Classification, extraction, NER</td></tr>
       <tr><td>Sequence-to-sequence</td><td>Encoder-decoder</td><td>T5 (Raffel et al., 2020)</td><td>Multi-task: summarise + classify + extract</td></tr>
     </table>
@@ -754,6 +846,7 @@
       <div class="col">
         <div class="block"><div class="block-title">LLaMA (Touvron et al., 2023)</div>
           7B–65B parameters; freely downloadable; LLaMA-2/3 extend context to 128K tokens — handles most filings in one pass.
+          Llama 4 (2025, Scout/Maverick) is natively multimodal with a mixture-of-experts design and up to a 10M-token context.
         </div>
         <div class="block"><div class="block-title">BloombergGPT (Wu et al., 2023)</div>
           50B params; trained on 363B-token financial corpus + 345B general; outperforms same-size general models on ConvFinQA, FiQA-SA, FPB.
@@ -774,7 +867,7 @@
   <!-- ============================ SECTION 08 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">08</div>
-    <h2>Querying LLMs via Python APIs</h2>
+    <h2>Querying Large Language Models via Python APIs</h2>
     <div class="secsub">OpenAI, Anthropic, and HuggingFace — the three gateways to LLMs in any financial NLP pipeline.</div>
   </section>
 
@@ -788,7 +881,7 @@
         <pre class="code">import openai
 client = openai.OpenAI()
 resp = client.chat.completions.create(
-    model="gpt-4o-mini",
+    model="gpt-5.6-luna",  # fast, low-cost tier
     messages=[
       {"role": "system",
        "content": "You are a financial analyst."},
@@ -813,17 +906,17 @@ print(clf("Revenue fell 12%."))
 
   <section class="slide">
     <div class="eyebrow">Economics of inference</div>
-    <h2>Token costs and latency determine the right model for each task</h2>
+    <h2>Token Costs and Latency Trade-offs</h2>
     <div class="title-rule"></div>
     <table>
       <tr><th>Model</th><th>Input $/M tok</th><th>Output $/M tok</th><th>Tokens/s</th></tr>
-      <tr><td><code class="inline">gpt-4o</code></td><td>2.50</td><td>10.00</td><td>60</td></tr>
-      <tr><td><code class="inline">gpt-4o-mini</code></td><td>0.15</td><td>0.60</td><td>120</td></tr>
-      <tr><td><code class="inline">claude-sonnet</code></td><td>3.00</td><td>15.00</td><td>80</td></tr>
-      <tr><td><code class="inline">claude-haiku</code></td><td>0.25</td><td>1.25</td><td>200</td></tr>
-      <tr><td>LLaMA-3 70B (on-prem)</td><td>—</td><td>—</td><td>45</td></tr>
+      <tr><td><code class="inline">gpt-5.6-sol</code> (flagship)</td><td>5.00</td><td>30.00</td><td>60</td></tr>
+      <tr><td><code class="inline">gpt-5.6-luna</code> (fast)</td><td>1.00</td><td>6.00</td><td>140</td></tr>
+      <tr><td><code class="inline">claude-opus-4-8</code></td><td>5.00</td><td>25.00</td><td>80</td></tr>
+      <tr><td><code class="inline">claude-haiku-4-5</code></td><td>1.00</td><td>5.00</td><td>200</td></tr>
+      <tr><td>Llama 4 (on-prem)</td><td>—</td><td>—</td><td>45</td></tr>
     </table>
-    <p class="small">Illustrative 2024 list prices; verify current rates before production deployment.</p>
+    <p class="small">Illustrative mid-2026 list prices; model names and rates change fast — verify current values before production deployment.</p>
     <div class="alert callout frag">
       <span class="callout-tag">the cost maths</span>
       Classifying 1M headlines at 100 tokens: ~$250 with a frontier model, ~$15 with a lightweight alternative.
@@ -840,13 +933,13 @@ print(clf("Revenue fell 12%."))
   <!-- ============================ SECTION 09 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">09</div>
-    <h2>Limitations and the regulatory landscape</h2>
+    <h2>Limitations of LLMs and the Regulatory Landscape</h2>
     <div class="secsub">LLMs are powerful but imperfect — know the failure modes before deploying in production.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">The main failure mode</div>
-    <h2>LLMs can confidently fabricate financial facts</h2>
+    <h2>Hallucination: Taxonomy and Detection</h2>
     <div class="title-rule"></div>
     <p class="lead">An LLM hallucination is an output that is fluent and coherent but factually incorrect, unverifiable, or unsupported by the input context.</p>
     <div class="cols">
@@ -877,7 +970,7 @@ print(clf("Revenue fell 12%."))
 
   <section class="slide">
     <div class="eyebrow">Practical constraints</div>
-    <h2>Long documents challenge even 128K-token context windows</h2>
+    <h2>Context Window Limitations</h2>
     <div class="title-rule"></div>
     <p class="lead">Most standard filings fit in modern context windows — but very long documents still require chunking, and placement of relevant facts matters.</p>
     <div class="cols">
@@ -907,7 +1000,7 @@ print(clf("Revenue fell 12%."))
 
   <section class="slide">
     <div class="eyebrow">Regulatory landscape</div>
-    <h2>Disclosure obligations are real — EU AI Act (2024) and SEC (2023)</h2>
+    <h2>The Regulatory Landscape</h2>
     <div class="title-rule"></div>
     <p class="lead">Deploying an LLM in a client-facing or regulatory context is not just a technical decision — it carries legal obligations.</p>
     <div class="cols">
@@ -942,7 +1035,7 @@ print(clf("Revenue fell 12%."))
           <li>AI amplifies finance professionals via the task-based lens</li>
           <li>History: dictionaries → LDA → embeddings → Transformers</li>
           <li>Text predicts returns: three EMH-consistent reasons</li>
-          <li>Classical reps: BoW, TF-IDF — order-blind, discrete</li>
+          <li>Classical reps: BoW → one-hot basis → TF-IDF — order-blind, discrete</li>
           <li>Embeddings: Word2Vec, GloVe, domain adaptation</li>
           <li>RNNs → LSTM → Attention → LLM families</li>
           <li>APIs, token costs, hallucinations, and regulation</li>
@@ -990,7 +1083,7 @@ print(clf("Revenue fell 12%."))
       <tr><td>2015</td><td>Attention (Bahdanau)</td><td>Direct token-to-token paths</td></tr>
       <tr><td>2017</td><td>Transformer (Vaswani)</td><td>Parallel self-attention, massive scale</td></tr>
       <tr><td>2018–19</td><td>BERT / FinBERT</td><td>Pre-train, then fine-tune</td></tr>
-      <tr><td>2020+</td><td>GPT-3/4, Claude, Llama</td><td>Instruction-following, reasoning</td></tr>
+      <tr><td>2020+</td><td>GPT-3 → GPT-5, Claude, Gemini, Llama 4</td><td>Instruction-following, reasoning</td></tr>
       <tr><td>2023</td><td>BloombergGPT / FinGPT</td><td>Finance-domain scale and LoRA</td></tr>
     </table>
     <p class="small">Each generation fixes the core limitation of the one before it.</p>
@@ -1031,7 +1124,7 @@ print(clf("Revenue fell 12%."))
       PCA axes are <em>not</em> automatically interpretable as named financial concepts — they are the directions of greatest variance among the selected terms.
       Proximity in 2D is suggestive, not definitive; exact relationships require full-dimensional cosine similarities.
     </div>
-    <p class="small">Full code: <code class="inline">code/notebooks/01-intro/demo.ipynb</code></p>
+    <p class="small">Full code: <code class="inline">code/practicals/01-intro/practical.ipynb</code></p>
   </section>
 
 </div></div>

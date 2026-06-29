@@ -3,6 +3,10 @@
 # Trigger: Stop (session end).
 # Exit 0 always.
 
+# Anchor to the project root so relative paths work regardless of the hook's cwd.
+ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)}"
+cd "$ROOT" 2>/dev/null || exit 0
+
 LOGFILE="docs/SESSION_LOG.md"
 DATE=$(date +%Y-%m-%d 2>/dev/null || echo "unknown")
 

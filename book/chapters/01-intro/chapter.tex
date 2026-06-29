@@ -358,7 +358,7 @@ fine-tuned BERT on financial text; \citeauthor{yang2020finbert} retrained BERT f
 scratch on financial corpora) and a succession of similar models pre-trained on
 financial corpora achieved markedly better sentiment classification accuracy on
 financial datasets than generic BERT.  They
-represent the direct antecedents of the large language models---GPT-4, Claude, Gemini,
+represent the direct antecedents of the large language models---GPT-5, Claude, Gemini,
 Llama---that form the subject of this book.
 
 The history just sketched is not merely background; it is directly relevant to how one
@@ -958,6 +958,7 @@ $\tilde{X} \in \mathbb{R}^{3 \times 8}$:
 
 \medskip
 \begin{center}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrr}
 \toprule
 Token & $\tilde{x}_{1,v}$ & $\tilde{x}_{2,v}$ & $\tilde{x}_{3,v}$ \\
@@ -993,7 +994,7 @@ The cosine similarity between $d_1$ and $d_3$ reflects their shared tokens
   &= \frac{\tilde{\mathbf{x}}(d_1)^\top \tilde{\mathbf{x}}(d_3)}
           {\|\tilde{\mathbf{x}}(d_1)\|_2\, \|\tilde{\mathbf{x}}(d_3)\|_2} \\
   &= \frac{2 \times (0.101)^2}
-          {\sqrt{(0.275)^2 + (0.101)^2 + (0.101)^2}\;\sqrt{(0.275)^2 + (0.101)^2 + (0.101)^2}} \\
+          {\sqrt{(0.275)^2 + 2(0.101)^2}\;\sqrt{(0.275)^2 + 2(0.101)^2}} \\
   &= \frac{2 \times 0.0102}{(0.275)^2 + 2(0.101)^2}
    \approx \frac{0.0204}{0.0756 + 0.0204}
    \approx \frac{0.0204}{0.0960}
@@ -1003,11 +1004,13 @@ a modest positive similarity consistent with the two documents sharing a positiv
 vocabulary (\texttt{revenue} grew or was mentioned, \texttt{strong} appears in both).
 The similarity between $d_1$ and $d_2$ is lower, since they share only \texttt{earnings}:
 \[
+\begin{aligned}
   \mathrm{sim}(d_1, d_2)
-  = \frac{(0.101)^2}{\sqrt{(0.275)^2 + 2(0.101)^2}\;\sqrt{(0.275)^2 + 2(0.101)^2}}
-  = \frac{(0.101)^2}{(0.275)^2 + 2(0.101)^2}
-  \approx \frac{0.0102}{0.0960}
-  \approx 0.106,
+  &= \frac{(0.101)^2}{\sqrt{(0.275)^2 + 2(0.101)^2}\;\sqrt{(0.275)^2 + 2(0.101)^2}} \\
+  &= \frac{(0.101)^2}{(0.275)^2 + 2(0.101)^2}
+   \approx \frac{0.0102}{0.0960}
+   \approx 0.106,
+\end{aligned}
 \]
 correctly reflecting minimal lexical overlap between the optimistic $d_1$ and the
 negative $d_2$.
@@ -1416,7 +1419,7 @@ than re-deriving it in two dimensions.
     by PCA.  The orange arrow is the vector arithmetic; the dotted line shows
     that the result lands next to \emph{queen}, whose cosine similarity to the
     computed vector ($0.67$) is the highest in the vocabulary.  Generated
-    deterministically by \texttt{code/notebooks/01-intro/gen\_king\_analogy.py} from the
+    deterministically by \texttt{code/figures/01-intro/gen\_king\_analogy.py} from the
     pinned \texttt{glove-wiki-gigaword-300} release (downloaded once and cached locally;
     PCA uses a fixed seed), so the figure regenerates identically.}
   \label{fig:king-analogy}
@@ -1470,7 +1473,7 @@ fixed, committed set of representative headlines for \textsc{aapl}, \textsc{msft
 example to live headlines retrieved via the \texttt{yfinance} API, identifies the three
 terms with the highest TF-IDF weight for each ticker, and shows how adding a fourth ticker
 alters the discriminating vocabulary.
-See \texttt{code/notebooks/01-intro/exercises.ipynb}, Illustration Exercise.
+See \texttt{code/figures/01-intro/gen\_tfidf\_headlines.py} (deterministic figure generator).
 \end{illustration}
 
 % ---------------------------------------------------------------
@@ -1793,7 +1796,7 @@ import openai
 
 client = openai.OpenAI()  # reads OPENAI_API_KEY from the environment
 resp = client.chat.completions.create(
-    model="gpt-4o-mini",
+    model="gpt-5.6-luna",
     messages=[
         {"role": "system", "content": "You are a financial analyst."},
         {"role": "user", "content": "Sentiment of 'Revenue fell 12%.'? One word."},
@@ -1814,7 +1817,7 @@ import anthropic
 
 client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
 resp = client.messages.create(
-    model="claude-opus-4-5",
+    model="claude-opus-4-8",
     max_tokens=256,
     system="You are a financial analyst. Answer concisely.",
     messages=[{"role": "user",
@@ -1826,7 +1829,7 @@ print(resp.content[0].text)  # -> 'Negative'
 \end{minted}
 
 \noindent The two proprietary APIs share the same request shape; richer prompt templates
-are developed as an exercise in the chapter notebook \texttt{code/notebooks/01-intro/exercises.ipynb}.
+are developed as an exercise in the student practical \texttt{code/practicals/01-intro/practical.ipynb}.
 
 \subsection{HuggingFace \texttt{transformers}: Open-Weight Inference}
 \label{sec:api-huggingface}
@@ -1847,35 +1850,36 @@ print(clf("Revenue fell 12% on weak demand."))
 \label{sec:api-costs}
 
 API calls to proprietary models are billed per token.  \Cref{tab:api-costs}
-summarises representative pricing and latency benchmarks as of 2024.
+summarises representative pricing and latency benchmarks as of mid-2026.
 
 \begin{center}
   \captionof{table}{Representative API costs and latency for common LLM
-             inference tasks (2024 pricing; subject to change).
+             inference tasks (mid-2026 pricing; subject to change).
              ``Tokens/s'' is output throughput; ``P99 latency'' is the
              99th-percentile first-token latency on a 200-token prompt.}
   \label{tab:api-costs}
+  \small
   \begin{tabular}{lrrrr}
     \toprule
     Model & Input (\$/M tok) & Output (\$/M tok) & Tokens/s & P99 (s) \\
     \midrule
-    \texttt{gpt-4o}         & 2.50 & 10.00 & 60  & 1.2 \\
-    \texttt{gpt-4o-mini}    & 0.15 &  0.60 & 120 & 0.4 \\
-    \texttt{claude-sonnet}  & 3.00 & 15.00 & 80  & 1.0 \\
-    \texttt{claude-haiku}   & 0.25 &  1.25 & 200 & 0.3 \\
-    LLaMA-3 70B (on-prem)  & ---  &  ---  & 45  & 0.8 \\
+    \texttt{gpt-5.6-sol}    & 5.00 & 30.00 & 60  & 1.2 \\
+    \texttt{gpt-5.6-luna}   & 1.00 &  6.00 & 120 & 0.4 \\
+    \texttt{claude-sonnet-4-6} & 3.00 & 15.00 & 80  & 1.0 \\
+    \texttt{claude-haiku-4-5}  & 1.00 &  5.00 & 200 & 0.3 \\
+    Llama 4 (on-prem)      & ---  &  ---  & 45  & 0.8 \\
     \bottomrule
   \end{tabular}
 \end{center}
 
 \begin{remark}[Note on Pricing Data]
-The figures in \Cref{tab:api-costs} are approximate list prices and throughput benchmarks as of early 2024; these change frequently. Verify current rates at provider pricing pages before any production deployment~\citep{anthropic2025api}.
+The figures in \Cref{tab:api-costs} are approximate list prices and throughput benchmarks as of mid-2026; these change frequently. Verify current rates at provider pricing pages before any production deployment~\citep{anthropic2025api}.
 \end{remark}
 
 For high-frequency applications (real-time news classification of thousands
-of headlines per minute), the cost difference between \texttt{gpt-4o}
-and \texttt{gpt-4o-mini} is economically material: classifying one million
-headlines with a 100-token context costs roughly \$250 with a frontier model versus \$15 with a lightweight alternative (at the illustrative prices in \Cref{tab:api-costs}).  In
+of headlines per minute), the cost difference between \texttt{gpt-5.6-sol}
+and \texttt{gpt-5.6-luna} is economically material: classifying one million
+headlines with a 100-token context costs roughly \$500 with a frontier model versus \$100 with a lightweight alternative (at the illustrative prices in \Cref{tab:api-costs}).  In
 batch analytical applications where latency is less critical (overnight
 processing of 10-K filings), the smaller latency advantage of smaller
 models is less relevant and accuracy differences dominate.
@@ -1969,7 +1973,7 @@ financial documents, this constraint is binding:
   \label{tab:context-windows}
   \begin{tabular}{lrr}
     \toprule
-    Document type & Median tokens & Exceeds GPT-4 (128K)? \\
+    Document type & Median tokens & Exceeds 128K? \\
     \midrule
     Earnings press release & 800    & No  \\
     Earnings call transcript & 6{,}000 & No  \\
@@ -1981,8 +1985,9 @@ financial documents, this constraint is binding:
   \end{tabular}
 \end{center}
 
-While 128K-token context windows (GPT-4, Claude 3) handle most standard
-filings, very long regulatory documents still require chunking strategies.
+While 128K+ context windows (e.g.\ GPT-5, Claude Opus 4.8) handle most standard
+filings---and frontier models now reach 1M+ tokens (e.g.\ Gemini 3 Pro)---very long
+regulatory documents still require chunking strategies.
 Moreover, empirical work shows that retrieval accuracy degrades for
 information placed in the middle of long contexts — a phenomenon termed
 \emph{lost in the middle} \cite{liu2023lost}
@@ -2084,5 +2089,64 @@ internal model weights.  Together these results motivate the careful evaluation
 protocols developed throughout this book.
 
 \end{context}
+
+% -----------------------------------------------------------------------
+% --- Section: Roadmap ---
+\section{Roadmap: How This Book Is Organized}
+\label{sec:book-roadmap}
+
+The remainder of this book is organized in six parts that move deliberately
+from simpler foundations to more advanced engineering: no concept is used
+before an earlier chapter has introduced it.
+
+\textbf{Part~I, Foundations of Large Language Models}, builds the technical
+base.  \Cref{ch:llm-foundations} develops the architecture of
+transformer-based language models from the ground up, deriving the attention
+mechanism, the pre-training objectives, and the tokenization schemes that
+underlie all modern LLMs.  \Cref{ch:llm-training} covers training and
+fine-tuning --- supervised fine-tuning, reinforcement learning from human
+feedback, and parameter-efficient methods such as LoRA ---
+and \Cref{ch:domain-specific-llms} turns to language models trained or
+adapted specifically for finance (FinBERT, BloombergGPT, and the
+domain-adaptation recipes behind them).
+
+\textbf{Part~II, Agents, Tools, and Skills} (\Cref{ch:llm-agents}), extends
+the single-model view to systems that plan, call tools, retrieve external
+data, and coordinate as multiple agents.  It also introduces the file-based
+form of the agentic primitives --- agents, skills, and hooks as
+version-controlled Markdown and configuration artifacts
+(\Cref{subsec:file-based-pattern}) --- that the engineering chapter in
+Part~VI later composes into full iteration loops.
+
+\textbf{Part~III, Understanding Financial Text}, applies these foundations to
+reading: \Cref{ch:financial-nlp-sentiment} treats financial NLP and sentiment
+analysis, and \Cref{ch:financial-text-summarization} treats summarization,
+named-entity recognition, relation extraction, and table extraction from
+filings and reports.
+
+\textbf{Part~IV, Quantitative Finance Applications}, covers the numerical
+workhorses: business valuation (\Cref{ch:business-valuation}; discounted-cash-flow
+and comparable-company analysis), credit-risk analysis
+(\Cref{ch:credit-risk}; scoring, fairness, and calibration), and portfolio
+optimization and quantitative trading (\Cref{ch:portfolio-quant-trading}).
+These chapters can be read independently once Parts~I--II are in place; a
+reader with a specific use case can proceed directly to the relevant chapter.
+
+\textbf{Part~V, Trust, Governance, and Deployment}, turns to the controls that
+make the applications deployable: regulatory technology, compliance, and
+anti-money-laundering (\Cref{ch:regtech-compliance-aml}); explainability and
+interpretability (\Cref{ch:xai-explainability}); a systematic treatment of
+LLM limitations and evaluation methodology
+(\Cref{ch:llm-limitations-evaluation}); and privacy-preserving, locally
+deployed models (\Cref{ch:privacy-local-models}), addressing the
+data-residency and confidentiality concerns that constrain cloud-hosted
+models in financial institutions.
+
+\textbf{Part~VI, Engineering Agentic Workflows and Outlook}, is the
+methodology capstone.  \Cref{ch:loops-goals-iterations} shows how the agents,
+skills, and hooks of Part~II are composed into goal-directed iteration loops
+--- with worked examples that build on the credit-risk and governance material
+of Parts~IV--V --- and \Cref{ch:applications-future} closes with emerging
+applications, deployment patterns, and future directions.
 
 

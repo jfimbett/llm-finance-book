@@ -1,0 +1,198 @@
+{
+  "file": "book/chapters/03-llm-training-finetuning/chapter.tex",
+  "reading_index": 4,
+  "slug": "03-llm-training-finetuning",
+  "title": "Training and Fine-Tuning Large Language Models",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:479-506 — Chinchilla proof: FOC from C=6ND constraint re-derives N*~1.46e10, D*~1.14e12, ratio ~78; internally consistent.",
+        "chapter.tex:574-594 — ZeRO byte-accounting (16=4+4+8) correct.",
+        "chapter.tex:900-961 — Bradley-Terry reward model, PPO KL objective, and DPO partition-function cancellation all correct.",
+        "chapter.tex:781-794 vs 02-llm-foundations/chapter.tex:2184 — LoRA defined twice with DIFFERENT formulas (W0+BA vs W0+(alpha/r)BA), an unreconciled cross-chapter inconsistency."
+      ],
+      "blocking_issues": [
+        "MAJOR/correctness: def:lora formula in ch03 ($W_0+\\frac{\\alpha}{r}BA$) disagrees with the same-named def:lora in ch02 ($W_0+BA$); neither cross-references the other, so a reader sees two conflicting 'definitions' of one concept."
+      ],
+      "recommended_action": "Reconcile the two LoRA formulas: present ch03 as refining ch02 by adding the alpha/r scaling; cross-reference. Otherwise claims are correct."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:31,354,694,1015,1193,1218,1312,1423 — deliberate context (big-picture) vs deepdive (under-the-hood) box architecture throughout; each section pairs a context opener with a deepdive.",
+        "chapter.tex:354-366 — story-driven Chinchilla deepdive opener separated from the formal theorem at :454."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE (optional: split the 300-line deepdive :707-1008 for skimmability)."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 87,
+      "pass": false,
+      "evidence": [
+        "exercises.ipynb cells 1,3 — figure code uses N*=0.1192*C^0.4937, D*=2.1714*C^0.4977, identical to fig caption chapter.tex:656-658 and illustration box :673-675; figure provably matches prose.",
+        "exercises_executed.ipynb — illustration cells executed with outputs (cell 3 has 2 outputs).",
+        "demo.ipynb — single markdown cell ending '[Placeholder — fill in ... when drafting the chapter]'; a stub.",
+        "Tables tab:gpt3-corpus (:114), tab:bloomberggpt-corpus (:1095), tab:financial-benchmarks (:1352) internally consistent."
+      ],
+      "blocking_issues": [
+        "MAJOR/code-figure: demo.ipynb is an empty placeholder notebook despite advertising demonstration code."
+      ],
+      "recommended_action": "Fill or delete demo.ipynb; the figure itself is correct and reproducible."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:204 BPE, :287 MinHash, :375 CLM, :454 Chinchilla, :780 LoRA, :902 RLHF, :1228 perplexity — every concept defined before use within reading order.",
+        "Internal section refs (:112,:164,:750,:765,:982,:1172,:1398) all resolve to labels defined in this chapter.",
+        "Prior chapters (01-intro MLM, 02-foundations LoRA/CLM) precede in reading order, so reuse here is backward-compatible."
+      ],
+      "blocking_issues": [
+        "MINOR: 'catastrophic forgetting' used at :339 (rem:replay) before its fuller treatment at :760-768 (rem:adaptation-tax); no forward cross-ref."
+      ],
+      "recommended_action": "Add \\Cref{rem:adaptation-tax} at :339. Borderline; ordering is otherwise sound."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:4-24 — explicit Learning Objectives box.",
+        "Builds on ch01 (MLM) and ch02 (LoRA/CLM/transformer) which precede in reading order; data -> objectives/scaling -> fine-tuning -> models -> evaluation -> governance is a smooth, escalating arc.",
+        "chapter.tex:1628-1642 — closing synthesis bridges all four stages into one dependency chain."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE."
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:780-794 re-defines LoRA already defined in 02-llm-foundations/chapter.tex:2184 without cross-reference (and with a different formula).",
+        "chapter.tex:388-400 re-defines MLM already defined in 01-intro/chapter.tex:1786 without cross-reference.",
+        "Most overlap elsewhere is intentional contrast (CLM vs MLM) and acceptable."
+      ],
+      "blocking_issues": [
+        "MAJOR/book-repetition: LoRA and MLM are each re-derived in a later chapter without \\Cref to the earlier single source of truth."
+      ],
+      "recommended_action": "Cross-reference the ch01 MLM and ch02 LoRA definitions; present ch03 versions as refinements, not independent re-derivations."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:39-45,135-180 — financial corpus sourcing (EDGAR, earnings calls, BloombergGPT) motivates every data technique.",
+        "chapter.tex:182-191 rem:temporal-alignment frames look-ahead bias as the text analogue of quant-finance look-ahead.",
+        "chapter.tex:1420-1626 — MiFID II, SR 11-7, SEC Rule 17a-4, EU AI Act governance integrated, not bolted on."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE."
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:508-529 ex:chinchilla-finance — compute-optimal allocation for a financial LLM with data-constraint reasoning.",
+        "chapter.tex:808-821 ex:lora-sentiment — 7B LLaMA LoRA param-count + 90min-vs-40hr cost.",
+        "chapter.tex:992-1006 ex:two-stage-adaptation — DAPT + Financial PhraseBank with honestly hedged accuracy.",
+        "chapter.tex:1407-1414 LopezLiraTang Sharpe-decay; :962-967 Balogh-Didisheim inverted-U — real out-of-sample finance evidence."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 95,
+      "pass": true,
+      "evidence": [
+        "All 33 \\cite keys in the chapter resolve to exactly one entry in book/bibliography.bib (verified programmatically); zero missing, zero duplicate.",
+        "Keys span data (gao2020pile, penedo2023refinedweb), scaling (kaplan2020scaling, hoffmann2022chinchilla), PEFT (hu2022lora, li2021prefix, houlsby2019adapters), RLHF/DPO (ouyang2022training, rafailov2023direct), finance models (wu2023bloomberggpt, yang2020finbert, yang2023investlm, xie2023pixiu)."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:454-477 Chinchilla constants and D*/N*~78 ratio plausible and internally re-derivable but not verifiable against the source locally.",
+        "chapter.tex:103-132 GPT-3 corpus token/weight figures; :1085-1090 BloombergGPT 708/363/345B split; :1042 FinBERT 88.5 vs 80.7; :1335 FinQA human 91% — all plausible, hedged where appropriate, unverifiable locally.",
+        "Paper-to-proposition mapping appears correct throughout (e.g. hoffmann2022chinchilla -> scaling, ouyang2022training -> InstructGPT/RLHF, rafailov2023direct -> DPO)."
+      ],
+      "blocking_issues": [
+        "NEEDS_EXTERNAL_VERIFICATION: numeric figures from Hoffmann, Brown, Wu, Yang, Chen cannot be verified against the papers from local resources (caps at 89)."
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — verify the headline numeric figures against the cited papers."
+    },
+    {
+      "dimension": "completeness",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "Covers data->tokenisation->quality/dedup->mixing->objectives->scaling->parallelism->mixed-precision->PEFT->instruction tuning->RLHF->DPO->domain adaptation->finance models->evaluation->bias->hallucination->governance.",
+        "Caveats present: look-ahead bias (rem:temporal-alignment), catastrophic forgetting / adaptation tax, Chinchilla data-boundedness for finance corpora (:1113-1121), perplexity limitations (:1253-1261), ROUGE recall-bias (:1303-1308)."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 62,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:389 \\label{def:mlm} COLLIDES with 01-intro/chapter.tex:1786 (confirmed in both .aux files).",
+        "chapter.tex:781 \\label{def:lora} and :786 \\label{eq:lora} COLLIDE with 02-llm-foundations/chapter.tex:2184 (def:lora + eq:lora).",
+        "Section labels (sec:pretraining, sec:finetuning, sec:evaluation, sec:safety) verified NON-colliding book-wide.",
+        "No hard-coded 'Chapter N' prose refs; internal \\ref/\\Cref all resolve."
+      ],
+      "blocking_issues": [
+        "BLOCKER/notation_crossref: duplicate label def:mlm (ch01 vs ch03).",
+        "BLOCKER/notation_crossref: duplicate labels def:lora and eq:lora (ch02 vs ch03)."
+      ],
+      "recommended_action": "Rename ch03's def:mlm, def:lora, eq:lora to unique keys and cross-reference the earlier SSOT definitions."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "exercises.ipynb illustration cells executed in exercises_executed.ipynb with outputs; figure coefficients match caption -> figure regenerable.",
+        "demo.ipynb is a placeholder stub (single markdown cell).",
+        "exercises.ipynb cells 6-13 (SEC EDGAR data lab) are live-network, non-deterministic, and NOT executed in the executed notebook."
+      ],
+      "blocking_issues": [
+        "MAJOR/reproducibility: demo.ipynb stub; EDGAR exercise cells unexecuted and network-dependent (non-deterministic)."
+      ],
+      "recommended_action": "Fill/remove demo.ipynb; cache or clearly flag the EDGAR exercises as non-reproducible live-data labs. (Figure pipeline itself is fine.)"
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:4-24 explicit Learning Objectives; definitions, worked examples, and remark boxes scaffold each concept.",
+        "Inline mini-definitions for the mixed audience (k-shingle :285, min-wise independent family :291, policy/environment :919).",
+        "Difficulty curve is smooth: intuition (context) -> formalism (definition/theorem) -> finance worked example."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE (optional: split overly long deepdive boxes)."
+    }
+  ],
+  "pass": false,
+  "notes": "Audit only, no edits. Two BLOCKER duplicate-label collisions drag notation_crossref to 62: def:mlm (ch01:1786 vs ch03:389) and def:lora+eq:lora (ch02:2184 vs ch03:781). The ch02/ch03 LoRA definitions also disagree in formula (W0+BA vs W0+(alpha/r)BA), which additionally pulls down correctness (88) and non_repetition (86). code_figure_correctness (87) and reproducibility (80) are held back by a placeholder demo.ipynb and unexecuted live-EDGAR exercise cells; the illustration figure itself is reproducible and matches the caption exactly. citation_accuracy capped at 89 (NEEDS_EXTERNAL_VERIFICATION on headline numeric figures). All 33 cite keys resolve uniquely (citation_hygiene 95). Strong finance orientation, examples, completeness, and pedagogy. This chapter is the confirmed SSOT for scaling, PEFT, RLHF/DPO, and evaluation metrics."
+}

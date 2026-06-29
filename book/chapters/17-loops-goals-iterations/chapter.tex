@@ -128,7 +128,7 @@ A useful decision heuristic runs through four questions. First, \emph{is the out
 
 \begin{table}[t]
 \centering
-\begin{tabular}{@{}lll@{}}
+\begin{tabularx}{\linewidth}{@{}X l X@{}}
 \toprule
 \textbf{Task} & \textbf{Right tool} & \textbf{Why} \\
 \midrule
@@ -137,7 +137,7 @@ Daily download of a price file & Cron job & Recurs on a schedule, no per-run rea
 Extract figures from a novel filing & Loop with validator & Variable input, output mechanically checkable \\
 Draft and harden a valuation model & Agentic loop & Low one-shot reliability, costly silent errors \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Matching the task to the tool. A goal-directed loop is warranted only when iteration buys error correction the alternatives cannot provide.}
 \label{tab:when-to-loop}
 \end{table}
@@ -310,7 +310,7 @@ You validate one thing: that a sentiment-signal backtest is
 reproducible and leak-free. You do not improve the strategy.
 
 ## Inputs
-- `code/notebooks/07-sentiment/backtest.py`
+- `code/practicals/07-sentiment/backtest.py`
 - `data/processed/headlines.parquet`
 
 ## What to Do
@@ -388,7 +388,7 @@ The function analogy can be pushed into testing and versioning. If a skill is a 
 
 Beyond reuse, skills are where a project's conventions are frozen into enforceable form. Every nontrivial project accumulates conventions (numbering schemes, directory layouts, commit-message formats, quality thresholds), and these conventions are worthless if they are merely documented and routinely ignored. A skill turns a convention from a guideline into a step that actually executes.
 
-This project's \texttt{/new-topic} skill is a clean illustration. The convention that chapter $N$, lecture $N$, and notebook $N$ cover the same topic is not left to the discretion of whoever adds a chapter; it is mechanized. The skill creates \texttt{book/chapters/NN-name/}, \texttt{course/lectures/NN-name/}, and \texttt{code/notebooks/NN-name/} together, wires the new chapter into \texttt{main.tex}, appends the status row, and commits with the prescribed message. The numbering convention cannot drift because the only sanctioned way to create a topic enforces it. Likewise \texttt{/draft-chapter} bakes in the convention that no chapter is considered drafted until it clears the quality threshold from \texttt{TOPIC.md}; the gate is part of the procedure, not a reminder the author may skip.
+This project's \texttt{/new-topic} skill is a clean illustration. The convention that chapter $N$, lecture $N$, and notebook $N$ cover the same topic is not left to the discretion of whoever adds a chapter; it is mechanized. The skill creates \texttt{book/chapters/NN-name/}, \texttt{course/lectures/NN-name/}, and \texttt{code/practicals/NN-name/} together, wires the new chapter into \texttt{main.tex}, appends the status row, and commits with the prescribed message. The numbering convention cannot drift because the only sanctioned way to create a topic enforces it. Likewise \texttt{/draft-chapter} bakes in the convention that no chapter is considered drafted until it clears the quality threshold from \texttt{TOPIC.md}; the gate is part of the procedure, not a reminder the author may skip.
 
 \begin{remark}
 The distinction between a convention written in a style guide and a convention encoded in a skill is the distinction between aspiration and enforcement. A style guide describes the world you wish you lived in; a skill, paired with the hooks of \Cref{sec:hooks-as-guardrails}, builds it. When you find yourself repeatedly correcting the same deviation, that is the signal to lift the convention out of prose and into an executable step.
@@ -1144,7 +1144,7 @@ signed off.
 Meridian credit memo. The loop terminates only when every criterion is met. All
 thresholds are illustrative.}
 \label{tab:credit-goal}
-\begin{tabular}{@{}lll@{}}
+\begin{tabularx}{\linewidth}{@{}l X l@{}}
 \toprule
 Deliverable & Acceptance criterion & Checked by \\
 \midrule
@@ -1157,7 +1157,7 @@ Scenarios              & Base / adverse / severe, parameterized    & Hook \\
 Recommendation         & One of lend / modify / decline, justified & Skeptic \\
 ``Low risk'' language   & Only if base \emph{and} stressed EL below thresholds & Hook \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \begin{context}
@@ -1547,7 +1547,7 @@ Expected loss (\$)               & \$0.40\,m  & \$1.98\,m \\
 Expected loss (bps of EAD)       & 100 bps    & 495 bps \\
 Covenant breach?                 & No         & Yes (ICR \& liquidity) \\
 Liquidity shortfall (\$)         & ---        & $\approx$\$6.0\,m \\
-Recommended action               & \multicolumn{2}{r}{Conditional: \$30\,m, tighter covenants, more collateral, repriced} \\
+Recommended action               & \multicolumn{2}{@{}>{\raggedleft\arraybackslash}p{0.55\linewidth}@{}}{Conditional: \$30\,m, tighter covenants, more collateral, repriced} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -2118,6 +2118,7 @@ as ``when the goal looks like this, start from this pattern.'' Patterns nest:
 a stage of one pattern is often a full instance of another.}
 \label{tab:pattern-choice}
 \small
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}p{0.30\linewidth}p{0.20\linewidth}p{0.20\linewidth}p{0.24\linewidth}@{}}
 \toprule
 \textbf{Goal properties} & \textbf{Checkability} & \textbf{Stakes / repro.} & \textbf{Pattern} \\

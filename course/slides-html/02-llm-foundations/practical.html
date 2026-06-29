@@ -16,11 +16,10 @@
 
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
-    <div class="kicker">Large Language Models in Finance · Lecture 2 — Practical</div>
-    <h1>LLM Architecture: Hands-On</h1>
+    <div class="kicker">Large Language Models in Finance · Chapter 2 / Lecture 2 · Practical</div>
+    <h1>Large Language Models: Architecture and Practice</h1>
     <div class="sub">Tokenise a filing, probe attention, extract earnings figures with structured generation, and deploy a compressed model — step by step.</div>
-    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -66,8 +65,8 @@ print(f"Characters: {len(text_10k):,}")
 print(f"Ratio: {len(text_10k)/len(tokens):.2f} chars/token")
 
 # Estimate cost
-INPUT_PRICE  = 5.00 / 1_000_000   # USD / token (GPT-4o)
-OUTPUT_PRICE = 15.00 / 1_000_000
+INPUT_PRICE  = 5.00 / 1_000_000   # USD / token (GPT-5.6 Sol)
+OUTPUT_PRICE = 30.00 / 1_000_000
 n_questions  = 10
 avg_out      = 200
 total = len(tokens) * INPUT_PRICE + n_questions * avg_out * OUTPUT_PRICE
@@ -87,7 +86,7 @@ print(f"Estimated cost for {n_questions} Q&A: ${total:.4f}")</pre>
     <div class="eyebrow">Guided problem 1 · exercise</div>
     <h2>Find the context wall — and three ways to break through it</h2>
     <div class="title-rule"></div>
-    <p class="lead">GPT-4o supports 128K tokens. A 10-K plus a detailed prompt can exceed that. Try the three standard mitigations and measure how much content you retain.</p>
+    <p class="lead">A frontier-class model offers a 128K-token context. A 10-K plus a detailed prompt can exceed that. Try the three standard mitigations and measure how much content you retain.</p>
     <pre class="code">def truncate(tokens, limit=127_000):
     """Keep only the first `limit` tokens — simple but loses the end."""
     return tokens[:limit]
@@ -213,7 +212,7 @@ class EarningsReport(BaseModel):
 
 client = anthropic.Anthropic()
 response = client.messages.create(
-    model="claude-3-5-haiku-latest",
+    model="claude-haiku-4-5",
     max_tokens=512,
     tools=[{"name": "record_earnings",
             "description": "Record structured earnings data",
@@ -314,7 +313,7 @@ passages = [chunks[i] for i in I[0]]</pre>
     system  = ("Answer using ONLY the provided context. "
                "If the answer is not present, say 'Not found in filing'.")
     resp = client.messages.create(
-        model="claude-3-5-haiku-latest", max_tokens=512,
+        model="claude-haiku-4-5", max_tokens=512,
         system=system,
         messages=[{"role": "user",
                    "content": f"Context:\n{context}\n\nQ: {query}"}]
@@ -372,7 +371,7 @@ passages = [chunks[i] for i in I[0]]</pre>
     return {"cost_estimate_usd": cost, "results": results}</pre>
     <div class="block frag">
       <div class="block-title">Extension challenge — compression (optional)</div>
-      Swap <code class="inline">claude-3-5-haiku-latest</code> for a locally served 7B Llama-3 quantised
+      Swap <code class="inline">claude-haiku-4-5</code> for a locally served 7B Llama-3 quantised
       to INT4 with AWQ. Measure: (a) extraction accuracy on 10 FinanceBench questions,
       (b) latency per call, (c) cost per 1,000 filings. Does QLoRA fine-tuning on a
       proprietary 10-K corpus close the gap to Haiku?

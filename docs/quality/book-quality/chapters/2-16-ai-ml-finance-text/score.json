@@ -1,0 +1,203 @@
+{
+  "file": "book/chapters/16-ai-ml-finance-text/chapter.tex",
+  "reading_index": 2,
+  "slug": "16-ai-ml-finance-text",
+  "title": "Artificial Intelligence, Machine Learning, and Text in Finance",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 85,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:137-146 — supervised-learning ERM definition is precise and re-derivable",
+        "chapter.tex:208-223 — LLM next-token NLL objective correct",
+        "chapter.tex:572-584 — scaled dot-product attention formula correct, honest about single-head d_v=d_k simplification"
+      ],
+      "blocking_issues": [
+        "MAJOR · chapter.tex:526-529 — ungrammatical fused sentence ('These\\nResearchers applied these approaches'); editing artifact",
+        "MINOR · chapter.tex:173-176 — universal-approximation claim omits that approximability is not learnability/trainability (mild overclaim)",
+        "MINOR · chapter.tex:284 — leftover '% [CITE: ...]' authoring TODO in source"
+      ],
+      "recommended_action": "Fix the 526-529 sentence; add a learnability caveat to the UAT sentence; remove or resolve the line-284 CITE marker."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:186-197 — context box used for the markets/deep-nets analogy (big picture)",
+        "chapter.tex:572-592 — deepdive box for attention internals, skippable without loss",
+        "chapter.tex:646-659 — remark for caveats; definitions/examples consistently boxed"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": null,
+      "pass": true,
+      "evidence": [
+        "book/chapters/16-ai-ml-finance-text/chapter.tex — no \\includegraphics; figures/ holds only .gitkeep",
+        "N/A — no code or figures embedded in the chapter; no tables or worked numeric figures to contradict prose"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:20-21 — token/vocabulary/attention forward-pointed to in-chapter sections",
+        "chapter.tex:208-210, 572-577 — token/vocabulary and attention defined before substantive use",
+        "Only 01-intro precedes this chapter in reading order; nothing from later chapters is used (only previewed)"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:663-712 — explicit roadmap bridging to subsequent parts",
+        "chapter.tex:591 — preview of attention derivation deferred to the next chapter",
+        "Smooth curve from AI history -> ML/DL/LLM hierarchy -> finance applications -> text -> transformers"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:591 — forward bridge is by hard-coded number ('Chapter~2') rather than \\Cref; brittle but functional"
+      ],
+      "recommended_action": "Convert the forward bridge to \\Cref to make progression robust to reordering."
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:572-592 — attention shown here is explicitly a preview, 'developed in Chapter~2'",
+        "Definitions are introduced once; no verbatim re-derivation within the chapter"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:591 — preview overlap with Chapter 2 is signalled by raw number, not \\Cref to the SSOT; SSOT ownership of the attention formula not yet wired via cross-ref"
+      ],
+      "recommended_action": "Make 02-llm-foundations the attention SSOT and \\Cref it from this deepdive box, labelling the box a preview."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:38-49 — AI history framed via finance (loan-risk expert systems)",
+        "chapter.tex:241-347 — every technique tied to a finance use case (trading, forecasting, risk, AML/KYC)",
+        "chapter.tex:604-644 — four LLM properties each motivated by a financial workflow"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:440-450 — EPS-beat-but-text-bearish example, realistic and actionable",
+        "chapter.tex:273-285 — market-making RL example grounded in inventory/order-book feedback",
+        "code/notebooks/16-ai-ml-finance-text/exercises.ipynb — real EDGAR uncertainty/readability/return-predictor pipeline reinforces the prose examples"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 70,
+      "pass": false,
+      "evidence": [
+        "chapter.tex — all 9 distinct cite keys resolve in book/bibliography.bib",
+        "book/bibliography.bib:1727,3175 — key wei2022emergent defined twice"
+      ],
+      "blocking_issues": [
+        "MAJOR · book/bibliography.bib:1727 & 3175 — DUPLICATE key wei2022emergent (cited from this chapter at lines 229,631)"
+      ],
+      "recommended_action": "De-duplicate wei2022emergent to a single @article entry in bibliography.bib."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 86,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:415-418 — loughran2011liability attribution (10-K sentiment vs general-text dictionaries) matches the known result",
+        "chapter.tex:423-425 — tetlock2007giving WSJ pessimism/mean-reversion claim matches the known result",
+        "chapter.tex:631-635 — wu2023bloomberggpt financial-pretraining benefit claim matches the known result"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:529 — 'as early as the 1990s' BoW-tone history attributed to kearney2014textual (a 2014 survey); NEEDS_EXTERNAL_VERIFICATION that the survey supports the date"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION of the 1990s claim against kearney2014textual; capped at 89."
+    },
+    {
+      "dimension": "completeness",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:646-659 — caveat remark covers hallucination, prompt sensitivity, opacity, tail miscalibration",
+        "chapter.tex:480-489 — strategic-production caveat for financial text",
+        "chapter.tex:4-21 — learning objectives map onto sections"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:173-176 — missing approximability-vs-learnability caveat on UAT",
+        "MINOR · chapter.tex:313 — VaR used without first-use expansion"
+      ],
+      "recommended_action": "Add the UAT caveat clause and expand VaR on first use."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "chapter.tex — 33 distinct \\label commands, no collisions",
+        "chapter.tex:20,74 — in-chapter \\ref targets resolve",
+        "chapter.tex:114,196,338,591,658 — five hard-coded 'Chapter~N' prose references"
+      ],
+      "blocking_issues": [
+        "MAJOR · chapter.tex:114,196,338,591,658 — hard-coded 'Chapter~N' prose refs; RUBRIC forbids these, must be \\Cref{ch:...}",
+        "MINOR · chapter.tex:20,74 — bare \\ref with manual 'Sections' word instead of \\Cref"
+      ],
+      "recommended_action": "Replace all five Chapter~N prose refs with \\Cref{ch:...}; convert bare \\ref pointers to \\Cref."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "code/notebooks/16-ai-ml-finance-text/exercises.ipynb — real, runnable EDGAR pipeline with overfitting caveat",
+        "code/notebooks/16-ai-ml-finance-text/demo.ipynb — single-cell placeholder stub",
+        "chapter.tex — no figures to regenerate"
+      ],
+      "blocking_issues": [
+        "MINOR · code/notebooks/16-ai-ml-finance-text/demo.ipynb — placeholder ('Status: Placeholder — content to be developed')",
+        "MINOR · exercises.ipynb — relies on live SEC EDGAR endpoints with no cached fixtures/pinned accessions; non-deterministic offline"
+      ],
+      "recommended_action": "Develop or remove demo.ipynb; cache/pin EDGAR data in exercises.ipynb for determinism."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-21 — clear, verb-led learning objectives",
+        "chapter.tex:701-712 — explicit explanation of context/deepdive boxes and difficulty tags",
+        "Terms generally defined before use for the mixed academic/industry audience"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:277 — inline gloss splits the noun phrase ('A deep reinforcement learning (...) agent'), clumsy for the reader",
+        "MINOR · chapter.tex:708-712 — roadmap promises end-of-chapter exercises, but book body has none (removed per commit 1092660)"
+      ],
+      "recommended_action": "Rework the line-277 gloss; reconcile the exercises promise with the companion-notebook reality."
+    }
+  ],
+  "pass": false,
+  "notes": "Strong conceptual on-ramp chapter; finance-first and well-boxed. Held below release by: 5 hard-coded 'Chapter~N' prose refs (notation_crossref), a duplicate bib key wei2022emergent (citation_hygiene, book-wide), and a broken sentence at lines 526-529 (correctness). citation_accuracy capped at 89 pending external verification of the 1990s BoW history attributed to kearney2014textual. code_figure_correctness is N/A (no figures/code in chapter). Top fixes are low-risk and mechanical."
+}

@@ -809,7 +809,7 @@ achieved not by a better prompt but by a better loop.*
   Claude Code, Codex, and Hugging Face (A–B), skills (C), evaluation and human
   gates (D), hooks and `settings.json` registration (E), and Git as the loop's
   memory and rollback path (F).
-- Companion notebooks: `code/notebooks/17-loops-goals-iterations/`.
+- Companion notebooks: `code/practicals/17-loops-goals-iterations/`.
 - Key references: ReAct (Yao et al., 2022), Reflexion (Shinn et al., 2023),
   Self-Refine (Madaan et al., 2023), AutoGen (Wu et al., 2023), Boehm's spiral
   model (1988), Deming (PDCA), Goodhart (1984), SR 11-7 model-risk guidance.

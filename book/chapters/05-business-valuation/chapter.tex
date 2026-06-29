@@ -232,7 +232,8 @@ content of all EDGAR filings:
 
 \begin{verbatim}
 https://efts.sec.gov/LATEST/search-index?q="goodwill impairment"
-    &dateRange=custom&startdt=2022-01-01&enddt=2023-12-31&forms=10-K
+    &dateRange=custom&startdt=2022-01-01
+    &enddt=2023-12-31&forms=10-K
 \end{verbatim}
 
 Since 2009, the SEC has required filers to \emph{tag} financial data using the XBRL
@@ -251,7 +252,7 @@ The following code illustrates a minimal but complete pipeline for retrieving a 
 filing. It first resolves a ticker symbol to a CIK, then fetches the filing index to
 locate the primary document, and finally downloads it for parsing.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 Several engineering considerations deserve attention. The SEC's EDGAR data services
 require the \texttt{User-Agent} header to identify the requesting party; requests that
@@ -284,7 +285,7 @@ table using a lightweight parser such as BeautifulSoup. Convert the table to a c
 plain-text representation---preserving column headers and indentation but stripping
 HTML tags. Then send this representation to an LLM with a structured extraction prompt:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The structured output approach---requesting JSON directly rather than free-form
 text---reduces post-processing effort and enables automatic validation against a schema.
@@ -437,7 +438,7 @@ Given a structured financial data object produced by the extraction pipeline
 algebraic operation. The following function takes the standardised JSON output
 and returns FCFF for each available period:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 A production implementation applies this function across a time series of annual or
 quarterly observations, producing a vector of historical FCFFs that seeds the
@@ -552,7 +553,7 @@ A well-designed CoT forecasting prompt structures the reasoning in four stages:
 (1) characterise the macro environment, (2) assess industry dynamics, (3) evaluate
 firm-specific factors, and (4) synthesise into a numerical projection.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The separation of reasoning from numerical output is not merely cosmetic: it enables
 downstream validation. If the reasoning step contains an internally inconsistent claim
@@ -688,7 +689,7 @@ prediction loss.
 
 The code interpreter pattern for DCF computation looks as follows:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The advantage of generating Python over performing mental arithmetic is not merely
 accuracy: the generated code is an auditable artefact. A human reviewer can inspect
@@ -714,7 +715,7 @@ structured loop. Recall that each iteration consists of three phases:
 
 Applied to DCF valuation, a ReAct loop might unfold as follows:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The ReAct pattern makes the reasoning transparent and auditable while offloading all
 arithmetic to a reliable executor. The agent's role is to formulate the calculation
@@ -794,7 +795,7 @@ LLMs are valuable at this stage not for numerical computation but for
 model can assess whether the numbers are consistent with the described business
 environment and flag contradictions. An example prompt:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 \subsection{Monte Carlo Simulation Orchestrated by Agents}
 \label{subsec:bv-scenarios-montecarlo}
@@ -822,7 +823,7 @@ for enterprise value.
 
 A practical Monte Carlo implementation for valuation, invoked by an agent, is:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 Typical parameterisation in a mid-cap equity context might use
 $\mu_\mathrm{WACC} = 0.09$, $\sigma_\mathrm{WACC} = 0.015$,
@@ -877,7 +878,7 @@ swings sharply. Extending the grid to WACC $\in [4\%, 18\%]$, the notebook then
 locates the $(\mathrm{WACC}, g)$ pair that matches AAPL's current market
 capitalisation, illustrating how the implied discount rate can be backed out
 from an observed price.
-See \texttt{code/notebooks/05-business-valuation/exercises.ipynb},
+See \texttt{code/practicals/05-business-valuation/},
 Illustration Exercise.
 \end{illustration}
 
@@ -924,7 +925,7 @@ LLMs can identify peer companies from a natural-language description of the targ
 firm's business model, without relying on rigid classification codes. A zero-shot
 prompt simply describes the target and requests comparable firms:
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The instruction ``Do NOT invent tickers or company names'' is necessary but not
 sufficient: hallucinated comparables occur with non-trivial frequency even with
@@ -955,7 +956,7 @@ markets, competitive position, and strategy. Embedding the MD\&A of all companie
 a universe and indexing them in a vector database allows efficient nearest-neighbour
 retrieval.
 
-\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/notebooks/05-business-valuation/exercises.ipynb}.}
+\textit{A worked Python implementation of this example is provided in the chapter notebook \texttt{code/practicals/05-business-valuation/}.}
 
 The rationale for MD\&A embeddings is that firms with similar described business models
 should trade on similar multiples. Where this is measured, cosine-similarity-based peer

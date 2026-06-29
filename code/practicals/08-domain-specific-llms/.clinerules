@@ -1,0 +1,16 @@
+General-vs-domain comparison agent — Cline rules.
+
+Compare a general-purpose classifier against a finance-domain classifier on the labelled
+finance sentences in data/, grounded only in what the tools print. The tools in tools/ do
+all classification and scoring; you pick inputs and read outputs and never compute or
+recall numbers yourself.
+
+Comparison loop:
+1. python -m tools.general            # general-purpose accuracy and its misses
+2. python -m tools.domain             # finance-domain accuracy and its flips
+3. python -m tools.compare --json     # both accuracies, winner, margin, domain_wins
+4. Write a verdict citing the two accuracies and the deciding finance terms (beat,
+   headwinds, liability, impairment) from domain_wins.
+5. Save the verdict to reports/compare.md.
+
+Never state an accuracy or label the tools did not print. Run tests with: python -m pytest -q

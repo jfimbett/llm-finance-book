@@ -16,11 +16,10 @@
 
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
-    <div class="kicker">Large Language Models in Finance · Lecture 4</div>
-    <h1>From a Chatbot to a Colleague That Does the Work</h1>
+    <div class="kicker">Large Language Models in Finance · Chapter 4 / Lecture 4</div>
+    <h1>LLM Agents and Finance Applications</h1>
     <div class="sub">How an LLM stops answering questions and starts fetching filings, running numbers, and writing the report — under supervision.</div>
-    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -69,7 +68,7 @@
       revenue growth vs. two years ago?"</em>
     </div>
     <ul>
-      <li class="frag"><strong>Documents don't fit</strong> — a call plus a 10-K can overflow what the model can read at once (GPT-4-class: 128,000 tokens ≈ 100 pages)</li>
+      <li class="frag"><strong>Documents don't fit</strong> — a call plus a 10-K can overflow what the model can read at once (frontier-class: 128,000+ tokens ≈ 100 pages)</li>
       <li class="frag"><strong>Cross-referencing two sources is unreliable</strong> when both are crammed into one prompt</li>
       <li class="frag"><strong>The follow-up restarts from scratch</strong> — "now compare to Microsoft" forgets everything</li>
     </ul>
@@ -124,7 +123,7 @@
       \[ \mu: \mathcal{A} \times \mathcal{E} \to \mathcal{O} \quad\text{(environment response)} \]
       Starting from \(m_0\), each step: \(m_t \gets \phi(o_t, m_{t-1})\), \(a_t \sim \pi(m_t)\), \(o_{t+1} \gets \mu(a_t, e_t)\).
       In an LLM agent \(\pi\) is the language model; \(\mathcal{M}\) is the prompt; actions are text, tool-calls, or termination; observations are tool outputs and user messages.
-      The central bottleneck: \(\mathcal{M}\) is bounded by the context window — roughly 100 pages for a GPT-4-class model.
+      The central bottleneck: \(\mathcal{M}\) is bounded by the context window — roughly 100 pages for a frontier-class model.
     </aside>
   </section>
 
@@ -147,7 +146,7 @@
       <div class="col">
         <div class="alert callout">
           <span class="callout-tag">the key bottleneck</span>
-          Memory is capped by the context window — roughly 100 pages for a GPT-4-class model.
+          Memory is capped by the context window — roughly 100 pages for a frontier-class model.
           A company's full filing history simply does not fit, which is why we need the memory and
           retrieval tricks coming up.
         </div>
@@ -825,7 +824,7 @@ class DCFInput(BaseModel):
         <div class="block"><div class="block-title">Managing latency</div>
           <ul>
             <li><strong>Caching</strong> — store results against a content hash; repeated queries cost only a cache lookup</li>
-            <li><strong>Model tiering</strong> — GPT-4o-mini / Claude Haiku for classification and extraction; larger models for synthesis and report generation</li>
+            <li><strong>Model tiering</strong> — GPT-5.6 Luna / Claude Haiku 4.5 for classification and extraction; larger models for synthesis and report generation</li>
             <li>LLM generation budget: <strong>50–70%</strong> of total allowed wall-clock time</li>
           </ul>
         </div>

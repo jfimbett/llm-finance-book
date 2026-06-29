@@ -1,0 +1,206 @@
+{
+  "file": "book/chapters/10-portfolio-quant-trading/chapter.tex",
+  "reading_index": 11,
+  "slug": "10-portfolio-quant-trading",
+  "title": "Portfolio Optimization and Quantitative Trading with LLMs",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:44-109 — mean-variance derivation correct; w_SR ∝ Σ^{-1}μ closed form correct (line 77)",
+        "chapter.tex:139-149 — Black-Litterman posterior formula standard and correct; 'no views → market portfolio' sanity check correct",
+        "chapter.tex:640 — turnover-cost arithmetic 0.15×252×0.05% ≈ 1.89% verified correct",
+        "chapter.tex:719-748 — CVaR definition and GARCH(1,1)+text recursion correct"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:923 — text routes reader to 'Chapter~7 on regulatory compliance', but regulatory compliance is ch:regtech-compliance-aml (reading index 12); ch07 is 'Other Applications & Future Trends'. Wrong-chapter pointer."
+      ],
+      "recommended_action": "Fix line 923 to \\Cref{ch:regtech-compliance-aml}; recheck other rule-of-thumb claims (line 609-610)."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 85,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:188-244 — big-picture 'where LLMs can/cannot add value' clearly separated from math via section structure",
+        "chapter.tex:509-551 — market-efficiency intuition kept distinct from formal models"
+      ],
+      "blocking_issues": [
+        "NIT · whole chapter — no context/deepdive boxes used; big-picture vs under-the-hood separation achieved via prose only, not the rubric §5 preferred pattern"
+      ],
+      "recommended_action": "Optionally wrap big-picture sections in context boxes and BL/GARCH derivations in deepdive boxes."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "No \\includegraphics and no in-text code; scored on worked numeric examples",
+        "chapter.tex:640 turnover arithmetic correct; chapter.tex:323-328 IR≈0.25 chain internally consistent",
+        "chapter.tex:820-828 verbatim JSON alert example is illustrative and self-consistent"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:323-328 — illustrative example numbers stated in indicative mood without an 'illustrative' qualifier"
+      ],
+      "recommended_action": "Label illustrative numbers; add at least one regenerable figure (efficient frontier / equity curve)."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:44-67 — mean-variance defined before use throughout",
+        "chapter.tex:116 — Black-Litterman introduced after mean-variance, which it extends",
+        "chapter.tex:282-291 — signal-to-view mapping defined before backtesting that estimates its α",
+        "Every internal \\ref/\\eqref target resolves to an in-chapter label; no use-before-definition"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:268-276 — reuses FinBERT/sentiment from ch09 (financial-nlp) appropriately as prior knowledge",
+        "Difficulty curve: classical theory → LLM signals → algo trading → backtesting → risk, each building on the last",
+        "chapter.tex:305,394 — explicit forward bridges to backtesting-pitfalls section"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "Verified mean-variance/Sharpe/BL/CVaR NOT derived in ch05 or ch06 — ch10 is sole source",
+        "ch13 mentions GARCH only in passing (line 529,545); no competing derivation",
+        "chapter.tex:239-240 ↔ 853-856 — thesis repetition is intentional summary reinforcement, cross-referenced"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:27-37 — opens with the 1/N paradox, a real finance problem motivating the whole chapter",
+        "chapter.tex:151-166 — LLM signals motivated by the BL view-modularity finance use case",
+        "Every technique (factors, RL execution, CVaR) tied to a concrete finance decision"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 87,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:168-185 — BL single-view AAPL example, numerically grounded",
+        "chapter.tex:307-329 — earnings-call BL extraction example with realistic pipeline",
+        "chapter.tex:813-835 — 8-K critical-alert example, strong end-to-end illustration"
+      ],
+      "blocking_issues": [
+        "MINOR · chapter.tex:323-328 — example metrics (0.08 corr, 15% Sharpe uplift) presented as results without 'illustrative' framing",
+        "Examples are not backed by a runnable notebook (demo.ipynb is a stub) so the reader cannot reproduce them"
+      ],
+      "recommended_action": "Add illustrative qualifiers and wire examples to a real demo.ipynb."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 95,
+      "pass": true,
+      "evidence": [
+        "All 35 \\cite keys resolve to exactly one bibliography.bib entry (verified by grep)",
+        "No duplicate or stub keys; required fields present on checked entries",
+        "SSRN working papers carry note + url fields"
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 82,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:439-442 — KirtacGermano2024: 965,375 articles, 74.4% accuracy, Sharpe 3.05 (SSRN #4706629)",
+        "chapter.tex:503-504 — CoriatBenhamou2025 HARLF: 26% return, Sharpe 1.2 (SSRN #5365047)",
+        "chapter.tex:158-166 — MantshimuliMwamba2025 multi-LLM BL improvement (SSRN #5394743)",
+        "chapter.tex:201-207 — LopezLiraTang2023 small-magnitude predictability (SSRN #4412788)"
+      ],
+      "blocking_issues": [
+        "MAJOR · headline performance numbers from 2024-2025 SSRN working papers not verifiable locally → NEEDS_EXTERNAL_VERIFICATION (caps at 89)"
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — confirm the four headline figures against the SSRN sources."
+    },
+    {
+      "dimension": "completeness",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:80-100 — estimation-error caveats and remedies present",
+        "chapter.tex:653-698 — look-ahead/survivorship/PBO/min-track-length caveats thorough",
+        "chapter.tex:837-842 — honest limitation statement after alert example"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:923 — cross-chapter bridge points to the wrong chapter (regulatory compliance)",
+        "MINOR · chapter.tex:735-744 — GARCH+text augmentation lacks a σ²≥0 non-negativity caveat"
+      ],
+      "recommended_action": "Fix the chapter pointer; add the variance non-negativity caveat."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 70,
+      "pass": false,
+      "evidence": [
+        "All internal \\eqref/\\ref targets resolve to in-chapter labels (verified)",
+        "No duplicate labels in chapter (verified)",
+        "chapter.tex:747-748 — helpful φ1 vs α disambiguation"
+      ],
+      "blocking_issues": [
+        "BLOCKER · chapter.tex:923 — hard-coded 'Chapter~7' prose reference (rubric §5 forbids) AND it is the wrong number",
+        "MINOR · α reused with three meanings (lines 283, 692, 719) without a consolidating note"
+      ],
+      "recommended_action": "Replace line 923 with \\Cref{ch:regtech-compliance-aml}; add an α-notation note."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 35,
+      "pass": false,
+      "evidence": [
+        "code/notebooks/10-portfolio-quant-trading/demo.ipynb — print-only stub; imports numpy/pandas and prints a string",
+        "exercises.ipynb has real EDGAR XBRL code but does not reproduce chapter quantitative content",
+        "figures/ directory contains only .gitkeep; no figures regenerable because none exist"
+      ],
+      "blocking_issues": [
+        "MAJOR · demo.ipynb is a placeholder; none of the chapter's math (mean-variance, BL, walk-forward backtest, CVaR/GARCH, transaction costs) is demonstrated or regenerable"
+      ],
+      "recommended_action": "Replace demo.ipynb with a seeded notebook reproducing the efficient frontier, BL posterior (AAPL example), and a toy walk-forward backtest; export at least one figure."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-20 — clear, well-scoped learning objectives",
+        "chapter.tex:188-244 — accessible big-picture framing for the mixed academic/industry audience",
+        "Worked examples and explicit caveats throughout aid scaffolding"
+      ],
+      "blocking_issues": [
+        "MINOR · no figures to anchor the efficient frontier, signal decay, or backtest concepts visually",
+        "MINOR · no context/deepdive layering to let big-picture and technical readers self-select"
+      ],
+      "recommended_action": "Add an efficient-frontier figure and consider context/deepdive boxes."
+    }
+  ],
+  "pass": false,
+  "notes": "Iteration-0 audit. Strong, finance-first chapter; sole source of truth for mean-variance, Black-Litterman, and CVaR/GARCH (verified not duplicated in ch05/ch06/ch13). One BLOCKER: line 923 hard-codes 'Chapter~7' as the regulatory-compliance chapter, but that material lives in ch:regtech-compliance-aml (reading index 12) — wrong target AND a rubric §5 hard-coded-prose-ref violation, hitting correctness, completeness, and notation_crossref. reproducibility is the lowest dimension: demo.ipynb is a print-only stub and figures/ is empty. Four headline empirical figures (Kirtac Sharpe 3.05/74.4%; HARLF 26%/1.2; MantshimuliMwamba; LopezLiraTang) come from 2024-2025 SSRN working papers and are NEEDS_EXTERNAL_VERIFICATION, capping citation_accuracy at 89. All 35 \\cite keys resolve uniquely; no duplicate labels; all internal \\ref/\\eqref resolve. Chapter does NOT pass."
+}

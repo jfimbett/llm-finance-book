@@ -358,7 +358,7 @@ binary vectors indicating which segments are present.
 LIME has practical advantages over SHAP in the LLM setting. It is truly model-agnostic:
 it requires only the ability to query $f$ on new inputs, with no access to gradients or
 internal representations. This makes it applicable to closed-source API-based models
-such as GPT-4 or Claude, where internal activations are inaccessible. The main
+such as GPT-5 or Claude, where internal activations are inaccessible. The main
 disadvantage is instability: the stochastic sampling of perturbations means that running
 LIME twice on the same input may produce meaningfully different explanations
 \cite{arrieta2020explainable}. For audit purposes, this instability is problematic; a
@@ -580,9 +580,10 @@ variable.
 applicant's business description. KernelSHAP with 1,000 perturbation samples produces
 token-level attributions. The top five negative tokens are extracted.
 
-\textbf{Stage 3 (Adverse Action Generation):} A GPT-4o model is prompted with the
+\textbf{Stage 3 (Adverse Action Generation):} A GPT-5 model is prompted with the
 following structured input:
 
+{\footnotesize
 \begin{verbatim}
 You are a credit officer drafting a regulatory-compliant adverse
 action notice. The application was declined. The primary reasons,
@@ -600,6 +601,7 @@ plain English. Do not introduce any factors not listed above.
 Do not mention the applicant's protected characteristics.
 Limit to 150 words.
 \end{verbatim}
+}
 
 The output is a compliant adverse action notice suitable for delivery to the applicant.
 The pipeline is auditable at every stage: the tree's SHAP values are deterministic,

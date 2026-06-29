@@ -11,6 +11,11 @@
 \linespread{1.05}                   % Palatino needs slightly more leading
 \usepackage[english]{babel}
 \usepackage{microtype}              % Protrusion, expansion, kerning
+% Relax justification so near-fit lines stretch into the margin slack instead of
+% overflowing it; eliminates the many small (<10pt) prose Overfull \hbox warnings.
+\setlength{\emergencystretch}{3em}
+\usepackage{tabularx}               % auto-width X columns for wide tables
+\usepackage{seqsplit}              % breakable long monospace tokens (filenames)
 
 % --- Page Layout ---
 \usepackage[

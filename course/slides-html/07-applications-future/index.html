@@ -16,11 +16,10 @@
 
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
-    <div class="kicker">Large Language Models in Finance · Lecture 7</div>
+    <div class="kicker">Large Language Models in Finance · Chapter 7 / Lecture 7</div>
     <h1>Other Applications in Finance and Future Trends</h1>
     <div class="sub">From scattered use-cases to deployed systems — and the governance that has to come with them.</div>
-    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; Paris Dauphine – PSL University</div>
-    <span class="badge">Summer school · math one click away — press <b>m</b> or click ⚙ "Under the hood"</span>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
   </section>
 
   <!-- ============================ ROADMAP ============================ -->
@@ -829,7 +828,7 @@ Respond with valid JSON:
 
 def classify_filing(client, company, description):
     message = client.messages.create(
-        model="claude-opus-4-5",
+        model="claude-opus-4-8",
         max_tokens=256,
         messages=[{"role": "user", "content":
                    CLASSIFICATION_PROMPT.format(
@@ -867,7 +866,7 @@ def classify_filing(client, company, description):
     <ol>
       <li><strong>Privacy by default</strong> — all processing local; financial data never leaves the machine</li>
       <li><strong>Meet users where they work</strong> — queries via WhatsApp, Telegram, Slack, Signal</li>
-      <li><strong>Model flexibility</strong> — cloud (Claude, GPT-4) for capability; local (Llama, Mistral) for sensitivity</li>
+      <li><strong>Model flexibility</strong> — cloud (Claude Opus 4.8, GPT-5) for capability; local (Llama 4, Mistral) for sensitivity</li>
       <li><strong>Extensibility through skills</strong> — a Python function with a descriptive docstring becomes a callable tool</li>
     </ol>
   </section>

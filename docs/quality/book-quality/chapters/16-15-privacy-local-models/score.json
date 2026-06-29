@@ -1,0 +1,200 @@
+{
+  "file": "book/chapters/15-privacy-local-models/chapter.tex",
+  "reading_index": 16,
+  "slug": "15-privacy-local-models",
+  "title": "LLMs and Privacy: Local Deployments and Text De-identification",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 87,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:296-305 — Gaussian-mechanism sigma = Delta2 f * sqrt(2 ln(1.25/delta))/epsilon matches Dwork-Roth; correct.",
+        "chapter.tex:321-326 — advanced-composition epsilon' matches Dwork-Roth Thm 3.20; correct.",
+        "chapter.tex:342-354 — FedAvg objective and server update match McMahan et al. (2017); correct.",
+        "chapter.tex:138 — Mistral 7B > Llama 2 13B on most benchmarks matches the Mistral paper; correct."
+      ],
+      "blocking_issues": [
+        "MINOR correctness chapter.tex:143 — 'Meta Llama' naming requirement attributed to Llama 2 license; it originates in the Llama 3 license (conflation).",
+        "MINOR correctness chapter.tex:169 — 'best open-weight models as of 2025 are GPT-3.5-class, lag GPT-4' is a fast-moving time-bound claim at risk of becoming false; NEEDS_EXTERNAL_VERIFICATION.",
+        "NIT correctness chapter.tex:304 — Gaussian-mechanism stated 'for any epsilon in (0,1)' without noting this restriction is specific to this analytic bound."
+      ],
+      "recommended_action": "Fix Llama license generation; date/soften the GPT-4 capability claim; one-clause caveat on the epsilon<1 restriction."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 92,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:30-36,77-79,127-129,183-187,273-275 — context boxes carry the big picture; deepdive box (173-177) carries AWQ/GPTQ internals.",
+        "chapter.tex:41-47 — training-channel vs inference-channel framing cleanly separates the two risk layers."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "book/chapters/15-privacy-local-models/figures/ contains only .gitkeep — no figures to contradict prose.",
+        "chapter.tex:211-223 — NER entity table (ex:ch15-ner) is internally consistent with the masking output shown at 224.",
+        "chapter.tex:418-444 — compliance table (tab:ch15-compliance) rows map obligations to correct GDPR/DORA/MiFID articles."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE — scored on tables; no figures present."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 91,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:49,99,239,282,342 — memorisation, MIA advantage, k-anonymity, DP, FedAvg each defined before first use.",
+        "chapter.tex:317,368 — forward concepts (LoRA/adapters, RAG) are deferred via Cref to earlier chapters ch:llm-training-finetuning and ch:llm-agents, both defined.",
+        "No use-before-definition found in reading order (position 16, final chapter)."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:317 — explicit bridge to PEFT (LoRA/adapters) from the training chapter, tied to DP-SGD sensitivity.",
+        "chapter.tex:368 — explicit bridge to RAG from the agents chapter.",
+        "As final chapter it synthesises prior material (fine-tuning, RAG, agents) into a privacy engineering frame."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 78,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:54-71 vs book/chapters/11-regtech-compliance-aml/chapter.tex:93-110 — GDPR Articles 17 and 22 developed independently in both chapters with no cross-reference; ch11 is reading #12 (earlier).",
+        "chapter.tex:65 vs 11-...:75-80 — MiFID II record-keeping covered in both.",
+        "chapter.tex:131-177 vs book/appendices/C-huggingface-local/chapter.tex — Llama/Mistral/Phi + quantisation (GGUF, llama.cpp/Ollama, VRAM, QLoRA) overlap Appendix C with no cross-reference."
+      ],
+      "blocking_issues": [
+        "MAJOR non_repetition — GDPR (Art 17/22) has no designated single source of truth across ch11 and ch15; neither cross-references the other.",
+        "MINOR non_repetition — MiFID II and open-weight/quantisation overlaps uncross-referenced."
+      ],
+      "recommended_action": "Designate ch11 as the GDPR SSOT; trim ch15 to privacy-specific angles and add \\Cref to ch11 and to Appendix C."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:30-36 — opening motivated by a bank policy + Samsung leak, not generic ML.",
+        "chapter.tex:90,110,359 — memorisation/MIA/federated framed via deal pipelines, credit files, multi-bank AML collaboration.",
+        "chapter.tex:196-204 — privacy techniques specialised to financial identifiers (IBAN/ISIN/CUSIP/LEI)."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:155-164 — ex:ch15-routing: realistic three-tier bank routing with audit logging.",
+        "chapter.tex:206-225 — ex:ch15-ner: concrete French retail-credit NER/masking example.",
+        "chapter.tex:374-385 — ex:ch15-rag: five-step privacy-aware RAG for credit analysis."
+      ],
+      "blocking_issues": [
+        "MINOR finance_examples — examples are excellent but not backed by runnable code: code/notebooks/15-privacy-local-models/demo.ipynb is a stub (no code cells), so the reader cannot reproduce the NER/RAG pipelines the examples describe."
+      ],
+      "recommended_action": "Implement demo.ipynb (or wire examples to exercises.ipynb) so the worked examples are reproducible."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 94,
+      "pass": true,
+      "evidence": [
+        "All 16 cite keys resolve to exactly one entry in book/bibliography.bib (verified): abadi2016deep, carlini2021extracting, carlini2022quantifying, dora2022, dwork2014algorithmic, esma2018mifid2, frantar2022gptq, gdpr2016, honnibal2017spacy, jiang2023mistral, lin2023awq, mcmahan2017communication, perez2022ignore, shokri2017membership, sweeney2002k, touvron2023llama.",
+        "No duplicate keys, no stub entries; required fields present."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:45,88,405 — carlini2021extracting correctly described (GPT-2 1.5B extraction, likelihood-ratio attack).",
+        "chapter.tex:97 — shokri2017membership correctly attributed to membership inference.",
+        "chapter.tex:280,307,332 — dwork2014algorithmic and abadi2016deep correctly attributed to DP foundations and DP-SGD/moments accountant.",
+        "chapter.tex:240 — sweeney2002k correctly attributed to k-anonymity."
+      ],
+      "blocking_issues": [
+        "MAJOR citation_accuracy chapter.tex:136 — \\citep{touvron2023llama} (the original LLaMA v1 paper, 'Open and Efficient Foundation Language Models') is applied to claims about Llama 2/3/3.1, which it does not cover. Wrong paper for the proposition."
+      ],
+      "recommended_action": "Cite the Llama 2 paper (Touvron et al. 2023b) for the Llama 2 claims, or restrict the existing cite to the LLaMA-v1 lineage."
+    },
+    {
+      "dimension": "completeness",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:448-459 — rem:ch15-summary maps each of five threats to its mitigation; strong closure.",
+        "chapter.tex:282-333 — DP definition, Gaussian mechanism, DP-SGD, composition all present with caveats (privacy budget exhaustion)."
+      ],
+      "blocking_issues": [
+        "MINOR completeness chapter.tex:61 — 'machine unlearning' named as the open problem behind Art 17 erasure but neither cited nor elaborated; reader cannot act on it.",
+        "NIT completeness chapter.tex:438-440 — MiFID II compliance-table row lacks an article cite; SR 11-7 row introduced without in-chapter definition."
+      ],
+      "recommended_action": "Add a machine-unlearning citation and a MiFID II article cite / SR 11-7 cross-reference."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "Every internal \\ref/\\eqref resolves to an in-file \\label or to ch:llm-training-finetuning / ch:llm-agents (both defined in their chapters).",
+        "chapter.tex:317,368 — cross-chapter refs use 'Chapter~\\ref{...}', not hard-coded numbers.",
+        "No label collisions among the 44 \\label entries; notation (epsilon, delta, Delta2, sigma, theta) consistent."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE"
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 70,
+      "pass": false,
+      "evidence": [
+        "code/notebooks/15-privacy-local-models/demo.ipynb — single markdown cell listing four intended demos and prerequisites; ZERO code cells (stub).",
+        "code/notebooks/15-privacy-local-models/exercises.ipynb — real, substantial: live SEC EDGAR fetch, regex PII scanner, heuristic NER, redaction pipeline with utility scoring.",
+        "book/chapters/15-privacy-local-models/figures/ — empty (.gitkeep only); no figures to regenerate."
+      ],
+      "blocking_issues": [
+        "MAJOR reproducibility — the accompanying demo notebook is a placeholder; the chapter's central pipelines (NER masking, local-model inference, DP wrapper, privacy-aware RAG) are not implemented in runnable form."
+      ],
+      "recommended_action": "Implement demo.ipynb to match the chapter's four strategies, or relabel the chapter's reproducibility claims to point only at exercises.ipynb."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:4-24 — explicit, well-scoped learning objectives.",
+        "chapter.tex:30-36,77-79 — strong motivating context boxes for a mixed academic/industry audience.",
+        "chapter.tex:331-333 — proof sketch keeps rigor accessible."
+      ],
+      "blocking_issues": [
+        "MINOR pedagogy — objective/delivery gap: objectives 4-5 promise deployable model selection and an anonymisation pipeline, but the demo notebook that would let the reader practise these is a stub.",
+        "NIT pedagogy chapter.tex:315,332 — accountant/Renyi machinery defined inline twice in close proximity; could consolidate into one deepdive."
+      ],
+      "recommended_action": "Close the objective/delivery gap by supplying the runnable demo; consolidate the inline DP-accountant definitions."
+    }
+  ],
+  "pass": false,
+  "notes": "Final chapter (reading index 16). Not thin in content despite ~459 lines: dense, rigorous, four privacy-engineering strategies with formal DP/FL theory and three strong finance examples. Fails the >=90 floor on 7 dimensions. Headline blockers: (1) reproducibility 70 - demo.ipynb is a stub (exercises.ipynb is real); (2) citation_accuracy 84 - touvron2023llama (LLaMA v1) mis-cited for Llama 2/3 claims at line 136; (3) non_repetition 78 - GDPR Art 17/22 and MiFID II duplicated with ch11 (reading #12, earlier) with no cross-reference, plus uncross-referenced open-weight/quantisation overlap with Appendix C. Citation hygiene is clean (all 16 keys resolve uniquely). Math (Gaussian mechanism, advanced composition, FedAvg) verified against Dwork-Roth and McMahan et al. The GPT-3.5/GPT-4 capability claim at line 169 is time-bound (NEEDS_EXTERNAL_VERIFICATION)."
+}

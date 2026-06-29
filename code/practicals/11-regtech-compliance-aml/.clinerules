@@ -1,0 +1,19 @@
+AML transaction-screening agent — Cline rules.
+
+Screen the transactions in data/ for money-laundering red flags and draft a
+SAR-style narrative grounded only in what the rules flagged. The rules in tools/
+do all detection; you pick which rules to run and read the flags, and never judge
+an amount, date, or country yourself.
+
+For every screening:
+1. python -m tools.screen --json > reports/_flags.json
+   (add --rule <name> for structuring, round_number, high_risk_jurisdiction, or velocity)
+2. Read reports/_flags.json and group the flags by account.
+3. Write a SAR narrative; after every assertion cite the transaction id and rule,
+   e.g. "(T010, T011, T012 — structuring)".
+4. Check that every claim traces to a flag and that no flag was dropped; revise.
+5. Save the narrative and flags to reports/sar_<date>.md.
+
+Every flag in the narrative must come from a tool result, never invented. If no
+transaction fires, write "No suspicious activity detected by the configured
+rules." Run tests with: python -m pytest -q

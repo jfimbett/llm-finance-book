@@ -1,0 +1,204 @@
+{
+  "file": "book/chapters/06-credit-risk/chapter.tex",
+  "reading_index": 10,
+  "slug": "06-credit-risk",
+  "title": "LLMs for Credit Risk Analysis",
+  "date": "2026-06-20",
+  "scope": "chapter",
+  "threshold": 90,
+  "iteration": 0,
+  "dimensions": [
+    {
+      "dimension": "correctness",
+      "score": 84,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:716-729 — Gini = 2*AUROC-1 proof is correct and complete (verified by change of variables; identity exact).",
+        "chapter.tex:294-301 — LoRA factor-48 reduction verified numerically (768^2 / (2*768*8) = 48.0).",
+        "chapter.tex:662-704 — AUROC and KS definitions mathematically correct; sup attained at observed support point argued correctly."
+      ],
+      "blocking_issues": [
+        "MAJOR — chapter.tex:652: 'In 2012 ... issued SR 11-7' is a date error; SR 11-7 issued 2011 (bib sr117 correctly says year=2011). Internal contradiction.",
+        "MINOR — chapter.tex:48,58: bureau coverage and FICO factor weights stated without citation."
+      ],
+      "recommended_action": "Fix the SR 11-7 date (2012->2011) and source the bureau/FICO figures."
+    },
+    {
+      "dimension": "concept_separation",
+      "score": 82,
+      "pass": false,
+      "evidence": [
+        "chapter.tex:33,182,420,514,651,878 — each section opens with prose intuition before formalism; good signposting.",
+        "Definitions, examples, remarks, illustration, and a proof environment are used appropriately."
+      ],
+      "blocking_issues": [
+        "MINOR — Every section wraps its entire body in a single `context` box; heavy derivations (masked-softmax 325-337, SHAP 796-809, Gini proof 716-729) sit inside `context` rather than `deepdive`, blurring the big-picture vs under-the-hood split the rubric expects."
+      ],
+      "recommended_action": "Move the three heaviest derivations into `deepdive` boxes so the intuition layer reads standalone."
+    },
+    {
+      "dimension": "code_figure_correctness",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "exercises_executed.ipynb — figure cell runs: AUROC=0.6837, KS=0.3476, Gini=0.3673; Gini=2*AUROC-1 identity holds (2*0.6837-1=0.3674).",
+        "fig_illustration.pdf present (20.8 KB); caption (chapter.tex:849-857) matches figure content (ROC, KS as max vertical separation = max(tpr-fpr)).",
+        "Chapter makes no specific numeric AUROC claim in prose, so no figure/text contradiction."
+      ],
+      "blocking_issues": [
+        "MAJOR — demo.ipynb is a single markdown cell with no code, yet the chapter's signature content (structured generation, calibration, personas) is supposedly demonstrated there.",
+        "MAJOR — exercises.ipynb/exercises_executed.ipynb cell 5 is a leftover '[Placeholder]' stub; the chapter `illustration` points readers to this notebook.",
+        "MINOR — exercises.ipynb cell 6 header has mojibake ('Data Lab � SEC EDGAR'); file is not valid UTF-8."
+      ],
+      "recommended_action": "Implement or remove demo.ipynb; delete the placeholder cell; fix the encoding."
+    },
+    {
+      "dimension": "concept_ordering",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "chapter.tex:379 — AUROC used before its line-674 definition, BUT mitigated by an explicit inline forward-pointer '(defined in Section~\\ref{subsec:credit-metrics} below)'.",
+        "AUROC/KS/Gini/calibration/SHAP all defined within this chapter (not deferred to ch12/ch13) — no cross-chapter forward-dependency.",
+        "Modelling arc (Z-score->Merton->reduced-form->GBT->LLM, 188-242) introduces each concept before use."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE (optional: add a one-line parenthetical AUROC definition at line 379 so the term is self-contained on first appearance)."
+    },
+    {
+      "dimension": "progressive_learning",
+      "score": 90,
+      "pass": true,
+      "evidence": [
+        "Builds explicitly on fine-tuning/LoRA (ch03), domain LLMs (ch08), and sentiment/NLP (ch09); FinBERT/BloombergGPT invoked as established (236).",
+        "Difficulty curve climbs smoothly: data/regulation -> modelling -> household theory -> personas -> evaluation -> deployment.",
+        "8 explicit learning objectives (4-26) frame the chapter."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE (optional: closing synthesis tying results back to objectives)."
+    },
+    {
+      "dimension": "non_repetition",
+      "score": 80,
+      "pass": false,
+      "evidence": [
+        "Most overlaps are cross-referenced rather than re-derived (e.g. SHAP forward-ref to interpretability use)."
+      ],
+      "blocking_issues": [
+        "MAJOR — chapter.tex:294-301 re-derives LoRA (ΔW=BA) with its own equation, duplicating the ch03 SSOT (eq:lora there) and causing a label collision.",
+        "MINOR — Merton (202-219) and reduced-form survival (226) may duplicate derivations owned by a valuation/risk chapter; verify SSOT."
+      ],
+      "recommended_action": "Replace the LoRA derivation with a one-line recap + \\Cref to ch03; confirm Merton/reduced-form SSOT and cross-reference."
+    },
+    {
+      "dimension": "finance_orientation",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "Every technique is motivated by a credit/household-finance problem: Apple Card cold-open (35-39), adverse-action reason codes drive the SHAP section, SR 11-7 drives validation, Basel TTC/PIT drives calibration (786-790).",
+        "Regulatory envelope (FCRA/ECOA/GDPR) framed first as the binding constraint on modelling choices."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE."
+    },
+    {
+      "dimension": "finance_examples",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "ex:personas (544-572) — Maria/Thomas are realistic, contrasting, and their reasoning chains are coherent and actionable.",
+        "ex:api (895-940) and ex:gdpr-explanation (1047-1056) — realistic end-to-end artifacts; SHAP waterfall (815-840) internally consistent with the API response.",
+        "ex:serialisation (268-290) — concrete reusable template."
+      ],
+      "blocking_issues": [
+        "MINOR — chapter.tex:552: persona mortgage prompt conflates '$20,000 / €20,000' and '$444/€444' as equal amounts (USD vs EUR), a realism slip in an otherwise excellent example."
+      ],
+      "recommended_action": "Make currency consistent per persona or note the rough parity; otherwise strong."
+    },
+    {
+      "dimension": "citation_hygiene",
+      "score": 93,
+      "pass": true,
+      "evidence": [
+        "All 16 \\cite keys resolve uniquely in bibliography.bib (altman1968financial, argyle2023out, campbell2006household, cfpb2013ecoa, duffie2003credit, ecb2020hfcs, kahneman2011thinking, lundberg2017unified, merton1974pricing, platt1999probabilistic, simon1955behavioral, sr117, willard2023efficient, wu2023bloomberggpt, yang2020finbert, zadrozny2002transforming).",
+        "No duplicate/stub entries; all required fields present; entries well-formed."
+      ],
+      "blocking_issues": [],
+      "recommended_action": "NONE."
+    },
+    {
+      "dimension": "citation_accuracy",
+      "score": 89,
+      "pass": false,
+      "evidence": [
+        "altman1968financial, merton1974pricing, argyle2023out (silicon sampling), simon1955behavioral (bounded rationality), kahneman2011thinking (System 1/2), lundberg2017unified (SHAP), sr117 — all attributed correctly to the right proposition.",
+        "platt1999probabilistic and zadrozny2002transforming correctly attributed to Platt scaling and isotonic/score-transformation respectively."
+      ],
+      "blocking_issues": [
+        "NEEDS_EXTERNAL_VERIFICATION — chapter.tex:422 CFPB 2018 mortgage-shopping stat (~1/3; ~$300/yr) has no cite/bib entry.",
+        "NEEDS_EXTERNAL_VERIFICATION — chapter.tex:126 Sweeney 2002 87% figure named in prose without \\cite/bib entry.",
+        "NEEDS_EXTERNAL_VERIFICATION — chapter.tex:534,549 Lusardi & Mitchell 2011 battery named without \\cite/bib entry."
+      ],
+      "recommended_action": "NEEDS_EXTERNAL_VERIFICATION — add bib entries + \\cite for the three named-but-uncited sources; capped at 89 until verified."
+    },
+    {
+      "dimension": "completeness",
+      "score": 87,
+      "pass": false,
+      "evidence": [
+        "Covers data/regulation, task formulation, structured generation, calibration, household theory, personas, evaluation metrics, SR 11-7 governance, backtesting, SHAP, and full deployment — comprehensive.",
+        "Caveats present: PIT vs TTC, automation bias, calibration honesty (643), 'p-hat is not confidence' (364)."
+      ],
+      "blocking_issues": [
+        "MAJOR — three quantitative/empirical claims lack the supporting citation/definition (CFPB study, Sweeney, Lusardi-Mitchell), leaving evidentiary gaps.",
+        "MINOR — no closing summary; LoRA/Merton bridges to prior chapters are implicit rather than explicit \\Cref bridges."
+      ],
+      "recommended_action": "Add the missing citations and explicit cross-chapter bridges; optional recap."
+    },
+    {
+      "dimension": "notation_crossref",
+      "score": 55,
+      "pass": false,
+      "evidence": [
+        "All in-chapter \\ref/\\eqref resolve to defined labels (verified label vs ref lists).",
+        "Notation is internally consistent (S, Y, F_+, F_-, phi_j, etc.)."
+      ],
+      "blocking_issues": [
+        "BLOCKER — chapter.tex:382 `def:calibration` collides with ch07 chapter.tex:400 ('Calibration Within Group'); multiply-defined label, ambiguous \\ref resolution.",
+        "BLOCKER — chapter.tex:299 `eq:lora` collides with ch02:2189 and ch03:786 (triple definition); broken \\eqref resolution book-wide."
+      ],
+      "recommended_action": "Rename this chapter's `def:calibration` and `eq:lora` labels (or drop the LoRA equation); coordinate book-wide SSOT ownership."
+    },
+    {
+      "dimension": "reproducibility",
+      "score": 70,
+      "pass": false,
+      "evidence": [
+        "exercises.ipynb figure cell is deterministic (random_state=42; stratified split) and the executed notebook reproduces AUROC=0.6837/KS=0.3476/Gini=0.3673; fig_illustration.pdf regenerable from public UCI German Credit data.",
+        "EDGAR/Z-score exercise cells are real, runnable code (live API calls)."
+      ],
+      "blocking_issues": [
+        "MAJOR — demo.ipynb has no code cells (stub) despite the chapter's structured-generation/calibration/persona content being its headline material.",
+        "MAJOR — placeholder cell 5 persists in both exercises notebooks.",
+        "MINOR — exercises.ipynb is not valid UTF-8 (mojibake in cell 6); the saved figure path in the executed notebook is a Windows absolute path."
+      ],
+      "recommended_action": "Implement/remove demo.ipynb, delete the placeholder cell, fix encoding; figure itself is reproducible."
+    },
+    {
+      "dimension": "pedagogy",
+      "score": 88,
+      "pass": false,
+      "evidence": [
+        "8 clear, action-verb learning objectives (4-26) aligned to the mixed academic/industry audience.",
+        "Strong concrete anchors (Apple Card, Maria/Thomas, worked SHAP waterfall, API + plain-language GDPR explanation); terms generally defined before use.",
+        "Difficulty curve well-managed across sections."
+      ],
+      "blocking_issues": [
+        "MINOR — AUROC term appears before definition (mitigated by pointer).",
+        "MINOR — no closing synthesis/recap mapping back to the objectives; chapter ends on the deployment subsection."
+      ],
+      "recommended_action": "Add a short chapter summary and a self-contained AUROC gloss at first mention."
+    }
+  ],
+  "pass": false,
+  "notes": "Audit only; no edits applied. Strong finance-first chapter with correct headline derivations (Gini=2*AUROC-1 proven; LoRA factor-48 verified; AUROC/KS/calibration/SHAP defined cleanly within-chapter, so no cross-chapter forward-dependency for these metrics). Fails on 11/14 dimensions. Two notation_crossref BLOCKERS dominate: `def:calibration` collides with ch07 and `eq:lora` collides with ch02+ch03 (triple). Other gating issues: SR 11-7 date error (2011 not 2012), LoRA re-derivation (non_repetition), three uncited empirical claims (citation_accuracy capped 89 -> NEEDS_EXTERNAL_VERIFICATION), and reproducibility gaps (stub demo.ipynb + placeholder/mojibake in exercises notebook). The reproducible figure (AUROC 0.6837) is correct and matches its caption."
+}

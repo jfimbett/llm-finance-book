@@ -290,3 +290,4 @@
 | 2026-06-29 | 460 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat: practical harnesses, llmfin package, quality audits, site updates; | — |
 | 2026-06-29 | 757 files | Merge pull request #1 from jfimbett/feat/practical-verify-harness;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 758 files | Merge pull request #2 from jfimbett/fix/pages-nojekyll;fix(site): add .nojekyll to disable Jekyll on GitHub Pages;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 758 files | feat(lec02): add the tiny-GPT matrix walk-through to the slides;chore: session log 2026-06-29;Merge pull request #2 from jfimbett/fix/pages-nojekyll; | — |

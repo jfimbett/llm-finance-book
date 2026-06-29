@@ -18,27 +18,26 @@
   <section class="slide title-slide current">
     <div class="kicker">Large Language Models in Finance · Chapter 1 / Lecture 1 · Practical</div>
     <h1>Introduction</h1>
-    <div class="sub">TF-IDF by hand, cosine similarity, embedding analogies, and Python on real earnings calls.</div>
+    <div class="sub">Word-embedding analogies, TF-IDF in Python, and cosine similarity on real earnings calls.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
   </section>
 
   <!-- ============================ SESSION OVERVIEW ============================ -->
   <section class="slide">
     <div class="eyebrow">Session overview</div>
-    <h2>One hour, five things you'll actually do</h2>
+    <h2>One hour, end to end</h2>
     <div class="title-rule"></div>
-    <p class="lead">Guided problems first, then a short Python case study, and a bonus API exercise. Try each problem before you reveal the solution.</p>
+    <p class="lead">A guided embedding problem first, then a short Python case study and a group discussion. Try the problem before you reveal the solution.</p>
     <div class="cols">
       <div class="col">
         <div class="statrow">
           <div class="stat"><div class="num">5'</div><div class="lbl">Recap — the key formulas</div></div>
-          <div class="stat"><div class="num">15'</div><div class="lbl">Problem 1 — TF-IDF by hand</div></div>
-          <div class="stat"><div class="num">10'</div><div class="lbl">Problem 2 — embedding analogies</div></div>
+          <div class="stat"><div class="num">10'</div><div class="lbl">Problem 1 — embedding analogies</div></div>
+          <div class="stat"><div class="num">20'</div><div class="lbl">Case study — Python on earnings calls</div></div>
         </div>
       </div>
       <div class="col">
         <div class="statrow">
-          <div class="stat"><div class="num">20'</div><div class="lbl">Case study — Python on earnings calls</div></div>
           <div class="stat"><div class="num">5'</div><div class="lbl">Discussion — BoW vs. embeddings</div></div>
           <div class="stat"><div class="num">5'</div><div class="lbl">Solutions — walkthrough</div></div>
         </div>
@@ -104,53 +103,12 @@
   <!-- ============================ SECTION 02 — PROBLEM 1 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">02</div>
-    <h2>Problem 1 — TF-IDF by hand</h2>
-    <div class="secsub">Four earnings-call snippets, one vocabulary, and a cosine similarity you can compute on paper.</div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Problem 1 · the data</div>
-    <h2>Four snippets, lower-cased and stripped of stop words</h2>
-    <div class="title-rule"></div>
-    <p class="lead">After removing the stop words {the, a, of, in, by, is, our, we, to, and}, each snippet is exactly five tokens.</p>
-    <table>
-      <tr><th>Doc</th><th>Pre-processed tokens</th></tr>
-      <tr><td>\(d_1\)</td><td><code class="inline">revenue increased strong margin growth</code></td></tr>
-      <tr><td>\(d_2\)</td><td><code class="inline">margin pressure volume declined uncertainty</code></td></tr>
-      <tr><td>\(d_3\)</td><td><code class="inline">strong volume revenue outlook positive</code></td></tr>
-      <tr><td>\(d_4\)</td><td><code class="inline">guidance withdrawn uncertainty pressure growth</code></td></tr>
-    </table>
-    <div class="block"><div class="block-title">Vocabulary (\(V=13\) distinct tokens)</div>
-      <code class="inline">declined, growth, guidance, increased, margin, outlook, positive, pressure, revenue, strong, uncertainty, volume, withdrawn</code>
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Problem 1 · your tasks</div>
-    <h2>Work it through — individually or in pairs (15 min)</h2>
-    <div class="title-rule"></div>
-    <ol>
-      <li class="frag"><strong>Compute</strong> \(\mathrm{tf}(v,d)\) for each token and document. <span class="small">Hint: 5 tokens per doc, so \(\mathrm{tf}\in\{0,\,0.2\}\).</span></li>
-      <li class="frag"><strong>Compute</strong> \(\mathrm{df}(v,\mathcal{C})\) and \(\mathrm{idf}(v,\mathcal{C})=\ln(4/\mathrm{df}(v))\) for each word.</li>
-      <li class="frag"><strong>Compute</strong> \(\mathrm{tfidf}(v,d_1,\mathcal{C})\) and \(\mathrm{tfidf}(v,d_2,\mathcal{C})\) for all \(v\).</li>
-      <li class="frag"><strong>Compute</strong> \(\mathrm{sim}(d_1,d_2)\) using \(\ell_2\)-normalised TF-IDF vectors. <span class="small">Hint: only non-zero entries contribute to the dot product.</span></li>
-      <li class="frag"><strong>Interpret:</strong> which two documents are most similar? Does it match your intuition about their content?</li>
-    </ol>
-    <div class="takeaway callout frag">
-      <span class="callout-tag">attempt before you reveal</span>
-      Try all five tasks first — the full solution is in Section 05.
-    </div>
-  </section>
-
-  <!-- ============================ SECTION 03 — PROBLEM 2 ============================ -->
-  <section class="slide section-slide">
-    <div class="secnum">03</div>
-    <h2>Problem 2 — word embedding analogies</h2>
+    <h2>Problem 1 — word embedding analogies</h2>
     <div class="secsub">Arithmetic on meaning: what does <code class="inline">bond − coupon + dividend</code> point to?</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Problem 2 · the puzzle</div>
+    <div class="eyebrow">Problem 1 · the puzzle</div>
     <h2>Fill in the blank with vector arithmetic</h2>
     <div class="title-rule"></div>
     <p class="lead">Imagine a Word2Vec model trained on a large corpus of earnings-call transcripts. It has learned these approximate relationships in embedding space — what completes each one?</p>
@@ -169,9 +127,9 @@
     </div>
   </section>
 
-  <!-- ============================ SECTION 04 — CASE STUDY ============================ -->
+  <!-- ============================ SECTION 03 — CASE STUDY ============================ -->
   <section class="slide section-slide">
-    <div class="secnum">04</div>
+    <div class="secnum">03</div>
     <h2>Case study — Python on earnings calls</h2>
     <div class="secsub">Let scikit-learn do the counting on five real Q3-2023 snippets, then read the similarity matrix.</div>
   </section>
@@ -180,7 +138,7 @@
     <div class="eyebrow">Case study · the goal</div>
     <h2>Find the most similar pair of earnings-call snippets</h2>
     <div class="title-rule"></div>
-    <p class="lead">Use <code class="inline">scikit-learn</code> to build TF-IDF vectors for five real snippets and rank them by cosine similarity — no hand arithmetic this time.</p>
+    <p class="lead">Use <code class="inline">scikit-learn</code> to build TF-IDF vectors for five real snippets and rank them by cosine similarity — let the library do the counting.</p>
     <ul>
       <li class="frag">Five snippets from Q3 2023 earnings calls (provided in the notebook)</li>
       <li class="frag">Apply <code class="inline">TfidfVectorizer</code> with <code class="inline">stop_words='english'</code>, <code class="inline">max_features=500</code></li>
@@ -252,44 +210,15 @@ print(f"Top terms for doc {i}: {top_terms}")</pre>
     </ol>
   </section>
 
-  <!-- ============================ SECTION 05 — SOLUTIONS ============================ -->
+  <!-- ============================ SECTION 04 — SOLUTIONS ============================ -->
   <section class="slide section-slide">
-    <div class="secnum">05</div>
+    <div class="secnum">04</div>
     <h2>Solutions — the walkthrough</h2>
     <div class="secsub">Reveal only after you've had a real attempt.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">Solution · Problem 1</div>
-    <h2>The discriminative words win, and \(d_2\)–\(d_4\) are the closest pair</h2>
-    <div class="title-rule"></div>
-    <p class="lead">With \(N=4\), a word in one doc has \(\mathrm{idf}=\ln 4\approx1.386\); a word in two docs has \(\mathrm{idf}=\ln 2\approx0.693\). Every \(\mathrm{tf}=0.2\).</p>
-    <div class="block"><div class="block-title">Headline answers</div>
-      <ul>
-        <li>\(\mathrm{sim}(d_1,d_2)\approx 0.21\) — they share only <code class="inline">margin</code></li>
-        <li>Most similar pair: <strong>\(d_2\) and \(d_4\)</strong> — they share <code class="inline">uncertainty, pressure, growth</code></li>
-      </ul>
-    </div>
-    <aside class="underhood" data-title="df, idf, and tfidf in d₁">
-      <table>
-        <tr><th>Token</th><th>df</th><th>idf</th><th>tfidf in \(d_1\) (tf = 0.2)</th></tr>
-        <tr><td>declined</td><td>1</td><td>\(\ln 4\approx1.386\)</td><td>0</td></tr>
-        <tr><td>growth</td><td>2</td><td>\(\ln 2\approx0.693\)</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
-        <tr><td>guidance</td><td>1</td><td>1.386</td><td>0</td></tr>
-        <tr><td>increased</td><td>1</td><td>1.386</td><td>\(0.2\times1.386\approx0.277\)</td></tr>
-        <tr><td>margin</td><td>2</td><td>0.693</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
-        <tr><td>pressure</td><td>2</td><td>0.693</td><td>0</td></tr>
-        <tr><td>revenue</td><td>2</td><td>0.693</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
-        <tr><td>strong</td><td>2</td><td>0.693</td><td>\(0.2\times0.693\approx0.139\)</td></tr>
-        <tr><td>uncertainty</td><td>2</td><td>0.693</td><td>0</td></tr>
-        <tr><td>volume</td><td>2</td><td>0.693</td><td>0</td></tr>
-      </table>
-      \(\mathrm{sim}(d_1,d_2)\) draws on the single shared token <code class="inline">margin</code>, giving \(\approx0.21\) after \(\ell_2\) normalisation.
-    </aside>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Solution · Problem 2</div>
     <h2>Each analogy swaps one financial dimension</h2>
     <div class="title-rule"></div>
     <ul>

@@ -121,6 +121,31 @@ python --version</pre>
   </section>
 
   <section class="slide">
+    <div class="eyebrow">Concept · the course environment</div>
+    <h2>What a conda environment is — and why you need one</h2>
+    <div class="title-rule"></div>
+    <p class="lead">An <strong>environment</strong> is an isolated, named Python installation with its own set of packages. Different projects need different — often conflicting — library versions; environments keep each project's dependencies in their own sealed box so they never clash.</p>
+    <div class="cols c2">
+      <div class="col"><div class="block"><div class="block-title">base <span style="font-weight:400">(leave it alone)</span></div>
+        The default environment that ships with Anaconda. Installing course packages here risks breaking other projects. We don't touch it.
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">llmfin <span style="font-weight:400">(the course)</span></div>
+        A clean box that holds <em>exactly</em> the libraries the practicals use — numpy, pandas, gensim, and the rest — at versions we know work together.
+      </div></div>
+    </div>
+    <div class="block frag"><div class="block-title">Two ways to use an environment</div>
+      <pre class="code">conda activate llmfin        # switch this terminal INTO the env; prompt shows (llmfin)
+python gen_king_analogy.py   # ...now plain python uses the env's interpreter
+
+conda run -n llmfin python gen_king_analogy.py   # run ONE command in the env, no activation</pre>
+    </div>
+    <ul>
+      <li class="frag"><strong>Why not just <code class="inline">python</code>?</strong> Bare <code class="inline">python</code> runs whichever interpreter is first on your <code class="inline">PATH</code> — usually <code class="inline">base</code> or the system Python, which lack the course libraries. You'd hit <code class="inline">ModuleNotFoundError: No module named 'gensim'</code>. Activating (or <code class="inline">conda run</code>) guarantees the right interpreter.</li>
+      <li class="frag"><strong>Which env am I in?</strong> Run <code class="inline">conda env list</code> — the <code class="inline">*</code> marks the active one — or check the <code class="inline">(llmfin)</code> tag at the start of your prompt.</li>
+    </ul>
+  </section>
+
+  <section class="slide">
     <div class="eyebrow">Create · the course environment</div>
     <h2>One environment, all the dependencies</h2>
     <div class="title-rule"></div>

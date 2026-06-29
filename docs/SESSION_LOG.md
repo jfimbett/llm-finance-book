@@ -303,3 +303,4 @@
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;refine(lec01): repoint practical links to the embedding-analogy code;refine(lec01): drop the practical deck; point to the embedding-analogy code; | — |
 | 2026-06-29 | 6 files | feat(lec01): add a Git & GitHub CLI section to the setup guide;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;feat(lec01): add a Git & GitHub CLI section to the setup guide;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 2 files | feat(lec01): add Claude Code extension + explicit extension-install steps;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

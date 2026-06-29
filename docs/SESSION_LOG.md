@@ -281,3 +281,4 @@
 | 2026-06-29 | 5 files | feat(code): add config-lint and reference-integrity checks;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 6 files | feat(lec01): rename setup deck to tech-requirements.html; link from root site;chore: session log 2026-06-29;feat(code): add config-lint and reference-integrity checks; | — |
 | 2026-06-29 | 6 files | chore: session log 2026-06-29;feat(lec01): rename setup deck to tech-requirements.html; link from root site;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 6 files | fix(code): defensive is_dir guards and null-yaml handling in static checks;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

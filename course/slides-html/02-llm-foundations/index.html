@@ -400,8 +400,8 @@
   </section>
 
   <section class="slide">
-    <div class="eyebrow">The toy GPT, in matrices · step 1</div>
-    <h2>"Embedding lookup" is literally one matrix times another</h2>
+    <div class="eyebrow">Matrix walk-through · step 1 of 7</div>
+    <h2>Step 1 — "Embedding lookup" is literally one matrix times another</h2>
     <div class="title-rule"></div>
     <p class="lead">The prefix <em>"&lt;s&gt; revenue fell"</em> has token ids \((0,1,2)\). Stack their one-hot rows
       into \(O\) and multiply by the embedding table \(E\) — each one-hot row just <strong>selects</strong> a row of \(E\):</p>
@@ -423,16 +423,110 @@
   </section>
 
   <section class="slide">
-    <div class="eyebrow">The toy GPT, in matrices · steps 4 &amp; 7</div>
-    <h2>Who attends to whom — and the word that wins</h2>
+    <div class="eyebrow">Matrix walk-through · step 2 of 7</div>
+    <h2>Step 2 — Add position, so order is not lost</h2>
     <div class="title-rule"></div>
-    <p class="lead">Dot-product scores, a causal \(-\infty\) mask, and a row-wise softmax give the attention matrix \(A\).
-      Row&nbsp;3 is <code>fell</code> deciding how much to look at each earlier token:</p>
+    <p class="lead">Self-attention is permutation-equivariant — on its own it cannot tell "revenue fell" from "fell revenue".
+      We add a sinusoidal positional encoding \(\mathrm{PE}\) (\(n=3,\ d_\text{model}=4\)) to the embeddings:</p>
     \[
+      X^{(0)} = X^{(\mathrm{emb})} + \mathrm{PE}
+      = \begin{bmatrix} 1&0&0&0 \\ 0&1&0&1 \\ 1&0&1&0 \end{bmatrix}
+      + \begin{bmatrix} 0.00 & 1.00 & 0.00 & 1.00 \\ 0.84 & 0.54 & 0.01 & 1.00 \\ 0.91 & -0.42 & 0.02 & 1.00 \end{bmatrix}
+      = \begin{bmatrix} 1.00 & 1.00 & 0.00 & 1.00 \\ 0.84 & 1.54 & 0.01 & 2.00 \\ 1.91 & -0.42 & 1.02 & 1.00 \end{bmatrix}
+    \]
+    <p class="frag">Row \(t\) of \(X^{(0)}\) now encodes <em>both</em> the word and where it sits. From here the model works only with these vectors.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Matrix walk-through · step 3 of 7</div>
+    <h2>Step 3 — Project each row into a query, key, and value</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each token row is multiplied by three weight matrices. To keep the arithmetic legible we set
+      \(W^Q=W^K=I\) (so \(Q=K=X^{(0)}\)); only \(W^V\) mixes the coordinates:</p>
+    \[
+      W^V=\begin{bmatrix} 0&1&0&0 \\ 1&0&0&1 \\ 0&0&1&0 \\ 0&1&0&1 \end{bmatrix}
+      \qquad
+      V = X^{(0)}W^V = \begin{bmatrix} 1.00 & 2.00 & 0.00 & 2.00 \\ 1.54 & 2.84 & 0.01 & 3.54 \\ -0.42 & 2.91 & 1.02 & 0.58 \end{bmatrix}
+    \]
+    <p class="frag">\(Q\) asks "what am I looking for?", \(K\) advertises "what do I offer?", \(V\) carries "what I'll pass on if attended to."</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Matrix walk-through · step 4 of 7</div>
+    <h2>Step 4 — Scores → causal mask → softmax = attention</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Score every pair with \(S=QK^{\top}/\sqrt{d_k}\) (\(\sqrt{d_k}=2\)); the causal mask sets the future to
+      \(-\infty\) so a token cannot peek ahead; a row-wise softmax turns each row into weights \(A\):</p>
+    \[
+      \begin{bmatrix} 1.50 & 2.19 & 1.25 \\ 2.19 & 3.54 & 1.49 \\ 1.25 & 1.49 & 2.93 \end{bmatrix}
+      \xrightarrow{\text{mask}}
+      \begin{bmatrix} 1.50 & -\infty & -\infty \\ 2.19 & 3.54 & -\infty \\ 1.25 & 1.49 & 2.93 \end{bmatrix}
+      \xrightarrow{\text{softmax}}
       A=\begin{bmatrix} 1.00 & 0 & 0 \\ 0.21 & 0.79 & 0 \\ 0.13 & 0.17 & \mathbf{0.70} \end{bmatrix}
     \]
-    <p class="frag">The zeros above the diagonal are the causal mask — a token never attends to its own future. After the
-      feed-forward block and un-embedding (\(\text{logits}=X^{(1)}E^{\top}\)), <code>fell</code>'s logits become probabilities:</p>
+    <p class="frag"><code>&lt;s&gt;</code> can only see itself; <code>fell</code> (row 3) spreads its attention \(0.13/0.17/0.70\) — weighting its own position most. Every row of \(A\) sums to \(1\).</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Matrix walk-through · step 5 of 7</div>
+    <h2>Step 5 — Attention output, then Add &amp; Norm</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Each token's new vector is the attention-weighted average of the value rows, \(\mathrm{Att}=AV\). Add the
+      residual input and layer-normalise: \(Z=\mathrm{LayerNorm}\!\left(X^{(0)}+\mathrm{Att}\right)\):</p>
+    \[
+      \mathrm{Att}=AV=\begin{bmatrix} 1.00 & 2.00 & 0.00 & 2.00 \\ 1.43 & 2.67 & 0.01 & 3.22 \\ 0.09 & 2.78 & 0.72 & 1.26 \end{bmatrix}
+      \qquad
+      Z=\begin{bmatrix} 0.00 & 0.82 & -1.63 & 0.82 \\ -0.33 & 0.64 & -1.46 & 1.15 \\ -0.36 & 1.12 & -1.46 & 0.70 \end{bmatrix}
+    \]
+    <p class="frag">LayerNorm acts on each <em>row</em> (zero mean, unit variance) — which is why every row of \(Z\) sums to zero. The residual keeps the original signal in play.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Matrix walk-through · step 6 of 7 · (a)</div>
+    <h2>Step 6a — Feed-forward: widen to 6 dims, then ReLU</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The position-wise FFN, \(\mathrm{FFN}(\mathbf{z})=\max(0,\mathbf{z}W_1)W_2\), runs on each row independently.
+      First widen \(4\to6\) with \(W_1\) and clip negatives with ReLU:</p>
+    \[
+      W_1=\begin{bmatrix} 0&0&-1&1&-1&0 \\ 1&0&0&-1&0&0 \\ -1&-1&-1&0&-1&1 \\ 0&0&0&0&0&0 \end{bmatrix}
+    \]
+    \[
+      H=\max(0,\,ZW_1)=\begin{bmatrix} 2.45 & 1.63 & 1.63 & 0 & 1.63 & 0 \\ 2.11 & 1.46 & 1.80 & 0 & 1.80 & 0 \\ 2.58 & 1.46 & 1.82 & 0 & 1.82 & 0 \end{bmatrix}
+    \]
+    <p class="frag">Hidden units 4 and 6 are negative at every position, so ReLU switches them off (the \(0\) columns) — a concrete instance of the sparsity ReLU induces.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Matrix walk-through · step 6 of 7 · (b)</div>
+    <h2>Step 6b — Project back to 4 dims, then Add &amp; Norm</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Project the 6-dim hidden layer back down with \(W_2\), then a second residual-and-norm gives the block output \(X^{(1)}\):</p>
+    \[
+      W_2=\begin{bmatrix} 0&0&1&-1 \\ -1&0&0&0 \\ 0&0&0&0 \\ 1&1&-1&0 \\ 0&-1&-1&0 \\ -1&0&1&1 \end{bmatrix}
+      \qquad
+      F=HW_2=\begin{bmatrix} -1.63 & -1.63 & 0.82 & -2.45 \\ -1.46 & -1.80 & 0.31 & -2.11 \\ -1.46 & -1.82 & 0.76 & -2.58 \end{bmatrix}
+    \]
+    \[
+      X^{(1)}=\mathrm{LayerNorm}(Z+F)=\begin{bmatrix} -1.00 & 1.00 & 1.00 & -1.00 \\ -1.67 & 0.35 & 0.35 & 0.98 \\ -0.95 & 1.00 & 1.00 & -1.05 \end{bmatrix}
+    \]
+    <p class="frag">\(X^{(1)}\) is the output of one decoder block. A real GPT stacks 32–96 of these — each the same two sub-layers traced here.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Matrix walk-through · step 7 of 7</div>
+    <h2>Step 7 — Un-embed → logits → softmax: the next word</h2>
+    <div class="title-rule"></div>
+    <p class="lead">With tied weights the logits are \(\mathrm{logits}=X^{(1)}E^{\top}\). Only the <em>last</em> row matters for
+      generation — it scores every vocabulary word as the continuation of <code>fell</code>:</p>
+    \[
+      \mathrm{logits}=\begin{bmatrix}
+        -1.00 & 0.00 & 0.00 & 2.00 & 0.00 & -1.00 \\
+        -1.67 & 1.32 & -1.32 & 0.70 & -1.32 & 0.98 \\
+        -0.95 & -0.05 & 0.05 & \mathbf{2.00} & 0.05 & -1.05
+      \end{bmatrix}
+    \]
+    <p class="frag">The last row's top score is column 4, <code>sharply</code> — the dot product of \(X^{(1)}_3=(-0.95,1.00,1.00,-1.05)\)
+      with <code>sharply</code>'s embedding \((0,1,1,0)\) is \(1.00+1.00=2.00\). A row-wise softmax turns it into probabilities:</p>
     \[
       P_{\texttt{fell}}=\bigl(
         \underset{\langle s\rangle}{0.03},\
@@ -444,8 +538,8 @@
     \]
     <div class="takeaway callout frag">
       <span class="callout-tag">the payoff</span>
-      The tiny GPT completes <em>"revenue fell"</em> with <strong>sharply</strong> at \(66\%\) probability. Stack this same
-      block 32–96 times with matrices in the thousands and you have a production LLM — the same arithmetic, just more of it.
+      The tiny GPT completes <em>"revenue fell"</em> with <strong>sharply</strong> at \(66\%\). Every production LLM does exactly
+      this — byte-pair tokens, \(d_\text{model}\) in the thousands, dozens of heads, 32–96 stacked blocks. Same arithmetic, more of it.
     </div>
   </section>
 

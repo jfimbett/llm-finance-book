@@ -271,3 +271,4 @@
 | 2026-06-29 | 7 files | docs: mark slides-coverage audit findings resolved (e83346f);chore: session log 2026-06-29;docs: fold validated claude -p headless recipe into harness spec; | — |
 | 2026-06-29 | 6 files | docs: implementation plan for practical verification harness;chore: session log 2026-06-29;docs: mark slides-coverage audit findings resolved (e83346f); | — |
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;docs: implementation plan for practical verification harness;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 7 files | feat(code): scaffold practical-verify package and data model;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

@@ -172,15 +172,23 @@ sudo dnf install ./code-*.rpm   # Fedora/RHEL</pre>
 
   <section class="slide">
     <div class="eyebrow">Install · VS Code extensions</div>
-    <h2>Three extensions, installed the same way</h2>
+    <h2>Four extensions — install from the Extensions view</h2>
     <div class="title-rule"></div>
-    <p class="lead">Open the Extensions view with <code class="inline">Ctrl+Shift+X</code> (<code class="inline">Cmd+Shift+X</code> on macOS), search the name, and click <strong>Install</strong>. The exact marketplace IDs:</p>
+    <p class="lead">Open the Extensions view (<code class="inline">Ctrl+Shift+X</code>, or <code class="inline">Cmd+Shift+X</code> on macOS), type each name in the search box, and click <strong>Install</strong>. The exact marketplace IDs:</p>
     <table>
       <tr><th>Extension</th><th>Publisher</th><th>Marketplace ID</th><th>What it does</th></tr>
       <tr><td>Python</td><td>Microsoft</td><td><code class="inline">ms-python.python</code></td><td>Run/debug Python, pick interpreters</td></tr>
       <tr><td>Jupyter</td><td>Microsoft</td><td><code class="inline">ms-toolsai.jupyter</code></td><td>Run <code class="inline">.ipynb</code> notebooks in the editor</td></tr>
-      <tr><td>Cline</td><td>Cline Bot</td><td><code class="inline">saoudrizwan.claude-dev</code></td><td>Autonomous AI coding agent (next section)</td></tr>
+      <tr><td>Claude Code</td><td>Anthropic</td><td><code class="inline">anthropic.claude-code</code></td><td>Claude as a panel in VS Code (sign in — no API key; needs VS Code 1.98+)</td></tr>
+      <tr><td>Cline</td><td>Cline Bot</td><td><code class="inline">saoudrizwan.claude-dev</code></td><td>Autonomous AI coding agent (see §4)</td></tr>
     </table>
+    <div class="block frag"><div class="block-title">Prefer the terminal? Install all four at once</div>
+      <pre class="code">code --install-extension ms-python.python
+code --install-extension ms-toolsai.jupyter
+code --install-extension anthropic.claude-code
+code --install-extension saoudrizwan.claude-dev</pre>
+      <span class="small">(The <code class="inline">code</code> command comes from the VS Code install in §2.)</span>
+    </div>
     <div class="block frag"><div class="block-title">Point VS Code at your environment</div>
       <code class="inline">Ctrl/Cmd+Shift+P</code> &rarr; <em>Python: Select Interpreter</em> &rarr; choose <strong>llmfin</strong>. When you open a notebook, click <em>Select Kernel</em> &rarr; <strong>Python (llmfin)</strong>.
     </div>

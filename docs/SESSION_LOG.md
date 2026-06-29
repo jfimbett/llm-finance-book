@@ -298,3 +298,4 @@
 | 2026-06-29 | 4 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore(book): rebuild main.pdf (latexmk + biber, 580pp, clean); | — |
 | 2026-06-29 | 4 files | fix(site): open slide decks in a new tab;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 3 files | chore: session log 2026-06-29;fix(site): open slide decks in a new tab;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 4 files | refine(lec01): remove the TF-IDF by-hand problem from practical 1;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

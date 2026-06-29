@@ -307,3 +307,4 @@
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;feat(lec01): add Claude Code extension + explicit extension-install steps;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat(lec01): add Claude Code extension + explicit extension-install steps; | — |
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

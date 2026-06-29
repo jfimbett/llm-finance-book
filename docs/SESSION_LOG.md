@@ -285,3 +285,4 @@
 | 2026-06-29 | 7 files | feat(site): publish first 4 modules + book PDF on the landing page;feat(code): repo-safe temp copy and throwaway venv helpers;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 7 files | chore: session log 2026-06-29;feat(site): publish first 4 modules + book PDF on the landing page;feat(code): repo-safe temp copy and throwaway venv helpers; | — |
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat(site): publish first 4 modules + book PDF on the landing page; | — |
+| 2026-06-29 | 462 files | feat: practical harnesses, llmfin package, quality audits, site updates;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

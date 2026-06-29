@@ -309,3 +309,4 @@
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 1 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 6 files | feat(code01): make king-analogy script student-playable + add conda env slide;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

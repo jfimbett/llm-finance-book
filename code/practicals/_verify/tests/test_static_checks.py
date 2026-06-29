@@ -60,3 +60,11 @@ def test_check_references_fails_on_dangling_tool(tmp_path):
     res = check_references(d)
     assert res.passed is False
     assert "retrieve" in res.detail
+
+
+def test_lint_and_refs_tolerate_missing_agents_dir(tmp_path):
+    import shutil
+    d = _agentic(tmp_path)
+    shutil.rmtree(d / ".claude" / "agents")
+    assert lint_config(d).passed is True
+    assert check_references(d).passed is True

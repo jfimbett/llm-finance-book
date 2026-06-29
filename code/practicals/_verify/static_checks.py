@@ -26,7 +26,9 @@ def _doc_files(practical_dir: Path) -> list:
     claude_md = practical_dir / "CLAUDE.md"
     if claude_md.exists():
         docs.append(claude_md)
-    docs.extend(sorted((practical_dir / ".claude" / "skills").rglob("SKILL.md")))
+    skills_dir = practical_dir / ".claude" / "skills"
+    if skills_dir.is_dir():
+        docs.extend(sorted(skills_dir.rglob("SKILL.md")))
     return docs
 
 
@@ -40,8 +42,10 @@ def lint_config(practical_dir: Path) -> CheckResult:
         except json.JSONDecodeError as exc:
             problems.append(f".claude/settings.json: invalid JSON ({exc})")
 
-    md_files = sorted((practical_dir / ".claude" / "skills").rglob("SKILL.md"))
-    md_files += sorted((practical_dir / ".claude" / "agents").glob("*.md"))
+    skills_dir = practical_dir / ".claude" / "skills"
+    agents_dir = practical_dir / ".claude" / "agents"
+    md_files = sorted(skills_dir.rglob("SKILL.md")) if skills_dir.is_dir() else []
+    md_files += sorted(agents_dir.glob("*.md")) if agents_dir.is_dir() else []
     for md in md_files:
         fm = parse_frontmatter(md.read_text())
         rel = md.relative_to(practical_dir)
@@ -49,7 +53,7 @@ def lint_config(practical_dir: Path) -> CheckResult:
             problems.append(f"{rel}: no frontmatter")
             continue
         for key in ("name", "description"):
-            if not str(fm.get(key, "")).strip():
+            if not str(fm.get(key) or "").strip():
                 problems.append(f"{rel}: missing '{key}'")
 
     return CheckResult(name="config-lint", passed=not problems, detail="; ".join(problems))

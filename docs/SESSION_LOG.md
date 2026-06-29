@@ -276,3 +276,4 @@
 | 2026-06-29 | 10 files | feat(lec01): add setup / tech-requirements slide deck;feat(code): discover and classify practicals;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;feat(lec01): add setup / tech-requirements slide deck;feat(code): discover and classify practicals; | — |
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat(lec01): add setup / tech-requirements slide deck; | — |
+| 2026-06-29 | 5 files | feat(code): load and validate verify.yaml manifests;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

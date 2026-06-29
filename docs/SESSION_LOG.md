@@ -318,3 +318,4 @@
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;feat(config): surface appendix PDF as a hero button on the landing page; | — |
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 2 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 1 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

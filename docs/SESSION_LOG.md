@@ -296,3 +296,4 @@
 | 2026-06-29 | 5 files | chore(book): rebuild main.pdf (latexmk + biber, 580pp, clean);chore: session log 2026-06-29;feat(site): build appendices volume and link it from the landing page; | — |
 | 2026-06-29 | 4 files | chore: session log 2026-06-29;chore(book): rebuild main.pdf (latexmk + biber, 580pp, clean);chore: session log 2026-06-29; | — |
 | 2026-06-29 | 4 files | chore: session log 2026-06-29;chore: session log 2026-06-29;chore(book): rebuild main.pdf (latexmk + biber, 580pp, clean); | — |
+| 2026-06-29 | 4 files | fix(site): open slide decks in a new tab;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |

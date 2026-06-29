@@ -110,6 +110,8 @@
   }
   ol.syllabus li .t { font-weight: 600; }
   ol.syllabus li .d { color: var(--muted); font-size: 0.9rem; display: block; }
+  ol.syllabus li .mat { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.86rem; font-weight: 600; }
+  ol.syllabus li .mat a::after { content: " →"; }
 
   /* Status pills */
   .pill { display: inline-block; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.06em;
@@ -152,10 +154,11 @@
       <span><strong>Level:</strong> Graduate / professional</span>
     </div>
     <div class="cta">
-      <a class="btn btn-primary" href="https://github.com/jfimbett/llm-finance-book" target="_blank" rel="noopener">
-        View code on GitHub →
+      <a class="btn btn-primary" href="book/main.pdf" target="_blank" rel="noopener">
+        Read the book (PDF) →
       </a>
-      <a class="btn btn-ghost" href="#syllabus">Browse the syllabus</a>
+      <a class="btn btn-ghost" href="course/slides-html/index.html">View the slides</a>
+      <a class="btn btn-ghost" href="https://github.com/jfimbett/llm-finance-book" target="_blank" rel="noopener">Code on GitHub →</a>
     </div>
   </div>
 </header>
@@ -190,14 +193,14 @@
   <div class="wrap">
     <h2>Syllabus</h2>
     <p class="lead">
-      Seventeen modules spanning model internals and financial applications. Lecture slides
-      and student materials are being finalized and will be released here ahead of the school.
+      Seventeen modules spanning model internals and financial applications. Slides for the
+      first four modules are live below; the remaining materials are released progressively.
     </p>
     <ol class="syllabus">
-      <li><span><span class="t">Introduction</span><span class="d">Why LLMs matter for finance, and how the course is structured.</span></span></li>
-      <li><span><span class="t">LLM Architecture &amp; Practice</span><span class="d">Transformers, attention, tokenization, and the modern LLM stack.</span></span></li>
-      <li><span><span class="t">Training &amp; Fine-Tuning</span><span class="d">Pre-training, instruction tuning, LoRA, and adapting models to finance.</span></span></li>
-      <li><span><span class="t">LLM Agents in Finance</span><span class="d">Tool use, planning, and autonomous agents for financial tasks.</span></span></li>
+      <li><span><span class="t">Introduction <span class="pill live">Available</span></span><span class="d">Why LLMs matter for finance, and how the course is structured.</span><span class="mat"><a href="course/slides-html/01-intro/index.html">Lecture slides</a><a href="course/slides-html/01-intro/practical.html">Practical session</a><a href="course/slides-html/01-intro/tech-requirements.html">Setup guide</a></span></span></li>
+      <li><span><span class="t">LLM Architecture &amp; Practice <span class="pill live">Available</span></span><span class="d">Transformers, attention, tokenization, and the modern LLM stack.</span><span class="mat"><a href="course/slides-html/02-llm-foundations/index.html">Lecture slides</a><a href="course/slides-html/02-llm-foundations/practical.html">Practical session</a></span></span></li>
+      <li><span><span class="t">Training &amp; Fine-Tuning <span class="pill live">Available</span></span><span class="d">Pre-training, instruction tuning, LoRA, and adapting models to finance.</span><span class="mat"><a href="course/slides-html/03-llm-training-finetuning/index.html">Lecture slides</a><a href="course/slides-html/03-llm-training-finetuning/practical.html">Practical session</a></span></span></li>
+      <li><span><span class="t">LLM Agents in Finance <span class="pill live">Available</span></span><span class="d">Tool use, planning, and autonomous agents for financial tasks.</span><span class="mat"><a href="course/slides-html/04-llm-agents/index.html">Lecture slides</a><a href="course/slides-html/04-llm-agents/practical.html">Practical session</a></span></span></li>
       <li><span><span class="t">Business Valuation</span><span class="d">Using LLMs to support and scale company valuation workflows.</span></span></li>
       <li><span><span class="t">Credit Risk Analysis</span><span class="d">Language models for borrower assessment and default prediction.</span></span></li>
       <li><span><span class="t">Applications &amp; Future Trends</span><span class="d">Emerging use cases across the financial industry.</span></span></li>
@@ -226,8 +229,14 @@
           <a href="course/slides-html/01-intro/tech-requirements.html">Open the setup guide →</a></p>
       </div>
       <div class="card">
-        <h3>Lecture slides <span class="pill soon">Coming soon</span></h3>
-        <p>Slide decks for each module will be posted here before the course begins.</p>
+        <h3>Lecture slides <span class="pill live">Available</span></h3>
+        <p>Interactive HTML decks — lecture and practical — for the first four modules are live, with the rest released progressively:
+          <a href="course/slides-html/index.html">Browse all slide decks →</a></p>
+      </div>
+      <div class="card">
+        <h3>The book (PDF) <span class="pill live">Available</span></h3>
+        <p>Read the full <em>Large Language Models in Finance</em> manuscript in your browser:
+          <a href="book/main.pdf" target="_blank" rel="noopener">View the book (PDF) →</a></p>
       </div>
       <div class="card">
         <h3>Readings &amp; notes <span class="pill soon">Coming soon</span></h3>
@@ -242,9 +251,9 @@
     <div style="height:24px"></div>
     <div class="notice">
       <span class="ic">🗓️</span>
-      <p><strong>Materials are not published yet.</strong> Slides and student handouts are still
-      being finalized and will be made available on this page ahead of the Summer School.
-      In the meantime, the companion code is open on GitHub.</p>
+      <p><strong>Release in progress.</strong> The book PDF and the slide decks for the first four
+      modules are available now; the remaining modules and student handouts are being finalized
+      and will appear here ahead of the Summer School.</p>
     </div>
   </div>
 </section>

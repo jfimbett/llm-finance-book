@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup — Tech Requirements for the Course</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../assets/slides.css">
+<script>window.DECK_META = { course: "LLM in Finance", lecture: 1 };</script>
+<script defer src="../assets/slides.js"></script>
+</head>
+<body>
+<div class="deck"><div class="stage">
+
+  <!-- ============================ TITLE ============================ -->
+  <section class="slide title-slide current">
+    <div class="kicker">Large Language Models in Finance · Chapter 1 / Lecture 1 · Setup</div>
+    <h1>Tech Requirements</h1>
+    <div class="sub">Install everything you need before the first session: Anaconda, VS Code, Node.js, Claude Code, Cline, and your API keys — on Windows, macOS, or Linux.</div>
+    <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
+    <div class="badge">All commands here are taken from the official docs (links on each slide) — not invented. Verify every step works before class.</div>
+  </section>
+
+  <!-- ============================ OVERVIEW ============================ -->
+  <section class="slide">
+    <div class="eyebrow">The big picture</div>
+    <h2>Six pieces, one toolchain</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You will install a Python stack, a code editor, a terminal AI agent, and the keys that let them talk to a model. Here is how the pieces fit together.</p>
+    <figure>
+      <svg viewBox="0 0 960 360" width="100%" role="img" aria-label="Toolchain overview: Anaconda provides Python, Jupyter and the scientific libraries; VS Code is the editor and hosts the Python, Jupyter and Cline extensions; Node.js installs Claude Code in the terminal; API keys connect Claude Code, Cline and your Python code to the model providers.">
+        <defs>
+          <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#5b76f7"/></marker>
+        </defs>
+        <!-- Anaconda -->
+        <rect x="20" y="40" width="230" height="120" rx="12" fill="#eef2ff" stroke="#5b76f7"/>
+        <text x="135" y="68" text-anchor="middle" font-size="18" font-weight="700" fill="#26307a">Anaconda</text>
+        <text x="135" y="94" text-anchor="middle" font-size="13" fill="#3a3f63">Python 3.11</text>
+        <text x="135" y="114" text-anchor="middle" font-size="13" fill="#3a3f63">Jupyter · pandas · numpy</text>
+        <text x="135" y="134" text-anchor="middle" font-size="13" fill="#3a3f63">scikit-learn · gensim</text>
+        <!-- VS Code -->
+        <rect x="365" y="20" width="250" height="160" rx="12" fill="#e9f7ef" stroke="#2f9e5b"/>
+        <text x="490" y="48" text-anchor="middle" font-size="18" font-weight="700" fill="#1d6b3d">VS Code</text>
+        <text x="490" y="74" text-anchor="middle" font-size="13" fill="#33503f">+ Python extension</text>
+        <text x="490" y="96" text-anchor="middle" font-size="13" fill="#33503f">+ Jupyter extension</text>
+        <text x="490" y="118" text-anchor="middle" font-size="13" fill="#33503f">+ Cline (AI agent)</text>
+        <text x="490" y="150" text-anchor="middle" font-size="12" fill="#5a6b60">picks the Anaconda env as its interpreter</text>
+        <!-- Node + Claude Code -->
+        <rect x="710" y="40" width="230" height="120" rx="12" fill="#fff3e6" stroke="#e08a2b"/>
+        <text x="825" y="68" text-anchor="middle" font-size="18" font-weight="700" fill="#8a5212">Node.js</text>
+        <text x="825" y="96" text-anchor="middle" font-size="13" fill="#6b4a22">installs &amp; runs</text>
+        <text x="825" y="120" text-anchor="middle" font-size="15" font-weight="700" fill="#8a5212">Claude Code (CLI)</text>
+        <text x="825" y="140" text-anchor="middle" font-size="12" fill="#6b4a22">terminal coding agent</text>
+        <!-- API keys -->
+        <rect x="320" y="270" width="320" height="70" rx="12" fill="#fdeef0" stroke="#d6455c"/>
+        <text x="480" y="300" text-anchor="middle" font-size="16" font-weight="700" fill="#9c2233">API keys (Anthropic / OpenAI / HF)</text>
+        <text x="480" y="324" text-anchor="middle" font-size="12" fill="#7a3340">stored as environment variables, never in git</text>
+        <!-- arrows -->
+        <line x1="250" y1="100" x2="360" y2="100" stroke="#5b76f7" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="710" y1="100" x2="618" y2="100" stroke="#5b76f7" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="490" y1="270" x2="490" y2="184" stroke="#5b76f7" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="640" y1="290" x2="800" y2="165" stroke="#5b76f7" stroke-width="2" marker-end="url(#arr)"/>
+      </svg>
+      <figcaption>How the tools connect. Install left-to-right; the keys at the bottom feed the agent and your code.</figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Before you start</div>
+    <h2>Two ground rules</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Use the official downloads only.</strong> Every link on these slides points to the vendor's own site. Avoid mirrors and "download helper" sites.</li>
+      <li class="frag"><strong>Verify each step.</strong> After every install there is a one-line check (a <code class="inline">--version</code> command). If the check fails, fix it before moving on — later steps depend on earlier ones.</li>
+    </ul>
+    <div class="block"><div class="block-title">You also need Git</div>
+      Git is used to download the course code and is used by Claude Code on Windows. Install it from <code class="inline">git-scm.com/downloads</code> (macOS/Linux usually already have it: check with <code class="inline">git --version</code>).
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      Anaconda gives you Python and the data libraries; VS Code is where you write and run code; Node.js exists only to install Claude Code; Cline is an AI agent that lives inside VS Code; the API keys are what authorise calls to a model.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 01 — ANACONDA ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">01</div>
+    <h2>Anaconda — Python and the scientific stack</h2>
+    <div class="secsub">One installer gives you Python, Jupyter, and every library the practicals use.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Install · Anaconda</div>
+    <h2>Download and run the installer for your OS</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Get the installer from <code class="inline">anaconda.com/download</code>. Pick the build that matches your machine.</p>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">Windows</div>
+        Run the graphical <code class="inline">.exe</code> installer and accept the defaults. Afterwards use the <strong>Anaconda Prompt</strong> (Start menu) for conda commands.
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">macOS</div>
+        Run the <code class="inline">.pkg</code> installer. Choose the <strong>Apple Silicon</strong> build on M-series Macs, the <strong>Intel</strong> build otherwise.
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">Linux</div>
+        Download the <code class="inline">.sh</code> script, then run it:
+        <pre class="code">bash ~/Downloads/Anaconda3-2024.10-1-Linux-x86_64.sh</pre>
+        Answer <code class="inline">yes</code> to run <code class="inline">conda init</code>.
+      </div></div>
+    </div>
+    <div class="block frag"><div class="block-title">Verify</div>
+      Open a new terminal (Anaconda Prompt on Windows) and run:
+      <pre class="code">conda --version
+python --version</pre>
+      You should see a conda version and Python 3.x.
+    </div>
+    <div class="bigpicture callout frag"><span class="callout-tag">lighter alternative</span>
+      Short on disk space? Install <strong>Miniconda</strong> (<code class="inline">docs.conda.io</code>) instead — same <code class="inline">conda</code> command, without the bundled GUI apps.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Create · the course environment</div>
+    <h2>One environment, all the dependencies</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Create an isolated environment named <code class="inline">llmfin</code>, then install the course requirements into it. Run these from the course folder (next section shows how to get it).</p>
+    <pre class="code">conda create -n llmfin python=3.11
+conda activate llmfin
+pip install -r code/requirements.txt
+pip install -e code/</pre>
+    <ul>
+      <li class="frag"><code class="inline">requirements.txt</code> pulls numpy, pandas, matplotlib, scikit-learn, jupyter, gensim, yfinance and more.</li>
+      <li class="frag"><code class="inline">pip install -e code/</code> installs the course's own <code class="inline">llmfin</code> helper package in editable mode.</li>
+    </ul>
+    <div class="block frag"><div class="block-title">Register it as a Jupyter kernel</div>
+      <pre class="code">python -m ipykernel install --user --name llmfin --display-name "Python (llmfin)"</pre>
+      Now notebooks can run on the <em>Python (llmfin)</em> kernel.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 02 — VS CODE ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">02</div>
+    <h2>VS Code — your editor and notebook host</h2>
+    <div class="secsub">Plus three extensions: Python, Jupyter, and the Cline AI agent.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Install · VS Code</div>
+    <h2>Get the editor from code.visualstudio.com</h2>
+    <div class="title-rule"></div>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">Windows</div>
+        Run the <strong>User Setup</strong> <code class="inline">.exe</code>, or:
+        <pre class="code">winget install Microsoft.VisualStudioCode</pre>
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">macOS</div>
+        Open the download, drag <strong>Visual Studio Code</strong> to <strong>Applications</strong>, or:
+        <pre class="code">brew install --cask visual-studio-code</pre>
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">Linux</div>
+        Install the downloaded package:
+        <pre class="code">sudo apt install ./code_*.deb   # Debian/Ubuntu
+sudo dnf install ./code-*.rpm   # Fedora/RHEL</pre>
+      </div></div>
+    </div>
+    <div class="block frag"><div class="block-title">Enable the <code class="inline">code</code> command (handy)</div>
+      On macOS: Command Palette (<code class="inline">Cmd+Shift+P</code>) &rarr; <em>Shell Command: Install 'code' command in PATH</em>. Then <code class="inline">code .</code> opens the current folder. Windows and Linux installers add it for you.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Install · VS Code extensions</div>
+    <h2>Three extensions, installed the same way</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Open the Extensions view with <code class="inline">Ctrl+Shift+X</code> (<code class="inline">Cmd+Shift+X</code> on macOS), search the name, and click <strong>Install</strong>. The exact marketplace IDs:</p>
+    <table>
+      <tr><th>Extension</th><th>Publisher</th><th>Marketplace ID</th><th>What it does</th></tr>
+      <tr><td>Python</td><td>Microsoft</td><td><code class="inline">ms-python.python</code></td><td>Run/debug Python, pick interpreters</td></tr>
+      <tr><td>Jupyter</td><td>Microsoft</td><td><code class="inline">ms-toolsai.jupyter</code></td><td>Run <code class="inline">.ipynb</code> notebooks in the editor</td></tr>
+      <tr><td>Cline</td><td>Cline Bot</td><td><code class="inline">saoudrizwan.claude-dev</code></td><td>Autonomous AI coding agent (next section)</td></tr>
+    </table>
+    <div class="block frag"><div class="block-title">Point VS Code at your environment</div>
+      <code class="inline">Ctrl/Cmd+Shift+P</code> &rarr; <em>Python: Select Interpreter</em> &rarr; choose <strong>llmfin</strong>. When you open a notebook, click <em>Select Kernel</em> &rarr; <strong>Python (llmfin)</strong>.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 03 — NODE + CLAUDE CODE ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">03</div>
+    <h2>Node.js &amp; Claude Code — the terminal agent</h2>
+    <div class="secsub">Node is the prerequisite; Claude Code is Anthropic's command-line coding agent.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Install · Node.js</div>
+    <h2>Install the current LTS (v24)</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Get the <strong>LTS</strong> build from <code class="inline">nodejs.org/en/download</code>. The npm route for Claude Code needs Node 18 or later — LTS is well above that.</p>
+    <div class="cols c3">
+      <div class="col"><div class="block"><div class="block-title">Windows</div>
+        Run the official <code class="inline">.msi</code> installer (or use winget / Chocolatey).
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">macOS</div>
+        Official installer, or:
+        <pre class="code">brew install node</pre>
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">Linux</div>
+        Use <strong>nvm</strong> (works on macOS too) or your distro package manager.
+      </div></div>
+    </div>
+    <div class="block frag"><div class="block-title">Verify</div>
+      <pre class="code">node --version
+npm --version</pre>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Install · Claude Code</div>
+    <h2>The native installer is the recommended route</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">macOS / Linux / WSL</div>
+          <pre class="code">curl -fsSL https://claude.ai/install.sh | bash</pre>
+        </div>
+        <div class="block"><div class="block-title">Windows PowerShell</div>
+          <pre class="code">irm https://claude.ai/install.ps1 | iex</pre>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Alternative: via npm</div>
+          Requires Node 18+. Do <strong>not</strong> use <code class="inline">sudo</code>:
+          <pre class="code">npm install -g @anthropic-ai/claude-code</pre>
+        </div>
+        <div class="block"><div class="block-title">Verify &amp; diagnose</div>
+          <pre class="code">claude --version
+claude doctor</pre>
+        </div>
+      </div>
+    </div>
+    <div class="alert callout frag"><span class="callout-tag">Windows tip</span>
+      Installing <strong>Git for Windows</strong> is optional but recommended — it lets Claude Code use Bash. Native installs auto-update in the background.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Run · Claude Code</div>
+    <h2>Start it and log in</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Open a terminal <em>inside the project folder</em> you want to work on and run:</p>
+    <pre class="code">claude</pre>
+    <ul>
+      <li class="frag">On first run it opens your browser to <strong>log in</strong> and authenticate.</li>
+      <li class="frag">Claude Code requires a <strong>Pro, Max, Team, Enterprise, or Console</strong> account — the free Claude.ai plan does not include it. (It can also run against Bedrock / Vertex / Foundry.)</li>
+      <li class="frag">System requirements: macOS 13+, Windows 10 (1809+), or Ubuntu 20.04+ / Debian 10+, 4&nbsp;GB+ RAM.</li>
+    </ul>
+    <div class="takeaway callout frag"><span class="callout-tag">why this matters</span>
+      Claude Code is how you will run the AI-agent workflows in the later chapters from the terminal — driving real files and commands, not just chatting.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 04 — CLINE ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">04</div>
+    <h2>Cline — an AI agent inside VS Code</h2>
+    <div class="secsub">Same idea as Claude Code, but as a graphical panel in the editor.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Configure · Cline</div>
+    <h2>Install the extension, then connect a model</h2>
+    <div class="title-rule"></div>
+    <p class="lead">You already installed Cline (<code class="inline">saoudrizwan.claude-dev</code>) in §02. It is an autonomous agent that can create/edit files and run commands — with your approval at each step.</p>
+    <ul>
+      <li class="frag">Open Cline from the <strong>activity bar</strong> icon, or run <em>Cline: Open In New Tab</em> from the Command Palette.</li>
+      <li class="frag">On first open, complete <strong>provider setup</strong> in Cline settings. You can use the built-in <strong>Cline provider</strong> (pay-as-you-go), or <strong>bring your own key</strong> — e.g. an <strong>Anthropic API key</strong> or an OpenRouter key.</li>
+      <li class="frag">Pick a model (Claude works well) and you are ready.</li>
+    </ul>
+    <div class="bigpicture callout frag"><span class="callout-tag">two flavours, one idea</span>
+      Use <strong>Claude Code</strong> in the terminal and <strong>Cline</strong> in the editor. Both are agentic assistants; pick whichever fits the task. The next section sets up the key they share.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 05 — API KEYS ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>API keys — authorising the model calls</h2>
+    <div class="secsub">One Anthropic key covers the course; OpenAI and Hugging Face appear in a few examples.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The big picture</div>
+    <h2>What an API key actually does</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Your code (or Cline) sends a request plus your secret key; the provider checks the key, runs the model, and bills your account.</p>
+    <figure>
+      <svg viewBox="0 0 920 220" width="100%" role="img" aria-label="Data flow of an API call: your Python code or Cline sends the prompt together with your API key over HTTPS to the Anthropic API, which runs the Claude model and returns the response.">
+        <defs>
+          <marker id="arr2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#5b76f7"/></marker>
+        </defs>
+        <rect x="20" y="80" width="220" height="70" rx="12" fill="#e9f7ef" stroke="#2f9e5b"/>
+        <text x="130" y="108" text-anchor="middle" font-size="15" font-weight="700" fill="#1d6b3d">Your code / Cline</text>
+        <text x="130" y="130" text-anchor="middle" font-size="12" fill="#33503f">prompt + API key</text>
+        <rect x="360" y="80" width="220" height="70" rx="12" fill="#eef2ff" stroke="#5b76f7"/>
+        <text x="470" y="108" text-anchor="middle" font-size="15" font-weight="700" fill="#26307a">Anthropic API</text>
+        <text x="470" y="130" text-anchor="middle" font-size="12" fill="#3a3f63">checks key · routes request</text>
+        <rect x="700" y="80" width="200" height="70" rx="12" fill="#fff3e6" stroke="#e08a2b"/>
+        <text x="800" y="108" text-anchor="middle" font-size="15" font-weight="700" fill="#8a5212">Claude model</text>
+        <text x="800" y="130" text-anchor="middle" font-size="12" fill="#6b4a22">generates response</text>
+        <line x1="240" y1="105" x2="355" y2="105" stroke="#5b76f7" stroke-width="2" marker-end="url(#arr2)"/>
+        <text x="297" y="96" text-anchor="middle" font-size="11" fill="#5b76f7">HTTPS</text>
+        <line x1="580" y1="105" x2="695" y2="105" stroke="#5b76f7" stroke-width="2" marker-end="url(#arr2)"/>
+        <line x1="700" y1="140" x2="240" y2="140" stroke="#9aa3c9" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arr2)"/>
+        <text x="470" y="160" text-anchor="middle" font-size="11" fill="#7a82a8">response travels back</text>
+      </svg>
+      <figcaption>The key is a password. Anyone who has it can spend your credits — so it never goes into your code or git.</figcaption>
+    </figure>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Create · Anthropic key</div>
+    <h2>Generate a key, then set it as an environment variable</h2>
+    <div class="title-rule"></div>
+    <ol>
+      <li class="frag">Sign in at <code class="inline">console.anthropic.com</code> and add billing credits.</li>
+      <li class="frag">Go to <strong>Settings &rarr; API keys &rarr; Create Key</strong>. Copy it now — it looks like <code class="inline">sk-ant-api03-...</code> and is shown only once.</li>
+      <li class="frag">Store it as an environment variable named <code class="inline">ANTHROPIC_API_KEY</code> (the Anthropic SDK and tools read this automatically):</li>
+    </ol>
+    <div class="cols">
+      <div class="col"><div class="block"><div class="block-title">macOS / Linux</div>
+        <pre class="code">export ANTHROPIC_API_KEY="sk-ant-api03-..."</pre>
+        Add that line to <code class="inline">~/.zshrc</code> or <code class="inline">~/.bashrc</code> to make it permanent.
+      </div></div>
+      <div class="col"><div class="block"><div class="block-title">Windows</div>
+        <pre class="code">setx ANTHROPIC_API_KEY "sk-ant-api03-..."</pre>
+        Then open a <strong>new</strong> terminal so the variable is picked up.
+      </div></div>
+    </div>
+    <div class="block frag"><div class="block-title">Use it from Python</div>
+      <pre class="code">pip install anthropic</pre>
+      <code class="inline">anthropic.Anthropic()</code> reads <code class="inline">ANTHROPIC_API_KEY</code> from the environment — no key in your code.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Security &amp; the other providers</div>
+    <h2>Keep keys secret; two more keys for a few examples</h2>
+    <div class="title-rule"></div>
+    <div class="alert callout"><span class="callout-tag">never commit a key</span>
+      Keys go in environment variables or a <code class="inline">.env</code> file that is listed in <code class="inline">.gitignore</code>. Never paste a key into a notebook, a commit, or a screenshot. If one leaks, revoke it in the console immediately.
+    </div>
+    <div class="cols">
+      <div class="col"><div class="block frag"><div class="block-title">OpenAI (optional)</div>
+        Create a key at <code class="inline">platform.openai.com/api-keys</code>; store it as <code class="inline">OPENAI_API_KEY</code>. Used in the OpenAI examples in Chapter 1.
+      </div></div>
+      <div class="col"><div class="block frag"><div class="block-title">Hugging Face (optional)</div>
+        Create a token at <code class="inline">huggingface.co/settings/tokens</code>; store it as <code class="inline">HF_TOKEN</code> or run <code class="inline">huggingface-cli login</code>. Used for open-weight models.
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 06 — COURSE CODE + CHECK ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">06</div>
+    <h2>Get the course code &amp; check everything works</h2>
+    <div class="secsub">Clone the repo, install into your environment, and run the final checklist.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Get · the course repository</div>
+    <h2>Clone it and open it in VS Code</h2>
+    <div class="title-rule"></div>
+    <pre class="code">git clone https://github.com/jfimbett/llm-finance-book.git
+cd llm-finance-book
+conda activate llmfin
+pip install -r code/requirements.txt
+pip install -e code/
+code .</pre>
+    <p class="frag">Then open <code class="inline">code/practicals/01-intro/practical.ipynb</code> and select the <strong>Python (llmfin)</strong> kernel.</p>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Verify · the final checklist</div>
+    <h2>Run these — every line should succeed</h2>
+    <div class="title-rule"></div>
+    <pre class="code">conda --version
+python --version
+node --version
+claude --version
+git --version
+python -c "import pandas, numpy, sklearn, gensim; print('libs ok')"
+python -c "import anthropic; print('sdk ok')"</pre>
+    <div class="statrow frag">
+      <div class="stat"><div class="num">7</div><div class="lbl">checks pass</div></div>
+      <div class="stat"><div class="num">3</div><div class="lbl">extensions installed</div></div>
+      <div class="stat"><div class="num">1</div><div class="lbl">key in your environment</div></div>
+    </div>
+    <div class="takeaway callout frag"><span class="callout-tag">you're ready</span>
+      If all seven lines run without error and Claude Code logged in, your machine is set up for the whole course. Bring it to the first session working.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">If something breaks</div>
+    <h2>Where to get unstuck</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li><strong>Claude Code:</strong> run <code class="inline">claude doctor</code>; see the official troubleshooting guide at <code class="inline">code.claude.com/docs</code>.</li>
+      <li><strong>conda / Python:</strong> make sure you opened a <em>new</em> terminal after install and ran <code class="inline">conda activate llmfin</code>.</li>
+      <li><strong>VS Code can't find Python:</strong> re-run <em>Python: Select Interpreter</em> and choose the <code class="inline">llmfin</code> environment.</li>
+      <li><strong>Key not found:</strong> open a new terminal after <code class="inline">setx</code> / editing your shell profile, and confirm the variable is set.</li>
+    </ul>
+    <div class="bigpicture callout"><span class="callout-tag">ask early</span>
+      Hit a wall? Post the exact error message (not a screenshot of your key) on the course channel before the first session — most setup issues take minutes to fix once we see the message.
+    </div>
+  </section>
+
+</div></div>
+</body>
+</html>

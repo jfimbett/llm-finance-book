@@ -95,10 +95,13 @@ LECTURES.forEach(([slug, title, desc], i) => {
   const n = slug.slice(0,2);
   const card = document.createElement("div");
   card.className = "card";
+  const setupLink = slug === "01-intro"
+    ? `\n      <a class="go prac" href="${slug}/setup.html">Setup &amp; tech requirements</a>`
+    : "";
   card.innerHTML = `<div class="num">Lecture ${n}</div><h3>${title}</h3><p>${desc}</p>
     <div class="links">
       <a class="go" href="${slug}/index.html">Lecture slides <span class="arr">→</span></a>
-      <a class="go prac" href="${slug}/practical.html">Practical session</a>
+      <a class="go prac" href="${slug}/practical.html">Practical session</a>${setupLink}
     </div>`;
   // make the whole card open the lecture, except when a specific link is clicked
   card.addEventListener("click", (e) => {

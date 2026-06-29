@@ -399,6 +399,56 @@
     </div>
   </section>
 
+  <section class="slide">
+    <div class="eyebrow">The toy GPT, in matrices · step 1</div>
+    <h2>"Embedding lookup" is literally one matrix times another</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The prefix <em>"&lt;s&gt; revenue fell"</em> has token ids \((0,1,2)\). Stack their one-hot rows
+      into \(O\) and multiply by the embedding table \(E\) — each one-hot row just <strong>selects</strong> a row of \(E\):</p>
+    \[
+      \underset{\textstyle O\ (3\times6)}{
+        \begin{bmatrix} 1&0&0&0&0&0 \\ 0&1&0&0&0&0 \\ 0&0&1&0&0&0 \end{bmatrix}}
+      \underset{\textstyle E\ (6\times4)}{
+        \begin{bmatrix} 1&0&0&0 \\ 0&1&0&1 \\ 1&0&1&0 \\ 0&1&1&0 \\ 1&1&0&0 \\ 0&0&0&1 \end{bmatrix}}
+      =
+      \underset{\textstyle X^{(\mathrm{emb})}\ (3\times4)}{
+        \begin{bmatrix} 1&0&0&0 \\ 0&1&0&1 \\ 1&0&1&0 \end{bmatrix}}
+    \]
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">the bigger picture</span>
+      A one-hot row holds a single \(1\), so the product simply copies the matching row of \(E\). That is all a token
+      embedding <em>is</em> — a row lookup, written as a matrix multiply so the entire sequence is one operation. Add the
+      positional encoding to \(X^{(\mathrm{emb})}\) and the block is ready to attend.
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The toy GPT, in matrices · steps 4 &amp; 7</div>
+    <h2>Who attends to whom — and the word that wins</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Dot-product scores, a causal \(-\infty\) mask, and a row-wise softmax give the attention matrix \(A\).
+      Row&nbsp;3 is <code>fell</code> deciding how much to look at each earlier token:</p>
+    \[
+      A=\begin{bmatrix} 1.00 & 0 & 0 \\ 0.21 & 0.79 & 0 \\ 0.13 & 0.17 & \mathbf{0.70} \end{bmatrix}
+    \]
+    <p class="frag">The zeros above the diagonal are the causal mask — a token never attends to its own future. After the
+      feed-forward block and un-embedding (\(\text{logits}=X^{(1)}E^{\top}\)), <code>fell</code>'s logits become probabilities:</p>
+    \[
+      P_{\texttt{fell}}=\bigl(
+        \underset{\langle s\rangle}{0.03},\
+        \underset{\text{revenue}}{0.08},\
+        \underset{\text{fell}}{0.09},\
+        \underset{\textbf{sharply}}{\mathbf{0.66}},\
+        \underset{\text{rose}}{0.09},\
+        \underset{.}{0.03}\bigr)
+    \]
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the payoff</span>
+      The tiny GPT completes <em>"revenue fell"</em> with <strong>sharply</strong> at \(66\%\) probability. Stack this same
+      block 32–96 times with matrices in the thousands and you have a production LLM — the same arithmetic, just more of it.
+    </div>
+  </section>
+
   <!-- ============================ SECTION 3 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">03</div>

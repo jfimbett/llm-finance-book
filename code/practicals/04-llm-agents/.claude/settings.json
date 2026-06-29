@@ -11,5 +11,16 @@
   },
   "env": {
     "SEC_USER_AGENT": "Your Name your-email@example.com"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": ".claude/hooks/log-interaction.sh" }] }
+    ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": ".claude/hooks/log-interaction.sh" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": ".claude/hooks/timed-commit.sh" }] }
+    ]
   }
 }

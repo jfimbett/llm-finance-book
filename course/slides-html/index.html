@@ -99,8 +99,12 @@ LECTURES.forEach(([slug, title, desc], i) => {
     ? `\n      <a class="go prac" target="_blank" rel="noopener" href="${slug}/tech-requirements.html">Setup &amp; tech requirements</a>`
     : "";
   // Lecture 1 has no practical deck — point to the embedding-analogy figure code instead.
+  // Lectures 2 & 3 are lecture-only this run; their practical links are suppressed.
+  const noPractical = ["02-llm-foundations", "03-llm-training-finetuning"];
   const pracLink = slug === "01-intro"
     ? `<a class="go prac" target="_blank" rel="noopener" href="https://github.com/jfimbett/llm-finance-book/blob/master/code/figures/01-intro/gen_king_analogy.py">Embedding-analogy code</a>`
+    : noPractical.includes(slug)
+    ? ""
     : `<a class="go prac" target="_blank" rel="noopener" href="${slug}/practical.html">Practical session</a>`;
   card.innerHTML = `<div class="num">Lecture ${n}</div><h3>${title}</h3><p>${desc}</p>
     <div class="links">

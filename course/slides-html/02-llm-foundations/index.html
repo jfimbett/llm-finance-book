@@ -108,92 +108,39 @@
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Reading in order · the first neural attempt</div>
-    <h2>RNNs read word by word — and forget the beginning</h2>
+    <div class="eyebrow">Before the Transformer · recurrent models in one slide</div>
+    <h2>RNNs and LSTMs: what they got right, and why they lost</h2>
     <div class="title-rule"></div>
-    <p class="lead">A recurrent network passes a running "memory" forward as it reads each word.
-      The flaw: over a long document that memory signal fades exponentially, so the network can't
-      connect something on page 3 to something on page 20.</p>
-    <aside class="underhood" data-title="recurrence &amp; the vanishing-gradient proposition">
-      Vanilla RNN recurrence and its backprop-through-time gradient:
-      \[ \mathbf{h}_t = \sigma\!\left(W_h\,\mathbf{h}_{t-1} + W_x\,\mathbf{x}_t + \mathbf{b}\right), \qquad
-         \frac{\partial \mathcal{L}}{\partial \mathbf{h}_t}
-         = \sum_{s=t}^{T} \frac{\partial \ell_s}{\partial \mathbf{h}_s}
-           \prod_{k=t}^{s-1} \frac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}. \]
-      <strong>Proposition (vanishing &amp; exploding gradients).</strong> With \(\rho = \|W_h\|_2\) and
-      \(M_\sigma = \sup_z |\sigma'(z)|\),
-      \[ \Big\|\prod_{k=t}^{T-1}\tfrac{\partial \mathbf{h}_{k+1}}{\partial \mathbf{h}_k}\Big\|_2
-         \;\leq\; (M_\sigma\,\rho)^{T-t}. \]
-      For logistic sigmoid \(M_\sigma = \tfrac{1}{4}\); if \(M_\sigma\rho &lt; 1\) the gradient vanishes exponentially in sequence length. Gradient clipping (Pascanu et al., 2013) fixes explosion; there is no in-architecture fix for vanishing.
-    </aside>
-    <div class="bigpicture callout frag">
-      <span class="callout-tag">the finance implication</span>
-      A 10,000-token earnings call makes long-range dependencies — a guidance number on page 3 tied to a
-      caveat on page 20 — practically unlearnable for a plain RNN.
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">The first fix · LSTM</div>
-    <h2>LSTMs add a memory "conveyor belt" that doesn't fade</h2>
-    <div class="title-rule"></div>
-    <p class="lead">The LSTM keeps a separate cell state that information can ride along almost untouched, with
-      learned gates deciding what to <em>forget</em>, what to <em>add</em>, and what to <em>output</em>.</p>
-    <ul>
-      <li class="frag"><strong>Forget gate</strong> \(\mathbf{f}_t\) — what to drop from memory; clears irrelevant preamble as a transcript shifts to core earnings figures</li>
-      <li class="frag"><strong>Input gate</strong> \(\mathbf{i}_t\) — what new information to write; filters boilerplate language in 10-K filings</li>
-      <li class="frag"><strong>Output gate</strong> \(\mathbf{o}_t\) — what to expose as the hidden state</li>
-    </ul>
-    <aside class="underhood" data-title="the six LSTM equations (Hochreiter &amp; Schmidhuber, 1997)">
-      \[ \begin{aligned}
-        \mathbf{f}_t &= \sigma(W_f[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_f) &&\text{forget gate}\\
-        \mathbf{i}_t &= \sigma(W_i[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_i) &&\text{input gate}\\
-        \mathbf{g}_t &= \tanh(W_g[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_g) &&\text{candidate cell}\\
-        \mathbf{c}_t &= \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \mathbf{g}_t &&\text{cell state (additive!)}\\
-        \mathbf{o}_t &= \sigma(W_o[\mathbf{h}_{t-1},\mathbf{x}_t] + \mathbf{b}_o) &&\text{output gate}\\
-        \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{c}_t) &&\text{hidden state}
-      \end{aligned} \]
-      The additive cell update is the <em>constant error carousel</em>: cell-state gradient
-      \(\partial\mathcal{L}/\partial\mathbf{c}_t = (\partial\mathcal{L}/\partial\mathbf{c}_{t+1})\odot\mathbf{f}_{t+1} + \ldots\)
-      flows back undamped when \(\mathbf{f}_{t+1}\approx\mathbf{1}\), mitigating vanishing gradients (Hochreiter &amp; Schmidhuber, 1997).
-    </aside>
-    <div class="takeaway callout frag">
-      <span class="callout-tag">the lighter sibling — GRU (Cho et al., 2014)</span>
-      GRU merges cell state and hidden state into 4 equations, ~25% fewer parameters than LSTM.
-      GRUs match LSTMs on most tasks; LSTMs outperform on very long-range dependencies (Chung et al., 2014). Prefer GRUs under compute constraints.
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Bidirectional RNNs — and their limits</div>
-    <h2>Read left-to-right AND right-to-left — but you're still bottlenecked by a fixed vector</h2>
-    <div class="title-rule"></div>
-    <p class="lead">A bidirectional LSTM runs two passes and concatenates them, giving every token access to both past and future context. It dominated financial NLP before Transformers arrived.</p>
-    <ul>
-      <li class="frag"><strong>Forward pass</strong> \(\overrightarrow{\mathbf{h}}_t\) — reads \(x_1,\ldots,x_t\)</li>
-      <li class="frag"><strong>Backward pass</strong> \(\overleftarrow{\mathbf{h}}_t\) — reads \(x_T,\ldots,x_t\)</li>
-      <li class="frag"><strong>Combined</strong> \(\mathbf{h}_t = [\overrightarrow{\mathbf{h}}_t;\overleftarrow{\mathbf{h}}_t]\) — full context at each position</li>
-    </ul>
-    <aside class="underhood" data-title="BiLSTM (Schuster &amp; Paliwal, 1997)">
-      \[ \mathbf{h}_t = [\,\overrightarrow{\mathbf{h}}_t;\,\overleftarrow{\mathbf{h}}_t\,], \quad
-         \overrightarrow{\mathbf{h}}_t = \mathrm{LSTM}_{\mathrm{fwd}}(\mathbf{x}_1,\ldots,\mathbf{x}_t), \quad
-         \overleftarrow{\mathbf{h}}_t = \mathrm{LSTM}_{\mathrm{bwd}}(\mathbf{x}_T,\ldots,\mathbf{x}_t). \]
-    </aside>
+    <p class="lead">For a decade, recurrent networks (RNN → LSTM → GRU → BiLSTM) were the default for financial NLP —
+      named-entity recognition, sentiment, event extraction. They read a sequence one token at a time, carrying a
+      running "memory" forward. Three structural limits are exactly what the Transformer was built to remove.</p>
     <div class="cols">
       <div class="col">
-        <div class="bigpicture callout">
-          <span class="callout-tag">financial applications pre-2019</span>
-          BiLSTMs were the dominant architecture for financial NER and sentiment classification:
-          credit-event extraction from news (Araci, 2019),
-          earnings-surprise prediction from analyst reports.
+        <div class="block">
+          <div class="block-title">Pros</div>
+          <ul>
+            <li class="frag">Natural fit for sequences of any length; compact, few parameters</li>
+            <li class="frag">LSTM/GRU gates tame the vanishing gradient over short and medium ranges</li>
+            <li class="frag">BiLSTM gives every token both past <em>and</em> future context</li>
+            <li class="frag">Dominant for financial NER &amp; sentiment pre-2019; run on modest hardware</li>
+          </ul>
         </div>
       </div>
       <div class="col">
-        <div class="alert callout frag">
-          <span class="callout-tag">why Transformers won</span>
-          Three RNN failures: (1) vanishing gradients; (2) sequential computation blocks parallelism; (3) a fixed-size vector must compress everything. Transformers fix all three simultaneously.
+        <div class="block">
+          <div class="block-title">Cons</div>
+          <ul>
+            <li class="frag">Long-range dependencies still fade — a guidance figure on p.3 tied to a caveat on p.20 of a 10-K stays unlearnable</li>
+            <li class="frag">Sequential by construction — no parallelism across the sequence; slow to train at scale</li>
+            <li class="frag">A fixed-size hidden state must compress the whole document into one vector — an information bottleneck</li>
+          </ul>
         </div>
       </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the move that follows</span>
+      Attention (Bahdanau et al., 2015) removes the fixed-vector bottleneck by letting the model look back at every
+      token directly; applied <em>within</em> a single sequence it becomes self-attention — and fixes all three limits at once.
     </div>
   </section>
 
@@ -293,13 +240,12 @@
     <h2>Self-attention is order-blind — so position is injected explicitly</h2>
     <div class="title-rule"></div>
     <p class="lead">Self-attention treats the input as a set: shuffle the words and the math is unchanged. A sinusoidal positional encoding tags each token with its location so the model can recover order.</p>
-    <figure class="deckfig">
-      <img src="../assets/figures/02-llm-foundations/fig_illustration.png" alt="Sinusoidal positional-encoding heatmap: 50 positions by 64 dimensions, low-indexed dimensions oscillate rapidly">
-      <figcaption><b>Figure.</b> Sinusoidal positional-encoding matrix for \(d_{\text{model}}=64\) and sequence length 50.
-        Low-indexed dimensions oscillate rapidly (short period, fine position); high-indexed dimensions change slowly (coarse position).
-        Any fixed positional offset \(\Delta\) can be expressed as a linear transformation of the encoding — relative positions are linearly decodable.
-        <span class="src">Source: generated by <code>gen_positional_encoding.py</code> (deterministic; no data dependency).</span></figcaption>
-    </figure>
+    <ul>
+      <li class="frag"><strong>Low-indexed dimensions</strong> oscillate rapidly (short period) — they pin down <em>fine</em> position within a few tokens.</li>
+      <li class="frag"><strong>High-indexed dimensions</strong> change slowly (long period) — they encode <em>coarse</em> position across the whole sequence.</li>
+      <li class="frag">Stacking the two gives every position a unique signature — a token at position 5 never collides with one at position 50.</li>
+      <li class="frag">Any fixed offset \(\Delta\) is a linear transformation of the encoding, so <strong>relative positions are linearly decodable</strong>: the model can learn "\(k\) tokens apart" directly.</li>
+    </ul>
     <aside class="underhood" data-title="sinusoidal PE &amp; rotation property (Vaswani et al., 2017; Shaw et al., 2018)">
       \[ \text{PE}_{(\text{pos},2i)} = \sin\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right), \quad
          \text{PE}_{(\text{pos},2i+1)} = \cos\!\left(\tfrac{\text{pos}}{10000^{2i/d}}\right). \]
@@ -403,7 +349,13 @@
     <div class="eyebrow">Matrix walk-through · step 1 of 7</div>
     <h2>Step 1 — "Embedding lookup" is literally one matrix times another</h2>
     <div class="title-rule"></div>
-    <p class="lead">The prefix <em>"&lt;s&gt; revenue fell"</em> has token ids \((0,1,2)\). Stack their one-hot rows
+    <p class="lead">Our toy model knows a <strong>vocabulary of just \(V=6\) tokens</strong> — every "word" it can read or write:</p>
+    <table>
+      <tr><th>id</th><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr>
+      <tr><th>token</th><td><code>&lt;s&gt;</code></td><td>revenue</td><td>fell</td><td>sharply</td><td>rose</td><td><code>.</code></td></tr>
+    </table>
+    <p class="frag">Each token owns exactly one row of the embedding table \(E\ (6\times4)\) — so \(V=6\) rows, one \(4\)-dimensional vector apiece. A production GPT swaps this \(6\) for a byte-pair vocabulary of ~100,000 tokens, but the mechanism below is identical.</p>
+    <p class="frag">The prefix <em>"&lt;s&gt; revenue fell"</em> has token ids \((0,1,2)\). Stack their one-hot rows
       into \(O\) and multiply by the embedding table \(E\) — each one-hot row just <strong>selects</strong> a row of \(E\):</p>
     \[
       \underset{\textstyle O\ (3\times6)}{

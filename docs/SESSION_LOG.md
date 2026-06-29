@@ -273,3 +273,4 @@
 | 2026-06-29 | 5 files | chore: session log 2026-06-29;docs: implementation plan for practical verification harness;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 7 files | feat(code): scaffold practical-verify package and data model;chore: session log 2026-06-29;chore: session log 2026-06-29; | — |
 | 2026-06-29 | 7 files | chore: session log 2026-06-29;feat(code): scaffold practical-verify package and data model;chore: session log 2026-06-29; | — |
+| 2026-06-29 | 10 files | feat(lec01): add setup / tech-requirements slide deck;feat(code): discover and classify practicals;chore: session log 2026-06-29; | — |

@@ -98,10 +98,14 @@ LECTURES.forEach(([slug, title, desc], i) => {
   const setupLink = slug === "01-intro"
     ? `\n      <a class="go prac" target="_blank" rel="noopener" href="${slug}/tech-requirements.html">Setup &amp; tech requirements</a>`
     : "";
+  // Lecture 1 has no practical deck — point to the embedding-analogy figure code instead.
+  const pracLink = slug === "01-intro"
+    ? `<a class="go prac" target="_blank" rel="noopener" href="https://github.com/jfimbett/llm-finance-book/blob/master/code/figures/01-intro/gen_king_analogy.py">Embedding-analogy code</a>`
+    : `<a class="go prac" target="_blank" rel="noopener" href="${slug}/practical.html">Practical session</a>`;
   card.innerHTML = `<div class="num">Lecture ${n}</div><h3>${title}</h3><p>${desc}</p>
     <div class="links">
       <a class="go" target="_blank" rel="noopener" href="${slug}/index.html">Lecture slides <span class="arr">→</span></a>
-      <a class="go prac" target="_blank" rel="noopener" href="${slug}/practical.html">Practical session</a>${setupLink}
+      ${pracLink}${setupLink}
     </div>`;
   // make the whole card open the lecture in a new tab, except when a specific link is clicked
   card.addEventListener("click", (e) => {

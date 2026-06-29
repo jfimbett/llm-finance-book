@@ -2,7 +2,7 @@
 
 **Paired chapter:** `book/chapters/01-intro/chapter.tex`
 **Duration:** 2 hours
-**Practical session:** `course/slides-html/01-intro/practical.html` (separate 1-hour session)
+**Hands-on:** instead of a separate practical deck, students run the embedding-analogy figure code — `code/figures/01-intro/gen_king_analogy.py` (the `king − man + woman ≈ queen` GloVe demo).
 
 ---
 

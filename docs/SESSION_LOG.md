@@ -345,3 +345,4 @@
 | 2026-06-30 | 37 files | chore: session log 2026-06-30;feat(code): add Colab notebooks for figures + practicals, root env files;chore: session log 2026-06-30; | — |
 | 2026-06-30 | 54 files | docs(hooks): note root hooks/ is now a symlink to .claude/hooks;chore: session log 2026-06-30;chore: session log 2026-06-30; | — |
 | 2026-06-30 | 21 files | chore: move BOOK_AUDIT_PROJECT_CONTEXT.md into .claude/context, symlink root;chore: session log 2026-06-30;docs(hooks): note root hooks/ is now a symlink to .claude/hooks; | — |
+| 2026-06-30 | 5 files | chore: repoint BOOK_AUDIT references to .claude/context/ path;chore: drop root BOOK_AUDIT symlink; reference .claude/context/ path directly;chore: session log 2026-06-30; | — |

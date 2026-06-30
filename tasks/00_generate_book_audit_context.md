@@ -7,8 +7,11 @@ You are working inside my book project repository. The book is about **Large Lan
 Create a markdown file named:
 
 ```text
-BOOK_AUDIT_PROJECT_CONTEXT.md
+.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md
 ```
+
+(The repo root keeps a `BOOK_AUDIT_PROJECT_CONTEXT.md` symlink to this path, so
+references by the bare filename still resolve.)
 
 This file should contain everything another AI assistant would need in order to design a robust Claude Code workflow that scores and improves the book across these dimensions:
 
@@ -44,7 +47,7 @@ Do **not** redesign the project yet. Do **not** rewrite chapters yet. Do **not**
 
 ## Report structure
 
-Write `BOOK_AUDIT_PROJECT_CONTEXT.md` with the following sections.
+Write `.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md` with the following sections.
 
 ---
 
@@ -395,7 +398,7 @@ Include:
 
 ## Final instruction
 
-After writing `BOOK_AUDIT_PROJECT_CONTEXT.md`, print a short message telling me:
+After writing `.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md`, print a short message telling me:
 
 1. The file was created.
 2. The most important 5 findings.

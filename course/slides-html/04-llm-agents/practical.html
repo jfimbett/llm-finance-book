@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lecture 4 — Practical Session: LLM Agents and RAG in Finance</title>
+<title>Lecture 4 — Practical Session: Hands-on with Claude Code &amp; Cline</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -17,8 +17,8 @@
   <!-- ============================ TITLE ============================ -->
   <section class="slide title-slide current">
     <div class="kicker">Large Language Models in Finance · Chapter 4 / Lecture 4 · Practical</div>
-    <h1>LLM Agents and Finance Applications</h1>
-    <div class="sub">Tracing a ReAct agent, designing a tool schema, and building &amp; grading a RAG pipeline.</div>
+    <h1>Hands-on with Claude Code &amp; Cline</h1>
+    <div class="sub">Your first agentic IDE session: the file-based pattern, then add an agent, a skill, a tool, and two hooks — and run a real filing-Q&amp;A agent.</div>
     <div class="meta"><b>Juan F. Imbet</b> &nbsp;·&nbsp; EDHEC Business School / Paris Dauphine – PSL University</div>
   </section>
 
@@ -27,324 +27,355 @@
     <div class="eyebrow">Session overview · 1 hour</div>
     <h2>What we'll actually do today</h2>
     <div class="title-rule"></div>
-    <p class="lead">A working hour: less lecture, more building. You drive a real filing-Q&amp;A agent in
-      Claude Code or Cline, write a tool it can call, and grade its answers <em>in code</em> — no pen-and-paper.</p>
-    <div class="block"><div class="block-title">Open this in Claude Code or Cline</div>
-      <code class="inline">code/practicals/04-llm-agents/</code> — then run <code class="inline">/ask "&lt;question&gt;"</code>.
-      The agent retrieves, answers with citations, and the grader scores faithfulness &amp; relevance.
+    <p class="lead">An introduction to the two agentic coding assistants this course uses. Less slide, more
+      building: you'll open one project in <strong>Claude Code</strong> or <strong>Cline</strong> and extend
+      it four ways — agent, skill, tool, hook — then watch a grounded filing agent run end to end.</p>
+    <div class="block"><div class="block-title">Open this folder in Claude Code or Cline</div>
+      <code class="inline">code/practicals/04-llm-agents/</code> — copy-ready skeletons live in
+      <code class="inline">templates/</code>, the live agents in <code class="inline">.claude/</code>.
     </div>
     <div class="cols">
       <div class="col">
         <ol>
-          <li class="frag"><strong>Recap</strong> (5 min) — the agent loop, ReAct, memory, RAG metrics</li>
-          <li class="frag"><strong>Problem 1</strong> (15 min) — trace a ReAct agent on a filing Q&amp;A task</li>
-          <li class="frag"><strong>Problem 2</strong> (10 min) — design a tool schema for a bond calculator</li>
+          <li class="frag"><strong>Meet the tools</strong> (10 min) — install, open the folder, the file-based pattern</li>
+          <li class="frag"><strong>The capability map</strong> (10 min) — agents, skills, tools, hooks + the standard tools</li>
+          <li class="frag"><strong>Add an agent &amp; a skill</strong> (15 min) — from the templates, in both setups</li>
         </ol>
       </div>
       <div class="col">
         <ol start="4">
-          <li class="frag"><strong>Case Study</strong> (20 min) — build &amp; evaluate a RAG pipeline over earnings calls</li>
-          <li class="frag"><strong>Discussion</strong> (5 min) — when to add a second agent? a hook?</li>
-          <li class="frag"><strong>Solutions</strong> (5 min) — walkthrough of Problems 1 and 2</li>
+          <li class="frag"><strong>Wire two hooks</strong> (10 min) — an audit log and a timed safety commit</li>
+          <li class="frag"><strong>Run the agent</strong> (10 min) — <code class="inline">/ask</code> a grounded, graded filing question</li>
+          <li class="frag"><strong>Discussion</strong> (5 min) — when to add an agent vs. a hook</li>
         </ol>
       </div>
     </div>
     <div class="takeaway callout frag">
-      <span class="callout-tag">what you'll practise</span>
-      Tracing agent reasoning steps; writing Pydantic tool schemas; building and evaluating a RAG
-      pipeline; thinking through governance checkpoints.
+      <span class="callout-tag">what you'll leave with</span>
+      A mental model of an agentic IDE as <em>plain files under version control</em> — and the muscle memory to
+      add a capability to either Claude Code or Cline.
     </div>
   </section>
 
   <!-- ============================ SECTION 01 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">01</div>
-    <h2>Recap — the moving parts</h2>
-    <div class="secsub">The agent loop, the ReAct format, where memory lives, and how we grade RAG.</div>
+    <h2>Meet Claude Code &amp; Cline</h2>
+    <div class="secsub">Two assistants, the same idea: an LLM that reads and writes your repo through tools.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Recap · how an agent thinks and acts</div>
-    <h2>An agent is a loop: think, act, observe, repeat</h2>
+    <div class="eyebrow">The two tools · what they are</div>
+    <h2>Same loop you saw in the lecture — wrapped around your codebase</h2>
     <div class="title-rule"></div>
-    <p class="lead">Plain version: the model writes a thought, calls a tool, reads what comes back, and
-      updates what it knows — looping until it can answer. The thoughts are the audit trail.</p>
+    <p class="lead">Both are the Perceive → Reason → Act loop from the lecture, with your repository as the
+      environment. The model proposes actions (read a file, run a command); the tool executes them and feeds
+      the result back.</p>
+    <figure class="deckfig">
+      <img src="../assets/figures/04-llm-agents/diagram.svg" alt="LLM agent loop: observe, reason, act, with tools and memory acting on the environment">
+      <figcaption><b>Figure.</b> The perceive–reason–act loop. In an agentic IDE the "environment" is your
+        repository, and the actions are tool calls — read, edit, grep, run a command.
+        <span class="src">Source: Course materials, Chapter 4.</span></figcaption>
+    </figure>
     <div class="cols">
       <div class="col">
-        <div class="block"><div class="block-title">ReAct, in one line</div>
-          A trajectory alternates <strong>Thought → Action → Observation</strong> until a
-          <strong>Finish</strong>. Each thought says <em>why</em> the next tool is called; each
-          observation grounds the next step in real data.
+        <div class="block"><div class="block-title">Claude Code</div>
+          Anthropic's CLI / IDE agent. Capabilities are markdown files under <code class="inline">.claude/</code>;
+          a native hook engine fires scripts on lifecycle events. Install:
+          <code class="inline">npm i -g @anthropic-ai/claude-code</code>, then run <code class="inline">claude</code> in the folder.
         </div>
-        <figure class="deckfig">
-          <img src="../assets/figures/04-llm-agents/diagram.svg" alt="LLM agent loop: observe, reason, act, tools and memory, environment">
-          <figcaption><b>Figure.</b> The perceive–reason–act loop in an LLM agent. Each action grounds the next thought in real evidence from the environment (tools, APIs, databases).
-            <span class="src">Source: Course materials, Chapter 4.</span></figcaption>
-        </figure>
       </div>
       <div class="col">
-        <div class="bigpicture callout">
-          <span class="callout-tag">why it matters for finance</span>
-          A model guessing Apple's revenue can be wrong. A model that <em>calls the API</em> returns
-          the exact figure. Actions trade guesses for evidence.
+        <div class="block"><div class="block-title">Cline</div>
+          An open-source VS Code extension. Reads <code class="inline">.clinerules</code> /
+          <code class="inline">AGENTS.md</code>, runs workflows, and connects tools over MCP. Install from the
+          VS Code marketplace, open the folder, point it at a model provider.
         </div>
       </div>
     </div>
-    <aside class="underhood" data-title="the PRA loop and the ReAct trajectory">
-      The agent is a triple \((\pi,\mu,\phi)\): a memory update \(\phi:\text{obs}\times\text{mem}\to\text{mem}\),
-      a policy \(\pi:\text{mem}\to\Delta(\text{actions})\) implemented by the LLM, and an environment
-      transition \(\mu:\text{action}\times\text{env}\to\text{obs}\). A ReAct trajectory is
-      \[ \tau = (T_1, A_1, O_1,\; T_2, A_2, O_2,\; \ldots,\; T_n, \textsc{Finish}). \]
-      Each \(T_i\) is a natural-language thought, each \(A_i\) a tool call, each \(O_i\) the tool's return.
-      The grounding principle: the model's internal estimate \(\hat f(t)\neq f(t)\) in general, but calling
-      the API returns the exact \(f(t)\).
-    </aside>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why two</span>
+      The skills transfer. Learn the pattern once — capabilities as files — and you can drive any agentic IDE
+      (Cursor, generic <code class="inline">AGENTS.md</code> runners) the same way.
+    </div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Recap · memory and how we grade RAG</div>
-    <h2>Where memory lives, and the four numbers that grade retrieval</h2>
+    <div class="eyebrow">The big idea · the file-based pattern</div>
+    <h2>Every capability is a plain-text file — readable, diffable, auditable</h2>
     <div class="title-rule"></div>
-    <div class="cols">
-      <div class="col">
-        <h3>Three places memory lives</h3>
-        <table>
-          <tr><th>Type</th><th>Size</th><th>Persistence</th></tr>
-          <tr><td>In-context</td><td>Context window</td><td>Session only</td></tr>
-          <tr><td>Retrieval (vector DB)</td><td>Unbounded</td><td>Persistent</td></tr>
-          <tr><td>Long-term (structured DB)</td><td>Unbounded</td><td>Persistent</td></tr>
-        </table>
-      </div>
-      <div class="col">
-        <h3>RAGAS metrics</h3>
-        <ul>
-          <li class="frag"><strong>Faithfulness</strong> — answer's claims are backed by retrieved context</li>
-          <li class="frag"><strong>Answer Relevance</strong> — answer addresses the query</li>
-          <li class="frag"><strong>Context Precision</strong> — retrieved chunks are relevant</li>
-          <li class="frag"><strong>Context Recall</strong> — context covers the ground-truth claims</li>
-        </ul>
-      </div>
-    </div>
-    <div class="alert callout frag">
-      <span class="callout-tag">finance priority</span>
-      <strong>Faithfulness first.</strong> An unfaithful answer is a hallucinated claim, which is a
-      compliance risk. Rule of thumb: faithfulness \(&lt; 0.85\) → block automated publication.
+    <p class="lead">There is no hidden configuration. An agent, a skill, and a hook are each a tracked file a
+      reviewer can read in a pull request. In a regulated workflow, the entire capability surface is inspectable
+      from a git log.</p>
+    <pre class="code">code/practicals/04-llm-agents/
+├── CLAUDE.md / AGENTS.md          # project instructions (both tools read these)
+├── .clinerules                    # Cline's project rules
+├── .claude/
+│   ├── settings.json              # permissions + HOOKS wiring
+│   ├── agents/  retriever.md analyst.md grader.md
+│   ├── skills/  ask/SKILL.md      # the /ask command
+│   └── hooks/   log-interaction.sh  timed-commit.sh
+├── templates/                     # copy-ready skeletons (today's exercises)
+└── tools/  retrieve.py grade.py   # deterministic Python the agent calls</pre>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the principle</span>
+      Agents are the <em>who</em>, skills the <em>how</em>, tools the <em>actions</em>, hooks the
+      <em>automatic guardrails</em>. All four are text you can read, review, and version.
     </div>
   </section>
 
   <!-- ============================ SECTION 02 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">02</div>
-    <h2>Problems — your turn</h2>
-    <div class="secsub">Trace an agent's reasoning, then design a tool it can safely call.</div>
+    <h2>The capability map</h2>
+    <div class="secsub">Where agents, skills, tools, and hooks live in each setup — and the tools you get for free.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Problem 1 · 15 min</div>
-    <h2>Trace a ReAct agent on a 10-K comparison</h2>
+    <div class="eyebrow">Four capabilities · two setups</div>
+    <h2>Where each capability actually lives</h2>
     <div class="title-rule"></div>
-    <p class="lead">A compliance analyst asks an agent:</p>
-    <div class="block">
-      <div class="block-title">The question</div>
-      <em>"What credit risks does Microsoft disclose in its most recent 10-K, and how do they compare
-      to the risks it disclosed in the 2022 10-K?"</em>
-    </div>
-    <div class="cols">
-      <div class="col">
-        <h3>Available tools</h3>
-        <ul>
-          <li><code class="inline">edgar_search(ticker, form, limit)</code> — accession numbers and dates</li>
-          <li><code class="inline">edgar_section(accession, section)</code> — text of a named section</li>
-          <li><code class="inline">summarise_risks(text, focus)</code> — structured risk list</li>
-          <li><code class="inline">compare_lists(list_a, list_b)</code> — added, removed, changed items</li>
-        </ul>
-      </div>
-      <div class="col">
-        <div class="takeaway callout">
-          <span class="callout-tag">your task</span>
-          Write the full trajectory \((T_1, A_1, O_1, \ldots, \textsc{Finish})\):
-          at least 4 steps before Finish; each thought justifies <em>why</em> the next action;
-          make up plausible (but fictional) observation values.
-        </div>
-      </div>
+    <p class="lead">The same four extension points, mapped to concrete file locations in each tool. Today you'll
+      add one of each.</p>
+    <table>
+      <tr><th>Capability</th><th>Claude Code</th><th>Cline</th></tr>
+      <tr><td><strong>Agent</strong> — a persona</td><td><code>.claude/agents/&lt;name&gt;.md</code></td><td><code>.clinerules</code> / <code>AGENTS.md</code>, or a custom mode</td></tr>
+      <tr><td><strong>Skill</strong> — a <code>/command</code></td><td><code>.claude/skills/&lt;name&gt;/SKILL.md</code></td><td><code>.clinerules/workflows/&lt;name&gt;.md</code></td></tr>
+      <tr><td><strong>Tool</strong> — a new action</td><td>MCP in <code>.mcp.json</code>, or a CLI via <code>Bash</code></td><td>MCP in <code>cline_mcp_settings.json</code></td></tr>
+      <tr><td><strong>Hook</strong> — an event callback</td><td><code>.claude/settings.json</code> + <code>.claude/hooks/</code></td><td><em>none native</em> → git / MCP wrapper</td></tr>
+    </table>
+    <div class="alert callout frag">
+      <span class="callout-tag">the honest asymmetry</span>
+      Claude Code has a native hook engine; Cline does not. We'll implement the hooks natively in Claude Code and
+      show the portable git / MCP fallback for Cline — same intent, different plumbing.
     </div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Problem 2 · 10 min</div>
-    <h2>Design a tool schema for a bond calculator</h2>
+    <div class="eyebrow">Tools · what you already have</div>
+    <h2>You rarely build a tool — the standard ones ship with both</h2>
     <div class="title-rule"></div>
-    <p class="lead">You're building an agent for a fixed-income desk. The tool
-      <code class="inline">compute_bond_price</code> returns the present value of a bond from its
-      cash flows and yield, supporting annual and semi-annual coupons.</p>
+    <p class="lead">Before you reach for a custom tool, remember both assistants already act on your repo through a
+      shared standard toolset. A <em>custom</em> tool is only for what the environment can't already do.</p>
     <div class="cols">
       <div class="col">
-        <div class="block"><div class="block-title">Fields the schema must include</div>
+        <div class="block"><div class="block-title">Standard (built-in) tools</div>
           <ul>
-            <li>Face value (USD, any positive value)</li>
-            <li>Annual coupon rate (decimal)</li>
-            <li>Years to maturity (positive integer)</li>
-            <li>Yield to maturity (decimal; annual, not semi-annual)</li>
-            <li>Coupon frequency (annual or semi-annual)</li>
+            <li><code class="inline">Read</code> — open a file</li>
+            <li><code class="inline">Edit</code> / <code class="inline">Write</code> — change or create files</li>
+            <li><code class="inline">Grep</code> — regex search across the repo</li>
+            <li><code class="inline">Glob</code> — find files by name pattern</li>
+            <li><code class="inline">Bash</code> — run any shell command (incl. your Python tools)</li>
           </ul>
         </div>
       </div>
       <div class="col">
-        <div class="takeaway callout">
-          <span class="callout-tag">for each field</span>
-          Write a <code class="inline">Field(description=...)</code> with units, a valid range, and at
-          least one example. Use <code class="inline">ge</code>, <code class="inline">le</code>, or
-          <code class="inline">gt</code> constraints.
+        <div class="block"><div class="block-title">Custom tools (MCP) — when?</div>
+          <ul>
+            <li class="frag">A live <strong>pricing / market-data API</strong></li>
+            <li class="frag">An <strong>internal database</strong> or document store</li>
+            <li class="frag">A <strong>deterministic engine</strong> — a DCF, a bond pricer, a risk score</li>
+          </ul>
         </div>
       </div>
     </div>
-    <aside class="underhood" data-title="bonus — the bond-price formula (put it in the docstring)">
-      The present value of a bond with period coupon \(C\), period yield \(y\), \(n\) periods and face
-      value \(F\) is
-      \[ P = \sum_{t=1}^{n}\frac{C}{(1+y)^{t}} + \frac{F}{(1+y)^{n}}. \]
-      For semi-annual coupons, halve the annual rate and yield and double the number of periods.
-    </aside>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">in this project</span>
+      The "tools" are plain Python in <code class="inline">tools/</code> (<code class="inline">retrieve.py</code>,
+      <code class="inline">grade.py</code>), called via <code class="inline">Bash</code>. Deterministic code does the
+      arithmetic; the model only chooses inputs and reads outputs — never recalls a number.
+    </div>
   </section>
 
   <!-- ============================ SECTION 03 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">03</div>
-    <h2>Case Study — build a RAG pipeline</h2>
-    <div class="secsub">Chunk, embed, retrieve, generate, and grade — over a mock earnings-call corpus.</div>
+    <h2>Add an agent &amp; a skill</h2>
+    <div class="secsub">From the templates — once for Claude Code, once for Cline.</div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Case study · the setup · 20 min</div>
-    <h2>A mini-corpus of five earnings calls, three questions to answer</h2>
+    <div class="eyebrow">Exercise 1 · add an agent</div>
+    <h2>Copy the agent template and give it one job</h2>
     <div class="title-rule"></div>
-    <p class="lead">You get five short, fictional earnings-call excerpts. Build a minimal RAG pipeline,
-      then evaluate it with RAGAS-style metrics.</p>
+    <p class="lead">An agent is a persona with a single responsibility, allowed tools, and one artifact it must
+      produce. Start from <code class="inline">templates/claude/agent.md</code> (or
+      <code class="inline">templates/cline/agent.md</code>).</p>
+    <pre class="code">---
+name: risk-extractor
+description: Extract the risk factors from a filing chunk as a bullet list. Use when asked "what risks…".
+tools: Read, Grep
+---
+You are a risk-factor extractor. Read the retrieved chunks in reports/_context.json and
+list each distinct risk as one bullet, citing the chunk id. Invent nothing; if no risks
+appear in the context, say "No risk factors in the retrieved text."</pre>
     <div class="cols">
       <div class="col">
-        <h3>The corpus (3 paragraphs each)</h3>
-        <ul>
-          <li><code class="inline">apple_q4_2023.txt</code> — CFO guidance + China exposure</li>
-          <li><code class="inline">microsoft_q2_2024.txt</code> — Azure growth + AI capex</li>
-          <li><code class="inline">jpmorgan_q1_2024.txt</code> — NIM guidance + credit losses</li>
-          <li><code class="inline">nvidia_q3_2023.txt</code> — data-centre demand + export controls</li>
-          <li><code class="inline">berkshire_2023.txt</code> — insurance float + equity portfolio</li>
-        </ul>
+        <div class="block"><div class="block-title">Claude Code</div>
+          Save as <code class="inline">.claude/agents/risk-extractor.md</code>. Claude auto-discovers it and can
+          delegate to it based on the <code class="inline">description</code>.
+        </div>
       </div>
       <div class="col">
-        <h3>Queries to evaluate</h3>
-        <ol>
-          <li><em>"What revenue guidance did Apple give for Q1 2024?"</em></li>
-          <li><em>"What did JPMorgan say about credit loss provisions?"</em></li>
-          <li><em>"Which company mentioned export controls?"</em> <span class="pill o">cross-doc</span></li>
-        </ol>
+        <div class="block"><div class="block-title">Cline</div>
+          Put the same persona into <code class="inline">.clinerules</code> (or
+          <code class="inline">.clinerules/risk-extractor.md</code>) — Cline reads it as a project rule.
+        </div>
       </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">do it</span>
+      Add the agent, then ask: <em>"What risks does NovaCorp disclose?"</em> Watch which agent the assistant routes to.
     </div>
   </section>
 
   <section class="slide">
-    <div class="eyebrow">Case study · step 1</div>
-    <h2>Chunk the documents, then embed every chunk</h2>
+    <div class="eyebrow">Exercise 2 · add a skill</div>
+    <h2>Package a repeatable workflow behind a <code>/command</code></h2>
     <div class="title-rule"></div>
-    <p class="lead">Split each call into sentences, then turn each sentence into a vector — a point in
-      space where similar meanings sit close together.</p>
-    <pre class="code">from sentence_transformers import SentenceTransformer
-import numpy as np
-
-# --- Sample corpus (use provided strings in the lab notebook) ---
-docs = {
-    "apple_q4_2023": "Revenue guidance for Q1 2024 is &#36;89-90B ...",
-    # ... add remaining documents
-}
-
-# --- Chunk each document into sentences ---
-def sentence_chunk(text):
-    return [s.strip() for s in text.split('.') if len(s.strip()) > 20]
-
-chunks = []
-for doc_id, text in docs.items():
-    for sent in sentence_chunk(text):
-        chunks.append({"doc_id": doc_id, "text": sent})
-
-# --- Embed all chunks ---
-model = SentenceTransformer("all-MiniLM-L6-v2")
-embeddings = model.encode([c["text"] for c in chunks])</pre>
-    <div class="takeaway callout">
-      <span class="callout-tag">Question A</span>
-      How many chunks does your corpus produce? What is the mean chunk length in tokens?
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Case study · step 2</div>
-    <h2>Retrieve the closest chunks, then generate a grounded answer</h2>
-    <div class="title-rule"></div>
-    <p class="lead">For a query, find the nearest chunks by cosine similarity, paste them into the prompt,
-      and force the model to answer <em>only</em> from that context.</p>
-    <pre class="code">from sklearn.metrics.pairwise import cosine_similarity
-
-def retrieve(query, k=3):
-    q_emb = model.encode([query])
-    sims = cosine_similarity(q_emb, embeddings)[0]
-    top_k = np.argsort(sims)[::-1][:k]
-    return [chunks[i] for i in top_k]
-
-def generate_answer(query, context_chunks, llm_fn):
-    context = "\n".join(c["text"] for c in context_chunks)
-    prompt = f"""Answer based ONLY on the context below.
-If the answer is not in the context, say "Not found in context."
-
-Context:
-{context}
-
-Question: {query}
-Answer:"""
-    return llm_fn(prompt)</pre>
-    <div class="takeaway callout">
-      <span class="callout-tag">Question B</span>
-      For query 1 (Apple guidance), which chunks are retrieved (\(k=3\))? Are they all from
-      <code class="inline">apple_q4_2023</code>? What does that tell you about metadata filtering?
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Case study · step 3</div>
-    <h2>Grade the pipeline by hand with RAGAS metrics</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Score each query 0–1 on the four metrics yourself, using the plain-language
-      definitions — no library, just judgment.</p>
-    <table>
-      <tr><th>Query</th><th>Faith.</th><th>Ans.Rel.</th><th>Ctx.Prec.</th><th>Ctx.Rec.</th></tr>
-      <tr><td>Apple guidance</td><td>?</td><td>?</td><td>?</td><td>?</td></tr>
-      <tr><td>JPM credit losses</td><td>?</td><td>?</td><td>?</td><td>?</td></tr>
-      <tr><td>Export controls</td><td>?</td><td>?</td><td>?</td><td>?</td></tr>
-    </table>
-    <div class="cols">
-      <div class="col">
-        <ul>
-          <li><strong>Faithfulness</strong> — does each sentence in the answer appear in the context?</li>
-          <li><strong>Answer Relevance</strong> — does the answer address the question?</li>
-        </ul>
-      </div>
-      <div class="col">
-        <ul>
-          <li><strong>Context Precision</strong> — are the retrieved chunks actually useful?</li>
-          <li><strong>Context Recall</strong> — does the context contain everything needed?</li>
-        </ul>
-      </div>
-    </div>
+    <p class="lead">A skill names an ordered procedure you can invoke by typing <code class="inline">/name</code>.
+      In Claude Code it's a <code class="inline">SKILL.md</code>; in Cline it's a workflow file — same idea.</p>
+    <pre class="code"># .claude/skills/risk-brief/SKILL.md   →   invoke with  /risk-brief "&lt;company&gt;"
+---
+name: risk-brief
+description: Retrieve, extract, and grade a one-paragraph risk brief. Usage /risk-brief "&lt;company&gt;"
+---
+1. python -m tools.retrieve "&lt;company&gt; risk factors" -k 4 &gt; reports/_context.json
+2. Delegate to the risk-extractor agent to list the risks with citations.
+3. python -m tools.grade ... ; if faithfulness &lt; 0.7, revise.
+4. Save to reports/&lt;company&gt;-risks.md.</pre>
     <div class="alert callout frag">
-      <span class="callout-tag">Question C</span>
-      Which query has the lowest faithfulness? Why? What would you change in the pipeline to improve it?
+      <span class="callout-tag">Cline equivalent</span>
+      Save the same steps as <code class="inline">.clinerules/workflows/risk-brief.md</code> and run
+      <code class="inline">/risk-brief</code>. Skeleton: <code class="inline">templates/cline/workflow.md</code>.
     </div>
   </section>
 
   <!-- ============================ SECTION 04 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">04</div>
-    <h2>Discussion — design decisions</h2>
-    <div class="secsub">When does one agent become two? When does a concern become a hook?</div>
+    <h2>Wire two hooks</h2>
+    <div class="secsub">Deterministic guardrails the model can't skip — an audit log and a safety commit.</div>
   </section>
 
+  <section class="slide">
+    <div class="eyebrow">Exercise 3 · the two hooks</div>
+    <h2>An audit log and a timed safety commit</h2>
+    <div class="title-rule"></div>
+    <p class="lead">A hook is a shell script wired to a lifecycle event in <code class="inline">.claude/settings.json</code>.
+      Both scripts already exist in <code class="inline">.claude/hooks/</code>; you just wire and observe them.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">1 · log-interaction.sh</div>
+          On <em>UserPromptSubmit</em> and <em>PostToolUse</em>, appends one timestamped line per turn to
+          <code class="inline">logs/llm-interactions.log</code> — the audit trail, made real.
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">2 · timed-commit.sh</div>
+          On <em>Stop</em>, commits the working tree only if it's dirty <em>and</em> the last commit is older than
+          15 minutes — so a crash never costs more than a few minutes of work.
+        </div>
+      </div>
+    </div>
+    <pre class="code">// .claude/settings.json
+"hooks": {
+  "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": ".claude/hooks/log-interaction.sh" }]}],
+  "PostToolUse":      [{ "hooks": [{ "type": "command", "command": ".claude/hooks/log-interaction.sh" }]}],
+  "Stop":             [{ "hooks": [{ "type": "command", "command": ".claude/hooks/timed-commit.sh" }]}]
+}</pre>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Exercise 3 · observe &amp; the Cline fallback</div>
+    <h2>Watch them fire — then do it without native hooks</h2>
+    <div class="title-rule"></div>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">See them work (Claude Code)</div>
+          <ul>
+            <li class="frag">Ask any question, then <code class="inline">tail -f logs/llm-interactions.log</code> — one line per turn.</li>
+            <li class="frag">Keep working past 15 min → a <code class="inline">chore: timed safety commit</code> appears in <code class="inline">git log</code>.</li>
+            <li class="frag">A non-zero <em>PreToolUse</em> hook can <strong>block</strong> an action — that's how a compliance gate works.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Cline has no hook engine</div>
+          <ul>
+            <li class="frag"><strong>Timed commit:</strong> run the same script in a watch loop —
+              <code class="inline">while true; do bash .claude/hooks/timed-commit.sh; sleep 300; done</code></li>
+            <li class="frag"><strong>Logging:</strong> use Cline's task history, or wrap tools behind an MCP server that logs each call.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the lesson</span>
+      A hook is a property of the <em>harness</em>, not the model. When the harness lacks one, push the guardrail
+      down to a layer that runs on its own — git, the OS scheduler, or an MCP proxy. See
+      <code class="inline">templates/cline/git-hooks-README.md</code>.
+    </div>
+  </section>
+
+  <!-- ============================ SECTION 05 ============================ -->
+  <section class="slide section-slide">
+    <div class="secnum">05</div>
+    <h2>Run the agent end to end</h2>
+    <div class="secsub">Put it together: a grounded, graded answer over real (fictional) filings.</div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Run it · the filing-Q&amp;A agent</div>
+    <h2>One command runs the whole Perceive → Reason → Act → Check loop</h2>
+    <div class="title-rule"></div>
+    <p class="lead">The bundled agent retrieves the most relevant chunks, writes a cited answer, grades it for
+      faithfulness and relevance, and revises if it drifted off the source — entirely offline.</p>
+    <pre class="code">/ask "What is NovaCorp's customer concentration risk?"
+
+# under the hood, the skill runs:
+python -m tools.retrieve "customer concentration risk" -k 4 &gt; reports/_context.json
+# analyst agent drafts a cited answer from _context.json
+python -m tools.grade --question "..." --answer "..." --context reports/_context.json
+# if faithfulness &lt; 0.7 → revise or answer "Not answerable from the available filings"</pre>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">The pipeline</div>
+          <code class="inline">retriever</code> → <code class="inline">analyst</code> →
+          <code class="inline">grader</code>, each a one-job agent in <code class="inline">.claude/agents/</code>.
+        </div>
+      </div>
+      <div class="col">
+        <div class="bigpicture callout">
+          <span class="callout-tag">grounding</span>
+          The agent never recalls a figure from memory — it cites a chunk id for every number, and the grader
+          blocks unfaithful answers.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">Run it · break it on purpose</div>
+    <h2>Things to try in the last ten minutes</h2>
+    <div class="title-rule"></div>
+    <ul>
+      <li class="frag"><strong>Ask something the filings don't cover</strong> — e.g. <em>"What was net income?"</em>
+        The agent must answer "Not answerable from the available filings," not guess.</li>
+      <li class="frag"><strong>Starve retrieval</strong> — drop <code class="inline">-k</code> to 1 and watch relevance fall.</li>
+      <li class="frag"><strong>Force a hallucination</strong> — make the analyst cite a number that isn't in the
+        context, then run the grader and watch faithfulness drop and the loop send it back.</li>
+      <li class="frag"><strong>Add your <code class="inline">/risk-brief</code> skill</strong> from Exercise 2 and run it on NovaCorp.</li>
+      <li class="frag"><strong>Check the audit log</strong> — every step you just ran is one line in
+        <code class="inline">logs/llm-interactions.log</code>.</li>
+    </ul>
+    <div class="alert callout frag">
+      <span class="callout-tag">tests</span>
+      Everything is offline and verifiable: <code class="inline">python -m pytest -q</code>.
+    </div>
+  </section>
+
+  <!-- ============================ DISCUSSION ============================ -->
   <section class="slide">
     <div class="eyebrow">Discussion · 5 min · in pairs</div>
     <h2>When would you add a second agent — or a hook?</h2>
@@ -371,84 +402,8 @@ Answer:"""
     </div>
     <div class="bigpicture callout frag">
       <span class="callout-tag">governance question</span>
-      Your earnings-call agent produces a structured summary that a junior analyst uses to write a
-      client note. What human-in-the-loop pattern would you impose, and why?
-    </div>
-  </section>
-
-  <!-- ============================ SECTION 05 ============================ -->
-  <section class="slide section-slide">
-    <div class="secnum">05</div>
-    <h2>Solutions</h2>
-    <div class="secsub">A worked trajectory for Problem 1 and a reference schema for Problem 2.</div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Solutions · Problem 1</div>
-    <h2>One valid ReAct trajectory for the 10-K comparison</h2>
-    <div class="title-rule"></div>
-    <p class="lead">Read top to bottom: each thought picks the next tool, each observation feeds the next
-      thought. Search both filings, pull risk factors, summarise, then compare.</p>
-    <table>
-      <tr><th>Step</th><th>Content</th></tr>
-      <tr class="frag"><td><strong>T1</strong></td><td>Need MSFT's most recent 10-K and the 2022 10-K. Search EDGAR for both.</td></tr>
-      <tr class="frag"><td><strong>A1 / O1</strong></td><td><code class="inline">edgar_search("MSFT","10-K",2)</code> → <code class="inline">[{acc:"...-24-...",year:2024},{acc:"...-22-...",year:2022}]</code></td></tr>
-      <tr class="frag"><td><strong>T2 / A2 / O2</strong></td><td>Have both accessions. Pull 2024 risk factors → <code class="inline">edgar_section("...-24-...","Risk Factors")</code> → ~8,000 words.</td></tr>
-      <tr class="frag"><td><strong>T3 / A3 / O3</strong></td><td>Now pull 2022 risk factors → <code class="inline">edgar_section("...-22-...","Risk Factors")</code> → ~7,500 words.</td></tr>
-      <tr class="frag"><td><strong>T4 / A4 / O4</strong></td><td>Summarise credit risks from each → <code class="inline">summarise_risks(O2,"credit")</code> + <code class="inline">summarise_risks(O3,"credit")</code> → two structured lists.</td></tr>
-      <tr class="frag"><td><strong>T5 / A5 / O5</strong></td><td>Compare the lists → <code class="inline">compare_lists(2024,2022)</code> → Added: {AI model supply concentration}; Removed: {pandemic supply disruption}.</td></tr>
-      <tr class="frag"><td><strong>Finish</strong></td><td>Finish(structured comparison with citations).</td></tr>
-    </table>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Solutions · Problem 2</div>
-    <h2>A reference Pydantic schema for the bond tool</h2>
-    <div class="title-rule"></div>
-    <p class="lead">The docstring carries the formula into the model's context; the
-      <code class="inline">Field</code> descriptions and constraints shrink the error surface.</p>
-    <pre class="code">from pydantic import BaseModel, Field
-from typing import Literal
-
-class BondPriceInput(BaseModel):
-    """
-    Bond price = sum_{t=1}^{n} C/(1+y)^t + F/(1+y)^n
-    where C = coupon payment, y = period yield,
-          n = total periods, F = face value.
-    """
-    face_value: float = Field(
-        description="Face value in USD (e.g. 1000.0)", gt=0.0
-    )
-    annual_coupon_rate: float = Field(
-        description="Annual coupon rate as a decimal (e.g. 0.05 for 5%)",
-        ge=0.0, le=1.0
-    )</pre>
-    <div class="takeaway callout">
-      <span class="callout-tag">the move</span>
-      Treat the schema as a first-class artifact: descriptions and constraints are part of the prompt.
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="eyebrow">Solutions · Problem 2 (continued)</div>
-    <h2>The remaining fields: maturity, yield, and frequency</h2>
-    <div class="title-rule"></div>
-    <pre class="code">    # ... continued from BondPriceInput ...
-    years_to_maturity: int = Field(
-        description="Years to maturity (e.g. 10)", gt=0
-    )
-    yield_to_maturity: float = Field(
-        description="Annual YTM as a decimal (e.g. 0.06 for 6%)",
-        ge=0.0, le=1.0
-    )
-    frequency: Literal["annual", "semiannual"] = Field(
-        description="Coupon frequency: 'annual' or 'semiannual'",
-        default="semiannual"
-    )</pre>
-    <div class="bigpicture callout">
-      <span class="callout-tag">the pattern</span>
-      A <code class="inline">Literal</code> with a default turns an open free-text argument into a
-      closed, validated choice — the model can't pass an unsupported convention.
+      Your filing agent's summary feeds a client note a junior analyst signs. What human-in-the-loop checkpoint
+      would you impose, and which capability — agent, skill, or hook — enforces it?
     </div>
   </section>
 
@@ -458,16 +413,17 @@ class BondPriceInput(BaseModel):
     <h2>Five takeaways to carry out of the lab</h2>
     <div class="title-rule"></div>
     <ol>
-      <li class="frag"><strong>ReAct grounds reasoning in evidence.</strong> Each observation replaces a
-        possibly-hallucinated guess; the thought steps explain <em>why</em> each action is chosen.</li>
-      <li class="frag"><strong>Tool schemas are a design artifact.</strong> Field descriptions propagate
-        into the model's context; Pydantic constraints reduce the error surface.</li>
-      <li class="frag"><strong>RAG evaluation must be decomposed.</strong> Faithfulness (generation) and
-        context recall (retrieval) fail for different reasons and need different fixes.</li>
-      <li class="frag"><strong>Metadata filtering is not optional.</strong> Unconstrained semantic search
-        is noisy for named-entity queries — add document metadata at ingestion time.</li>
-      <li class="frag"><strong>Governance matches reversibility.</strong> Pre-execution approval for
-        irreversible actions; post-hoc audit for high-volume, low-stakes tasks.</li>
+      <li class="frag"><strong>An agentic IDE is plain files under version control.</strong> Agents, skills,
+        tools, and hooks are all text you can read, review, and diff.</li>
+      <li class="frag"><strong>The pattern transfers.</strong> Claude Code's <code class="inline">.claude/</code>
+        and Cline's <code class="inline">.clinerules</code> express the same four capabilities.</li>
+      <li class="frag"><strong>You rarely build a tool.</strong> <code class="inline">Read</code>,
+        <code class="inline">Grep</code>, <code class="inline">Bash</code> &amp; friends ship in; MCP is for
+        what the environment can't already do.</li>
+      <li class="frag"><strong>Hooks are deterministic guardrails.</strong> Native in Claude Code; pushed down to
+        git / MCP in Cline. The model can't skip them.</li>
+      <li class="frag"><strong>Grounding beats memory.</strong> Deterministic tools compute; the agent cites; the
+        grader blocks unfaithful answers.</li>
     </ol>
   </section>
 
@@ -475,47 +431,39 @@ class BondPriceInput(BaseModel):
   <section class="slide section-slide">
     <div class="secnum">A</div>
     <h2>Appendix — stretch problem</h2>
-    <div class="secsub">Harden the case-study pipeline for a compliance-sensitive deployment.</div>
+    <div class="secsub">Turn a Python tool into a real MCP tool both assistants can call.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">Appendix · stretch problem</div>
-    <h2>Add hybrid search and a compliance hook</h2>
+    <h2>Promote a Python tool to an MCP server</h2>
     <div class="title-rule"></div>
-    <p class="lead">Take the dense-retrieval RAG you built and make it both sharper on keywords and safer
-      before it publishes.</p>
+    <p class="lead">Right now the agent calls <code class="inline">tools/grade.py</code> via <code class="inline">Bash</code>.
+      Expose it as a first-class MCP tool so both Claude Code and Cline can call it by name with a typed schema.</p>
     <div class="cols">
       <div class="col">
-        <div class="block"><div class="block-title">Part 1 — hybrid retrieval</div>
+        <div class="block"><div class="block-title">Part 1 — define the tool</div>
           <ul>
-            <li>Add a BM25 sparse scorer alongside the cosine retriever</li>
-            <li>Combine the two scores after min-max normalisation</li>
-            <li>For query 3 ("export controls"), does lowering \(\alpha\) toward \(0.3\) improve which
-              document is retrieved? Explain why.</li>
+            <li>Wrap <code class="inline">grade(question, answer, context)</code> in a small MCP server</li>
+            <li>Give it a JSON input schema: <code class="inline">question</code>, <code class="inline">answer</code>, <code class="inline">context_path</code></li>
+            <li>Return <code class="inline">{faithfulness, relevance}</code> as structured output</li>
           </ul>
         </div>
       </div>
       <div class="col">
-        <div class="block"><div class="block-title">Part 2 — compliance hook</div>
+        <div class="block"><div class="block-title">Part 2 — register it</div>
           <ul>
-            <li>Write a hook \(h(\mathcal{E},\mathcal{M})\) that runs before every
-              <strong>Finish</strong> and blocks publication when faithfulness \(&lt; 0.85\)</li>
-            <li>What observation does the agent receive when the hook fires, and what recovery action
-              should the policy take?</li>
+            <li>Claude Code: add the server to <code class="inline">.mcp.json</code></li>
+            <li>Cline: add it to <code class="inline">cline_mcp_settings.json</code></li>
+            <li>Re-run <code class="inline">/ask</code> and confirm the grader is now a typed tool call, not a shell command</li>
           </ul>
         </div>
       </div>
     </div>
-    <aside class="underhood" data-title="the hybrid score">
-      With min-max-normalised scores \(\widetilde{\text{cosine}}\) and \(\widetilde{\text{BM25}}\),
-      \[ \text{score} = \alpha\,\widetilde{\text{cosine}} + (1-\alpha)\,\widetilde{\text{BM25}}. \]
-      Lowering \(\alpha\) tilts toward exact keyword matching — which helps a rare, literal phrase like
-      "export controls" that dense embeddings may smear into nearby topics.
-    </aside>
     <div class="takeaway callout">
       <span class="callout-tag">deliverable</span>
-      The modified <code class="inline">retrieve</code> function plus a 3–4 line description of the
-      hook's event, condition, and handler.
+      The MCP server file plus the registration snippet for each tool — and a one-line note on what a typed
+      schema buys you over a raw <code class="inline">Bash</code> call.
     </div>
   </section>
 

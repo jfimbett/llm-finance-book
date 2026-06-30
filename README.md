@@ -27,6 +27,33 @@ hooks/         Portable hook copies for non-Claude AI runners
 - Python 3.9+
 - Jupyter
 
+## Running the code (Jupyter / Google Colab)
+
+Every runnable Python file ships with a matching Jupyter notebook so students can
+run it in **Google Colab** (which only runs notebooks) without a local setup:
+
+- `code/figures/**/gen_*.ipynb` — reproduce each book figure (the figure shows
+  inline and is also saved under a local `outputs/` folder).
+- `code/practicals/<NN>/practical.ipynb` — run that practical's reference pipeline
+  end to end, fully offline, on the bundled data. (Practicals 04–17 are *also*
+  agentic Claude Code / Cline projects; the notebook is the Colab-friendly way to
+  watch the reference tools run when you can't use those assistants.)
+
+**Install the dependencies** — pick one:
+
+```bash
+# conda (creates an environment named `llmfinance`)
+conda env create -f environment.yml && conda activate llmfinance
+
+# or plain pip / virtualenv
+pip install -r requirements.txt
+```
+
+**In Google Colab:** open the `.ipynb`, then run the first cell — each notebook
+installs exactly what it needs (`%pip install ...`) and, for the practicals, clones
+this repo automatically so the bundled data and `tools/` are available. Everything
+runs offline after that; nothing calls a paid API.
+
 ## Documentation
 
 See `docs/superpowers/specs/` for the full design specification.

@@ -64,3 +64,26 @@ python -m tools.grade --question "How did gross margin change?" \
 ```bash
 python -m pytest -q        # fully offline
 ```
+
+## Run it standalone
+
+This folder is fully self-contained — no dependency on the rest of the repo. Both assistants
+read their configuration from here:
+
+- **Claude Code** — `CLAUDE.md`, `.claude/settings.json` (permissions + hooks),
+  `.claude/agents/`, `.claude/skills/`, `.claude/hooks/`.
+- **Cline** — `.clinerules` and `AGENTS.md` (the same instructions, portable).
+
+```bash
+cd code/practicals/04-llm-agents
+claude            # Claude Code auto-loads CLAUDE.md + .claude/
+# or: open this folder in VS Code and start Cline
+```
+
+The two hooks in `.claude/hooks/` scope their git operations to **this folder only**, so the
+timed safety commit behaves correctly whether the folder is its own repo or nested inside a
+larger one. To hand it out as an isolated student repo, copy the folder out and run
+`git init` — everything still runs offline (`tools/` is standard-library only and the corpus
+is bundled in `data/corpus/`).
+
+See `templates/` for copy-ready agent / skill / workflow skeletons and the Cline hook fallback.

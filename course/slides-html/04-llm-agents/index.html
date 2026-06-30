@@ -539,9 +539,11 @@ class DCFInput(BaseModel):
     </table>
     <div class="bigpicture callout frag">
       <span class="callout-tag">standard tools — free, in both</span>
-      You rarely define a tool from scratch: <code>Read</code>, <code>Edit</code>/<code>Write</code>,
-      <code>Grep</code>, <code>Glob</code>, and <code>Bash</code> ship built in. Custom MCP tools are for what the
-      environment can't already do — a pricing API, an internal database, a deterministic DCF engine.
+      You rarely define a tool from scratch. Built in: <code>Read</code> (open a file),
+      <code>Grep</code> (regex text search across files), <code>Glob</code> (find files by name pattern),
+      <code>Edit</code>/<code>Write</code> (change or create files), and <code>Bash</code> (run any shell command).
+      Custom MCP tools are only for what the environment can't already do — a pricing API, an internal database,
+      a deterministic DCF engine.
     </div>
   </section>
 
@@ -729,6 +731,54 @@ class DCFInput(BaseModel):
       <li class="frag"><strong>Faithfulness first.</strong> Unfaithful = hallucinated = a compliance failure with clients. Below <strong>0.85</strong> → block automated publication, trigger human review.</li>
       <li class="frag"><strong>Context recall next.</strong> High faithfulness with low recall = accurate but incomplete — material disclosures may be omitted.</li>
     </ol>
+  </section>
+
+  <section class="slide">
+    <div class="eyebrow">The modern turn · agentic retrieval</div>
+    <h2>Do agents even need a vector database? Often not.</h2>
+    <div class="title-rule"></div>
+    <p class="lead">Classic RAG builds an index <em>before</em> any question is asked. Frontier agentic systems —
+      Claude Code, Cline — increasingly skip it: they retrieve <em>just in time</em> with the tools they already
+      have, reading full-fidelity source instead of pre-chunked embeddings.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="block"><div class="block-title">Classic (vector) RAG</div>
+          <ul>
+            <li>Offline: chunk → embed → index in a vector DB</li>
+            <li>At query time: embed the question, ANN top-\(k\), stuff chunks into the prompt</li>
+            <li>One-shot, fixed-size chunks, a frozen snapshot of the corpus</li>
+          </ul>
+        </div>
+      </div>
+      <div class="col">
+        <div class="block"><div class="block-title">Agentic retrieval (just-in-time)</div>
+          <ul>
+            <li>No index: the agent runs <code class="inline">grep</code> / <code class="inline">glob</code> / read-file on demand</li>
+            <li>Reads whole documents, follows references, decides what to fetch <em>next</em></li>
+            <li>Multi-hop and adaptive — not a single top-\(k\) guess</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="bigpicture callout frag">
+      <span class="callout-tag">why it often wins</span>
+      Nothing to re-embed when a filing changes (always fresh); full fidelity — a chunk boundary can't split a
+      number from its caption; and exact-match search nails tickers, CUSIPs, and clause references that dense
+      embeddings smear together.
+    </div>
+    <aside class="underhood" data-title="when each one wins">
+      <strong>Agentic search</strong> fits a bounded, changing working set — a repo, a deal room, a handful of
+      filings — where you can read the real bytes in real time. <strong>Vector RAG</strong> still wins at
+      <em>scale</em>: millions of documents you cannot grep on every turn, or fuzzy semantic queries over a huge
+      static archive. The cost of agentic search is tokens and round-trips; the cost of vector RAG is index
+      staleness and lossy chunking. Production systems increasingly do <strong>both</strong> — the vector store
+      becomes one search tool the agent can call, alongside grep and a metadata filter.
+    </aside>
+    <div class="takeaway callout frag">
+      <span class="callout-tag">the lesson</span>
+      RAG is a <em>pattern</em> — "fetch evidence, then answer" — not a mandatory vector database. Match the
+      retrieval mechanism to the corpus: grep a repo, query an index over a million filings, or both.
+    </div>
   </section>
 
   <!-- ============================ SECTION 6 ============================ -->

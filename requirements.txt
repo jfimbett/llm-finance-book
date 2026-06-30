@@ -1,0 +1,51 @@
+# ============================================================================
+# Large Language Models in Finance — Python dependencies (pip)
+# ============================================================================
+# This is the single, repo-wide dependency list. It covers the book-figure
+# generators (code/figures/), the student practicals (code/practicals/), and
+# the notebook tooling used to run everything in Jupyter / Google Colab.
+#
+# Local install (any OS):
+#     pip install -r requirements.txt
+#
+# Google Colab (in the first notebook cell):
+#     !pip install -r requirements.txt
+#     # ...or install just what a given notebook needs (each notebook lists it)
+#
+# Conda users: prefer environment.yml — `conda env create -f environment.yml`.
+# ============================================================================
+
+# --- Core scientific stack ---
+numpy>=1.24
+pandas>=2.0
+scipy>=1.11
+matplotlib>=3.7
+scienceplots>=2.1.0
+scikit-learn>=1.3.0
+
+# --- Data / IO ---
+requests>=2.31.0      # SEC EDGAR pipelines
+yfinance>=0.2.40      # market prices (valuation, portfolio practicals)
+PyYAML>=6.0           # config files in practicals / verify harness
+
+# --- Word embeddings (ch01 king–man+woman≈queen analogy figure) ---
+gensim>=4.3.0
+
+# --- Notebooks (needed to run / convert the .ipynb files) ---
+jupyter>=1.0
+ipykernel>=6.0
+nbformat>=5.9
+nbconvert>=7.0.0
+
+# --- Testing & formatting (for the practicals' pytest suites) ---
+pytest>=7.0
+pytest-cov>=4.0
+black>=23.0
+
+# ----------------------------------------------------------------------------
+# OPTIONAL / HEAVY — only practical 05 (business valuation) uses semantic
+# embeddings, and it falls back to a numpy stub when this is absent. Installing
+# it pulls in PyTorch (large). Uncomment if you want real sentence embeddings.
+# (Colab already ships PyTorch, so there it is just a quick install.)
+# ----------------------------------------------------------------------------
+# sentence-transformers>=2.2.0

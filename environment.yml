@@ -1,0 +1,54 @@
+# ============================================================================
+# Large Language Models in Finance — conda environment
+# ============================================================================
+# Creates a self-contained conda environment named `llmfinance` with everything
+# the book figures and student practicals need.
+#
+#   conda env create -f environment.yml      # first time
+#   conda activate llmfinance
+#   conda env update -f environment.yml --prune   # to pick up new deps later
+#
+# Then (optional) install the shared helper package in editable mode:
+#   pip install -e code
+#
+# Prefer pip / Google Colab instead? Use requirements.txt.
+# ============================================================================
+name: llmfinance
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+
+  # --- Core scientific stack ---
+  - numpy>=1.24
+  - pandas>=2.0
+  - scipy>=1.11
+  - matplotlib>=3.7
+  - scikit-learn>=1.3.0
+
+  # --- Data / IO ---
+  - requests>=2.31.0
+  - pyyaml>=6.0
+
+  # --- Word embeddings (ch01 analogy figure) ---
+  - gensim>=4.3.0
+
+  # --- Notebooks ---
+  - jupyter>=1.0
+  - ipykernel>=6.0
+  - nbformat>=5.9
+  - nbconvert>=7.0.0
+
+  # --- Testing & formatting ---
+  - pytest>=7.0
+  - pytest-cov>=4.0
+  - black>=23.0
+
+  # --- Packages best installed via pip inside the conda env ---
+  - pip
+  - pip:
+      - scienceplots>=2.1.0
+      - yfinance>=0.2.40
+      # Optional / heavy — real semantic embeddings for practical 05 (pulls in
+      # PyTorch). Practical 05 runs offline without it via a numpy fallback.
+      # - sentence-transformers>=2.2.0

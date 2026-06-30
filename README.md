@@ -18,7 +18,7 @@ course/        Lecture notes, slides, exercises
 code/          Jupyter notebooks + per-chapter figure generators
 .claude/       AI agents, skills, and hooks
 docs/          Design specs, quality reports, status
-hooks/         Portable hook copies for non-Claude AI runners
+hooks/         Symlink → .claude/hooks (one source of truth; also lets non-Claude runners find them)
 ```
 
 ## Requirements

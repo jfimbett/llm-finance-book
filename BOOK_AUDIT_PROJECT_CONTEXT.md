@@ -65,7 +65,7 @@ All Claude Code configuration is **project-level** (inside the repo). No user-le
 
 ### Settings (`.claude/settings.json`)
 
-* **PreToolUse · matcher `Bash`** → `hooks/pre-commit-checks.sh` (acts only on `git commit`; chains six sub-checks; blocks on failure).
+* **PreToolUse · matcher `Bash`** → `.claude/hooks/pre-commit-checks.sh` (acts only on `git commit`; chains six sub-checks; blocks on failure).
 * **PostToolUse · matcher `Write|Edit`** → in order: `auto-commit.sh`, `score-on-save.sh`, `scaffold-pairs.sh`, `notify-threshold.sh`, `compile-slides.sh`.
 * **Stop** → `session-log.sh` (appends to `docs/SESSION_LOG.md` and commits).
 * **permissions.allow:** `Bash(git *)`, `Bash(pdflatex *)`, `Bash(biber *)`, `Bash(bash scripts/*)`, `Bash(bash .claude/hooks/*)`, `Bash(python *)`, `Bash(pytest *)`, `Bash(jupyter *)`. No `deny` list.

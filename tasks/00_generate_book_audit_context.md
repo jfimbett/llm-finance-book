@@ -10,9 +10,6 @@ Create a markdown file named:
 .claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md
 ```
 
-(The repo root keeps a `BOOK_AUDIT_PROJECT_CONTEXT.md` symlink to this path, so
-references by the bare filename still resolve.)
-
 This file should contain everything another AI assistant would need in order to design a robust Claude Code workflow that scores and improves the book across these dimensions:
 
 1. Correctness of explanations.

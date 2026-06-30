@@ -5,7 +5,7 @@ You are working inside my repository for the book **Large Language Models in Fin
 The previous diagnostic report is in:
 
 ```text
-BOOK_AUDIT_PROJECT_CONTEXT.md
+.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md
 ```
 
 Read that file first. Treat it as the factual starting point. Do not trust stale reports such as `docs/STATUS.md` or old bibliography audits without re-running or re-checking them.
@@ -18,7 +18,7 @@ This is not a one-agent critique. I want a multi-agent system with contrarian re
 
 ## 0. Non-negotiable project facts
 
-Respect the following facts from `BOOK_AUDIT_PROJECT_CONTEXT.md`.
+Respect the following facts from `.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md`.
 
 1. This is a LaTeX book, not Quarto or Jupyter Book.
 2. The book entry point is:
@@ -660,7 +660,7 @@ Perform the following steps.
 Read these files first:
 
 ```text
-BOOK_AUDIT_PROJECT_CONTEXT.md
+.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md
 book/main.tex
 TOPIC.md
 .claude/CLAUDE.md

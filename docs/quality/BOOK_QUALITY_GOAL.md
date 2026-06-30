@@ -30,7 +30,7 @@ skeptical) → editor/orchestrator → implementer loop, fanned out per chapter 
 
 ---
 
-## Non-negotiable facts (from `BOOK_AUDIT_PROJECT_CONTEXT.md`)
+## Non-negotiable facts (from `.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md`)
 
 1. LaTeX book; entry point `book/main.tex`; build via `scripts/build-book.sh`.
 2. Reading order = `\include` order in `main.tex`, **not** folder numbers.

@@ -1,1 +1,0 @@
-.claude/context/BOOK_AUDIT_PROJECT_CONTEXT.md

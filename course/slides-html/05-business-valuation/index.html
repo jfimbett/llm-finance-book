@@ -31,7 +31,7 @@
       <div class="col">
         <ol>
           <li class="frag"><strong>Valuation frameworks</strong> — DCF, multiples, net assets — and where an LLM actually helps.</li>
-          <li class="frag"><strong>Getting the data</strong> — pulling clean numbers out of SEC filings.</li>
+          <li class="frag"><strong>Getting the data</strong> — pulling clean numbers out of filings and other disclosure sources.</li>
           <li class="frag"><strong>Cash flows</strong> — computing and normalising free cash flow.</li>
           <li class="frag"><strong>Forecasting</strong> — CoT prompting, few-shot vs. fine-tuning, evaluation.</li>
           <li class="frag"><strong>Tools &amp; arithmetic</strong> — why the model must never do the maths itself.</li>
@@ -157,7 +157,7 @@
     <div class="title-rule"></div>
     <table>
       <tr><th>Step</th><th>Traditional approach</th><th>LLM contribution</th></tr>
-      <tr><td>Data collection</td><td>Manual EDGAR parsing</td><td>Automated extraction pipeline</td></tr>
+      <tr><td>Data collection</td><td>Manual filing parsing</td><td>Automated extraction pipeline</td></tr>
       <tr><td>FCF computation</td><td>Spreadsheet formulas</td><td>Code interpreter (error-free)</td></tr>
       <tr><td>FCF normalisation</td><td>Analyst reads MD&amp;A</td><td>Non-recurring item identification</td></tr>
       <tr><td>Forecasting</td><td>Analyst judgment</td><td>CoT prompting + evaluation</td></tr>
@@ -175,19 +175,21 @@
   <!-- ============================ SECTION 2 ============================ -->
   <section class="slide section-slide">
     <div class="secnum">02</div>
-    <h2>Extracting financial data from SEC EDGAR</h2>
-    <div class="secsub">Where the raw numbers live, and how to get them out cleanly.</div>
+    <h2>Extracting financial data from filings</h2>
+    <div class="secsub">Where the raw numbers live, and how to get them out cleanly — SEC EDGAR as the worked example.</div>
   </section>
 
   <section class="slide">
     <div class="eyebrow">The source of truth</div>
     <h2>Everything starts with the filings</h2>
     <div class="title-rule"></div>
-    <p class="lead">U.S. public companies disclose through EDGAR. A handful of filing types carry almost
-      everything a valuation needs.</p>
+    <p class="lead">Structured disclosures are the source of truth. U.S. public companies file through
+      SEC EDGAR — the running example below — but the same pattern applies to other regulators
+      (UK Companies House, EU/ESEF filers, Canada's SEDAR+), company IR pages, earnings-call transcripts,
+      and third-party data vendors. Learn one source well and the extraction pipeline ports to the rest.</p>
     <div class="cols">
       <div class="col">
-        <div class="block"><div class="block-title">Filing types that matter</div>
+        <div class="block"><div class="block-title">Filing types that matter (US / EDGAR)</div>
           <ul>
             <li class="frag"><strong>10-K</strong> — annual audited financials + MD&amp;A. Primary source.</li>
             <li class="frag"><strong>10-Q</strong> — quarterly unaudited interim statements (three per year).</li>
@@ -197,7 +199,7 @@
         </div>
       </div>
       <div class="col">
-        <div class="block"><div class="block-title">Programmatic access</div>
+        <div class="block"><div class="block-title">Programmatic access (EDGAR)</div>
           <ul>
             <li class="frag">Submissions API: <code class="inline">data.sec.gov/submissions/CIK{cik}.json</code></li>
             <li class="frag">Full-text search: <code class="inline">efts.sec.gov/LATEST/search-index?q=...</code></li>
@@ -208,9 +210,10 @@
     </div>
     <div class="takeaway callout frag">
       <span class="callout-tag">XBRL: the first-pass extractor (SEC, 2009)</span>
-      Since 2009 the SEC requires XBRL tagging, covering most standard line items reliably. The LLM fills
-      the gap for non-standard layouts, merged cells, and extension elements. Use XBRL as ground truth;
-      treat LLM extraction as a complement and cross-check.
+      Since 2009 the SEC requires XBRL tagging, covering most standard line items reliably (the EU's ESEF
+      mandate and other regulators use iXBRL similarly). The LLM fills the gap for non-standard layouts,
+      merged cells, and extension elements. Use structured tags as ground truth; treat LLM extraction as a
+      complement and cross-check.
     </div>
   </section>
 
@@ -218,8 +221,8 @@
     <div class="eyebrow">Engineering details</div>
     <h2>Getting the pipeline right: rate limits and accession numbers</h2>
     <div class="title-rule"></div>
-    <p class="lead">Automation is straightforward once you understand a few EDGAR conventions
-      that trip up careless implementations.</p>
+    <p class="lead">Every source has quirks that trip up careless implementations. EDGAR's are representative —
+      each of these has an analogue on other portals and vendor APIs.</p>
     <div class="block"><div class="block-title">Practical engineering points</div>
       <ul>
         <li class="frag"><strong>User-Agent header required</strong> — requests that omit it are throttled or blocked.</li>
@@ -268,12 +271,12 @@
       be safely fed into computation — without silent errors — is step two.</p>
     <div class="block"><div class="block-title">Minimal schema for DCF (3–5 years per company)</div>
       <ul>
-        <li class="frag"><strong>Company identifier</strong> — ticker and CIK</li>
+        <li class="frag"><strong>Company identifier</strong> — ticker plus a source identifier (e.g., EDGAR CIK, LEI, or vendor ID)</li>
         <li class="frag"><strong>Fiscal period end date</strong> — not all fiscal years end December 31</li>
         <li class="frag"><strong>Filing date</strong> — to prevent look-ahead bias in backtests</li>
         <li class="frag"><strong>Standardised quantities</strong> — units (thousands vs. millions) and sources clearly annotated</li>
         <li class="frag"><strong>Provenance</strong> — XBRL tag or LLM extraction (model + date) for every figure</li>
-        <li class="frag"><strong>Restatement flag</strong> — a refiled 10-K supersedes the original and may change prior figures</li>
+        <li class="frag"><strong>Restatement flag</strong> — a restated/refiled report (e.g., a 10-K/A) supersedes the original and may change prior figures</li>
       </ul>
     </div>
     <div class="alert callout frag">
@@ -577,8 +580,9 @@ Observation 2: EV = 15224.0 M</pre>
           ticker against a securities master (e.g., the EDGAR company search API) before use.
         </div>
         <div class="block"><div class="block-title">2 · Invented ratios</div>
-          Confabulated numbers in no filing. <em>Mitigation:</em> trace every figure to a specific EDGAR
-          accession number — <strong>do not trust until verified</strong> (Zhang et al., 2024).
+          Confabulated numbers in no filing. <em>Mitigation:</em> trace every figure to a specific source
+          document (an EDGAR accession number, or the equivalent document ID for your source) —
+          <strong>do not trust until verified</strong> (Zhang et al., 2024).
         </div>
       </div>
       <div class="col">
@@ -588,7 +592,7 @@ Observation 2: EV = 15224.0 M</pre>
         </div>
         <div class="block"><div class="block-title">4 · Stale knowledge</div>
           Models have a knowledge cutoff; tax rates and accounting standards change.
-          <em>Mitigation:</em> prefer EDGAR-retrieved facts over parametric model memory.
+          <em>Mitigation:</em> prefer facts retrieved from primary sources over parametric model memory.
         </div>
       </div>
     </div>
@@ -804,7 +808,7 @@ Observation 2: EV = 15224.0 M</pre>
       <li class="frag"><strong>XBRL first</strong> — verify extracted numbers against XBRL tags; flag any conflict. LLM extraction is a complement, not a sole source.</li>
       <li class="frag"><strong>Code interpreter for all arithmetic</strong> — no calculation in-context; the generated code is the deliverable and the audit trail.</li>
       <li class="frag"><strong>Run Monte Carlo</strong> — a point-estimate DCF is misleading; communicate the P10–P90 range.</li>
-      <li class="frag"><strong>Mandatory hallucination guards</strong> — validate every ticker; trace every figure to an EDGAR accession number; suppress unverifiable claims.</li>
+      <li class="frag"><strong>Mandatory hallucination guards</strong> — validate every ticker; trace every figure to its source document (accession number or equivalent); suppress unverifiable claims.</li>
       <li class="frag"><strong>Human review before publication</strong> — the LLM is a powerful assistant, not an autonomous decision-maker. A qualified analyst owns the figures.</li>
     </ol>
     <div class="takeaway callout frag">
@@ -824,7 +828,7 @@ Observation 2: EV = 15224.0 M</pre>
         <h3>The LLM-assisted valuation stack</h3>
         <table>
           <tr><th>Component</th><th>Key mechanism</th></tr>
-          <tr><td>Data extraction</td><td>EDGAR API + LLM table parsing + XBRL validation</td></tr>
+          <tr><td>Data extraction</td><td>Filing API (e.g., EDGAR) + LLM table parsing + XBRL validation</td></tr>
           <tr><td>FCF computation</td><td>Code interpreter (deterministic, auditable)</td></tr>
           <tr><td>Normalisation</td><td>LLM reads MD&amp;A; human reviews high-confidence flags</td></tr>
           <tr><td>Forecasting</td><td>CoT prompting; few-shot or LoRA; MAPE / RMSE / DA</td></tr>
@@ -938,7 +942,7 @@ Observation 2: EV = 15224.0 M</pre>
       <div class="col">
         <div class="block"><div class="block-title">Orchestrator + specialists</div>
           <ul>
-            <li><code class="inline">edgar_agent</code> — retrieval and extraction</li>
+            <li><code class="inline">retrieval_agent</code> — filing/source retrieval and extraction</li>
             <li><code class="inline">fcf_agent</code> — computation and normalisation</li>
             <li><code class="inline">forecast_agent</code> — CoT projections</li>
             <li><code class="inline">comps_agent</code> — comparable selection</li>

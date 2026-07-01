@@ -355,3 +355,4 @@
 | 2026-07-01 | 21 files | feat(lec05): mark Business Valuation available on course landing page;chore: session log 2026-07-01;refine(lec05): generalize data-source framing beyond SEC EDGAR; | — |
 | 2026-07-01 | 3 files | docs(lec04): link company_analysis folder path on landing page;chore: session log 2026-07-01;feat(lec05): mark Business Valuation available on course landing page; | — |
 | 2026-07-01 | 2 files | docs(lec04): show company_analysis path as plain text, not a link;chore: session log 2026-07-01;docs(lec04): link company_analysis folder path on landing page; | — |
+| 2026-07-01 | 2 files | chore: session log 2026-07-01;docs(lec04): show company_analysis path as plain text, not a link;chore: session log 2026-07-01; | — |

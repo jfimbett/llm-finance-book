@@ -18,14 +18,13 @@ def _draw(rng, spec, n):
     die(f"unknown distribution: {d}")
 
 
-def run_dcf(fin, cfg, seed=0, n=10000):
-    rng = np.random.default_rng(seed)
-    years = int(cfg.get("years", 5))
-    g = _draw(rng, cfg["revenue_growth"], n)
-    margin = _draw(rng, cfg["operating_margin"], n)
-    wacc = _draw(rng, cfg["wacc"], n)
-    tg = _draw(rng, cfg["terminal_growth"], n)
-    tax = float(cfg.get("tax_rate", fin.get("tax_rate", 0.21)))
+def project_per_share(fin, g, margin, wacc, tg, tax, years):
+    """Per-share equity value for one or many DCF paths. Inputs broadcast, so
+    this drives both the Monte-Carlo lane (drawn arrays) and the sensitivity
+    grid (scalar sweeps) from one source of truth."""
+    g, margin, wacc, tg = np.broadcast_arrays(
+        np.asarray(g, dtype=float), np.asarray(margin, dtype=float),
+        np.asarray(wacc, dtype=float), np.asarray(tg, dtype=float))
 
     rev0 = float(fin["revenue"])
     da_pct = float(fin["da"]) / rev0
@@ -36,18 +35,29 @@ def run_dcf(fin, cfg, seed=0, n=10000):
     wacc = np.where(wacc > tg + 0.005, wacc, tg + 0.01)
     fcff_margin = margin * (1.0 - tax) + da_pct - capex_pct - nwc_pct
 
-    ev = np.zeros(n)
-    rev = np.full(n, rev0)
-    for y in range(1, years + 1):
+    ev = np.zeros(g.shape)
+    rev = np.full(g.shape, rev0)
+    for y in range(1, int(years) + 1):
         rev = rev * (1.0 + g)
-        fcff = rev * fcff_margin
-        ev += fcff / (1.0 + wacc) ** y
+        ev = ev + rev * fcff_margin / (1.0 + wacc) ** y
     fcff_final = rev * fcff_margin
     tv = fcff_final * (1.0 + tg) / (wacc - tg)
-    ev += tv / (1.0 + wacc) ** years
+    ev = ev + tv / (1.0 + wacc) ** int(years)
 
     equity = ev - float(fin.get("total_debt", 0.0)) + float(fin.get("cash", 0.0))
-    per_share = equity / float(fin["shares"])
+    return equity / float(fin["shares"])
+
+
+def run_dcf(fin, cfg, seed=0, n=10000):
+    rng = np.random.default_rng(seed)
+    years = int(cfg.get("years", 5))
+    g = _draw(rng, cfg["revenue_growth"], n)
+    margin = _draw(rng, cfg["operating_margin"], n)
+    wacc = _draw(rng, cfg["wacc"], n)
+    tg = _draw(rng, cfg["terminal_growth"], n)
+    tax = float(cfg.get("tax_rate", fin.get("tax_rate", 0.21)))
+
+    per_share = project_per_share(fin, g, margin, wacc, tg, tax, years)
     per_share = per_share[np.isfinite(per_share)]
     if per_share.size == 0:
         die("DCF produced no finite samples")

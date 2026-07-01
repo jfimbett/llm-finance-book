@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Business Valuation — Agentic Exercise · LLMs for Finance</title>
+<meta name="description" content="A student guide to the business-valuation agentic exercise: what the agents, skills, hooks, and tools do." />
+<style>
+  :root {
+    --bg: #ffffff; --bg-soft: #f4f6f7; --panel: #ffffff; --border: #e2e6e9;
+    --text: #121212; --muted: #5a646b;
+    --accent: #00859b; --accent-dark: #006b7d; --accent-soft: #e6f3f5;
+    --gold: #f26c19; --maxw: 1020px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1px 6px; font-size: 0.9em; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.hero {
+    background:
+      radial-gradient(1000px 500px at 85% -10%, rgba(0,133,155,0.10), transparent 60%),
+      radial-gradient(800px 400px at 0% 0%, rgba(242,108,25,0.07), transparent 55%), var(--bg);
+    border-bottom: 3px solid var(--accent); padding: 60px 0 48px; }
+  .eyebrow { display: inline-block; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; border: 1px solid var(--accent); background: var(--accent-soft);
+    padding: 5px 13px; border-radius: 999px; margin-bottom: 20px; }
+  h1 { font-size: clamp(1.9rem, 4.5vw, 2.9rem); line-height: 1.1; margin: 0 0 14px; letter-spacing: -0.02em; }
+  .subtitle { font-size: clamp(1.02rem, 2vw, 1.25rem); color: var(--muted); max-width: 720px; margin: 0 0 24px; }
+  .principle { background: var(--accent-soft); border: 1px solid rgba(0,133,155,0.35); border-radius: 12px;
+    padding: 16px 20px; max-width: 720px; }
+  .principle strong { color: var(--accent-dark); }
+
+  section { padding: 46px 0; border-bottom: 1px solid var(--border); }
+  h2 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .lead { color: var(--muted); margin: 0 0 24px; max-width: 780px; }
+
+  .grid { display: grid; gap: 16px; }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(18,18,18,0.04); }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.94rem; }
+  .card .tag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 2px 8px; }
+
+  ol.flow { list-style: none; counter-reset: st; margin: 0; padding: 0; display: grid; gap: 10px; }
+  ol.flow li { counter-increment: st; display: flex; gap: 15px; align-items: flex-start;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px 18px; }
+  ol.flow li::before { content: counter(st); color: #fff; background: var(--accent); font-weight: 700;
+    border-radius: 8px; min-width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; flex-shrink: 0; }
+  ol.flow li b { font-weight: 600; }
+  ol.flow li span { color: var(--muted); }
+
+  .run { background: #121212; color: #e2e8f0; border-radius: 12px; padding: 18px 20px; font-size: 0.95rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-x: auto; }
+  .run .c { color: #7dd3fc; }
+  .run .m { color: #94a3b8; }
+
+  .note { background: linear-gradient(180deg, rgba(242,108,25,0.07), transparent);
+    border: 1px solid rgba(242,108,25,0.3); border-radius: 12px; padding: 16px 20px; display: flex; gap: 14px;
+    align-items: flex-start; margin-top: 20px; }
+  .note .ic { font-size: 1.3rem; } .note p { margin: 0; color: var(--muted); } .note strong { color: var(--text); }
+
+  ul.plain { margin: 0; padding-left: 20px; color: var(--muted); }
+  ul.plain li { margin: 6px 0; }
+  ul.plain b { color: var(--text); font-weight: 600; }
+
+  footer { padding: 34px 0 42px; background: #121212; color: #aeb6bc; font-size: 0.9rem;
+    border-top: 3px solid var(--accent); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+  @media (max-width: 820px) { .cols-3, .cols-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Lecture 05 · Practical</span>
+    <h1>Business Valuation — an agentic exercise</h1>
+    <p class="subtitle">
+      You type one command, and a small team of AI agents values a real public company —
+      pulling its filings from the SEC, running a discounted-cash-flow model, finding comparable
+      companies, reading the risk factors, and reconciling it all into a fair-value range that
+      it then checks against the live market price.
+    </p>
+    <div class="principle">
+      <strong>The one rule that makes it trustworthy:</strong> the LLM <em>reads, reasons, and
+      chooses inputs</em> — but it <em>never does the arithmetic</em>. Every number you see comes
+      from a small Python tool. The agents decide <em>what</em> to compute; the code decides
+      <em>how much</em> it is.
+    </div>
+  </div>
+</header>
+
+<section id="idea">
+  <div class="wrap">
+    <h2>The big idea</h2>
+    <p class="lead">
+      A company's value is uncertain, so instead of one number we produce a <b>range</b>.
+      Three independent "lanes" each estimate the value a different way, and a final agent blends
+      them and benchmarks the result against what the market is actually paying today.
+    </p>
+    <ol class="flow">
+      <li><span><b>Get the data.</b> Download the company's latest annual report (10-K) and its financial figures straight from the SEC — no paid data feeds.</span></li>
+      <li><span><b>Three ways to value it, at once.</b> A discounted-cash-flow model, a comparison to peer companies, and a read of the qualitative risks — run in parallel.</span></li>
+      <li><span><b>Reconcile.</b> Blend the three into a single fair value plus a P10–P90 range, then compare it to the real market price to see if the company looks over- or under-valued.</span></li>
+      <li><span><b>Show the work.</b> Every step is recorded and turned into an interactive report you can read afterwards.</span></li>
+    </ol>
+  </div>
+</section>
+
+<section id="run">
+  <div class="wrap">
+    <h2>How to run it</h2>
+    <p class="lead">Open this folder in Claude Code and type one command with a ticker or SEC ID:</p>
+    <div class="run"><span class="c">/valuation</span> AAPL <span class="m"># or any ticker, or a CIK like 320193</span></div>
+    <div class="note">
+      <span class="ic">🔑</span>
+      <p><strong>One-time setup.</strong> The SEC asks everyone who downloads filings to identify
+      themselves. Copy <code>.claude/settings.local.json.example</code> to
+      <code>.claude/settings.local.json</code> and put your name and email inside. It stays on your
+      machine — see the <code>README.md</code> for the exact steps.</p>
+    </div>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="wrap">
+    <h2>The agents — who does what</h2>
+    <p class="lead">
+      Each agent is a specialist with one job. They don't step on each other: the data agent runs
+      first, the three valuation agents work in parallel, and the reconciliation agent brings it
+      together at the end.
+    </p>
+    <div class="grid cols-3">
+      <div class="card">
+        <h3>📄 EDGAR analyst</h3>
+        <p>Finds the company on the SEC, downloads its filings, and tidies the raw numbers into a clean sheet the others rely on. It never guesses a figure — only reports what's filed.</p>
+      </div>
+      <div class="card">
+        <h3>📈 DCF analyst</h3>
+        <p>Runs the discounted-cash-flow model. It chooses sensible assumptions (growth, margins, discount rate) and lets the tool simulate thousands of scenarios to get a value range.</p>
+      </div>
+      <div class="card">
+        <h3>⚖️ Comps analyst</h3>
+        <p>Finds comparable companies two ways — from its own knowledge, and by matching the language of their annual reports — then values the target off what those peers trade for.</p>
+      </div>
+      <div class="card">
+        <h3>📝 Qualitative analyst</h3>
+        <p>Reads the story behind the numbers: competitive risks, regulation, and one-time items that distort the accounts. It turns that reading into guidance the other lanes can use.</p>
+      </div>
+      <div class="card">
+        <h3>🧮 Reconciliation analyst</h3>
+        <p>Blends the three lanes into one fair-value range, compares it to the live market price, and writes the final reports. It flags valuations that are too uncertain to trust.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="skill">
+  <div class="wrap">
+    <h2>The skill — the single command</h2>
+    <p class="lead">
+      A "skill" is a saved workflow you trigger by name. This project has one, and it's the whole
+      exercise: it wires the agents together in the right order.
+    </p>
+    <div class="card">
+      <h3><span class="tag">Skill</span> <code>/valuation &lt;ticker | CIK&gt;</code></h3>
+      <p>Fetches the data, launches the three valuation lanes in parallel, reconciles them, and
+      produces the reports — end to end, from one line.</p>
+    </div>
+  </div>
+</section>
+
+<section id="hooks">
+  <div class="wrap">
+    <h2>Hooks &amp; the timeline</h2>
+    <p class="lead">
+      A "hook" is a small script that runs automatically around every action an agent takes.
+      This project uses one to keep an honest record of the run.
+    </p>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3><span class="tag">Hook</span> Activity recorder</h3>
+        <p>Before and after every tool or agent step, the hook quietly notes what happened — which
+        agent, which command, how long it took, and what came back — into a log file.</p>
+      </div>
+      <div class="card">
+        <h3>➡️ Why it matters</h3>
+        <p>That log becomes the <b>timeline</b> in the final report: a color-coded, step-by-step
+        replay of how the fleet reached its answer. Great for understanding — and for debugging.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="wrap">
+    <h2>The tools — where the math actually happens</h2>
+    <p class="lead">
+      These are plain Python scripts in the <code>tools/</code> folder. The agents call them; the
+      scripts do every calculation. You can also run any of them by hand to see what it does.
+    </p>
+    <ul class="plain">
+      <li><b>Get &amp; tidy the data</b> — download filings and normalize the financial statements.</li>
+      <li><b>DCF + sensitivity</b> — the Monte-Carlo valuation, plus a heatmap showing how the value swings with the discount rate and long-term growth.</li>
+      <li><b>Peers + multiples</b> — find comparable companies (including by matching report text) and value off their trading multiples.</li>
+      <li><b>Reconcile</b> — blend the lanes into one range and raise a review flag when the spread is too wide to publish.</li>
+      <li><b>Market price</b> — pull the live quote used only as a benchmark (never fed back into the valuation).</li>
+      <li><b>Build the report</b> — assemble everything into the interactive HTML page.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="output">
+  <div class="wrap">
+    <h2>What you get out</h2>
+    <p class="lead">Two reports land in the <code>reports/</code> folder each run:</p>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>📄 A short summary</h3>
+        <p>A plain <code>.md</code> file with the headline fair value, the range, the market gap, and the reasoning — easy to skim or paste into notes.</p>
+      </div>
+      <div class="card">
+        <h3>🖥️ An interactive page</h3>
+        <p>An <code>.html</code> report you open in any browser: the fair-value range against the
+        live price, the WACC × growth <b>sensitivity heatmap</b>, and the full <b>agent timeline</b>.</p>
+      </div>
+    </div>
+    <div class="note">
+      <span class="ic">🎓</span>
+      <p><strong>The point of the exercise</strong> isn't to trust the final number — it's to see
+      how a team of agents can automate a real analyst workflow, where each figure is traceable and
+      the computer, not the language model, does the arithmetic.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Large Language Models for Finance · Lecture 05 practical</span>
+    <span>Barcelona School of Economics — Summer School</span>
+  </div>
+</footer>
+
+</body>
+</html>

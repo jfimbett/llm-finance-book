@@ -70,3 +70,28 @@ def normalize_event(payload, ts):
         text = resp if isinstance(resp, str) else json.dumps(resp)
         ev["output"] = text[:MAX_OUTPUT_CHARS]
     return ev
+
+
+TRACE_LOG = PROJECT_ROOT / "data" / "trace.jsonl"
+
+
+def append_event(ev, log=TRACE_LOG):
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("a") as f:
+        f.write(json.dumps(ev) + "\n")
+
+
+def main():
+    # Claude Code hands the hook a JSON payload on stdin. A hook must never
+    # break the session, so anything unexpected is swallowed and we exit 0.
+    try:
+        raw = sys.stdin.read()
+        payload = json.loads(raw) if raw.strip() else {}
+        append_event(normalize_event(payload, ts=time.time()))
+    except Exception:
+        pass
+    print("{}")  # empty decision object => do not block the tool call
+
+
+if __name__ == "__main__":
+    main()

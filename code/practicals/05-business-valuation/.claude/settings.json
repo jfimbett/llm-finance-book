@@ -4,14 +4,31 @@
       "Bash(python tools/edgar_fetch.py:*)",
       "Bash(python tools/financials.py:*)",
       "Bash(python tools/montecarlo_dcf.py:*)",
+      "Bash(python tools/sensitivity.py:*)",
       "Bash(python tools/market_price.py:*)",
       "Bash(python tools/comps.py:*)",
       "Bash(python tools/embeddings.py:*)",
       "Bash(python tools/reconcile.py:*)",
+      "Bash(python tools/build_trace_site.py:*)",
       "Bash(pip install:*)"
     ]
   },
-  "env": {
-    "SEC_USER_AGENT": "REPLACE WITH: Your Name your-email@example.com"
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "python tools/trace_hook.py" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "python tools/trace_hook.py" }
+        ]
+      }
+    ]
   }
 }

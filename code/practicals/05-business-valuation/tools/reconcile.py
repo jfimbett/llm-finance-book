@@ -27,12 +27,29 @@ def pool(dcf, comps_list, weights, seed=0, n=10000):
     if not draws:
         die("no lane samples available to reconcile")
     pooled = np.concatenate(draws)
+    median = float(np.median(pooled))
+    p10 = float(np.percentile(pooled, 10))
+    p90 = float(np.percentile(pooled, 90))
+
+    # Governance gate: a P90/P10 spread wider than 2x, or a negative downside,
+    # means the valuation is too fragile to publish without human review.
+    ratio = float(p90 / p10) if p10 > 0 else None
+    if p10 <= 0:
+        review_required, reason = True, "downside (P10) is non-positive"
+    elif ratio > 2.0:
+        review_required, reason = True, f"P90/P10 spread {ratio:.1f}x exceeds 2x"
+    else:
+        review_required, reason = False, f"P90/P10 spread {ratio:.1f}x within 2x"
+
     return {
-        "median": float(np.median(pooled)),
-        "p10": float(np.percentile(pooled, 10)),
-        "p90": float(np.percentile(pooled, 90)),
+        "median": median,
+        "p10": p10,
+        "p90": p90,
         "n": int(pooled.size),
         "weights": {name: float(wi) for (name, _), wi in zip(lanes, w)},
+        "p90_p10_ratio": ratio,
+        "review_required": review_required,
+        "review_reason": reason,
     }
 
 

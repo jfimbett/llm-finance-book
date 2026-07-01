@@ -1,4 +1,6 @@
 # tests/test_trace_hook.py
+import json
+
 import trace_hook
 
 
@@ -55,3 +57,13 @@ def test_normalize_event_task_and_posttool_output():
     )
     assert post["event"] == "PostToolUse"
     assert "178" in post["output"]
+
+
+def test_append_event_writes_jsonl(tmp_path):
+    log = tmp_path / "trace.jsonl"
+    trace_hook.append_event({"ts": 1.0, "lane": "dcf", "event": "PreToolUse"}, log=log)
+    trace_hook.append_event({"ts": 2.0, "lane": "dcf", "event": "PostToolUse"}, log=log)
+    lines = log.read_text().strip().splitlines()
+    assert len(lines) == 2
+    assert json.loads(lines[0])["lane"] == "dcf"
+    assert json.loads(lines[1])["event"] == "PostToolUse"

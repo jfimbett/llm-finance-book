@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NVIDIA Corporation (NVDA) — Equity Report</title>
+<style>
+  :root{
+    --navy:#0f2747;
+    --slate:#33455c;
+    --slate-light:#5a6b80;
+    --accent:#1f6feb;
+    --line:#d9e0e8;
+    --line-soft:#eaeef3;
+    --zebra:#f5f7fa;
+    --bg:#ffffff;
+    --good:#1d7a46;
+    --warn:#b25400;
+    --bad:#a32530;
+    --ink:#1b2530;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background:#e9edf2;
+    line-height:1.45;
+    font-size:13px;
+  }
+  .page{
+    max-width:880px;
+    margin:18px auto;
+    background:var(--bg);
+    padding:34px 40px 26px;
+    box-shadow:0 1px 6px rgba(0,0,0,.12);
+  }
+  /* Header */
+  header.rpt{
+    border-bottom:3px solid var(--navy);
+    padding-bottom:14px;
+    margin-bottom:16px;
+  }
+  .topline{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;}
+  .company h1{
+    font-size:25px;margin:0;color:var(--navy);letter-spacing:-.2px;font-weight:700;
+  }
+  .company .tick{
+    display:inline-block;margin-top:4px;font-size:12px;color:var(--slate-light);
+  }
+  .tick b{color:var(--slate);}
+  .prepared{
+    text-align:right;font-size:11px;color:var(--slate-light);line-height:1.5;
+  }
+  .prepared .badge{
+    display:inline-block;background:var(--navy);color:#fff;font-size:10px;
+    letter-spacing:.5px;text-transform:uppercase;padding:3px 8px;border-radius:3px;margin-bottom:6px;font-weight:600;
+  }
+  .metastrip{
+    display:flex;flex-wrap:wrap;gap:0;margin-top:14px;border:1px solid var(--line);border-radius:4px;overflow:hidden;
+  }
+  .metastrip div{
+    flex:1 1 0;min-width:120px;padding:7px 12px;border-right:1px solid var(--line);
+  }
+  .metastrip div:last-child{border-right:none;}
+  .metastrip .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--slate-light);}
+  .metastrip .v{font-size:12.5px;font-weight:600;color:var(--navy);margin-top:1px;}
+
+  h2.sec{
+    font-size:13.5px;color:var(--navy);text-transform:uppercase;letter-spacing:.7px;
+    border-bottom:1.5px solid var(--line);padding-bottom:4px;margin:20px 0 9px;font-weight:700;
+  }
+  h2.sec .n{color:var(--accent);margin-right:7px;}
+  p{margin:0 0 8px;}
+  .small{font-size:11.5px;color:var(--slate);}
+
+  /* Exec summary */
+  .exec{
+    background:linear-gradient(180deg,#f6f9fc,#eef3f8);
+    border:1px solid var(--line);border-left:4px solid var(--navy);
+    border-radius:4px;padding:12px 16px;margin-bottom:4px;
+  }
+  .exec p{margin-bottom:7px;}
+  .reco{
+    display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);
+  }
+  .reco .label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--slate-light);}
+  .reco .stance{
+    font-size:14px;font-weight:700;color:var(--navy);
+  }
+  .reco .pill{
+    font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:12px;background:#e6eef9;color:var(--accent);border:1px solid #c5d8f2;
+  }
+
+  /* KPI cards */
+  .kpis{display:flex;gap:10px;margin:12px 0 4px;flex-wrap:wrap;}
+  .kpi{
+    flex:1 1 0;min-width:96px;border:1px solid var(--line);border-radius:5px;padding:9px 11px;background:#fff;
+  }
+  .kpi .v{font-size:18px;font-weight:700;color:var(--navy);line-height:1.1;}
+  .kpi .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--slate-light);margin-top:3px;}
+  .kpi .d{font-size:10.5px;margin-top:3px;font-weight:600;}
+  .up{color:var(--good);}
+  .down{color:var(--bad);}
+
+  /* Tables */
+  table{border-collapse:collapse;width:100%;font-size:11.5px;margin:6px 0 4px;}
+  table.fin th,table.fin td{padding:5px 8px;border:1px solid var(--line);text-align:right;}
+  table.fin th{background:var(--navy);color:#fff;font-weight:600;font-size:10.5px;text-align:right;}
+  table.fin th:first-child,table.fin td:first-child{text-align:left;}
+  table.fin tbody tr:nth-child(even){background:var(--zebra);}
+  table.fin tbody tr.grp td{background:#e8edf3;font-weight:700;color:var(--navy);}
+  table.fin td.lbl{font-weight:600;color:var(--slate);}
+  caption{caption-side:top;text-align:left;font-size:10px;color:var(--slate-light);padding-bottom:3px;}
+
+  .twocol{display:flex;gap:22px;}
+  .twocol > div{flex:1;}
+
+  /* segment bars */
+  .seg-row{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:11px;}
+  .seg-name{width:118px;color:var(--slate);font-weight:600;}
+  .seg-bar-wrap{flex:1;background:var(--line-soft);border-radius:3px;height:14px;position:relative;overflow:hidden;}
+  .seg-bar{height:100%;background:var(--accent);border-radius:3px;}
+  .seg-bar.dc{background:var(--navy);}
+  .seg-val{width:120px;text-align:right;color:var(--slate-light);font-size:10.5px;}
+
+  ul.risks{margin:4px 0;padding-left:0;list-style:none;}
+  ul.risks li{margin:0 0 7px;padding-left:0;font-size:11.5px;}
+  ul.risks .tag{
+    display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    padding:1px 6px;border-radius:3px;margin-right:6px;vertical-align:middle;
+  }
+  .t-high{background:#fbe6e8;color:var(--bad);border:1px solid #f1bcc1;}
+  .t-medhigh{background:#fdeede;color:var(--warn);border:1px solid #f3d3a8;}
+  .t-med{background:#fff6df;color:#8a6400;border:1px solid #efdca0;}
+  .rk-title{font-weight:700;color:var(--slate);}
+
+  .callout{
+    border:1px solid var(--line);border-radius:4px;padding:10px 13px;background:#fafbfd;margin:6px 0;
+  }
+  .callout .ch{font-weight:700;color:var(--navy);font-size:11.5px;margin-bottom:3px;}
+
+  footer.rpt{
+    margin-top:18px;border-top:2px solid var(--navy);padding-top:10px;font-size:10px;color:var(--slate-light);line-height:1.5;
+  }
+  footer.rpt b{color:var(--slate);}
+
+  @media print{
+    body{background:#fff;font-size:10.5px;}
+    .page{box-shadow:none;margin:0;max-width:none;padding:14px 16px;}
+    h2.sec{margin-top:13px;}
+    .kpi .v{font-size:16px;}
+    .exec{background:#f6f9fc;}
+    .metastrip,.kpi,.callout,table.fin,.exec{break-inside:avoid;}
+    h2.sec{break-after:avoid;}
+    @page{margin:12mm;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="rpt">
+    <div class="topline">
+      <div class="company">
+        <h1>NVIDIA Corporation</h1>
+        <span class="tick"><b>NASDAQ: NVDA</b> &nbsp;·&nbsp; CIK 0001045810 &nbsp;·&nbsp; Semiconductors / Accelerated Computing</span>
+      </div>
+      <div class="prepared">
+        <span class="badge">Prepared for the Portfolio Manager</span><br>
+        Based on FY2026 10-K (filed 2026-02-25)<br>
+        Fiscal year ended 2026-01-25<br>
+        Report date: 2026-06-30
+      </div>
+    </div>
+    <div class="metastrip">
+      <div><div class="k">FY26 Revenue</div><div class="v">$215.9B</div></div>
+      <div><div class="k">Rev. Growth YoY</div><div class="v">+65%</div></div>
+      <div><div class="k">Net Income</div><div class="v">$120.1B</div></div>
+      <div><div class="k">Diluted EPS</div><div class="v">$4.90</div></div>
+      <div><div class="k">Free Cash Flow</div><div class="v">$96.7B</div></div>
+      <div><div class="k">Net Cash</div><div class="v">+$22.6B</div></div>
+    </div>
+  </header>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <h2 class="sec"><span class="n">1</span>Executive Summary</h2>
+  <div class="exec">
+    <p>NVIDIA closed FY2026 with <b>$215.9B revenue (+65% YoY)</b> and <b>$120.1B net income (+65%)</b>, having compounded
+    revenue at a <b>68% CAGR</b> and net income at an <b>87% CAGR</b> over FY2022–FY2026 — a scale-up with virtually no
+    precedent for a company of this size. The <b>Data Center</b> franchise ($193.7B, ~90% of revenue) plus the CUDA software
+    moat remain the engine, and the balance sheet is fortress-grade: net cash, ~0.05x debt/equity, $62.6B of cash and
+    securities. Cash generation is real — <b>$96.7B free cash flow at a 45% FCF margin</b>.</p>
+    <p>The two genuine watch-items are <b>gross-margin normalization</b> (71.1%, down ~390bp from 75.0%, partly a $4.5B H20
+    charge and the Blackwell system-mix transition) and <b>extreme concentration</b> (one customer at 22% of revenue, top two
+    at 36%, Data Center ~90%). The <b>$95.2B of inventory-purchase and supply/capacity commitments</b> is both a
+    demand-confidence signal and the single largest obsolescence risk on a one-year product cadence. The debate is not the
+    quality of the business but the durability of hyperscaler AI capex and how much is already priced in.</p>
+    <div class="reco">
+      <span class="label">Stance</span>
+      <span class="stance">Constructive — high-quality, high-beta AI-capex exposure</span>
+      <span class="pill">Size to risk · monitor margin &amp; concentration</span>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpis">
+    <div class="kpi"><div class="v">71.1%</div><div class="k">Gross Margin</div><div class="d down">▼ from 75.0%</div></div>
+    <div class="kpi"><div class="v">60.4%</div><div class="k">Operating Margin</div><div class="d down">▼ from 62.4%</div></div>
+    <div class="kpi"><div class="v">55.6%</div><div class="k">Net Margin</div><div class="d">≈ flat</div></div>
+    <div class="kpi"><div class="v">76.3%</div><div class="k">Return on Equity</div><div class="d">point-in-time</div></div>
+    <div class="kpi"><div class="v">3.9x</div><div class="k">Current Ratio</div><div class="d">liquid</div></div>
+    <div class="kpi"><div class="v">$41.1B</div><div class="k">Capital Returned</div><div class="d up">buybacks + div</div></div>
+  </div>
+
+  <!-- KEY FINANCIALS -->
+  <h2 class="sec"><span class="n">2</span>Key Financial Highlights</h2>
+  <table class="fin">
+    <caption>Figures in $ millions unless noted; per-share split-adjusted to current 10:1 basis. Source: 02_financials.json / FY2026 10-K.</caption>
+    <thead>
+      <tr><th>Fiscal Year (ended late Jan)</th><th>FY2022</th><th>FY2023</th><th>FY2024</th><th>FY2025</th><th>FY2026</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="lbl">Revenue</td><td>26,914</td><td>26,974</td><td>60,922</td><td>130,497</td><td>215,938</td></tr>
+      <tr><td class="lbl">&nbsp;&nbsp;YoY growth</td><td>—</td><td>+0.2%</td><td>+126%</td><td>+114%</td><td>+65%</td></tr>
+      <tr><td class="lbl">Gross profit</td><td>17,475</td><td>15,356</td><td>44,301</td><td>97,858</td><td>153,463</td></tr>
+      <tr><td class="lbl">Operating income</td><td>10,041</td><td>4,224</td><td>32,972</td><td>81,453</td><td>130,387</td></tr>
+      <tr><td class="lbl">Net income</td><td>9,752</td><td>4,368</td><td>29,760</td><td>72,880</td><td>120,067</td></tr>
+      <tr><td class="lbl">R&amp;D expense</td><td>5,268</td><td>7,339</td><td>8,675</td><td>12,914</td><td>18,497</td></tr>
+      <tr class="grp"><td>Margins &amp; returns</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td class="lbl">Gross margin</td><td>64.9%</td><td>56.9%</td><td>72.7%</td><td>75.0%</td><td>71.1%</td></tr>
+      <tr><td class="lbl">Operating margin</td><td>37.3%</td><td>15.7%</td><td>54.1%</td><td>62.4%</td><td>60.4%</td></tr>
+      <tr><td class="lbl">Net margin</td><td>36.2%</td><td>16.2%</td><td>48.9%</td><td>55.9%</td><td>55.6%</td></tr>
+      <tr><td class="lbl">R&amp;D intensity</td><td>19.6%</td><td>27.2%</td><td>14.2%</td><td>9.9%</td><td>8.6%</td></tr>
+      <tr><td class="lbl">ROE (period-end)</td><td>36.7%</td><td>19.8%</td><td>69.2%</td><td>91.9%</td><td>76.3%</td></tr>
+      <tr class="grp"><td>Cash flow &amp; per share</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td class="lbl">Operating cash flow</td><td>9,108</td><td>5,641</td><td>28,090</td><td>64,089</td><td>102,718</td></tr>
+      <tr><td class="lbl">Free cash flow</td><td>8,132</td><td>3,808</td><td>27,021</td><td>60,853</td><td>96,676</td></tr>
+      <tr><td class="lbl">FCF margin</td><td>30.2%</td><td>14.1%</td><td>44.4%</td><td>46.6%</td><td>44.8%</td></tr>
+      <tr><td class="lbl">Diluted EPS ($)</td><td>0.39*</td><td>0.17</td><td>1.19</td><td>2.94</td><td>4.90</td></tr>
+      <tr><td class="lbl">Diluted shares (B)</td><td>25.35</td><td>25.07</td><td>24.94</td><td>24.80</td><td>24.51</td></tr>
+    </tbody>
+  </table>
+  <p class="small">*FY2022 split-adjusted; as-reported diluted EPS was $3.85 (pre June-2024 10:1 split). FY2022–FY2026 revenue/cost CAGR
+  = 68%; net income CAGR = 87%; diluted-EPS CAGR = 89%.</p>
+
+  <!-- SEGMENT & MARGIN -->
+  <h2 class="sec"><span class="n">3</span>Segment Mix &amp; Margin Structure</h2>
+  <div class="twocol">
+    <div>
+      <p class="small" style="margin-bottom:4px;"><b>FY2026 revenue by end market</b> ($M, % of total). Data Center is now ~90% of the company.</p>
+      <div class="seg-row"><span class="seg-name">Data Center</span><span class="seg-bar-wrap"><span class="seg-bar dc" style="width:100%"></span></span><span class="seg-val">193,737 · 89.7%</span></div>
+      <div class="seg-row"><span class="seg-name">— Compute</span><span class="seg-bar-wrap"><span class="seg-bar" style="width:83.8%"></span></span><span class="seg-val">162,361 · 75.2%</span></div>
+      <div class="seg-row"><span class="seg-name">— Networking</span><span class="seg-bar-wrap"><span class="seg-bar" style="width:16.2%"></span></span><span class="seg-val">31,376 · 14.5%</span></div>
+      <div class="seg-row"><span class="seg-name">Gaming</span><span class="seg-bar-wrap"><span class="seg-bar" style="width:8.3%"></span></span><span class="seg-val">16,042 · 7.4%</span></div>
+      <div class="seg-row"><span class="seg-name">Pro Visualization</span><span class="seg-bar-wrap"><span class="seg-bar" style="width:1.6%"></span></span><span class="seg-val">3,191 · 1.5%</span></div>
+      <div class="seg-row"><span class="seg-name">Automotive</span><span class="seg-bar-wrap"><span class="seg-bar" style="width:1.2%"></span></span><span class="seg-val">2,349 · 1.1%</span></div>
+      <div class="seg-row"><span class="seg-name">OEM &amp; Other</span><span class="seg-bar-wrap"><span class="seg-bar" style="width:0.3%"></span></span><span class="seg-val">619 · 0.3%</span></div>
+      <p class="small" style="margin-top:6px;"><b>Networking grew +142%</b> (vs. Compute +59%), validating the rack-scale "AI factory" strategy
+      (NVLink, Spectrum-X, InfiniBand) and lifting dollar content per deployment. Non-DC segments (~10% combined) are now
+      optionality, not thesis.</p>
+    </div>
+    <div>
+      <p class="small" style="margin-bottom:4px;"><b>Margin debate.</b> A 60% operating margin on $216B is the headline of the analysis,
+      but the <b>gross-margin step-down from 75.0% to 71.1%</b> is the key question.</p>
+      <div class="callout">
+        <div class="ch">Drivers of the ~390bp gross-margin decline</div>
+        <p class="small" style="margin:0;">(a) Mix shift from Hopper HGX systems to <b>Blackwell full-scale datacenter solutions</b> — more
+        system/networking content dilutes percentage margin even as gross-profit dollars grow; (b) the <b>$4.5B H20 charge</b>.
+        Inventory &amp; excess-commitment provisions were <b>$7.2B in FY2026 vs. $3.7B in FY2025</b> (a 2.6% unfavorable
+        gross-margin hit). The open question: is ~71% the new floor for a richer-mix system franchise, or the start of
+        normalization as AMD/ASICs and hyperscaler in-housing erode pricing? A break into the 60s without a clear mix
+        explanation is the worry signal.</p>
+      </div>
+      <p class="small"><b>Operating leverage:</b> R&amp;D rose 43% to $18.5B yet intensity <i>fell</i> to 8.6% of revenue
+      (from 27.2% in FY2023) — revenue outrunning a still-growing R&amp;D base, not under-investment. SBC of $6.4B is ~3% of
+      revenue and was more than offset by buybacks (diluted share count fell to 24.51B).</p>
+    </div>
+  </div>
+
+  <!-- GROWTH SUSTAINABILITY -->
+  <h2 class="sec"><span class="n">4</span>Growth Trajectory &amp; Sustainability</h2>
+  <p class="small">The trajectory is staggering but decelerating off a vast base: +126% (FY24) → +114% (FY25) → <b>+65% (FY26)</b>.
+  At this valuation the <i>second derivative</i> is what the market trades. <b>Supportive:</b> a stated <b>one-year product
+  cadence</b> (Hopper → Blackwell → Blackwell Ultra/GB300 shipping since Q2 FY26 → <b>Rubin</b>, production 2H FY2027 with a
+  claimed ~10x cost-per-token reduction) — a genuine competitive weapon. <b>Unresolved:</b> the durability of hyperscaler
+  capex, whether end-customer AI ROI materializes, and the company's own caveat that <b>energy/power availability is a
+  "complex, multi-year" constraint</b>. Visibility beyond ~12 months is thin: contracted remaining performance obligations
+  over one year are only <b>$2.3B</b> — the real "backlog" lives in purchase commitments and informal allocation, not RPO.
+  The honest read: growth is real and supply-led today, but forward sustainability is a judgment about a capex cycle, not a
+  fact in the filings.</p>
+
+  <!-- BALANCE SHEET, CASH FLOW, CAPITAL RETURNS -->
+  <h2 class="sec"><span class="n">5</span>Balance Sheet, Cash Flow &amp; Capital Returns</h2>
+  <div class="twocol">
+    <div>
+      <p class="small"><b>Fortress balance sheet.</b> FY2026: <b>$62.6B cash + marketable securities</b>, total long-term debt of just
+      <b>$8.5B</b>, <b>debt/equity 0.05x</b>, equity $157.3B, <b>+$22.6B net cash</b> (understates strength — excludes ~$22.3B of
+      non-current equity stakes &amp; securities per data notes). Liquidity comfortable at <b>3.9x current ratio</b>. The watch-items
+      are working-capital, not solvency: <b>receivables nearly doubled to $38.5B</b> (concentrating counterparty risk in a few
+      buyers) and <b>inventory more than doubled to $21.4B</b> (obsolescence exposure on annual product turns).</p>
+      <p class="small"><b>Cash conversion is excellent.</b> Operating cash flow $102.7B (0.86x net income); FCF $96.7B at a 45% margin
+      against modest fabless capex of $6.0B. One caveat: investing outflows jumped to <b>$52.2B</b>, partly equity-investment
+      purchases (a disclosed Intel common-stock stake, a Groq license) — NVIDIA increasingly funds its own ecosystem (Neocloud
+      builders, AI labs): strategically rational, but introduces circular-financing optics and mark-to-market volatility in
+      "Other income."</p>
+    </div>
+    <div>
+      <div class="callout">
+        <div class="ch">Capital returns (FY2026)</div>
+        <p class="small" style="margin:0 0 5px;"><b>$40.1B buybacks + $1.0B dividends = $41.1B</b> returned. Fresh <b>$60B repurchase
+        authorization (Aug 2025)</b> leaves <b>$58.5B outstanding</b>. The $0.04/sh dividend is a rounding error — buybacks are
+        the return vehicle and shrank the share count, compounding per-share value.</p>
+      </div>
+      <div class="callout">
+        <div class="ch">Valuation framing — no live price feed</div>
+        <p class="small" style="margin:0;"><b>Diluted EPS $4.90</b> (89% EPS CAGR FY22–FY26); <b>FCF/share ≈ $3.94</b>
+        ($96.7B / 24.51B shares). P/E, EV/EBITDA and FCF yield are not computed (no market price). Framing for the PM: at a 45%
+        FCF margin on a net-cash balance sheet the <i>quality</i> side of growth-at-a-price is unimpeachable; the risk is
+        entirely on the <i>durability and multiple</i> side. NVDA earns its premium only if growth persists; per-share value
+        compounds further from buybacks.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RISKS -->
+  <h2 class="sec"><span class="n">6</span>Key Risks</h2>
+  <ul class="risks">
+    <li><span class="tag t-high">High</span><span class="rk-title">Customer concentration.</span> One direct customer = <b>22%</b>
+      of revenue, a second = <b>14%</b> (top two = 36%); additional indirect customers each &gt;10%. One AI lab drives a
+      "meaningful amount" of revenue via cloud customers. A single-buyer pullback is materially impactful.</li>
+    <li><span class="tag t-high">High · partly realized</span><span class="rk-title">China / export controls.</span> China (incl.
+      Hong Kong) fell to <b>$19.7B / 9.1% of revenue</b> (from $25.0B / 19.2%). NVIDIA took a <b>$4.5B H20 charge</b> and booked
+      only ~$60M licensed H20 revenue; the filing states it is "effectively foreclosed" from much of the market — structural,
+      not transient.</li>
+    <li><span class="tag t-high">High</span><span class="rk-title">Inventory &amp; purchase-commitment obsolescence.</span>
+      <b>$95.2B of inventory-purchase and long-term supply/capacity obligations</b> vs. $21.4B on-hand (~4.4x). A confidence
+      signal (prepaid TSMC/CoWoS/HBM capacity), but on a one-year cycle any demand air-pocket converts commitments into
+      write-downs. Auditor flagged inventory valuation as a <b>critical audit matter</b>.</li>
+    <li><span class="tag t-medhigh">Med-High</span><span class="rk-title">Hyperscaler in-sourcing &amp; competition.</span> The same
+      concentrated buyers build alternatives (Google TPU, Amazon Trainium, custom ASICs, AMD). CUDA lock-in and the annual cadence
+      are the defenses; share erosion would show first in gross margin.</li>
+    <li><span class="tag t-med">Med</span><span class="rk-title">Margin normalization.</span> Already underway (75.0% → 71.1%) from
+      system mix plus provisions. Track whether ~71% holds.</li>
+    <li><span class="tag t-med">Med</span><span class="rk-title">Supply / power constraints.</span> Asia-concentrated supply chain;
+      energy availability cited as a multi-year limiter on customer deployment scale.</li>
+  </ul>
+
+  <!-- OUTLOOK -->
+  <h2 class="sec"><span class="n">7</span>Outlook &amp; Recommendation</h2>
+  <p class="small"><b>Constructive on the business, disciplined on the entry.</b> NVIDIA is a genuinely exceptional franchise —
+  60% operating margins, 45% FCF margin, net cash, a widening software/system moat, and an annual product cadence (Rubin in
+  2H FY2027) competitors struggle to match. The financials show no demand exhaustion: +65% revenue, +142% networking, and a
+  $95.2B forward supply commitment. The case against complacency lives in the same filing: ~90% one segment, 36% two customers,
+  gross margin already rolled over ~390bp, a structurally impaired China, and a double-edged $95.2B of commitments — and the
+  H20 write-down plus China decline are <i>realized</i> examples of those tails materializing.</p>
+  <p class="small"><b>For the portfolio manager:</b> treat NVDA as a high-quality, high-beta expression of the AI-infrastructure
+  capex cycle rather than a defensive compounder. The fundamentals justify a premium; position size should reflect that the
+  thesis is a <i>bet on the durability of customer capex</i> with concentration and policy risk that can move fast.
+  <b>Monitorables:</b> sequential Data Center growth and forward guidance, gross margin holding ~71%+, China policy, top-customer
+  percentages in subsequent filings, and inventory/purchase-commitments vs. realized demand. A sustained sequential Data Center
+  deceleration <i>combined</i> with a sub-70% gross margin would be the signal to reduce.</p>
+
+  <footer class="rpt">
+    <p style="margin:0 0 4px;"><b>Data source:</b> SEC EDGAR — NVIDIA Corporation FY2026 Form 10-K (accession 0001045810-26-000021,
+    filed 2026-02-25; period ended 2026-01-25; primary document nvda-20260125.htm), and derived metrics in 02_financials.json /
+    03_analysis.md. Per-share and share series are split-adjusted to the post-June-2024 10:1 basis; revenue/cost/capex/securities
+    series merge differing XBRL tags across years (as-filed). <b>No live market-price feed</b> is available — valuation is framed
+    qualitatively and on a per-share basis; P/E, EV/EBITDA and FCF yield are not computed.</p>
+    <p style="margin:0;"><b>Disclaimer:</b> Prepared for internal use by the portfolio management team. This document is not
+    investment advice, not an offer or solicitation, and not a recommendation to buy or sell any security. Figures are drawn
+    solely from the cited 10-K and derived data files and may contain rounding. &nbsp;|&nbsp; Generated 2026-06-30.</p>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -358,3 +358,4 @@
 | 2026-07-01 | 2 files | chore: session log 2026-07-01;docs(lec04): show company_analysis path as plain text, not a link;chore: session log 2026-07-01; | — |
 | 2026-07-01 | 2 files | chore: session log 2026-07-01;chore: session log 2026-07-01;docs(lec04): show company_analysis path as plain text, not a link; | — |
 | 2026-07-01 | 2 files | chore: session log 2026-07-01;chore: session log 2026-07-01;chore: session log 2026-07-01; | — |
+| 2026-07-01 | 5 files | feat(code05): add trace event classification + normalization;docs(code05): implementation plan for valuation run-trace site;docs(code05): design for valuation run-trace static site; | — |

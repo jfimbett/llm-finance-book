@@ -352,3 +352,4 @@
 | 2026-07-01 | 4 files | chore: session log 2026-07-01;chore: session log 2026-07-01;chore: session log 2026-06-30; | — |
 | 2026-07-01 | 1 files | chore: session log 2026-07-01;chore: session log 2026-07-01;chore: session log 2026-07-01; | — |
 | 2026-07-01 | 20 files | refine(lec05): generalize data-source framing beyond SEC EDGAR;feat(lec04): add company-analysis practical + 'Creating first agent' slide link;chore: session log 2026-07-01; | — |
+| 2026-07-01 | 21 files | feat(lec05): mark Business Valuation available on course landing page;chore: session log 2026-07-01;refine(lec05): generalize data-source framing beyond SEC EDGAR; | — |
